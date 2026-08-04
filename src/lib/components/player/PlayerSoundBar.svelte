@@ -20,7 +20,10 @@
 
   // DoP actif en lecture : le volume logiciel est bit-perfect (figé). On grise
   // le slider — le volume se règle physiquement sur le DAC.
-  let dopActive = $derived($playbackPipelineStore?.backend === "WASAPI DoP");
+  // Un backend DoP par OS ("WASAPI DoP", "ALSA DoP", "CoreAudio DoP").
+  let dopActive = $derived(
+    $playbackPipelineStore?.backend?.endsWith("DoP") === true,
+  );
 
   function toggleWasapi() {
     settingsStore.toggle("wasapi_exclusive");

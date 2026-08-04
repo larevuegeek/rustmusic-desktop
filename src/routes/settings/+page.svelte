@@ -213,6 +213,7 @@
   let dsdDop = $derived($settingsStore.dsd_dop === 'true');
   let isWindows = $derived(detectOS() === 'windows');
   let isLinux = $derived(detectOS() === 'linux');
+  let isMac = $derived(detectOS() === 'macos');
 
   // ─── Test WASAPI ──────────────────────────────────────────────────────
   // Bouton "Tester" qui exécute la cascade de format negotiation pour les
@@ -958,8 +959,10 @@
         </div>
       {/if}
 
-      <!-- ── DSD natif (DoP) — Linux (ALSA hw exclusif, sans WASAPI) ── -->
-      {#if isLinux}
+      <!-- ── DSD natif (DoP) — Linux (ALSA hw exclusif) & macOS (CoreAudio
+           hog mode). Pas de réglage parent à cocher d'abord, contrairement à
+           Windows où le DoP dépend du toggle WASAPI exclusive. ── -->
+      {#if isLinux || isMac}
         <div class="mt-8 mb-2 rounded-2xl border border-neutral-200/70 dark:border-white/8
                     bg-neutral-50/40 dark:bg-white/2 overflow-hidden">
           <div class="flex items-center gap-3.5 px-4 py-3.5">

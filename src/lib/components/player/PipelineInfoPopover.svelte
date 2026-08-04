@@ -39,8 +39,9 @@
   let isDsd = $derived(info.intermediate_pcm_rate != null);
   let backendLabel = $derived(info.backend ?? "CPAL shared");
   let isWasapiExclusive = $derived(backendLabel.startsWith("WASAPI"));
-  // DoP : DSD envoyé natif au DAC (backend spécifique du chemin DoP).
-  let isDop = $derived(info.backend === "WASAPI DoP");
+  // DoP : DSD envoyé natif au DAC. Un backend par OS ("WASAPI DoP",
+  // "ALSA DoP", "CoreAudio DoP") — on teste le suffixe, pas la valeur exacte.
+  let isDop = $derived(backendLabel.endsWith("DoP"));
   // Bit-perfect « classique » (PCM) : on garde le badge vert, mais pas en DoP
   // (le DoP a sa propre bannière violette « DSD natif »).
   let isBitPerfect = $derived(info.bit_perfect === true && !isDop);

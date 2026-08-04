@@ -90,8 +90,9 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
   },
 
   // DSD natif (DoP) : pousse la préférence vers l'atomique global Rust, lu au
-  // prochain morceau DSD. Effet réel seulement si WASAPI exclusive actif +
-  // DAC compatible (sinon fallback DSD2PCM silencieux).
+  // prochain morceau DSD. Effet réel seulement si le DAC accepte le rate
+  // porteur (et, sur Windows uniquement, si WASAPI exclusive est actif) —
+  // sinon fallback DSD2PCM silencieux.
   dsd_dop: async (value: string) => {
     try {
       const { invoke } = await import('@tauri-apps/api/core');

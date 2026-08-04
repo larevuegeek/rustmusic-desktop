@@ -22,11 +22,12 @@ static DSD_DOP: AtomicBool = AtomicBool::new(false);
 /// au moment de la lecture.
 pub fn dop_enabled() -> bool {
     // Windows : DoP via WASAPI exclusive. Linux : DoP via ALSA hw exclusif.
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    // macOS : DoP via CoreAudio + hog mode (seule voie DSD native du système).
+    #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
     {
         return DSD_DOP.load(Ordering::Relaxed);
     }
-    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
     {
         false
     }

@@ -26,6 +26,8 @@ pub mod dop_engine;
 pub mod dop_alsa;
 #[cfg(target_os = "linux")]
 pub mod device_reservation;
+#[cfg(target_os = "macos")]
+pub mod dop_coreaudio;
 
 pub use preference::{current_preference, dop_enabled, set_dop_enabled, set_wasapi_exclusive};
 pub use traits::{AudioOutput, AudioOutputError};

@@ -1079,6 +1079,94 @@ impl AudioPlayer {
             }
         }
 
+        // ─── Décision DSD natif (DoP) — macOS via CoreAudio (hog mode) ───
+        // DoP si : préférence activée + profil non Minimal + le device
+        // sélectionné se résout en AudioDeviceID acceptant le rate porteur.
+        // Rappel : CoreAudio n'a AUCUN transport DSD natif, le DoP est donc la
+        // seule voie possible sur Mac — et un DAC class-compliant (UAC2) suffit,
+        // aucun pilote propriétaire requis. Un DAC UAC1 (≤ 96 kHz) ne déclarera
+        // pas le porteur → `dop_format_supported` échoue → fallback DSD2PCM.
+        #[cfg(target_os = "macos")]
+        {
+            use crate::core::audio_player::output;
+            let profile_dop = crate::core::audio_quality::current_profile();
+            let is_minimal = matches!(
+                profile_dop,
+                crate::core::audio_quality::AudioQualityProfile::Minimal
+            );
+            if output::dop_enabled() && !is_minimal {
+                let carrier = crate::core::audio_decoder::dsd::dop_encoder::dop_carrier_rate(dsd_rate);
+                let device_full_name = device
+                    .description()
+                    .ok()
+                    .map(|d| {
+                        let name = d.name().to_string();
+                        match (d.manufacturer(), d.driver()) {
+                            (Some(mfr), _) => format!("{} ({})", name, mfr),
+                            (_, Some(drv)) => format!("{} ({})", name, drv),
+                            _ => name,
+                        }
+                    })
+                    .unwrap_or_else(|| "Périphérique audio".to_string());
+
+                // Même ordre de priorité que le DoP ALSA : le choix EXPLICITE de
+                // l'utilisateur d'abord, car `device_full_name` peut avoir
+                // défauté sur un autre périphérique si le lookup CPAL a échoué.
+                let device_id = selected_device_name
+                    .as_deref()
+                    .and_then(output::dop_coreaudio::resolve_device_id)
+                    .or_else(|| output::dop_coreaudio::resolve_device_id(&device_full_name));
+
+                if let Some(device_id) = device_id {
+                    if output::dop_coreaudio::dop_format_supported(
+                        device_id,
+                        carrier,
+                        channel_count as u16,
+                    ) {
+                        log::info!(
+                            "🎚️  DSD natif (DoP) CoreAudio activé : {} → porteur {} Hz sur '{}' (device {})",
+                            crate::core::audio_player::pipeline_info::dsd_label(dsd_rate),
+                            carrier,
+                            device_full_name,
+                            device_id
+                        );
+                        let lsb_first = ext == "dsf";
+                        return Self::run_dsd_dop_coreaudio_thread(
+                            app_handle,
+                            decoder,
+                            file_path,
+                            lsb_first,
+                            dsd_rate,
+                            channel_count,
+                            carrier,
+                            device.clone(),
+                            device_id,
+                            device_full_name,
+                            is_paused,
+                            is_playing,
+                            is_stopped,
+                            is_stream_alive,
+                            current_position,
+                            total_duration,
+                            seek_position,
+                        );
+                    } else {
+                        // Le détail du refus (canaux ou rates déclarés) est
+                        // logué juste au-dessus par `dop_format_supported`.
+                        log::warn!(
+                            "🎚️  DoP CoreAudio non supporté au porteur {} Hz, fallback DSD2PCM",
+                            carrier
+                        );
+                    }
+                } else {
+                    log::debug!(
+                        "🎚️  Aucun AudioDeviceID résolu pour '{}', fallback DSD2PCM",
+                        device_full_name
+                    );
+                }
+            }
+        }
+
         // On ne joue PAS ce DSD en DoP (toggle off, format non supporté, ou
         // Minimal) → fermer un éventuel moteur DoP vivant (le DAC repasse en PCM).
         #[cfg(target_os = "windows")]
@@ -1795,6 +1883,108 @@ impl AudioPlayer {
         current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
 
         log::debug!("✅ [DoP ALSA] Fin de piste (natural_end={natural_end})");
+        Ok(())
+    }
+
+    /// Thread de lecture DSD natif (DoP) via CoreAudio — macOS, per-track.
+    ///
+    /// Décode les octets DSD → encode en trames DoP → sort verbatim au DAC via
+    /// un stream CoreAudio en hog mode (bit-perfect : le rate device est figé
+    /// sur le porteur, aucun rééchantillonnage, volume logiciel inopérant).
+    /// Bloquant jusqu'à EOF ou stop utilisateur.
+    #[cfg(target_os = "macos")]
+    #[allow(clippy::too_many_arguments)]
+    fn run_dsd_dop_coreaudio_thread(
+        app_handle: AppHandle,
+        decoder: Box<dyn DsdContainerReader + Send>,
+        file_path: PathBuf,
+        lsb_first: bool,
+        dsd_rate: u32,
+        channel_count: u8,
+        carrier_rate: u32,
+        device: cpal::Device,
+        device_id: u32,
+        device_full_name: String,
+        is_paused: Arc<AtomicBool>,
+        is_playing: Arc<AtomicBool>,
+        is_stopped: Arc<AtomicBool>,
+        is_stream_alive: Arc<AtomicBool>,
+        current_position: Arc<AtomicU64>,
+        total_duration: Arc<AtomicU64>,
+        seek_position: Arc<AtomicU64>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::core::audio_player::output::dop_coreaudio::{
+            run_coreaudio_dop_playback, CoreAudioDopControl,
+        };
+
+        let profile = crate::core::audio_quality::current_profile();
+
+        // ─── Pipeline info (DoP CoreAudio) ───
+        crate::core::audio_player::pipeline_info::PlaybackPipelineInfo {
+            source_format: crate::core::audio_player::pipeline_info::dsd_label(dsd_rate),
+            source_sample_rate: dsd_rate,
+            source_bits: 1,
+            source_channels: channel_count,
+            intermediate_pcm_rate: None,
+            dsd_filter_taps: None,
+            dsd_decimation: None,
+            output_sample_rate: carrier_rate,
+            output_channels: channel_count,
+            device_name: device_full_name.clone(),
+            resampler_active: false,
+            quality_profile: format!("{:?}", profile).to_lowercase(),
+            backend: "CoreAudio DoP".to_string(),
+            bit_perfect: true,
+        }
+        .emit(&app_handle);
+
+        // Le DAC peut se muter ~1-2 s le temps d'acquérir le lock DSD.
+        let _ = app_handle.emit("playback-preparing", false);
+        is_playing.store(true, Ordering::SeqCst);
+        is_stream_alive.store(true, Ordering::SeqCst);
+
+        let ctl = CoreAudioDopControl {
+            is_paused,
+            is_stopped: is_stopped.clone(),
+            current_position: current_position.clone(),
+            seek_position,
+            total_duration,
+        };
+
+        let result = run_coreaudio_dop_playback(
+            &device,
+            device_id,
+            carrier_rate,
+            channel_count as u16,
+            decoder,
+            lsb_first,
+            ctl,
+        );
+
+        is_stream_alive.store(false, Ordering::SeqCst);
+
+        let natural_end = match result {
+            Ok(natural) => natural,
+            Err(e) => {
+                log::error!("❌ [DoP CoreAudio] {e}");
+                false
+            }
+        };
+
+        // playback-ended seulement sur fin naturelle (→ le frontend enchaîne).
+        if natural_end {
+            if let Err(e) =
+                app_handle.emit("playback-ended", file_path.to_string_lossy().to_string())
+            {
+                log::error!("❌ Erreur d'envoi de l'event Tauri : {}", e);
+            }
+        }
+
+        is_stopped.store(false, Ordering::SeqCst);
+        is_playing.store(false, Ordering::SeqCst);
+        current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
+
+        log::debug!("✅ [DoP CoreAudio] Fin de piste (natural_end={natural_end})");
         Ok(())
     }
 }
