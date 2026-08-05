@@ -51,6 +51,14 @@ let { children }: { children: Snippet } = $props();
 let isFullPageRoute = $derived(page.url.pathname.startsWith('/settings'));
 
 onMount(async () => {
+  // Sentinelle anti-crash GPU (Linux) : on ne confirme le boot qu'après deux
+  // frames réellement peintes. Si le compositing WebKit est cassé (fenêtre
+  // blanche), requestAnimationFrame ne fire jamais → la sentinelle reste
+  // armée et le prochain lancement basculera en rendu logiciel.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    invoke('notify_ui_ready').catch(() => {});
+  }));
+
   await profilSelector.init();
   await libraryStore.init();
   await queueState.init();

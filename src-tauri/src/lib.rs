@@ -26,7 +26,7 @@ use crate::commands::search_command::search;
 use crate::commands::lyrics_command::{get_lyrics, refresh_lyrics};
 use crate::commands::dlna_command::{dlna_get_settings, dlna_status, dlna_start, dlna_stop, dlna_update_settings};
 use crate::commands::audio_command::{get_audio_quality_status, set_audio_quality_setting};
-use crate::commands::system_command::{get_render_mode, set_render_mode};
+use crate::commands::system_command::{get_render_mode, notify_ui_ready, set_render_mode};
 use crate::commands::media_controls_command::{
     disable_media_controls, enable_media_controls, is_media_controls_active,
     update_media_metadata, update_media_playback,
@@ -84,32 +84,88 @@ fn init_logger() {
 /// Configure the WebKitGTK / GTK rendering pipeline before Tauri starts.
 ///
 /// On Linux without a real GPU (VM, container) or with finicky stacks (old
-/// WebKitGTK 2.40 on Debian 12, KDE Wayland + AMD Mesa), the default GPU path
-/// can freeze the window, emit `gtk_widget_get_scale_factor failed` floods,
-/// or fail with `EGL_BAD_PARAMETER`. We fall back to software rendering in
-/// those cases so the app stays usable.
+/// WebKitGTK 2.40 on Debian 12, KDE Wayland + AMD Mesa, SteamOS), the default
+/// GPU path can freeze the window, emit `gtk_widget_get_scale_factor failed`
+/// floods, or abort with `EGL_BAD_PARAMETER`. We fall back to software
+/// rendering in those cases so the app stays usable.
 ///
-/// `mode` is the user override read from settings :
-///   - `Auto` : detect VM and pick automatically (default)
-///   - `ForceGpu` : trust the system, only patch the DMABUF bug
-///   - `ForceSoftware` : always apply the full SW rendering env vars
+/// Resolution order :
+///   1. `RUSTMUSIC_RENDER` env var (gpu | software | auto) — escape hatch
+///      usable even when the app can't boot far enough to show the UI.
+///   2. Crash sentinel : a previous GPU boot that never painted the UI
+///      switches us to software and persists `gpu_boot_failed` (see
+///      [`crate::core::gpu_sentinel`]).
+///   3. The persisted `render_mode` setting (force-gpu / force-software).
+///   4. Auto : software on VMs, SteamOS, or remembered GPU failure ;
+///      GPU everywhere else.
 ///
 /// IMPORTANT: must be called before the Tauri builder runs, otherwise the
 /// env vars are read too late by WebKitGTK / GTK.
 #[cfg(target_os = "linux")]
-fn configure_linux_environment(mode: crate::core::render_mode::RenderMode) {
+async fn configure_render_pipeline(app_state: &AppState, db_mode: crate::core::render_mode::RenderMode) {
+    use crate::core::gpu_sentinel;
     use crate::core::render_mode::RenderMode;
+    use crate::repository::settings::settings_repository::SettingsRepository;
 
-    // Decide whether to force software rendering.
-    let (force_software, reason): (bool, String) = match mode {
-        RenderMode::ForceGpu => (false, "user override (force GPU)".to_string()),
-        RenderMode::ForceSoftware => (true, "user override (force software)".to_string()),
-        RenderMode::Auto => match crate::core::system_detect::detect_linux_virt() {
-            Some(virt) => (true, format!("auto : virt detected ({})", virt)),
-            None => (false, "auto : native machine".to_string()),
-        },
+    let env_mode = RenderMode::from_env();
+    if let Some(m) = env_mode {
+        log::info!("🖥  RUSTMUSIC_RENDER override : {}", m.as_str());
+    }
+    let mode = env_mode.unwrap_or(db_mode);
+    let src = if env_mode.is_some() { "env" } else { "user" };
+
+    // Consume the crash sentinel : if it's still armed here, the previous GPU
+    // boot aborted (EGL crash) or never painted the UI (white window killed
+    // by the user). Record the failure so Auto stays on software afterwards.
+    let previous_gpu_boot_failed = gpu_sentinel::is_armed();
+    gpu_sentinel::disarm();
+
+    let remembered_failure = SettingsRepository::get(&app_state.pool, gpu_sentinel::GPU_BOOT_FAILED_KEY)
+        .await
+        .ok()
+        .flatten()
+        .as_deref()
+        == Some("1");
+
+    let (force_software, reason): (bool, String) = if env_mode == Some(RenderMode::ForceGpu) {
+        // Explicit per-launch GPU test : bypass sentinel and remembered flag.
+        (false, "env override (force GPU)".to_string())
+    } else if mode == RenderMode::ForceSoftware {
+        (true, format!("{} override (force software)", src))
+    } else if previous_gpu_boot_failed {
+        let _ = SettingsRepository::set(&app_state.pool, gpu_sentinel::GPU_BOOT_FAILED_KEY, "1").await;
+        if mode == RenderMode::ForceGpu {
+            // A forced-GPU config that crashes would loop forever — demote it
+            // back to Auto so the remembered failure takes effect.
+            let _ = SettingsRepository::set(&app_state.pool, "render_mode", RenderMode::Auto.as_str()).await;
+            log::warn!("🖥  Forced GPU mode crashed at last boot → resetting render_mode to auto");
+        }
+        (true, "previous GPU boot never displayed the UI".to_string())
+    } else if mode == RenderMode::ForceGpu {
+        (false, "user override (force GPU)".to_string())
+    } else if remembered_failure {
+        (true, "auto : remembered GPU boot failure (pick a render mode in Settings to retry)".to_string())
+    } else if let Some(virt) = crate::core::system_detect::detect_linux_virt() {
+        (true, format!("auto : virt detected ({})", virt))
+    } else if crate::core::system_detect::detect_steamos() {
+        (true, "auto : SteamOS detected".to_string())
+    } else {
+        (false, "auto : native machine".to_string())
     };
 
+    if !force_software {
+        // Arm the crash sentinel. It is disarmed by the frontend once real
+        // frames have been painted (`notify_ui_ready`) or on graceful close.
+        gpu_sentinel::arm();
+        gpu_sentinel::set_booted_gpu(true);
+    }
+
+    apply_linux_render_env(force_software, &reason);
+}
+
+/// Apply the WebKitGTK / GDK env vars for the chosen rendering path.
+#[cfg(target_os = "linux")]
+fn apply_linux_render_env(force_software: bool, reason: &str) {
     if force_software {
         log::info!("🖥  Render mode : software ({})", reason);
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
@@ -130,7 +186,7 @@ fn configure_linux_environment(mode: crate::core::render_mode::RenderMode) {
 }
 
 #[cfg(not(target_os = "linux"))]
-fn configure_linux_environment(_mode: crate::core::render_mode::RenderMode) {
+async fn configure_render_pipeline(_app_state: &AppState, _db_mode: crate::core::render_mode::RenderMode) {
     // No-op on Windows / macOS — Tauri's webview stack works fine out of the box.
 }
 
@@ -161,7 +217,7 @@ pub async fn run() {
         .flatten()
         .as_deref(),
     );
-    configure_linux_environment(render_mode);
+    configure_render_pipeline(&app_state, render_mode).await;
 
     let audio_player = AudioPlayer::new();
 
@@ -291,6 +347,15 @@ pub async fn run() {
 
             Ok(())
         })
+        .on_window_event(|_window, event| {
+            // Fermeture propre de la fenêtre = le boot était OK même si le
+            // frontend n'a pas eu le temps d'appeler notify_ui_ready
+            // (utilisateur qui ferme l'app immédiatement). Sans ça, un
+            // fast-close serait compté comme un crash GPU au prochain boot.
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                crate::core::gpu_sentinel::disarm();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             open_file,
             open_files,
@@ -390,6 +455,7 @@ pub async fn run() {
             set_audio_quality_setting,
             get_render_mode,
             set_render_mode,
+            notify_ui_ready,
             enable_media_controls,
             disable_media_controls,
             is_media_controls_active,

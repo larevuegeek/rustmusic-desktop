@@ -59,6 +59,7 @@ pub mod audio_resampler {
 }
 
 pub mod audio_quality;
+pub mod gpu_sentinel;
 pub mod render_mode;
 pub mod system_detect;
 pub mod media_controls;

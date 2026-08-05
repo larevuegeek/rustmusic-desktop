@@ -35,6 +35,26 @@ pub fn detect_linux_virt() -> Option<String> {
     None
 }
 
+/// Detect SteamOS (Steam Deck) via `/etc/os-release`.
+///
+/// The Steam Deck is a native machine (no hypervisor) but its Arch-based
+/// stack breaks WebKitGTK's EGL display creation when running AppImages
+/// built on Ubuntu (`Could not create default EGL display: EGL_BAD_PARAMETER`).
+/// We treat it like a VM and default to software rendering there.
+#[cfg(target_os = "linux")]
+pub fn detect_steamos() -> bool {
+    let Ok(content) = std::fs::read_to_string("/etc/os-release") else {
+        return false;
+    };
+    content
+        .lines()
+        .any(|line| {
+            line.strip_prefix("ID=")
+                .map(|v| v.trim().trim_matches('"') == "steamos")
+                .unwrap_or(false)
+        })
+}
+
 /// Cross-platform "are we running inside a VM ?" check.
 ///
 /// On Linux uses [`detect_linux_virt`]. On Windows/macOS we currently return

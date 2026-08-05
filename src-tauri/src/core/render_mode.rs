@@ -34,6 +34,28 @@ impl RenderMode {
         }
     }
 
+    /// Read the `RUSTMUSIC_RENDER` env override, if set.
+    ///
+    /// Escape hatch for users whose app crashes before they can reach the
+    /// settings UI (e.g. `RUSTMUSIC_RENDER=software ./RustMusic.AppImage`),
+    /// and for re-testing GPU on a machine remembered as failing
+    /// (`RUSTMUSIC_RENDER=gpu`). Takes precedence over the persisted setting;
+    /// `auto` re-runs the detection while ignoring the DB value.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    pub fn from_env() -> Option<Self> {
+        let raw = std::env::var("RUSTMUSIC_RENDER").ok()?;
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "gpu" | "force-gpu" => Some(Self::ForceGpu),
+            "software" | "force-software" | "cpu" => Some(Self::ForceSoftware),
+            "auto" => Some(Self::Auto),
+            "" => None,
+            other => {
+                log::warn!("RUSTMUSIC_RENDER : unknown value '{}' (expected gpu | software | auto), ignoring", other);
+                None
+            }
+        }
+    }
+
     /// Stable string form for persistence.
     pub fn as_str(self) -> &'static str {
         match self {
