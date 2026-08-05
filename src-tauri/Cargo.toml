@@ -97,6 +97,13 @@ objc2-core-foundation = "0.3"
 # Nécessite libasound2-dev au build.
 [target.'cfg(target_os = "linux")'.dependencies]
 alsa = "0.11"
+# Accès direct au WebView WebKitGTK (via WebviewWindow::with_webview) pour
+# écouter le signal `web-process-terminated` : détection du crash du processus
+# de rendu (EGL/DMABUF, mix AppImage/libs hôte) → fallback rendu logiciel.
+# Version épinglée sur celle que wry (Tauri) tire déjà → aucun crate en plus.
+# v2_20 = version mini du signal ; wry active de toute façon des features
+# plus récentes.
+webkit2gtk = { version = "=2.0.2", features = ["v2_20"] }
 # Réservation de carte audio via org.freedesktop.ReserveDevice1 (D-Bus) pour
 # que PipeWire/Pulse libère le `hw:` avant le DoP exclusif. Version alignée sur
 # l'arbre existant (contrôles média).

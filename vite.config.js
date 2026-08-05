@@ -1,6 +1,10 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from '@tailwindcss/vite';
+// @ts-expect-error node:fs is a nodejs module (no @types/node installed)
+import { readFileSync } from "node:fs";
+
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8"));
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -11,6 +15,11 @@ export default defineConfig(async () => ({
     tailwindcss(),
     sveltekit(),
   ],
+
+  // Version de l'app injectée depuis package.json (affichée dans les réglages)
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

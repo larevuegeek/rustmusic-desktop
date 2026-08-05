@@ -170,6 +170,10 @@ fn apply_linux_render_env(force_software: bool, reason: &str) {
         log::info!("🖥  Render mode : software ({})", reason);
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        // WebKitGTK ≥ 2.46 (Skia) ignore WEBKIT_DISABLE_COMPOSITING_MODE (le
+        // compositing n'est plus désactivable) — cette variable est le « rendu
+        // CPU » moderne. Inconnue des vieux WebKit = ignorée, donc sans risque.
+        std::env::set_var("WEBKIT_SKIA_ENABLE_CPU_RENDERING", "1");
         std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
         std::env::set_var("GDK_BACKEND", "x11");
         // Fix recurring `gtk_widget_get_scale_factor failed` warning loop
@@ -345,6 +349,54 @@ pub async fn run() {
                 })
                 .build(app)?;
 
+            // ─── DÉTECTION CRASH DU WEB PROCESS (Linux) ───────────
+            // Si le processus de rendu WebKit meurt (SIGABRT EGL/DMABUF, mix
+            // AppImage/libs hôte…), la fenêtre reste blanche mais le process
+            // principal survit : notify_ui_ready n'arrivera jamais, et une
+            // fermeture « propre » (Alt+F4) désarmerait la sentinelle. On
+            // écoute donc le signal WebKit `web-process-terminated` : échec
+            // GPU persisté immédiatement, puis redémarrage automatique →
+            // l'app revient d'elle-même en rendu logiciel.
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    let app_handle = app.handle().clone();
+                    let _ = window.with_webview(move |platform_webview| {
+                        use webkit2gtk::WebViewExt;
+                        platform_webview.inner().connect_web_process_terminated(move |_wv, reason| {
+                            if reason != webkit2gtk::WebProcessTerminationReason::Crashed {
+                                log::error!("🖥  WebKit web process terminated ({:?}) — not a crash, ignoring", reason);
+                                return;
+                            }
+                            // Crash en mode software = pas un problème GPU :
+                            // on log seulement (et surtout pas de boucle de
+                            // redémarrages infinis).
+                            if !crate::core::gpu_sentinel::booted_gpu() {
+                                log::error!("🖥  WebKit web process crashed while already in software mode — not restarting");
+                                return;
+                            }
+                            log::error!("🖥  WebKit web process crashed (GPU mode) → recording GPU failure, restarting in software mode");
+                            crate::core::gpu_sentinel::mark_web_process_crashed();
+                            // Ceinture + bretelles : la sentinelle force le
+                            // fallback au prochain boot même si l'écriture DB
+                            // ci-dessous échoue.
+                            crate::core::gpu_sentinel::arm();
+                            let app_handle = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                let state = app_handle.state::<AppState>();
+                                let _ = crate::repository::settings::settings_repository::SettingsRepository::set(
+                                    &state.pool,
+                                    crate::core::gpu_sentinel::GPU_BOOT_FAILED_KEY,
+                                    "1",
+                                )
+                                .await;
+                                app_handle.restart();
+                            });
+                        });
+                    });
+                }
+            }
+
             Ok(())
         })
         .on_window_event(|_window, event| {
@@ -352,8 +404,12 @@ pub async fn run() {
             // frontend n'a pas eu le temps d'appeler notify_ui_ready
             // (utilisateur qui ferme l'app immédiatement). Sans ça, un
             // fast-close serait compté comme un crash GPU au prochain boot.
+            // Exception : si le web process WebKit a crashé (fenêtre blanche),
+            // un Alt+F4 ne doit PAS effacer l'échec enregistré.
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                crate::core::gpu_sentinel::disarm();
+                if !crate::core::gpu_sentinel::web_process_crashed() {
+                    crate::core::gpu_sentinel::disarm();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![

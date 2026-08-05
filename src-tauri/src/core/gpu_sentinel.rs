@@ -26,6 +26,11 @@ pub const GPU_BOOT_FAILED_KEY: &str = "gpu_boot_failed";
 /// `notify_ui_ready` to know if a successful boot should clear the flag).
 static BOOTED_GPU: AtomicBool = AtomicBool::new(false);
 
+/// Set when WebKit's render process died mid-session (`web-process-terminated`
+/// signal). Blocks the graceful-close disarm : a user closing the resulting
+/// white window with Alt+F4 must NOT erase the recorded failure.
+static WEB_PROCESS_CRASHED: AtomicBool = AtomicBool::new(false);
+
 fn sentinel_path() -> PathBuf {
     let mut p = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
     p.push("com.larevuegeek.rustmusic");
@@ -63,4 +68,13 @@ pub fn set_booted_gpu(v: bool) {
 
 pub fn booted_gpu() -> bool {
     BOOTED_GPU.load(Ordering::Relaxed)
+}
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn mark_web_process_crashed() {
+    WEB_PROCESS_CRASHED.store(true, Ordering::Relaxed);
+}
+
+pub fn web_process_crashed() -> bool {
+    WEB_PROCESS_CRASHED.load(Ordering::Relaxed)
 }
