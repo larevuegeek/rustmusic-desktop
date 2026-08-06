@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { openPath } from "@tauri-apps/plugin-opener";
   import { appDataDir } from "@tauri-apps/api/path";
@@ -12,6 +13,7 @@
   let rescanning = $state(false);
   let fetchingImages = $state(false);
   let fetchingCovers = $state(false);
+  let dataDir = $state('');
 
   async function handleRescan() {
     rescanning = true;
@@ -53,9 +55,14 @@
   }
 
   async function handleOpenDataFolder() {
-    const dir = await appDataDir();
-    await openPath(dir);
+    // dataDir est vide tant que le onMount n'a pas résolu le chemin.
+    if (!dataDir) return;
+    await openPath(dataDir);
   }
+
+  onMount(async () => {
+      dataDir = await appDataDir();
+  })
 </script>
 
 <section class="space-y-1">
@@ -90,7 +97,12 @@
   </OptionRow>
 
   <!-- Ouvrir le dossier de données -->
-  <OptionRow icon="lucide:folder-open" title={$t('settings.open_data_folder')} desc={$t('settings.open_data_folder_desc')}>
+  <OptionRow
+    icon="lucide:folder-open"
+    title={$t('settings.open_data_folder')}
+    desc={$t('settings.open_data_folder_desc')}
+    value={dataDir}
+  >
     <ActionButton
       icon="lucide:external-link"
       label={$t('settings.open_btn')}

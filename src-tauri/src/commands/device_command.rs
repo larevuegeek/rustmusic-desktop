@@ -136,10 +136,15 @@ fn describe_device(
     let (display_name, manufacturer, driver) = {
         let name = raw_name.clone();
         let mfr = desc.manufacturer().map(str::to_string);
-        let disp = match (&mfr, &drv) {
-            (Some(m), _) => format!("{} ({})", name, m),
-            (_, Some(d)) => format!("{} ({})", name, d),
-            _ => name,
+        // Windows expose déjà le fabricant dans le nom brut CPAL
+        // (« Haut-parleurs (3- Fosi Audio K7) ») : ne l'ajouter que s'il n'y
+        // est pas déjà, sinon on affiche « Haut-parleurs (X) (X) ».
+        let suffix = mfr.as_deref().or(drv.as_deref());
+        let disp = match suffix {
+            Some(s) if !name.to_lowercase().contains(&s.to_lowercase()) => {
+                format!("{} ({})", name, s)
+            }
+            _ => name.clone(),
         };
         (disp, mfr, drv)
     };

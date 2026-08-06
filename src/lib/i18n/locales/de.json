@@ -183,6 +183,7 @@
     "audio_devices_formats": "Unterstützte Formate",
     "audio_devices_sample_rates": "Unterstützte Abtastraten",
     "audio_devices_details": "Ansehen",
+    "audio_devices_details_action": "Gerätedetails",
     "audio_devices_up_to": "bis zu",
     "audio_devices_identity": "Identität",
     "audio_devices_raw_name": "Systemname",

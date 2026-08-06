@@ -183,6 +183,7 @@
     "audio_devices_formats": "Formatos compatibles",
     "audio_devices_sample_rates": "Frecuencias compatibles",
     "audio_devices_details": "Ver",
+    "audio_devices_details_action": "Detalles del dispositivo",
     "audio_devices_up_to": "hasta",
     "audio_devices_identity": "Identidad",
     "audio_devices_raw_name": "Nombre del sistema",

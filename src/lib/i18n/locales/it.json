@@ -183,6 +183,7 @@
     "audio_devices_formats": "Formati supportati",
     "audio_devices_sample_rates": "Frequenze supportate",
     "audio_devices_details": "Visualizza",
+    "audio_devices_details_action": "Dettagli del dispositivo",
     "audio_devices_up_to": "fino a",
     "audio_devices_identity": "Identità",
     "audio_devices_raw_name": "Nome di sistema",

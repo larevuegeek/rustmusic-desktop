@@ -1,37 +1,28 @@
 <script lang="ts">
+  // Sélecteur de sortie audio : une liste de radios façon réglages son de
+  // l'OS, mais avec la matière visuelle de l'app (tuile d'icône, liseré
+  // d'accent, halo émeraude sur la sortie active). Chaque ligne garde son
+  // propre accès aux capacités détaillées du DAC.
   import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import {
     audioDevicesStore,
     formatSampleRate,
-    bestFormatLabel,
     maxSampleRate,
     type AudioDeviceInfo,
   } from "$lib/stores/audio/audioDevices.store";
   import { t } from "$lib/i18n";
   import AudioDeviceDetailsModal from "./AudioDeviceDetailsModal.svelte";
 
-  let selected = $state<AudioDeviceInfo | null>(null);
+  let detailsOf = $state<AudioDeviceInfo | null>(null);
 
   onMount(() => {
     audioDevicesStore.ensureLoaded();
   });
 
-  function open(device: AudioDeviceInfo) {
-    selected = device;
-  }
-  function close() {
-    selected = null;
-  }
-
-  function handleSelect(device: AudioDeviceInfo) {
-    audioDevicesStore.setActive(device.displayName);
-  }
-
-  // Sélection rapide sans ouvrir le modal — clic direct sur la row.
-  async function quickSelect(device: AudioDeviceInfo, e: MouseEvent) {
-    e.stopPropagation();
+  async function select(device: AudioDeviceInfo) {
+    if (device.displayName === $audioDevicesStore.activeDisplayName) return;
     try {
       await invoke("set_device", { deviceName: device.name });
       audioDevicesStore.setActive(device.displayName);
@@ -71,131 +62,131 @@
   </div>
 
   {#if $audioDevicesStore.error}
-    <div class="mx-1 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-[11px] text-red-400">
+    <div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-[11px] text-red-400">
       {$audioDevicesStore.error}
     </div>
   {:else if !$audioDevicesStore.loaded && $audioDevicesStore.loading}
-    <div class="mx-1 p-4 rounded-lg bg-neutral-100/60 dark:bg-white/3 border border-neutral-200/60 dark:border-white/8
+    <div class="p-4 rounded-2xl bg-neutral-50/60 dark:bg-white/2 border border-neutral-200/70 dark:border-white/8
                 text-[11px] text-neutral-500 flex items-center gap-2">
       <Icon icon="lucide:loader-2" width="14" class="animate-spin" />
       {$t("settings.audio_devices_loading")}
     </div>
   {:else if $audioDevicesStore.devices.length === 0}
-    <div class="mx-1 p-4 rounded-lg bg-neutral-100/60 dark:bg-white/3 border border-neutral-200/60 dark:border-white/8
+    <div class="p-4 rounded-2xl bg-neutral-50/60 dark:bg-white/2 border border-neutral-200/70 dark:border-white/8
                 text-[11px] text-neutral-500">
       {$t("settings.audio_devices_empty")}
     </div>
   {:else}
-    <div class="space-y-1.5">
+    <div class="rounded-2xl overflow-hidden
+                border border-neutral-200/70 dark:border-white/8
+                bg-white/70 dark:bg-white/2 backdrop-blur-sm
+                shadow-sm shadow-black/4 dark:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.9)]
+                divide-y divide-neutral-200/60 dark:divide-white/5">
       {#each $audioDevicesStore.devices as device (device.displayName)}
         {@const maxRate = maxSampleRate(device.sampleRates)}
-        {@const bestFmt = bestFormatLabel(device.sampleFormats)}
         {@const isActive = $audioDevicesStore.activeDisplayName === device.displayName}
         <div
-          class="w-full flex items-stretch rounded-xl border transition-colors
+          class="group relative flex items-stretch transition-colors
                  {isActive
-                   ? 'border-emerald-500/40 bg-emerald-500/8 dark:bg-emerald-500/10'
-                   : 'border-neutral-200/70 dark:border-white/8 bg-neutral-50/60 dark:bg-white/2 hover:bg-neutral-100 dark:hover:bg-white/5'}"
+                   ? 'bg-linear-to-r from-emerald-500/12 via-emerald-500/6 to-transparent'
+                   : 'hover:bg-neutral-100/70 dark:hover:bg-white/4'}"
         >
-          <!-- Zone principale : ouvre le modal détails -->
+          <!-- Liseré d'accent sur la sortie active -->
+          {#if isActive}
+            <span
+              class="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] rounded-r-full
+                     bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.55)]"
+            ></span>
+          {/if}
+
+          <!-- Zone principale : choisir cette sortie -->
           <button
-            class="flex-1 min-w-0 flex items-center gap-3 px-4 py-3 rounded-l-xl cursor-pointer text-left"
-            onclick={() => open(device)}
+            class="flex-1 min-w-0 flex items-center gap-3 pl-4 pr-3 py-3 text-left cursor-pointer"
+            onclick={() => select(device)}
+            title={$t("settings.audio_devices_select_hint")}
           >
-            <!-- Icon -->
-            <div
-              class="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center
+            <!-- Radio -->
+            <span
+              class="shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center
+                     transition-all
                      {isActive
-                       ? 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400'
-                       : 'bg-neutral-200/60 dark:bg-white/5 text-neutral-500 dark:text-neutral-400'}"
+                       ? 'border-emerald-500'
+                       : 'border-neutral-300 dark:border-neutral-600 group-hover:border-neutral-400 dark:group-hover:border-neutral-500'}"
             >
-              <Icon icon={device.isHires ? "lucide:zap" : "lucide:speaker"} width="18" />
-            </div>
+              {#if isActive}
+                <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+              {/if}
+            </span>
 
-            <!-- Nom + badges + résumé -->
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">
-                  {device.displayName}
+            <!-- Tuile d'icône -->
+            <span
+              class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all
+                     {isActive
+                       ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/25 shadow-[0_0_18px_-4px_rgba(16,185,129,0.5)]'
+                       : 'bg-neutral-200/60 dark:bg-white/5 text-neutral-500 dark:text-neutral-400 ring-1 ring-transparent'}"
+            >
+              <Icon icon={device.isHires ? "lucide:zap" : "lucide:speaker"} width="17" />
+            </span>
+
+            <!-- Nom + qualificatifs -->
+            <span class="flex-1 min-w-0 flex items-center gap-2">
+              <span
+                class="truncate text-sm
+                       {isActive
+                         ? 'font-medium text-neutral-900 dark:text-neutral-100'
+                         : 'text-neutral-700 dark:text-neutral-300'}"
+              >
+                {device.displayName}
+              </span>
+              {#if device.isHires}
+                <span class="shrink-0 text-[9px] px-1.5 py-0.5 rounded-md font-semibold uppercase tracking-wider
+                             text-amber-600 dark:text-amber-300/90 ring-1 ring-amber-500/25 bg-amber-500/8">
+                  Hi-Res
                 </span>
-                {#if isActive}
-                  <span class="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-semibold
-                               bg-emerald-500/15 text-emerald-600 dark:text-emerald-400
-                               uppercase tracking-wider">
-                    {$t("settings.audio_devices_active_badge")}
-                  </span>
-                {:else if device.isDefault}
-                  <span class="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-semibold
-                               bg-neutral-200 dark:bg-white/8 text-neutral-500 dark:text-neutral-400
-                               uppercase tracking-wider">
-                    {$t("settings.audio_devices_default_badge")}
-                  </span>
-                {/if}
-                {#if device.isHires}
-                  <span class="shrink-0 text-[9px] px-1.5 py-0.5 rounded font-semibold
-                               bg-amber-500/15 text-amber-600 dark:text-amber-300
-                               uppercase tracking-wider">
-                    Hi-Res
-                  </span>
-                {/if}
-              </div>
-              <div class="mt-0.5 flex items-center gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
-                {#if bestFmt}
-                  <span>{bestFmt}</span>
-                {/if}
-                {#if maxRate}
-                  {#if bestFmt}<span class="text-neutral-300 dark:text-neutral-600">·</span>{/if}
-                  <span class="tabular-nums">{$t("settings.audio_devices_up_to")} {formatSampleRate(maxRate)}</span>
-                {/if}
-                <span class="text-neutral-300 dark:text-neutral-600">·</span>
-                <span>{device.maxChannels} ch</span>
-              </div>
-            </div>
+              {/if}
+              {#if device.isDefault && !isActive}
+                <span class="shrink-0 text-[9px] px-1.5 py-0.5 rounded-md font-semibold uppercase tracking-wider
+                             text-neutral-500 dark:text-neutral-400 ring-1 ring-neutral-300/60 dark:ring-white/10">
+                  {$t("settings.audio_devices_default_badge")}
+                </span>
+              {/if}
+            </span>
 
-            <!-- Indice "voir + " -->
-            <div class="shrink-0 flex items-center gap-1 text-[11px] text-neutral-400 dark:text-neutral-500">
-              {$t("settings.audio_devices_details")}
-              <Icon icon="lucide:chevron-right" width="14" />
-            </div>
+            <!-- Capacités -->
+            <span class="shrink-0 flex items-center gap-1.5 text-[11px] tabular-nums
+                         text-neutral-400 dark:text-neutral-500">
+              {#if maxRate}
+                <span>{formatSampleRate(maxRate)}</span>
+                <span class="text-neutral-300 dark:text-neutral-700">·</span>
+              {/if}
+              <span>{device.maxChannels} ch</span>
+            </span>
           </button>
 
-          <!-- Séparateur vertical -->
-          <div class="w-px my-2 bg-neutral-200/70 dark:bg-white/8"></div>
-
-          <!-- Bouton sélection rapide -->
-          {#if isActive}
-            <div
-              class="shrink-0 flex items-center justify-center px-3 rounded-r-xl
-                     text-emerald-600 dark:text-emerald-400"
-              title={$t("settings.audio_devices_active")}
-            >
-              <Icon icon="lucide:check-circle-2" width="18" />
-            </div>
-          {:else}
-            <button
-              class="shrink-0 flex items-center gap-1.5 px-3 rounded-r-xl cursor-pointer
-                     text-[11px] font-medium text-neutral-500 dark:text-neutral-400
-                     hover:text-emerald-600 dark:hover:text-emerald-400
-                     hover:bg-emerald-500/8 transition-colors"
-              onclick={(e) => quickSelect(device, e)}
-              title={$t("settings.audio_devices_select_action")}
-            >
-              <Icon icon="lucide:check" width="14" />
-              <span class="hidden md:inline">{$t("settings.audio_devices_select_short")}</span>
-            </button>
-          {/if}
+          <!-- Détails de CE périphérique -->
+          <button
+            class="shrink-0 flex items-center justify-center pl-2 pr-3.5 cursor-pointer
+                   text-neutral-400/70 dark:text-neutral-500/70
+                   hover:text-neutral-800 dark:hover:text-neutral-100
+                   group-hover:text-neutral-500 dark:group-hover:text-neutral-400
+                   transition-colors"
+            onclick={() => (detailsOf = device)}
+            aria-label={$t("settings.audio_devices_details_action")}
+            title={$t("settings.audio_devices_details_action")}
+          >
+            <Icon icon="lucide:sliders-horizontal" width="15" />
+          </button>
         </div>
       {/each}
     </div>
   {/if}
 </div>
 
-{#if selected}
-  {@const activeDn = $audioDevicesStore.activeDisplayName}
+{#if detailsOf}
   <AudioDeviceDetailsModal
-    device={selected}
-    isActive={activeDn === selected.displayName}
-    onClose={close}
-    onSelect={handleSelect}
+    device={detailsOf}
+    isActive={$audioDevicesStore.activeDisplayName === detailsOf.displayName}
+    onClose={() => (detailsOf = null)}
+    onSelect={(d) => select(d)}
   />
 {/if}

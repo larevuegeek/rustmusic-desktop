@@ -6,6 +6,7 @@
   import { page } from "$app/state";
   import { t } from "$lib/i18n";
   import type { Snippet } from "svelte";
+    import { goto } from "$app/navigation";
 
   let { children }: { children: Snippet } = $props();
 
@@ -73,7 +74,7 @@
                bg-white/60 dark:bg-white/5 border border-neutral-200/70 dark:border-white/10
                hover:bg-white dark:hover:bg-white/10
                shadow-sm shadow-black/5 transition-all"
-        onclick={() => history.back()}
+        onclick={() => goto('/')}
         aria-label="Retour"
         title="Retour"
       >

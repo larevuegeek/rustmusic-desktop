@@ -183,6 +183,7 @@
     "audio_devices_formats": "Supported formats",
     "audio_devices_sample_rates": "Supported sample rates",
     "audio_devices_details": "View",
+    "audio_devices_details_action": "Device details",
     "audio_devices_up_to": "up to",
     "audio_devices_identity": "Identity",
     "audio_devices_raw_name": "System name",
