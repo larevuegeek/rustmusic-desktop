@@ -25,7 +25,10 @@ use crate::commands::settings_command::{get_setting, set_setting, get_all_settin
 use crate::commands::search_command::search;
 use crate::commands::lyrics_command::{get_lyrics, refresh_lyrics};
 use crate::commands::dlna_command::{dlna_get_settings, dlna_status, dlna_start, dlna_stop, dlna_update_settings};
-use crate::commands::audio_command::{get_audio_quality_status, set_audio_quality_setting};
+use crate::commands::audio_command::{
+    get_audio_quality_status, get_replay_gain_settings, set_audio_quality_setting, set_gapless,
+    set_next_track, set_replay_gain_settings,
+};
 use crate::commands::system_command::{get_render_mode, notify_ui_ready, set_render_mode};
 use crate::commands::media_controls_command::{
     disable_media_controls, enable_media_controls, is_media_controls_active,
@@ -509,6 +512,10 @@ pub async fn run() {
             dlna_update_settings,
             get_audio_quality_status,
             set_audio_quality_setting,
+            get_replay_gain_settings,
+            set_replay_gain_settings,
+            set_next_track,
+            set_gapless,
             get_render_mode,
             set_render_mode,
             notify_ui_ready,

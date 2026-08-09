@@ -2,6 +2,8 @@ pub mod audio_player {
     pub mod audio_player;
     pub mod audio_utils;
     pub mod pipeline_info;
+    pub mod preload;
+    pub mod replay_gain;
     // WASAPI exclusive mode — Windows only. Sur les autres OS le module est
     // entièrement skipped grâce au `#![cfg(target_os = "windows")]` interne.
     #[cfg(target_os = "windows")]

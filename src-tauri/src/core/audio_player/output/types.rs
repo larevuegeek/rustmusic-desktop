@@ -83,6 +83,14 @@ pub enum AudioBackend {
     /// WASAPI en mode exclusive (Windows uniquement). Bit-perfect, bypass mixer.
     #[cfg(target_os = "windows")]
     WasapiExclusive,
+    /// ALSA `hw:` en accès direct (Linux uniquement). Bit-perfect, bypass
+    /// PipeWire/Pulse/dmix — équivalent Linux de WASAPI exclusive.
+    #[cfg(target_os = "linux")]
+    AlsaExclusive,
+    /// CoreAudio en hog mode + rate nominal forcé (macOS uniquement).
+    /// Bit-perfect, aucun autre client ne peut mixer dans notre flux.
+    #[cfg(target_os = "macos")]
+    CoreAudioExclusive,
 }
 
 impl AudioBackend {
@@ -91,18 +99,46 @@ impl AudioBackend {
             AudioBackend::CpalShared => "CPAL shared",
             #[cfg(target_os = "windows")]
             AudioBackend::WasapiExclusive => "WASAPI exclusive",
+            #[cfg(target_os = "linux")]
+            AudioBackend::AlsaExclusive => "ALSA exclusive (hw:)",
+            #[cfg(target_os = "macos")]
+            AudioBackend::CoreAudioExclusive => "CoreAudio exclusive (hog)",
         }
     }
 
     /// Vrai si le backend peut garantir une sortie bit-perfect (bypass mixer
-    /// OS, format natif au DAC). Aujourd'hui seul WASAPI exclusive coche
-    /// cette case. La chaîne complète reste bit-perfect uniquement si le
-    /// source rate == output rate (pas de resampler actif).
+    /// OS, format natif au DAC). La chaîne complète reste bit-perfect
+    /// uniquement si le source rate == output rate (pas de resampler actif).
     pub fn is_bit_perfect_capable(self) -> bool {
         match self {
             AudioBackend::CpalShared => false,
             #[cfg(target_os = "windows")]
             AudioBackend::WasapiExclusive => true,
+            #[cfg(target_os = "linux")]
+            AudioBackend::AlsaExclusive => true,
+            #[cfg(target_os = "macos")]
+            AudioBackend::CoreAudioExclusive => true,
+        }
+    }
+
+    /// Backend exclusif de la plateforme courante, s'il en existe un.
+    /// `None` sur les OS sans chemin bit-perfect implémenté.
+    pub fn platform_exclusive() -> Option<Self> {
+        #[cfg(target_os = "windows")]
+        {
+            Some(AudioBackend::WasapiExclusive)
+        }
+        #[cfg(target_os = "linux")]
+        {
+            Some(AudioBackend::AlsaExclusive)
+        }
+        #[cfg(target_os = "macos")]
+        {
+            Some(AudioBackend::CoreAudioExclusive)
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+        {
+            None
         }
     }
 }

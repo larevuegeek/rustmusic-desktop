@@ -16,6 +16,7 @@ export type AppSettings = {
   system_media_controls: string;     // 'true' | 'false' — SMTC / MPRIS / Now Playing
   wasapi_exclusive: string;          // 'true' | 'false' — Windows uniquement, bit-perfect
   dsd_dop: string;                   // 'true' | 'false' — DSD natif (DoP) via WASAPI exclusive
+  gapless: string;                   // 'true' | 'false' — enchaînement sans blanc entre pistes
   theme: string;                     // 'auto' | 'light' | 'dark'
   window_controls_style: string;     // 'auto' | 'macos' | 'windows'
   window_controls_position: string;  // 'right' | 'left'
@@ -34,6 +35,7 @@ const defaults: AppSettings = {
   system_media_controls: 'true',
   wasapi_exclusive: 'false',
   dsd_dop: 'false',
+  gapless: 'true',
   theme: 'dark',
   window_controls_style: 'auto',
   window_controls_position: 'right',

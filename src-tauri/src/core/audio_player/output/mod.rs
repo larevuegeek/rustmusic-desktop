@@ -20,6 +20,10 @@ mod traits;
 mod types;
 #[cfg(target_os = "windows")]
 mod wasapi_exclusive;
+#[cfg(target_os = "linux")]
+mod exclusive_alsa;
+#[cfg(target_os = "macos")]
+mod exclusive_coreaudio;
 #[cfg(target_os = "windows")]
 pub mod dop_engine;
 #[cfg(target_os = "linux")]
@@ -105,11 +109,84 @@ where
             }
         }
     }
-    #[cfg(not(target_os = "windows"))]
+    // ─── Tentative ALSA hw: exclusive (Linux uniquement) ───
+    // La faisabilité est vérifiée AVANT de consommer le `consumer` : tant que
+    // `probe` n'a pas répondu, le repli CPAL reste possible sans acrobatie.
+    #[cfg(target_os = "linux")]
+    if matches!(desired_backend, AudioBackend::AlsaExclusive) {
+        if let Some(hw_id) = dop_alsa::resolve_hw_id(&cpal_device_name) {
+            if let Some(negotiation) =
+                exclusive_alsa::probe(&hw_id, source_sample_rate, source_channels)
+            {
+                match exclusive_alsa::AlsaExclusiveOutput::try_new(
+                    hw_id,
+                    cpal_device_name.clone(),
+                    negotiation,
+                    source_sample_rate,
+                    source_channels,
+                    consumer,
+                    atomics.clone(),
+                    shared.clone(),
+                ) {
+                    Ok(output) => {
+                        log::info!(
+                            "🎚️  Audio backend : ALSA exclusive ({}) — {} Hz / {} ch (bit-perfect)",
+                            output.device_name(),
+                            output.output_sample_rate(),
+                            output.output_channels()
+                        );
+                        return Ok(Box::new(output));
+                    }
+                    // Le consumer est perdu avec le thread : impossible de
+                    // retomber sur CPAL. Cas extrême (échec de spawn).
+                    Err(e) => return Err(e),
+                }
+            }
+        } else {
+            log::info!(
+                "🎚️  ALSA exclusive : aucune carte hw: ne correspond à « {cpal_device_name} » \
+                 → CPAL partagé"
+            );
+        }
+    }
+
+    // ─── Tentative CoreAudio exclusive (macOS uniquement) ───
+    #[cfg(target_os = "macos")]
+    if matches!(desired_backend, AudioBackend::CoreAudioExclusive) {
+        if let Some(device_id) =
+            exclusive_coreaudio::CoreAudioExclusiveOutput::probe(&cpal_device_name, source_sample_rate)
+        {
+            match exclusive_coreaudio::CoreAudioExclusiveOutput::try_new(
+                cpal_device.clone(),
+                device_id,
+                cpal_device_name.clone(),
+                source_sample_rate,
+                source_channels,
+                consumer,
+                atomics.clone(),
+                shared.clone(),
+            ) {
+                Ok(output) => {
+                    log::info!(
+                        "🎚️  Audio backend : CoreAudio exclusive ({}) — {} Hz / {} ch (bit-perfect)",
+                        output.device_name(),
+                        output.output_sample_rate(),
+                        output.output_channels()
+                    );
+                    return Ok(Box::new(output));
+                }
+                // `CpalSymphoniaOutput::try_new` a déjà consommé le consumer :
+                // si lui échoue, un fallback CPAL échouerait pareil.
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
     let _ = (source_sample_rate, source_channels);
 
     // ─── Path CPAL (default, cross-platform) ───
-    let _ = desired_backend; // évite warning unused sur non-Windows
+    let _ = desired_backend; // évite warning unused quand aucun backend exclusif
     cpal_symphonia::CpalSymphoniaOutput::try_new(
         cpal_device,
         cpal_config,

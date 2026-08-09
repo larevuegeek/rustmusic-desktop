@@ -194,7 +194,7 @@ fn output_channel_count(id: AudioDeviceID) -> u32 {
 }
 
 /// Rate nominal courant du device, en Hz.
-fn nominal_rate(id: AudioDeviceID) -> Option<f64> {
+pub(super) fn nominal_rate(id: AudioDeviceID) -> Option<f64> {
     let addr = prop(
         kAudioDevicePropertyNominalSampleRate,
         kAudioObjectPropertyScopeGlobal,
@@ -312,7 +312,7 @@ fn available_nominal_rates(id: AudioDeviceID) -> Vec<AudioValueRange> {
     }
 }
 
-fn supports_nominal_rate(id: AudioDeviceID, rate: u32) -> bool {
+pub(super) fn supports_nominal_rate(id: AudioDeviceID, rate: u32) -> bool {
     let want = rate as f64;
     // Tolérance ±0,5 Hz : les DAC déclarent souvent des bornes discrètes
     // (min == max) en flottant, pas toujours arrondies à l'entier près.
@@ -415,13 +415,13 @@ pub fn dop_format_supported(id: AudioDeviceID, carrier_rate: u32, channels: u16)
 ///
 /// L'échec n'est pas fatal : sans hog, le DoP fonctionne tant qu'aucune autre
 /// application ne joue sur le même DAC. On se contente donc d'avertir.
-struct HogGuard {
+pub(super) struct HogGuard {
     id: AudioDeviceID,
     owned: bool,
 }
 
 impl HogGuard {
-    fn acquire(id: AudioDeviceID) -> Self {
+    pub(super) fn acquire(id: AudioDeviceID) -> Self {
         let addr = prop(
             kAudioDevicePropertyHogMode,
             kAudioObjectPropertyScopeGlobal,

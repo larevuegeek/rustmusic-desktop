@@ -39,13 +39,16 @@ pub fn set_dop_enabled(enabled: bool) {
     log::info!("🎚️  DSD natif (DoP) preference : {}", if enabled { "ON" } else { "OFF" });
 }
 
-/// Backend préféré par l'utilisateur. Sur les OS non-Windows, retourne
-/// toujours `CpalShared` car WASAPI n'existe pas.
+/// Backend préféré par l'utilisateur : le backend exclusif de la plateforme
+/// quand la sortie exclusive est activée, `CpalShared` sinon.
+///
+/// Le réglage est unique et partagé par les trois OS (clé BDD historique
+/// `wasapi_exclusive`, conservée pour ne pas perdre le choix des utilisateurs
+/// Windows existants) ; c'est la plateforme qui décide du backend concret.
 pub fn current_preference() -> AudioBackend {
-    #[cfg(target_os = "windows")]
-    {
-        if WASAPI_EXCLUSIVE.load(Ordering::Relaxed) {
-            return AudioBackend::WasapiExclusive;
+    if WASAPI_EXCLUSIVE.load(Ordering::Relaxed) {
+        if let Some(exclusive) = AudioBackend::platform_exclusive() {
+            return exclusive;
         }
     }
     AudioBackend::CpalShared
@@ -57,7 +60,7 @@ pub fn current_preference() -> AudioBackend {
 pub fn set_wasapi_exclusive(enabled: bool) {
     WASAPI_EXCLUSIVE.store(enabled, Ordering::Relaxed);
     log::info!(
-        "🎚️  WASAPI exclusive preference : {}",
+        "🎚️  Sortie exclusive (bit-perfect) : {}",
         if enabled { "ON" } else { "OFF" }
     );
 }

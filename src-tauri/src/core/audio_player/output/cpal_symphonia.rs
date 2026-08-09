@@ -150,8 +150,9 @@ impl CpalSymphoniaOutput {
                         }
                     }
 
-                    // --- Volume + clipping + fade-in post-seek ---
-                    let vol: f32 = volume.load(Ordering::Relaxed) as f32 / 100.0;
+                    // --- Volume + Replay Gain + clipping + fade-in post-seek ---
+                    let vol: f32 = volume.load(Ordering::Relaxed) as f32 / 100.0
+                        * crate::core::audio_player::replay_gain::current_factor();
                     for s in output.iter_mut() {
                         let fade = if fade_in_samples > 0 {
                             fade_in_samples -= 1;

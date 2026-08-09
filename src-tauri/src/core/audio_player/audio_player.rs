@@ -279,8 +279,21 @@ impl AudioPlayer {
         let format_opts: FormatOptions = Default::default();
         let metadata_opts: MetadataOptions = Default::default();
 
-        let format: Box<dyn FormatReader> =
+        let mut format: Box<dyn FormatReader> =
             get_probe().probe(&hint, mss, format_opts, metadata_opts)?;
+
+        // ─── Replay Gain ───
+        // Lu ici parce que les tags sont déjà décodés par le probe : aucun
+        // accès disque ni BDD supplémentaire. Appelé même quand le fichier
+        // n'a pas de tags, pour ne pas garder le facteur du morceau précédent.
+        {
+            let info = format
+                .metadata()
+                .current()
+                .map(crate::core::audio_player::replay_gain::from_metadata)
+                .unwrap_or_default();
+            crate::core::audio_player::replay_gain::apply_track(info);
+        }
 
         let track: &symphonia::core::formats::Track = format
             .tracks()
@@ -724,12 +737,70 @@ impl AudioPlayer {
             Err(_) => log::error!("❌ Panic dans le thread de décodage"),
         }
 
+        // ─── Préchargement de la piste suivante (« troisième tampon ») ───
+        // Lancé ICI, une fois le décodeur de la piste courante terminé : la
+        // lecture se poursuit depuis la RAM, le CPU est donc libre, et il
+        // reste toute la durée restante du morceau pour décoder la suite.
+        // Chemin Symphonia uniquement, et jamais en profil Minimal (qui a sa
+        // propre stratégie de pré-décodage).
+        let mut preload_handle: Option<JoinHandle<()>> = None;
+        let preload_fmt = crate::core::audio_player::preload::StreamFormat {
+            source_rate: source_sample_rate,
+            source_channels: channels,
+            output_rate: output_sample_rate,
+            output_channels,
+        };
+        let can_preload =
+            crate::core::audio_player::preload::gapless_enabled() && !force_full_decode;
+
+        // Chemin de la piste réellement en cours : change à chaque promotion.
+        let mut playing_path: PathBuf = file_path.clone();
+        // Dernière annonce pour laquelle un décodage a été lancé, pour ne pas
+        // relancer le même en boucle.
+        let mut preload_attempted: Option<PathBuf> = None;
+
         // ⭐ CRITIQUE: Attendre que le FullBuffer soit complètement lu
         // Le decoder est terminé mais il reste peut-être des données dans le buffer
         log::debug!("⏳ Attente de la fin de lecture du buffer...");
 
         loop {
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            // Cadence adaptative : dès qu'une piste est prête à être promue on
+            // resserre le pas, car la fenêtre pour enchaîner sans blanc ne dure
+            // que le temps du tampon système (10-40 ms).
+            let poll_ms = if crate::core::audio_player::preload::is_ready() {
+                5
+            } else {
+                100
+            };
+            std::thread::sleep(std::time::Duration::from_millis(poll_ms));
+
+            // ─── Lancement paresseux du préchargement ───
+            // Évalué à chaque tour plutôt qu'une seule fois : l'annonce du
+            // frontend peut arriver après le début de la lecture, changer en
+            // cours de route, ou n'arriver qu'après une promotion.
+            if can_preload {
+                if preload_handle.as_ref().map_or(false, |h| h.is_finished()) {
+                    if let Some(h) = preload_handle.take() {
+                        let _ = h.join();
+                    }
+                }
+                let announced = crate::core::audio_player::preload::announced_next();
+                if preload_handle.is_none()
+                    && announced.is_some()
+                    && announced != preload_attempted
+                    && !crate::core::audio_player::preload::is_ready()
+                {
+                    preload_attempted = announced;
+                    let fmt = preload_fmt;
+                    let stop_flag = is_stopped.clone();
+                    preload_handle = std::thread::Builder::new()
+                        .name("rustmusic-preload".into())
+                        .spawn(move || {
+                            crate::core::audio_player::preload::run_preload(fmt, stop_flag);
+                        })
+                        .ok();
+                }
+            }
 
             // ─── SEEK pendant Phase 6 (decoder mort, FullBuffer en lecture) ───
             // Le decoder thread est terminé : la lecture audio est intégralement
@@ -792,6 +863,47 @@ impl AudioPlayer {
             let new_pos: f64 = frames as f64 / output_sample_rate as f64;
             current_position.store(new_pos.to_bits(), Ordering::Relaxed);
 
+            // ─── PROMOTION : enchaînement sans blanc ───
+            // Le curseur a atteint la fin du morceau, mais son audio est encore
+            // dans le tampon du système (10-40 ms de marge). On remplace le
+            // contenu du FullBuffer par la piste préchargée — un déplacement de
+            // `Vec`, sans copie — et on remet le curseur à zéro. Données et
+            // curseur sont écrits sous le MÊME verrou en écriture, donc le
+            // callback (qui lit les deux sous son verrou de lecture) ne peut
+            // pas observer d'état intermédiaire.
+            if is_end && !is_stopped.load(Ordering::Relaxed) {
+                if let Some(next) = crate::core::audio_player::preload::take_ready() {
+                    let next_path = next.path.clone();
+                    let next_secs = next.duration_secs;
+
+                    if let Ok(mut fb) = full_buffer_data.write() {
+                        *fb = next.samples;
+                        full_buffer_cursor.store(0, Ordering::Release);
+                    }
+
+                    // Le gain de la nouvelle piste ne prend effet qu'ici,
+                    // c'est-à-dire exactement quand ses échantillons sortent.
+                    crate::core::audio_player::replay_gain::set_current_factor(next.gain);
+
+                    total_duration.store(next_secs.to_bits(), Ordering::Relaxed);
+                    current_position_frames.store(0, Ordering::Relaxed);
+                    current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
+                    playing_path = next_path.clone();
+
+                    log::info!("🔗 Enchaînement sans blanc → {}", next_path.display());
+                    let _ = app_handle.emit(
+                        "track-advanced",
+                        next_path.to_string_lossy().to_string(),
+                    );
+
+                    // L'annonce vient d'être consommée : le lancement paresseux
+                    // en tête de boucle relancera un préchargement dès que le
+                    // frontend aura annoncé la piste d'après.
+                    preload_attempted = None;
+                    continue;
+                }
+            }
+
             if is_end || is_stopped.load(Ordering::Relaxed) {
                 // On vide le buffer final
                 if let Ok(mut fb) = full_buffer_data.write() {
@@ -808,9 +920,27 @@ impl AudioPlayer {
 
         is_stream_alive.store(false, Ordering::SeqCst);
         
-        //Envoyer un signal au frontend
+        // Le préchargement en vol n'a plus d'objet : on l'annule et on attend
+        // sa sortie, pour ne pas laisser un thread décoder dans le vide.
+        //
+        // Sur un arrêt utilisateur on vide tout ; sur une fin naturelle on
+        // CONSERVE l'annonce, car le frontend l'a peut-être déjà mise à jour
+        // pour la piste qui va suivre — l'effacer nous ferait perdre le
+        // préchargement du morceau d'après.
+        if is_stopped.load(Ordering::Relaxed) {
+            crate::core::audio_player::preload::reset();
+        } else {
+            crate::core::audio_player::preload::abort_current_decode();
+        }
+        if let Some(h) = preload_handle.take() {
+            let _ = h.join();
+        }
+
+        // Envoyer un signal au frontend. On renvoie le chemin de la piste
+        // RÉELLEMENT en cours : après un ou plusieurs enchaînements, ce n'est
+        // plus celle par laquelle la lecture a commencé.
         if !is_stopped.load(Ordering::Relaxed) {
-            if let Err(e) = app_handle.emit("playback-ended", file_path.to_string_lossy().to_string()) {
+            if let Err(e) = app_handle.emit("playback-ended", playing_path.to_string_lossy().to_string()) {
                 log::error!("❌ Erreur d'envoi de l'event Tauri : {}", e);
             }
         }
@@ -867,6 +997,18 @@ impl AudioPlayer {
         let channel_count = decoder.channel_count();
         let duration = decoder.duration_seconds();
         total_duration.store(duration.to_bits(), Ordering::Relaxed);
+
+        // ─── Replay Gain (voie DSD→PCM uniquement) ───
+        // Rare sur du DSD, mais il FAUT au minimum repartir de zéro : sans ce
+        // recalcul, le facteur du morceau PCM précédent resterait appliqué.
+        // Le DoP ne passe pas ici (écriture verbatim, aucun gain).
+        {
+            use crate::core::audio_player::replay_gain;
+            let info = crate::core::audio_metadata::extractor::extractor::extract(&file_path)
+                .map(|file| replay_gain::from_custom_tags(&file.tags.custom_tags))
+                .unwrap_or_default();
+            replay_gain::apply_track(info);
+        }
 
         log::debug!(
             "🎵 [DSD/{}] Source : {} ch, DSD {} Hz, {:.2}s",
@@ -1413,7 +1555,8 @@ impl AudioPlayer {
                             .store(c / output_channels_cpal as usize, Ordering::Relaxed);
                     }
 
-                    let vol = volume_cpal.load(Ordering::Relaxed) as f32 / 100.0;
+                    let vol = volume_cpal.load(Ordering::Relaxed) as f32 / 100.0
+                        * crate::core::audio_player::replay_gain::current_factor();
                     for s in output.iter_mut() {
                         let fade = if fade_in_samples > 0 {
                             fade_in_samples -= 1;
@@ -1559,8 +1702,9 @@ impl AudioPlayer {
                     current_position_frames_cpal.fetch_add(frames, Ordering::Relaxed);
                 }
 
-                // Volume + fade-in post-seek + clipping de sécurité
-                let vol = volume_cpal.load(Ordering::Relaxed) as f32 / 100.0;
+                // Volume + Replay Gain + fade-in post-seek + clipping de sécurité
+                let vol = volume_cpal.load(Ordering::Relaxed) as f32 / 100.0
+                    * crate::core::audio_player::replay_gain::current_factor();
                 for s in output.iter_mut() {
                     let fade = if fade_in_samples > 0 {
                         fade_in_samples -= 1;
@@ -2171,17 +2315,17 @@ where
 
             if !is_full_buffer_ready.load(Ordering::Relaxed) {
                 const SAFETY_MARGIN: usize = 2000;
-                
+
                 // On calcule le nombre de samples déjà joués grâce à l'AtomicUsize
                 let played_frames: usize = current_position_frames.load(Ordering::Relaxed);
                 let played_samples: usize = played_frames * output_channels as usize;
 
                 if fb.len() > played_samples + SAFETY_MARGIN {
                     is_full_buffer_ready.store(true, Ordering::Relaxed);
-                    
+
                     // On bascule sur le FullBuffer (1 = FullBuffer)
                     current_source.store(1, Ordering::Relaxed);
-                    
+
                     log::debug!(
                         "🚀 FullBuffer prêt ! ({} samples) - Basculement effectué",
                         fb.len()

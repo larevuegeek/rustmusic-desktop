@@ -20,7 +20,16 @@ let seekPending = false;
 let trackPlaybackEnded: UnlistenFn | null = null;
 let preparingUnlisten: UnlistenFn | null = null;
 let queueUnsubscribe: (() => void) | null = null;
+let trackAdvancedUnlisten: UnlistenFn | null = null;
+let sleepUnsubscribe: (() => void) | null = null;
 let playStartedAt = 0; // timestamp (Date.now()) au moment où CPAL démarre vraiment
+
+// Piste annoncée au backend pour le préchargement (lecture sans blanc).
+// On mémorise l'index en plus du morceau : à la promotion, c'est lui qui
+// permet d'avancer la file sans avoir à rechercher par chemin (un même
+// fichier peut figurer plusieurs fois dans la file).
+let announcedNext: { track: QueueTrack; index: number } | null = null;
+let lastAnnouncedPath: string | null = null;
 
 let initialized = false;
 
@@ -35,7 +44,12 @@ class PlayerService {
 
         await this.initPlaybackListener();
         await this.initPreparingListener();
+        await this.initTrackAdvancedListener();
         this.initQueueSync();
+
+        // La minuterie « fin du morceau » doit empêcher tout préchargement :
+        // on réévalue donc l'annonce à chaque changement de son état.
+        sleepUnsubscribe = sleepTimer.subscribe(() => this.syncNextTrack());
 
         // Sleep timer : à échéance (mode durée), on met en pause la lecture.
         sleepTimer.setOnFire(() => {
@@ -47,7 +61,9 @@ class PlayerService {
     destroy() {
         if (trackPlaybackEnded) trackPlaybackEnded();
         if (preparingUnlisten) preparingUnlisten();
+        if (trackAdvancedUnlisten) trackAdvancedUnlisten();
         if (queueUnsubscribe) queueUnsubscribe();
+        if (sleepUnsubscribe) sleepUnsubscribe();
         this.stopAnimation();
         if (timer) clearTimeout(timer);
         initialized = false;
@@ -131,6 +147,11 @@ class PlayerService {
             const currentPlayer = get(player);
             const currentPlayerTrackId = currentPlayer.trackId;
 
+            // Toute mutation de la file (réordonnancement, ajout, retrait,
+            // shuffle, repeat…) passe ici : c'est le point unique où l'on
+            // réévalue « quelle est la suite ? » pour le préchargement.
+            this.syncNextTrack();
+
             if (!track) {
                 this.stopPlay();
                 return;
@@ -146,6 +167,115 @@ class PlayerService {
             if (track.queueId !== currentPlayerTrackId) {
                 this.playFile(track);
             }
+        });
+    }
+
+    // ==========================================
+    // 🔗 LECTURE SANS BLANC — annonce de la suite
+    // ==========================================
+    // Calcule la piste qui suivra, avec exactement la même règle que
+    // `queueState.next()`, et l'annonce au backend pour qu'il la précharge.
+    // Toute annonce différente invalide le préchargement en cours côté Rust.
+    private syncNextTrack() {
+        const qs = get(queueState);
+        let candidate: { track: QueueTrack; index: number } | null = null;
+
+        // Minuterie « fin du morceau » : il ne doit rien y avoir après.
+        const sleepMode = get(sleepTimer).mode;
+
+        if (sleepMode !== "end-of-track" && qs.tracks.length > 0 && qs.currentIndex >= 0) {
+            let index: number;
+
+            if (qs.repeatMode === "one") {
+                index = qs.currentIndex;
+            } else {
+                index = qs.currentIndex + 1;
+                if (index >= qs.tracks.length) {
+                    index = qs.repeatMode === "all" ? 0 : -1;
+                }
+            }
+
+            const next = index >= 0 ? qs.tracks[index] : null;
+            if (next) candidate = { track: next, index };
+        }
+
+        // Toujours rafraîchir la référence locale : l'index peut changer même
+        // quand le chemin ne bouge pas (réordonnancement de la file).
+        announcedNext = candidate;
+
+        const path = candidate?.track.path ?? null;
+        if (path === lastAnnouncedPath) return;
+        lastAnnouncedPath = path;
+
+        invoke("set_next_track", { path }).catch((e) =>
+            console.warn("[gapless] set_next_track:", e)
+        );
+    }
+
+    // ==========================================
+    // 🔗 LECTURE SANS BLANC — la piste a été promue
+    // ==========================================
+    // Le backend a enchaîné sans interrompre le flux audio. Le frontend doit
+    // donc se resynchroniser SANS relancer la lecture.
+    private async initTrackAdvancedListener() {
+        trackAdvancedUnlisten = await listen<string>("track-advanced", async (e) => {
+            const advanced = announcedNext;
+            announcedNext = null;
+            lastAnnouncedPath = null;
+
+            // Garde-fou : si ce qui a été promu ne correspond pas à ce qu'on
+            // avait annoncé, on ne touche à rien — le flux normal
+            // (`playback-ended`) reprendra la main en fin de morceau.
+            if (!advanced || advanced.track.path !== e.payload) {
+                console.warn("[gapless] track-advanced inattendu :", e.payload);
+                return;
+            }
+
+            const track = advanced.track;
+
+            try {
+                const audioFile = await invoke("open_file", { path: track.path }) as AudioFile;
+
+                // ⚠️ ORDRE CRITIQUE : le player d'abord, la file ensuite.
+                // `initQueueSync` relance `playFile` quand le queueId de la
+                // file diffère de celui du player ; en mettant le player à
+                // jour en premier, les deux coïncident déjà quand la
+                // souscription se déclenche, et la lecture n'est pas coupée.
+                player.update({
+                    status: "playing",
+                    pathFile: track.path,
+                    audioFile,
+                    trackId: track.queueId,
+                    jsPosition: 0,
+                    rustPosition: 0,
+                    isPreparing: false,
+                });
+
+                // Rebase l'animation de la barre de progression : le backend a
+                // remis sa position à zéro pour la nouvelle piste.
+                basePos = 0;
+                baseTime = Date.now();
+                playStartedAt = Date.now();
+
+                await queueState.setCurrentIndex(advanced.index);
+
+                // Historique et notification, comme pour une lecture normale.
+                const libraryCacheId = await invoke<number | null>(
+                    "get_library_cache_id_by_path",
+                    { path: track.path }
+                );
+                await invoke<void>("insert_recent_file", {
+                    path: track.path,
+                    libraryId: libraryCacheId,
+                });
+                recent.refreshRecent();
+                this.sendTrackNotification(track, audioFile);
+            } catch (err) {
+                console.error("[gapless] resynchronisation après enchaînement :", err);
+            }
+
+            // Annonce de la piste d'après, pour rester en avance.
+            this.syncNextTrack();
         });
     }
 

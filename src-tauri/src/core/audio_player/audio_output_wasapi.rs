@@ -752,8 +752,12 @@ where
             current_position_frames.fetch_add(frames_played, Ordering::Relaxed);
         }
 
-        // Applique volume + fade-in post-seek + clipping de sécurité.
-        let vol = volume.load(Ordering::Relaxed) as f32 / 100.0;
+        // Applique volume + Replay Gain + fade-in post-seek + clipping.
+        // NB : ce chemin PCM applique déjà le volume logiciel ; le Replay Gain
+        // suit la même règle. La voie DoP (plus bas) n'applique ni l'un ni
+        // l'autre et reste bit-perfect.
+        let vol = volume.load(Ordering::Relaxed) as f32 / 100.0
+            * crate::core::audio_player::replay_gain::current_factor();
         for s in interleaved_f32.iter_mut() {
             let fade = if fade_in_samples > 0 {
                 fade_in_samples -= 1;
