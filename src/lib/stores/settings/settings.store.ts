@@ -1,7 +1,12 @@
 import { writable, get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from "@tauri-apps/plugin-autostart";
-import { applyThemeMode, type ThemeMode } from "$lib/helper/theme/theme";
+import {
+  applyThemeMode,
+  applyContrastMode,
+  type ThemeMode,
+  type ContrastMode,
+} from "$lib/helper/theme/theme";
 
 export type AppSettings = {
   language: string;
@@ -18,6 +23,7 @@ export type AppSettings = {
   dsd_dop: string;                   // 'true' | 'false' — DSD natif (DoP) via WASAPI exclusive
   gapless: string;                   // 'true' | 'false' — enchaînement sans blanc entre pistes
   theme: string;                     // 'auto' | 'light' | 'dark'
+  contrast: string;                  // 'normal' | 'high' — lisibilité renforcée
   window_controls_style: string;     // 'auto' | 'macos' | 'windows'
   window_controls_position: string;  // 'right' | 'left'
 };
@@ -37,6 +43,7 @@ const defaults: AppSettings = {
   dsd_dop: 'false',
   gapless: 'true',
   theme: 'dark',
+  contrast: 'normal',
   window_controls_style: 'auto',
   window_controls_position: 'right',
 };
@@ -65,6 +72,11 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
   // système si mode 'auto'. Appelé aussi au chargement initial.
   theme: async (value: string) => {
     applyThemeMode((value as ThemeMode) ?? 'auto');
+  },
+
+  // Contraste : pose `data-contrast` sur <html>, les règles CSS font le reste.
+  contrast: async (value: string) => {
+    applyContrastMode((value as ContrastMode) ?? 'normal');
   },
 
   // SMTC / MPRIS / Now Playing : on appelle le service qui parle au backend
@@ -131,9 +143,10 @@ export const settingsStore = {
         ),
       }));
 
-      // Applique le thème dès le chargement
+      // Applique le thème et le contraste dès le chargement
       const finalTheme = get(settingsWriter).theme;
       applyThemeMode((finalTheme as ThemeMode) ?? 'dark');
+      applyContrastMode((get(settingsWriter).contrast as ContrastMode) ?? 'normal');
     } catch (e) {
       console.error('[settingsStore] Failed to load settings', e);
     }

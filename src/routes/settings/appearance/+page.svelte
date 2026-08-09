@@ -12,6 +12,7 @@
   } from "$lib/services/system/renderMode.service";
 
   let theme = $derived($settingsStore.theme);
+  let contrast = $derived($settingsStore.contrast ?? 'normal');
   let windowControlsStyle = $derived($settingsStore.window_controls_style);
   let windowControlsPosition = $derived($settingsStore.window_controls_position);
 
@@ -99,6 +100,51 @@
         </div>
       </AppearanceCard>
     </div>
+  </div>
+
+  <!-- ─── Contraste ─── -->
+  <div class="mb-5">
+    <div class="flex items-center gap-3 mb-2.5 px-1">
+      <Icon icon="lucide:contrast" width="18" class="text-neutral-400" />
+      <div>
+        <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200">{$t('settings.contrast')}</p>
+        <p class="text-[11px] text-neutral-400 dark:text-neutral-500">{$t('settings.contrast_desc')}</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 max-w-md">
+      <AppearanceCard
+        label={$t('settings.contrast_normal')}
+        selected={contrast !== 'high'}
+        onclick={() => settingsStore.set('contrast', 'normal')}
+      >
+        <!-- Aperçu : texte secondaire estompé, comme aujourd'hui -->
+        <div class="w-full h-full bg-neutral-900 relative">
+          <div class="absolute top-2 left-2 w-1/2 h-1 rounded-full bg-neutral-300"></div>
+          <div class="absolute top-4 left-2 w-2/3 h-1 rounded-full bg-neutral-700"></div>
+          <div class="absolute top-6 left-2 w-1/3 h-1 rounded-full bg-neutral-700"></div>
+        </div>
+      </AppearanceCard>
+
+      <AppearanceCard
+        label={$t('settings.contrast_high')}
+        selected={contrast === 'high'}
+        onclick={() => settingsStore.set('contrast', 'high')}
+      >
+        <!-- Aperçu : le texte secondaire ressort nettement -->
+        <div class="w-full h-full bg-neutral-900 relative">
+          <div class="absolute top-2 left-2 w-1/2 h-1 rounded-full bg-white"></div>
+          <div class="absolute top-4 left-2 w-2/3 h-1 rounded-full bg-neutral-300"></div>
+          <div class="absolute top-6 left-2 w-1/3 h-1 rounded-full bg-neutral-300"></div>
+        </div>
+      </AppearanceCard>
+    </div>
+
+    {#if contrast === 'high'}
+      <p class="mt-2 px-1 text-[11px] text-neutral-400 dark:text-neutral-500">
+        {$t('settings.contrast_high_note')}
+      </p>
+    {/if}
   </div>
 
   <!-- ─── Style des contrôles fenêtre ─── -->

@@ -4,7 +4,7 @@ Merci de t'intéresser au projet ! Voici les éléments à connaître avant de p
 
 ## Avant de commencer
 
-1. **Vérifie que l'issue n'existe pas déjà** dans les [issues GitHub](https://github.com/<votre-user>/rustmusic/issues).
+1. **Vérifie que l'issue n'existe pas déjà** dans les [issues GitHub](https://github.com/larevuegeek/rustmusic/issues).
 2. **Pour les changements significatifs** (nouvelle feature, refactor majeur), **ouvre d'abord une issue de discussion** avant d'écrire du code. Ça évite les déceptions si la direction n'est pas alignée.
 3. **Les petits fix** (bug, typo, traduction, doc) peuvent aller directement en PR.
 
@@ -30,12 +30,12 @@ Merci de t'intéresser au projet ! Voici les éléments à connaître avant de p
 ### Internationalisation
 
 - **Toute string visible utilisateur doit passer par `$t('key')`**
-- Ajoute la clé dans les **4 locales** (`fr.json`, `en.json`, `de.json`, `es.json`) — un fichier non synchronisé est rejeté
+- Ajoute la clé dans les **5 locales** (`fr.json`, `en.json`, `de.json`, `es.json`, `it.json`) — un fichier non synchronisé est rejeté
 - Garde la structure hiérarchique cohérente (`settings.audio_quality_*`, etc.)
 
 ### SQL
 
-- Les migrations vont dans `src-tauri/migrations/` avec format `YYYYMMDDHHMM_description.sql`
+- Les migrations vont dans `src-tauri/SQL/` avec format `YYYYMMDDHHMM_description.sql`
 - Toujours ajouter un index si tu fais un `WHERE` sur un champ non-PK
 - Préférer les `LEFT JOIN` explicites aux sous-requêtes `OR IN (SELECT...)` coûteuses
 - Documenter le pourquoi en commentaire dans le SQL si non-évident
@@ -99,7 +99,7 @@ En soumettant une PR, tu acceptes que ton code soit publié sous **GPL-3.0** com
 
 ## Questions
 
-- Tag-moi dans l'issue : [@<votre-user>](https://github.com/<votre-user>)
+- Tag-moi dans l'issue : [@larevuegeek](https://github.com/larevuegeek)
 - Mail : contact@rustmusic.dev
 
 Merci de contribuer à RustMusic ! 🎵

@@ -1,0 +1,58 @@
+name: 💡 Proposition de fonctionnalité
+description: Suggérer une amélioration ou une nouvelle fonctionnalité
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci pour l'idée. Un coup d'œil au
+        [ROADMAP.md](https://github.com/larevuegeek/rustmusic/blob/main/ROADMAP.md)
+        avant de poster : elle est peut-être déjà prévue, ou explicitement
+        écartée (MQA, streaming intégré…).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Quel besoin ça couvre ?
+      description: |
+        Décris la situation concrète plutôt que la solution. Comprendre le
+        problème permet souvent de trouver une réponse plus simple que celle
+        envisagée au départ.
+      placeholder: "Quand j'écoute un album live, …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Ce que tu imagines
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Autres pistes envisagées
+      description: Et comment d'autres lecteurs s'y prennent, si tu en connais.
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Domaine
+      options:
+        - Lecture audio / qualité sonore
+        - Bibliothèque et métadonnées
+        - Interface et navigation
+        - Playlists et file d'attente
+        - Réseau (DLNA, AirPlay…)
+        - Intégration au système
+        - Autre
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Contribution
+      options:
+        - label: Je suis prêt·e à tenter une pull request pour cette fonctionnalité

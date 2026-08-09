@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Faille de sécurité
+    url: https://github.com/larevuegeek/rustmusic/security/advisories/new
+    about: À signaler en privé, jamais en issue publique. Voir SECURITY.md.
+  - name: 📖 Guides et téléchargements
+    url: https://rustmusic.dev
+    about: Documentation, guides d'utilisation et dernières versions.
+  - name: 💬 Question d'utilisation
+    url: mailto:contact@rustmusic.dev
+    about: Pour une question qui n'est ni un bug ni une proposition.

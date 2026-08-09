@@ -230,3 +230,62 @@ html, body {
   color: rgba(255, 255, 255, 0.55) !important;
   transform: scale(0.97) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MODE CONTRASTE ÉLEVÉ  —  <html data-contrast="high">
+   ═══════════════════════════════════════════════════════════════════════
+
+   L'interface repose largement sur des couches très peu opaques
+   (`white/5`, `text-neutral-400`…) et des flous d'arrière-plan. C'est ce qui
+   lui donne son aspect feutré, mais c'est aussi ce qui la rend difficile à
+   lire sur une dalle peu contrastée, en plein jour, ou pour une vue fatiguée.
+
+   Plutôt que de reprendre des centaines de composants un par un, on agit à la
+   source : Tailwind 4 exprime ses couleurs en variables CSS, donc redéfinir
+   ces variables change d'un coup TOUTES les utilitaires qui s'en servent.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Thème clair : les gris secondaires deviennent nettement plus sombres. */
+:root[data-contrast="high"] {
+  --color-neutral-300: oklch(0.55 0 0);
+  --color-neutral-400: oklch(0.45 0 0);
+  --color-neutral-500: oklch(0.38 0 0);
+  --color-neutral-600: oklch(0.32 0 0);
+  --color-gray-400: oklch(0.45 0 0);
+  --color-gray-500: oklch(0.38 0 0);
+}
+
+/* Thème sombre : ils deviennent nettement plus clairs. */
+:root[data-contrast="high"].dark {
+  --color-neutral-300: oklch(0.92 0 0);
+  --color-neutral-400: oklch(0.86 0 0);
+  --color-neutral-500: oklch(0.80 0 0);
+  --color-neutral-600: oklch(0.72 0 0);
+  --color-gray-400: oklch(0.86 0 0);
+  --color-gray-500: oklch(0.80 0 0);
+}
+
+/* Les flous d'arrière-plan brouillent le texte posé dessus : on les coupe.
+   Le fond reste coloré, seule la transparence diffuse disparaît. */
+:root[data-contrast="high"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Le texte des paroles est volontairement estompé pour l'effet « karaoké » ;
+   en contraste élevé, les lignes non actives redeviennent lisibles. */
+:root[data-contrast="high"] .lyric-line,
+:root[data-contrast="high"] .lyric-future {
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+:root[data-contrast="high"] .lyric-past {
+  color: rgba(255, 255, 255, 0.55) !important;
+  filter: none;
+}
+
+/* Focus clavier franchement visible : utile à tout le monde, indispensable
+   pour qui navigue sans souris. */
+:root[data-contrast="high"] :focus-visible {
+  outline: 2px solid var(--color-emerald-500);
+  outline-offset: 2px;
+}

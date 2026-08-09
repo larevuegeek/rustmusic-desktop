@@ -1,0 +1,150 @@
+name: 🐛 Rapport de bug
+description: Signaler un dysfonctionnement
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de prendre le temps de signaler ce problème.
+
+        **Avant tout : le fichier de log** est ce qui permet de diagnostiquer le
+        plus vite. Il se trouve ici :
+
+        | Système | Chemin |
+        |---|---|
+        | Windows | `%APPDATA%\com.larevuegeek.rustmusic\logs\rustmusic.log` |
+        | macOS | `~/Library/Application Support/com.larevuegeek.rustmusic/logs/rustmusic.log` |
+        | Linux | `~/.local/share/com.larevuegeek.rustmusic/logs/rustmusic.log` |
+
+        Si l'application ne démarre pas du tout, lance-la depuis un terminal et
+        copie ce qui s'affiche : le message d'erreur y apparaît souvent alors
+        qu'il n'atteint jamais le fichier de log.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Que se passe-t-il ?
+      description: Décris le problème, et ce que tu attendais à la place.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Comment le reproduire
+      placeholder: |
+        1. Ouvrir …
+        2. Cliquer sur …
+        3. Le problème apparaît
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version de RustMusic
+      description: Visible dans Réglages → À propos.
+      placeholder: "0.1.9"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Système d'exploitation
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: Version du système
+      description: Et l'environnement de bureau sous Linux, si tu le connais.
+      placeholder: "Windows 11 24H2 · macOS 15.2 · Ubuntu 24.04 (GNOME/Wayland) · SteamOS 3.6"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_format
+    attributes:
+      label: Format d'installation
+      description: Un même bug peut n'exister que sur un seul format d'empaquetage.
+      options:
+        - Windows — installeur .exe
+        - macOS — .dmg
+        - Linux — .deb
+        - Linux — .rpm
+        - Linux — AppImage
+        - Linux — variante glibc 2.35
+        - Compilé depuis les sources
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: Colle le contenu du fichier de log, ou la sortie du terminal.
+      render: shell
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ### Si le problème concerne la lecture audio
+        Les champs ci-dessous n'ont de sens que pour un bug de son : coupure,
+        grésillement, silence, format refusé, enchaînement entre pistes…
+        Laisse-les vides sinon.
+
+  - type: input
+    id: audio_device
+    attributes:
+      label: Périphérique de sortie / DAC
+      placeholder: "FiiO K7, sortie HDMI, casque USB, haut-parleurs internes…"
+
+  - type: input
+    id: audio_format
+    attributes:
+      label: Format du fichier concerné
+      description: Visible dans la barre du lecteur pendant la lecture.
+      placeholder: "FLAC 24 bits / 96 kHz stéréo · DSF DSD64 · MP3 320"
+
+  - type: checkboxes
+    id: audio_settings
+    attributes:
+      label: Réglages audio actifs
+      description: Réglages → Audio. Ils changent complètement le chemin du son.
+      options:
+        - label: Sortie exclusive (bit-perfect)
+        - label: DSD natif (DoP)
+        - label: Lecture sans blanc
+        - label: Replay Gain
+        - label: Serveur DLNA activé
+
+  - type: input
+    id: quality_profile
+    attributes:
+      label: Profil de qualité de décodage
+      placeholder: "Auto (résolu en Qualité maximale) · Compatibilité · Mode dégradé"
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        ### Si l'application ne démarre pas ou affiche une fenêtre blanche (Linux)
+
+  - type: input
+    id: render_mode
+    attributes:
+      label: Mode de rendu
+      description: |
+        Réglages → Apparence. Si tu ne peux pas ouvrir l'application, essaie de
+        la lancer avec `RUSTMUSIC_RENDER=software` et indique si ça change
+        quelque chose.
+      placeholder: "Auto · GPU · Logiciel · testé avec RUSTMUSIC_RENDER=software"

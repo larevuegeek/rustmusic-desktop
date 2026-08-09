@@ -1,4 +1,23 @@
 export type ThemeMode = 'auto' | 'light' | 'dark';
+export type ContrastMode = 'normal' | 'high';
+
+/**
+ * Applique le niveau de contraste en posant `data-contrast` sur <html>.
+ *
+ * Le rendu de l'interface repose beaucoup sur des couches très peu opaques
+ * (`white/5`, `text-neutral-400`…) et des flous d'arrière-plan : élégant, mais
+ * difficile à lire pour qui a une vue fatiguée, un écran très lumineux ou un
+ * dalle peu contrastée. Le mode élevé neutralise ces effets — voir les règles
+ * `[data-contrast="high"]` dans `app.css`.
+ */
+export function applyContrastMode(mode: ContrastMode) {
+    const root = document.documentElement;
+    if (mode === 'high') {
+        root.setAttribute('data-contrast', 'high');
+    } else {
+        root.removeAttribute('data-contrast');
+    }
+}
 
 let mediaQueryListener: ((e: MediaQueryListEvent) => void) | null = null;
 
