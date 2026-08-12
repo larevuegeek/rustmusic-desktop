@@ -284,8 +284,24 @@ html, body {
 }
 
 /* Focus clavier franchement visible : utile à tout le monde, indispensable
-   pour qui navigue sans souris. */
-:root[data-contrast="high"] :focus-visible {
+   pour qui navigue sans souris.
+
+   `data-focus-ring` permet à un composant de **déplacer** l'indicateur, jamais
+   de le supprimer. Le cas typique : un champ dont la ligne entière s'allume au
+   focus. Un second rectangle flottant autour de la seule zone de saisie n'y
+   ajoute rien et casse le dessin ; c'est la ligne qui doit porter le trait.
+     - `none` sur l'élément qui reçoit le focus,
+     - `row`  sur le conteneur qui l'affichera à sa place.
+   L'indicateur reste donc toujours présent, et à la bonne échelle. */
+:root[data-contrast="high"] :focus-visible:not([data-focus-ring="none"]) {
   outline: 2px solid var(--color-emerald-500);
   outline-offset: 2px;
+}
+/* 1 px et non 2 : le trait fait ici le tour d'un bloc entier, pas d'un petit
+   contrôle, et un bloc porte déjà son propre signal de focus (fond teinté,
+   intitulé coloré). À surface égale un trait de 2 px y pèse visuellement le
+   double — l'indicateur reste parfaitement lisible à 1 px. */
+:root[data-contrast="high"] [data-focus-ring="row"]:focus-within {
+  outline: 1px solid var(--color-emerald-500);
+  outline-offset: -1px;
 }

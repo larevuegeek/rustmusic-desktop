@@ -329,20 +329,54 @@ pub async fn create_library(
         Err(e) => return Err(format!("Failed to insert library : {}", e))
     };
 
-    Ok(library)
+    // La toute première bibliothèque d'un profil devient sa bibliothèque par
+    // défaut : demander à l'utilisateur de désigner la seule qu'il possède
+    // n'aurait aucun sens. Sans effet si le profil en a déjà une.
+    let _ = LibraryRepository::ensure_default(&state.pool, library.profil_id).await;
+
+    // Relecture : la promotion vient peut-être de changer `is_default`, et
+    // l'interface s'appuie dessus pour afficher le repère.
+    Ok(LibraryRepository::find_library_by_id(&state.pool, library.id)
+        .await
+        .unwrap_or(library))
 }
 
 #[tauri::command]
 pub async fn remove_library(
-    state: State<'_, AppState>, 
+    state: State<'_, AppState>,
     library_id: i64
 ) -> Result<(), String> {
+
+    // Le profil est lu AVANT la suppression : après, la ligne n'existe plus et
+    // on ne saurait plus à qui redonner un défaut.
+    let profil_id = LibraryRepository::find_library_by_id(&state.pool, library_id)
+        .await
+        .map(|library| library.profil_id)
+        .ok();
 
     LibraryRepository::remove_library(&state.pool, library_id)
         .await
         .map_err(|e| format!("Failed to remove library: {}", e))?;
 
+    // Supprimer la bibliothèque par défaut laisserait le profil sans point
+    // d'entrée au démarrage : on en promeut une autre.
+    if let Some(profil_id) = profil_id {
+        let _ = LibraryRepository::ensure_default(&state.pool, profil_id).await;
+    }
+
     Ok(())
+}
+
+/// Désigne la bibliothèque ouverte au démarrage, pour le profil concerné.
+#[tauri::command]
+pub async fn set_default_library(
+    state: State<'_, AppState>,
+    library_id: i64
+) -> Result<(), String> {
+
+    LibraryRepository::set_default(&state.pool, library_id)
+        .await
+        .map_err(|e| format!("Failed to set default library: {}", e))
 }
 
 #[tauri::command]

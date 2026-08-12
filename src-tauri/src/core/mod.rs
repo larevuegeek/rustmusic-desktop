@@ -42,6 +42,18 @@ pub mod audio_metadata {
     pub mod tag_format {
         pub mod id3v2;
     }
+    // Miroir en écriture de `extractor` : voir `injector/injector.rs`.
+    pub mod injector {
+        pub mod atomic_write;
+        pub mod dff_container;
+        pub mod dsf_container;
+        pub mod edit;
+        pub mod flac_container;
+        pub mod id3v2_writer;
+        pub mod image_prep;
+        pub mod injector;
+        pub mod mp3_container;
+    }
 }
 
 pub mod audio_decoder {

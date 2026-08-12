@@ -9,6 +9,10 @@
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
   import { invoke } from "@tauri-apps/api/core";
   import type { Playlist } from "$lib/types/db/playlist/Playlist";
+  import { t } from "$lib/i18n";
+  import { popinStore } from "$lib/stores/ui/popin.store";
+  import { canWriteTags } from "$lib/services/tags/tagEditor.service";
+  import EditTagsPopin from "$lib/components/library/common/popin/EditTagsPopin.svelte";
 
   type Props = {
     track: TrackLike & { id?: string | number | null; artist_id?: string | null; library_artist_id?: string | null; album_id?: string | null };
@@ -38,6 +42,36 @@
 
   let showPlaylistSub = $state(false);
   let isLiked = $derived(track.path ? $liked.paths.has(track.path) : false);
+
+  // Le backend seul sait quels conteneurs il sait réécrire : on lui demande
+  // plutôt que de dupliquer une liste d'extensions qui divergerait.
+  let canEditTags = $state(false);
+  $effect(() => {
+    const p = track.path;
+    if (!p) {
+      canEditTags = false;
+      return;
+    }
+    canWriteTags(p).then((ok) => (canEditTags = ok));
+  });
+
+  function handleEditTags() {
+    if (!track.path) return;
+    // `flush` : l'éditeur gère lui-même ses deux colonnes défilantes et son
+    // pied de page fixe, ce que la mise en page par défaut de la popin
+    // (un unique conteneur défilant rembourré) ne permet pas.
+    popinStore.open(
+      $t('tags.edit'),
+      EditTagsPopin,
+      {
+        path: track.path,
+        onsaved: () =>
+          toasts.push({ type: "success", title: $t('tags.saved'), message: "" }),
+      },
+      { size: "xl", flush: true, icon: "lucide:tags" },
+    );
+    onclose();
+  }
   let playlists = $derived($playlistStore.playlists);
 
   // Position ajustée pour ne pas sortir de l'écran
@@ -268,6 +302,19 @@
         Voir l'artiste
       </button>
     {/if}
+  {/if}
+
+  <!-- Modifier les tags — masqué si le format n'est pas réinscriptible -->
+  {#if canEditTags}
+    <div class="h-px mx-2 my-1 bg-white/8"></div>
+    <button
+      class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
+             text-neutral-200 hover:bg-white/10 transition-colors"
+      onclick={handleEditTags}
+    >
+      <Icon icon="lucide:tag" width="14" class="opacity-60" />
+      {$t('tags.edit')}
+    </button>
   {/if}
 
   <!-- Supprimer (optionnel) -->

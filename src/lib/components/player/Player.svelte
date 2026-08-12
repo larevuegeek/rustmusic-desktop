@@ -1,5 +1,5 @@
 <script lang="ts">
-import { openPath } from '@tauri-apps/plugin-opener';
+import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import Icon from "@iconify/svelte";
 import { t } from "$lib/i18n";
 import PlayerProgressBar from "./PlayerProgressBar.svelte";
@@ -9,7 +9,7 @@ import { toggleLyricsPanel, lyricsPanelOpened } from "$lib/stores/lyrics/lyricsP
 import LyricsPanel from "$lib/components/lyrics/LyricsPanel.svelte";
 import { player } from "$lib/stores/player/player.store";
 import { queueState } from "$lib/stores/queue/queueState.store";
-import { truncateMiddle, getFolderPath, displayTitle }  from "$lib/helper/tools/stringTools";
+import { truncateMiddle, displayTitle }  from "$lib/helper/tools/stringTools";
 import { dateToYear, durationToMinutes } from "$lib/helper/tools/dateTools";
 import ImgZoom from '$lib/components/ui/tools/ImgZoom.svelte';
 import { playerService } from "$lib/services/player/player.service";
@@ -63,8 +63,23 @@ $effect(() => {
 });
 
 
+/**
+ * Ouvre l'explorateur sur le morceau, sélectionné dans son dossier.
+ *
+ * `revealItemInDir` et non `openPath` pour deux raisons. D'abord la portée :
+ * la capability `opener:allow-open-path` est limitée à `$HOME` et `$APPDATA`,
+ * donc une bibliothèque sur un autre volume — un NAS, un disque dédié — était
+ * silencieusement refusée. Ensuite la sûreté : `openPath` lance le fichier
+ * avec son application par défaut, là où « révéler » ne peut rien exécuter.
+ * C'est aussi plus utile : le morceau est mis en évidence, pas seulement son
+ * dossier ouvert.
+ */
 const handleOpenPath = async (path: string) => {
-    await openPath(getFolderPath(path));
+    try {
+        await revealItemInDir(path);
+    } catch (e) {
+        console.error("Impossible d'ouvrir le dossier du morceau", e);
+    }
 };
 
 const btnBase = "flex items-center justify-center rounded-full cursor-pointer transition-all duration-150";

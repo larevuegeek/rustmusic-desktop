@@ -19,6 +19,17 @@ const initialState: LibraryState = {
 
 const libraryWriter = writable<LibraryState>(initialState);
 
+/**
+ * La bibliothèque à ouvrir : celle marquée par défaut, sinon la première.
+ *
+ * Le repli sur la première n'est pas censé servir — la base garantit un défaut
+ * par profil — mais il évite de démarrer sur rien si la marque venait à
+ * manquer (base restaurée à la main, migration interrompue).
+ */
+function pickDefault(libraries: Library[]): Library | null {
+  return libraries.find(l => l.is_default) ?? libraries[0] ?? null;
+}
+
 export const libraryStore = {
   subscribe: libraryWriter.subscribe,
   init: async () => {
@@ -43,7 +54,7 @@ export const libraryStore = {
       libraryWriter.update(state => ({
         ...state,
         libraries,
-        librarySelected: libraries.length > 0 ? libraries[0] : null,
+        librarySelected: pickDefault(libraries),
         isLoading: false
       }));
     } catch (error) {
@@ -69,7 +80,11 @@ export const libraryStore = {
       libraryWriter.update(state => ({
         ...state,
         libraries,
-        librarySelected: libraries.find(l => l.id === state.librarySelected?.id) ?? null
+        // La sélection courante prime : un rafraîchissement ne doit pas
+        // ramener l'utilisateur ailleurs. Le défaut ne sert que si elle a
+        // disparu entre-temps.
+        librarySelected:
+          libraries.find(l => l.id === state.librarySelected?.id) ?? pickDefault(libraries)
       }));
     } catch (error) {
       console.error("Failed to refresh libraries", error);
@@ -79,6 +94,26 @@ export const libraryStore = {
     libraryWriter.update(state => ({
       ...state,
       librarySelected: library
+    }));
+  },
+  /**
+   * Désigne la bibliothèque ouverte au démarrage.
+   *
+   * L'état local est recalculé plutôt que rechargé : l'unicité du défaut est
+   * tenue par la base (index partiel), on se contente de la refléter.
+   */
+  setDefault: async (library: Library) => {
+    if (library.id === null) return;
+
+    await invoke('set_default_library', { libraryId: library.id });
+
+    libraryWriter.update(state => ({
+      ...state,
+      libraries: state.libraries.map(l => ({ ...l, is_default: l.id === library.id })),
+      librarySelected:
+        state.librarySelected && state.librarySelected.id === library.id
+          ? { ...state.librarySelected, is_default: true }
+          : state.librarySelected
     }));
   },
   setImporting: (importing: boolean) => {
@@ -118,9 +153,11 @@ export const libraryStore = {
     libraryWriter.update(state => {
       const libraries = state.libraries.filter(l => l.id !== library.id);
 
+      // Supprimer celle qu'on regardait renvoie sur le défaut du profil — le
+      // backend vient d'en promouvoir un si c'est celui-ci qui a disparu.
       const librarySelected =
         state.librarySelected?.id === library.id
-          ? libraries[0] ?? null
+          ? pickDefault(libraries)
           : state.librarySelected;
 
       return {

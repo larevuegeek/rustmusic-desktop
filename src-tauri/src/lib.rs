@@ -14,7 +14,7 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::Manager;
 use simplelog::{CombinedLogger, ColorChoice, TermLogger, TerminalMode, WriteLogger, LevelFilter, ConfigBuilder};
 
-use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_track, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_by_genre, list_directory, remove_library, remove_library_dir, rescan_library, rescan_library_dir, save_thumbnail, read_cover_as_base64};
+use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_track, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_by_genre, list_directory, remove_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, save_thumbnail, read_cover_as_base64};
 use crate::commands::player_command::{AUDIO_PLAYER, get_progress, open_file, open_files, pause_play, play_file, seek_to, stop_play};
 use crate::commands::playlist_command::{add_track_liked, get_tracks_liked, remove_track_liked, get_playlists, get_playlist, create_playlist, update_playlist, delete_playlist, get_playlist_tracks, add_track_to_playlist, remove_track_from_playlist};
 use crate::commands::profil_command::{get_profil, get_all_profils, create_profil, update_profil, delete_profil};
@@ -30,6 +30,9 @@ use crate::commands::audio_command::{
     set_next_track, set_replay_gain_settings,
 };
 use crate::commands::system_command::{get_render_mode, notify_ui_ready, set_render_mode};
+use crate::commands::tag_command::{
+    can_write_tags, prepare_image, read_track_images, read_track_tags, write_track_tags,
+};
 use crate::commands::media_controls_command::{
     disable_media_controls, enable_media_controls, is_media_controls_active,
     update_media_metadata, update_media_playback,
@@ -470,6 +473,7 @@ pub async fn run() {
             replace_queue_tracks,
             create_library,
             remove_library,
+            set_default_library,
             get_library,
             get_libraries,
             create_library_cache,
@@ -516,6 +520,11 @@ pub async fn run() {
             set_replay_gain_settings,
             set_next_track,
             set_gapless,
+            can_write_tags,
+            read_track_tags,
+            prepare_image,
+            read_track_images,
+            write_track_tags,
             get_render_mode,
             set_render_mode,
             notify_ui_ready,

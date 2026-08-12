@@ -33,6 +33,20 @@ function handleSelectLibrary(library: Library) {
   }
 }
 
+/**
+ * Désigne la bibliothèque ouverte au démarrage.
+ *
+ * Le menu reste ouvert : marquer un défaut n'est pas une navigation, et le
+ * refermer masquerait le repère qui vient d'apparaître.
+ */
+async function handleSetDefault(library: Library) {
+  try {
+    await libraryStore.setDefault(library);
+  } catch (e) {
+    console.error("Failed to set default library", e);
+  }
+}
+
 function handleViewLibrary(library: Library) {
   if (!library) return;
   goto(`/library/${library.id}`);
@@ -132,44 +146,81 @@ $effect(() => {
               <p class="text-xs text-neutral-400">{$t('selector.no_library')}</p>
             </div>
           {:else}
+            <!-- Deux boutons côte à côte plutôt qu'un seul : sélectionner et
+                 désigner par défaut sont deux gestes distincts, et un bouton
+                 imbriqué dans un autre n'est pas du HTML valide. -->
             {#each $libraryStore.libraries as library (library.id)}
               {@const isActive = library.id === activeLibrary?.id}
-              <button
-                type="button"
-                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer
+              <div
+                class="w-full flex items-center gap-1 pr-1 rounded-lg
                        transition-all duration-150
                        {isActive
                          ? 'bg-green-500/10'
                          : 'hover:bg-neutral-100/80 dark:hover:bg-white/4'}"
-                onclick={() => handleSelectLibrary(library)}
               >
-                <!-- Check / icône -->
-                <div class="w-7 h-7 rounded-md shrink-0 flex items-center justify-center
-                            {isActive
-                              ? 'bg-green-500/20 text-green-500'
-                              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500'}">
-                  {#if isActive}
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                      <path d="m4.5 12.75 6 6 9-13.5"/>
-                    </svg>
-                  {:else}
-                    <Icon icon="lucide:library" width="12" />
-                  {/if}
-                </div>
-
-                <!-- Infos -->
-                <div class="flex-1 min-w-0 text-left">
-                  <div class="text-[13px] font-medium truncate
-                              {isActive ? 'text-green-600 dark:text-green-400' : 'text-neutral-700 dark:text-neutral-300'}">
-                    {library.name}
+                <button
+                  type="button"
+                  class="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2 cursor-pointer"
+                  onclick={() => handleSelectLibrary(library)}
+                >
+                  <!-- Check / icône -->
+                  <div class="w-7 h-7 rounded-md shrink-0 flex items-center justify-center
+                              {isActive
+                                ? 'bg-green-500/20 text-green-500'
+                                : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500'}">
+                    {#if isActive}
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <path d="m4.5 12.75 6 6 9-13.5"/>
+                      </svg>
+                    {:else}
+                      <Icon icon="lucide:library" width="12" />
+                    {/if}
                   </div>
-                  <div class="text-[10px] text-neutral-400 dark:text-neutral-500">
-                    {library.total_tracks} titre{library.total_tracks !== 1 ? 's' : ''}
-                    · {library.total_albums} album{library.total_albums !== 1 ? 's' : ''}
-                  </div>
-                </div>
 
-              </button>
+                  <!-- Infos -->
+                  <div class="flex-1 min-w-0 text-left">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                      <span class="text-[13px] font-medium truncate
+                                  {isActive ? 'text-green-600 dark:text-green-400' : 'text-neutral-700 dark:text-neutral-300'}">
+                        {library.name}
+                      </span>
+                      <!-- Repère permanent : la marque doit se lire sans avoir
+                           à survoler quoi que ce soit. -->
+                      {#if library.is_default}
+                        <span
+                          title={$t('selector.default_hint')}
+                          class="shrink-0 flex items-center gap-0.5 px-1 py-px rounded
+                                 text-[9px] font-semibold uppercase tracking-wide
+                                 bg-green-500/15 text-green-600 dark:text-green-400"
+                        >
+                          <Icon icon="lucide:pin" width="9" />
+                          {$t('selector.default')}
+                        </span>
+                      {/if}
+                    </div>
+                    <div class="text-[10px] text-neutral-400 dark:text-neutral-500">
+                      {library.total_tracks} titre{library.total_tracks !== 1 ? 's' : ''}
+                      · {library.total_albums} album{library.total_albums !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                </button>
+
+                {#if !library.is_default}
+                  <button
+                    type="button"
+                    title={$t('selector.set_default')}
+                    aria-label={$t('selector.set_default')}
+                    class="shrink-0 w-7 h-7 rounded-md flex items-center justify-center
+                           cursor-pointer transition-colors
+                           text-neutral-300 dark:text-neutral-600
+                           hover:text-green-600 dark:hover:text-green-400
+                           hover:bg-green-500/12"
+                    onclick={() => handleSetDefault(library)}
+                  >
+                    <Icon icon="lucide:pin" width="13" />
+                  </button>
+                {/if}
+              </div>
             {/each}
           {/if}
         </div>

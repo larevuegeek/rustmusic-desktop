@@ -13,6 +13,9 @@ pub struct Library {
     pub total_tracks: i64,
     pub total_albums: i64,
     pub total_artists: i64,
+    /// Bibliothèque ouverte au démarrage. Au plus une par profil — l'unicité
+    /// est tenue par un index partiel, pas par le code appelant.
+    pub is_default: bool,
     pub created_at: String,
     pub updated_at: Option<String>,
 }

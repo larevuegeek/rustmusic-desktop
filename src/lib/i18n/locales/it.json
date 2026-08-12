@@ -17,7 +17,10 @@
     "libraries": "Librerie",
     "no_library": "Nessuna libreria",
     "view": "Visualizza",
-    "new": "Nuova"
+    "new": "Nuova",
+    "default": "Predef.",
+    "set_default": "Imposta come libreria predefinita",
+    "default_hint": "Aperta all'avvio"
   },
   "home": {
     "ready": "Pronto all'ascolto",
@@ -42,7 +45,8 @@
     "played_recently": "Riprodotto di recente",
     "played_recently_plural": "Riprodotti di recente",
     "playlist": "Playlist",
-    "playlist_plural": "Playlist"
+    "playlist_plural": "Playlist",
+    "remove_from_history": "Rimuovi dalla cronologia"
   },
   "player": {
     "no_track": "Nessun brano",
@@ -435,5 +439,59 @@
     "fetching": "In corso…",
     "artist_images": "Immagini degli artisti",
     "artist_images_desc": "Recupera le immagini degli artisti da Deezer"
+  },
+  "tags": {
+    "edit": "Modifica tag",
+    "saved": "Tag salvati",
+    "title": "Titolo",
+    "artist": "Artista",
+    "album": "Album",
+    "album_artist": "Artista dell'album",
+    "year": "Anno",
+    "genre": "Genere",
+    "composer": "Compositore",
+    "comment": "Commento",
+    "track_number": "Traccia n.",
+    "total_tracks": "Tracce totali",
+    "disc_number": "Disco n.",
+    "total_discs": "Dischi totali",
+    "clear_hint": "Svuotare un campo rimuove il tag corrispondente dal file. I campi non modificati restano intatti.",
+    "media": "Media incorporati",
+    "cover": "Copertina",
+    "section_track": "Brano",
+    "section_album": "Album",
+    "section_extra": "Aggiuntivo",
+    "track_short": "Traccia",
+    "disc_short": "Disco",
+    "zoom": "Ingrandisci",
+    "no_cover": "Nessuna copertina",
+    "revert": "Ripristina",
+    "reset_all": "Ripristina tutto",
+    "no_change": "Nessuna modifica",
+    "changed_one": "campo modificato",
+    "changed_other": "campi modificati",
+    "unsaved": "Ci sono modifiche non salvate.",
+    "discard": "Annulla modifiche",
+    "keep_editing": "Continua",
+    "add_image": "Aggiungi un'immagine",
+    "replace_image": "Sostituisci",
+    "remove_image": "Rimuovi",
+    "set_cover": "Imposta come copertina",
+    "move_up": "Sposta su",
+    "move_down": "Sposta giù",
+    "no_media": "Nessuna immagine incorporata.",
+    "reduced": "ridotta",
+    "media_changed": "media modificati",
+    "pic": {
+      "other": "Altro",
+      "cover_front": "Copertina",
+      "cover_back": "Retro copertina",
+      "leaflet": "Libretto",
+      "media_label": "Etichetta del supporto",
+      "lead_artist": "Artista principale",
+      "artist": "Artista",
+      "composer": "Compositore",
+      "illustration": "Illustrazione"
+    }
   }
 }

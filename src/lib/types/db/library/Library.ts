@@ -8,6 +8,8 @@ export interface Library {
   total_tracks: number,
   total_albums: number,
   total_artists: number,
+  /** Bibliothèque ouverte au démarrage. Au plus une par profil. */
+  is_default: boolean;
   created_at: string;
   updated_at: string | null;
 }

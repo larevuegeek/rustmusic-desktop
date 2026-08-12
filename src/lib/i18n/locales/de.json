@@ -17,7 +17,10 @@
     "libraries": "Bibliotheken",
     "no_library": "Keine Bibliothek",
     "view": "Ansehen",
-    "new": "Neu"
+    "new": "Neu",
+    "default": "Standard",
+    "set_default": "Als Standardbibliothek festlegen",
+    "default_hint": "Wird beim Start geöffnet"
   },
   "home": {
     "ready": "Bereit zum Hören",
@@ -42,7 +45,8 @@
     "played_recently": "Kürzlich gespielt",
     "played_recently_plural": "Kürzlich gespielt",
     "playlist": "Playlist",
-    "playlist_plural": "Playlists"
+    "playlist_plural": "Playlists",
+    "remove_from_history": "Aus dem Verlauf entfernen"
   },
   "player": {
     "no_track": "Kein Titel",
@@ -435,5 +439,59 @@
     "fetching": "Wird abgerufen…",
     "artist_images": "Künstlerbilder",
     "artist_images_desc": "Künstlerbilder von Deezer abrufen"
+  },
+  "tags": {
+    "edit": "Tags bearbeiten",
+    "saved": "Tags gespeichert",
+    "title": "Titel",
+    "artist": "Künstler",
+    "album": "Album",
+    "album_artist": "Album-Künstler",
+    "year": "Jahr",
+    "genre": "Genre",
+    "composer": "Komponist",
+    "comment": "Kommentar",
+    "track_number": "Titel-Nr.",
+    "total_tracks": "Titel gesamt",
+    "disc_number": "CD-Nr.",
+    "total_discs": "CDs gesamt",
+    "clear_hint": "Ein geleertes Feld entfernt den zugehörigen Tag aus der Datei. Unveränderte Felder bleiben unangetastet.",
+    "media": "Eingebettete Medien",
+    "cover": "Cover",
+    "section_track": "Titel",
+    "section_album": "Album",
+    "section_extra": "Zusätzlich",
+    "track_short": "Titel",
+    "disc_short": "CD",
+    "zoom": "Vergrößern",
+    "no_cover": "Kein Cover",
+    "revert": "Zurücksetzen",
+    "reset_all": "Alles zurücksetzen",
+    "no_change": "Keine Änderungen",
+    "changed_one": "Feld geändert",
+    "changed_other": "Felder geändert",
+    "unsaved": "Es gibt ungespeicherte Änderungen.",
+    "discard": "Verwerfen",
+    "keep_editing": "Weiter bearbeiten",
+    "add_image": "Bild hinzufügen",
+    "replace_image": "Ersetzen",
+    "remove_image": "Entfernen",
+    "set_cover": "Als Cover festlegen",
+    "move_up": "Nach oben",
+    "move_down": "Nach unten",
+    "no_media": "Kein eingebettetes Bild.",
+    "reduced": "verkleinert",
+    "media_changed": "Medien geändert",
+    "pic": {
+      "other": "Sonstiges",
+      "cover_front": "Cover vorne",
+      "cover_back": "Cover hinten",
+      "leaflet": "Booklet",
+      "media_label": "Medien-Label",
+      "lead_artist": "Hauptkünstler",
+      "artist": "Künstler",
+      "composer": "Komponist",
+      "illustration": "Illustration"
+    }
   }
 }

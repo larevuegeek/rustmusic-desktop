@@ -17,7 +17,10 @@
     "libraries": "Bibliotecas",
     "no_library": "Sin biblioteca",
     "view": "Ver",
-    "new": "Nueva"
+    "new": "Nueva",
+    "default": "Predet.",
+    "set_default": "Definir como biblioteca predeterminada",
+    "default_hint": "Se abre al iniciar"
   },
   "home": {
     "ready": "Listo para escuchar",
@@ -42,7 +45,8 @@
     "played_recently": "Reproducido recientemente",
     "played_recently_plural": "Reproducidos recientemente",
     "playlist": "Playlist",
-    "playlist_plural": "Playlists"
+    "playlist_plural": "Playlists",
+    "remove_from_history": "Quitar del historial"
   },
   "player": {
     "no_track": "Sin canción",
@@ -435,5 +439,59 @@
     "fetching": "Obteniendo…",
     "artist_images": "Imágenes de artistas",
     "artist_images_desc": "Obtener imágenes de artistas desde Deezer"
+  },
+  "tags": {
+    "edit": "Editar etiquetas",
+    "saved": "Etiquetas guardadas",
+    "title": "Título",
+    "artist": "Artista",
+    "album": "Álbum",
+    "album_artist": "Artista del álbum",
+    "year": "Año",
+    "genre": "Género",
+    "composer": "Compositor",
+    "comment": "Comentario",
+    "track_number": "Pista n.º",
+    "total_tracks": "Pistas en total",
+    "disc_number": "Disco n.º",
+    "total_discs": "Discos en total",
+    "clear_hint": "Vaciar un campo elimina esa etiqueta del archivo. Los campos que no modifiques se mantienen intactos.",
+    "media": "Medios incrustados",
+    "cover": "Portada",
+    "section_track": "Pista",
+    "section_album": "Álbum",
+    "section_extra": "Adicional",
+    "track_short": "Pista",
+    "disc_short": "Disco",
+    "zoom": "Ampliar",
+    "no_cover": "Sin portada",
+    "revert": "Restablecer",
+    "reset_all": "Restablecer todo",
+    "no_change": "Sin cambios",
+    "changed_one": "campo modificado",
+    "changed_other": "campos modificados",
+    "unsaved": "Hay cambios sin guardar.",
+    "discard": "Descartar",
+    "keep_editing": "Seguir editando",
+    "add_image": "Añadir una imagen",
+    "replace_image": "Reemplazar",
+    "remove_image": "Eliminar",
+    "set_cover": "Definir como portada",
+    "move_up": "Subir",
+    "move_down": "Bajar",
+    "no_media": "Ninguna imagen incrustada.",
+    "reduced": "reducida",
+    "media_changed": "medios modificados",
+    "pic": {
+      "other": "Otro",
+      "cover_front": "Portada",
+      "cover_back": "Contraportada",
+      "leaflet": "Librito",
+      "media_label": "Etiqueta del medio",
+      "lead_artist": "Artista principal",
+      "artist": "Artista",
+      "composer": "Compositor",
+      "illustration": "Ilustración"
+    }
   }
 }

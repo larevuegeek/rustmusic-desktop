@@ -4,14 +4,25 @@ import { recent } from "$lib/stores/recent/recent.store";
 import Icon from "@iconify/svelte";
 import { formatTime } from "$lib/helper/tools/dateTools";
 import { liked } from "$lib/stores/playlist/like.store";
-import DropdownMenu from "../ui/dropdown/DropdownMenu.svelte";
-import DropdownItem from "../ui/dropdown/DropdownItem.svelte";
+import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
-import { handleAddTrackToQueue, handleEnqueue } from "$lib/actions/queue/QueueAction";
 import { handleRemoveRecentItem } from "$lib/actions/recent/RecentAction";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import { mapRecentFile } from "$lib/mapper/recent/mapRecentFile";
-import BadgeQualityAudio from "../library/common/badge/BadgeQualityAudio.svelte";
+import { t } from "$lib/i18n";
+import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView";
+
+// Le menu est **le même** que partout ailleurs dans l'app, ouvert de deux
+// façons : clic droit sur la ligne, ou bouton « … ». En brancher un second,
+// plus pauvre, sur le bouton donnerait deux menus différents sur la même
+// ligne — et priverait cette section de l'édition des tags, des likes et des
+// playlists, que l'ancienne liste déroulante ne proposait pas.
+let contextMenu = $state<{ x: number; y: number; track: RecentFileListView } | null>(null);
+
+function openMenu(event: MouseEvent, track: RecentFileListView) {
+  event.preventDefault();
+  contextMenu = { x: event.clientX, y: event.clientY, track };
+}
 
 onMount(() => {
   recent.refreshRecent();
@@ -25,6 +36,7 @@ onMount(() => {
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div ondblclick={() => handlePlayTrack(recentFile.path)}
+       oncontextmenu={(e) => openMenu(e, recentFileView)}
        class="group w-full hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-xl transition-colors duration-150"
        role="listitem">
     <div class="flex gap-3 px-3 py-2.5 items-center">
@@ -73,16 +85,15 @@ onMount(() => {
           <Icon icon={$liked.paths.has(recentFile.path) ? "mynaui:heart-solid" : "mynaui:heart"} width="15" />
         </button>
 
-        <DropdownMenu icon="uit:ellipsis-v" iconSize={18}>
-          <DropdownItem iconBefore="uit:left-indent" text="Ajouter au début" onClick={() => handleAddTrackToQueue(recentFile)} />
-          <DropdownItem iconBefore="uit:wrap-text" text="Lire à la suite" onClick={() => handleEnqueue(recentFile)} />
-          <div class="my-1 h-px bg-white/10"></div>
-          <DropdownItem
-            iconBefore="mynaui:trash"
-            extraClass="text-red-400 hover:bg-red-500/15 hover:text-red-300"
-            text="Supprimer"
-            onClick={() => handleRemoveRecentItem(recentFile)} />
-        </DropdownMenu>
+        <button
+          class="p-1.5 rounded-md cursor-pointer transition-colors
+                 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200
+                 hover:bg-neutral-200/60 dark:hover:bg-white/8"
+          onclick={(e) => openMenu(e, recentFileView)}
+          aria-label="Actions"
+        >
+          <Icon icon="lucide:more-horizontal" width="15" />
+        </button>
       </div>
     </div>
   </div>
@@ -128,4 +139,18 @@ onMount(() => {
       {/each}
     </div>
   </div>
+{/if}
+
+{#if contextMenu}
+  <!-- « Supprimer » retire de l'historique, pas du disque : d'où un libellé
+       explicite plutôt que le « Supprimer » générique du menu. -->
+  <TrackContextMenu
+    track={contextMenu.track}
+    x={contextMenu.x}
+    y={contextMenu.y}
+    showDelete={true}
+    deleteLabel={$t('home.remove_from_history')}
+    ondelete={() => handleRemoveRecentItem(mapRecentFile(contextMenu!.track))}
+    onclose={() => contextMenu = null}
+  />
 {/if}

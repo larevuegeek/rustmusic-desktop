@@ -17,7 +17,10 @@
     "libraries": "Libraries",
     "no_library": "No library",
     "view": "View",
-    "new": "New"
+    "new": "New",
+    "default": "Default",
+    "set_default": "Set as default library",
+    "default_hint": "Opened on startup"
   },
   "home": {
     "ready": "Ready to listen",
@@ -42,7 +45,8 @@
     "played_recently": "Played recently",
     "played_recently_plural": "Played recently",
     "playlist": "Playlist",
-    "playlist_plural": "Playlists"
+    "playlist_plural": "Playlists",
+    "remove_from_history": "Remove from history"
   },
   "player": {
     "no_track": "No track",
@@ -435,5 +439,59 @@
     "fetching": "Fetching...",
     "artist_images": "Artist images",
     "artist_images_desc": "Fetch artist images from Deezer"
+  },
+  "tags": {
+    "edit": "Edit tags",
+    "saved": "Tags saved",
+    "title": "Title",
+    "artist": "Artist",
+    "album": "Album",
+    "album_artist": "Album artist",
+    "year": "Year",
+    "genre": "Genre",
+    "composer": "Composer",
+    "comment": "Comment",
+    "track_number": "Track no.",
+    "total_tracks": "Total tracks",
+    "disc_number": "Disc no.",
+    "total_discs": "Total discs",
+    "clear_hint": "Emptying a field removes that tag from the file. Fields you leave alone are kept untouched.",
+    "media": "Embedded media",
+    "cover": "Cover",
+    "section_track": "Track",
+    "section_album": "Album",
+    "section_extra": "Additional",
+    "track_short": "Track",
+    "disc_short": "Disc",
+    "zoom": "Enlarge",
+    "no_cover": "No cover",
+    "revert": "Revert",
+    "reset_all": "Revert all",
+    "no_change": "No changes",
+    "changed_one": "field changed",
+    "changed_other": "fields changed",
+    "unsaved": "You have unsaved changes.",
+    "discard": "Discard",
+    "keep_editing": "Keep editing",
+    "add_image": "Add an image",
+    "replace_image": "Replace",
+    "remove_image": "Remove",
+    "set_cover": "Set as cover",
+    "move_up": "Move up",
+    "move_down": "Move down",
+    "no_media": "No embedded image.",
+    "reduced": "resized",
+    "media_changed": "media changed",
+    "pic": {
+      "other": "Other",
+      "cover_front": "Front cover",
+      "cover_back": "Back cover",
+      "leaflet": "Leaflet",
+      "media_label": "Media label",
+      "lead_artist": "Lead artist",
+      "artist": "Artist",
+      "composer": "Composer",
+      "illustration": "Illustration"
+    }
   }
 }

@@ -37,6 +37,7 @@ impl LibraryRepository {
                 total_tracks,
                 total_albums,
                 total_artists,
+                is_default,
                 created_at,
                 updated_at
             "#
@@ -71,6 +72,7 @@ impl LibraryRepository {
                 total_tracks,
                 total_albums,
                 total_artists,
+                is_default,
                 created_at,
                 updated_at
             FROM library
@@ -102,6 +104,7 @@ impl LibraryRepository {
                 total_tracks,
                 total_albums,
                 total_artists,
+                is_default,
                 created_at,
                 updated_at
             FROM library
@@ -132,6 +135,7 @@ impl LibraryRepository {
                 total_tracks,
                 total_albums,
                 total_artists,
+                is_default,
                 created_at,
                 updated_at
             FROM library
@@ -144,6 +148,78 @@ impl LibraryRepository {
         .await?;
 
         Ok(libraries)
+    }
+
+    /// Désigne `library_id` comme bibliothèque par défaut de son profil.
+    ///
+    /// Les deux ordres sont indissociables : l'index partiel n'admet qu'un seul
+    /// défaut par profil, donc poser le nouveau avant d'avoir retiré l'ancien
+    /// échouerait. D'où la transaction — et la signature qui prend le pool
+    /// plutôt qu'un exécuteur quelconque, puisqu'il faut pouvoir l'ouvrir.
+    pub async fn set_default(
+        pool: &sqlx::SqlitePool,
+        library_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        let mut tx = pool.begin().await?;
+
+        sqlx::query(
+            r#"
+            UPDATE library
+            SET is_default = 0
+            WHERE profil_id = (SELECT profil_id FROM library WHERE id = ?1)
+            "#
+        )
+        .bind(library_id)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(
+            r#"
+            UPDATE library
+            SET is_default = 1
+            WHERE id = ?1
+            "#
+        )
+        .bind(library_id)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await
+    }
+
+    /// S'assure que le profil a bien une bibliothèque par défaut.
+    ///
+    /// Deux moments l'exigent : la création de la toute première bibliothèque
+    /// d'un profil, et la suppression de celle qui était par défaut. Sans ça le
+    /// profil se retrouverait sans point d'entrée et le démarrage retomberait
+    /// silencieusement sur la première venue — le comportement qu'on remplace.
+    ///
+    /// La clause `NOT EXISTS` rend l'appel sans effet quand un défaut existe
+    /// déjà : on peut l'appeler sans avoir à vérifier d'abord.
+    pub async fn ensure_default<'e, E>(exec: E, profil_id: i64) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
+    {
+        sqlx::query(
+            r#"
+            UPDATE library
+            SET is_default = 1
+            WHERE id = (
+                SELECT id FROM library
+                WHERE profil_id = ?1
+                ORDER BY position ASC, id ASC
+                LIMIT 1
+            )
+            AND NOT EXISTS (
+                SELECT 1 FROM library WHERE profil_id = ?1 AND is_default = 1
+            )
+            "#
+        )
+        .bind(profil_id)
+        .execute(exec)
+        .await?;
+
+        Ok(())
     }
 
     pub async fn remove_library<'e, E>(

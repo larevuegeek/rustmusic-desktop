@@ -17,7 +17,10 @@
     "libraries": "Bibliothèques",
     "no_library": "Aucune bibliothèque",
     "view": "Voir",
-    "new": "Nouvelle"
+    "new": "Nouvelle",
+    "default": "Défaut",
+    "set_default": "Définir comme bibliothèque par défaut",
+    "default_hint": "Ouverte au démarrage"
   },
   "home": {
     "ready": "Prêt à écouter",
@@ -42,7 +45,8 @@
     "played_recently": "Joué récemment",
     "played_recently_plural": "Joués récemment",
     "playlist": "Playlist",
-    "playlist_plural": "Playlists"
+    "playlist_plural": "Playlists",
+    "remove_from_history": "Retirer de l'historique"
   },
   "player": {
     "no_track": "Aucun titre",
@@ -435,5 +439,59 @@
     "fetching": "En cours…",
     "artist_images": "Images artistes",
     "artist_images_desc": "Récupérer les pochettes artistes depuis Deezer"
+  },
+  "tags": {
+    "edit": "Modifier les tags",
+    "saved": "Tags enregistrés",
+    "title": "Titre",
+    "artist": "Artiste",
+    "album": "Album",
+    "album_artist": "Artiste de l'album",
+    "year": "Année",
+    "genre": "Genre",
+    "composer": "Compositeur",
+    "comment": "Commentaire",
+    "track_number": "Piste n°",
+    "total_tracks": "Pistes au total",
+    "disc_number": "Disque n°",
+    "total_discs": "Disques au total",
+    "clear_hint": "Vider un champ efface le tag correspondant dans le fichier. Les champs non modifiés sont laissés intacts.",
+    "media": "Médias intégrés",
+    "cover": "Pochette",
+    "section_track": "Morceau",
+    "section_album": "Album",
+    "section_extra": "Complément",
+    "track_short": "Piste",
+    "disc_short": "Disque",
+    "zoom": "Agrandir",
+    "no_cover": "Aucune pochette",
+    "revert": "Rétablir",
+    "reset_all": "Tout rétablir",
+    "no_change": "Aucune modification",
+    "changed_one": "champ modifié",
+    "changed_other": "champs modifiés",
+    "unsaved": "Modifications non enregistrées.",
+    "discard": "Abandonner",
+    "keep_editing": "Continuer",
+    "add_image": "Ajouter une image",
+    "replace_image": "Remplacer",
+    "remove_image": "Supprimer",
+    "set_cover": "Définir comme pochette",
+    "move_up": "Monter",
+    "move_down": "Descendre",
+    "no_media": "Aucune image intégrée.",
+    "reduced": "réduite",
+    "media_changed": "médias modifiés",
+    "pic": {
+      "other": "Autre",
+      "cover_front": "Pochette avant",
+      "cover_back": "Pochette arrière",
+      "leaflet": "Livret",
+      "media_label": "Label du média",
+      "lead_artist": "Artiste principal",
+      "artist": "Artiste",
+      "composer": "Compositeur",
+      "illustration": "Illustration"
+    }
   }
 }
