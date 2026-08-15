@@ -232,6 +232,80 @@ html, body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   CASES À COCHER  —  class="checkbox-app"
+   ═══════════════════════════════════════════════════════════════════════
+
+   `accent-color` ne repeint que l'état coché : une case vide reste dessinée
+   par le système, c'est-à-dire un carré blanc bombé sur fond sombre. Sur un
+   écran de correction de tags qui en aligne cent, c'est la première chose
+   qu'on voit.
+
+   On reprend donc le dessin complet. La coche est une image SVG en fond
+   plutôt qu'un `::after` : les champs de formulaire sont des éléments
+   remplacés, et leurs pseudo-éléments ne sont pas rendus par WebKit — donc
+   pas sur macOS ni sous WebKitGTK, où l'app tourne aussi.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.checkbox-app {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border-radius: 4.5px;
+  border: 1.5px solid var(--color-neutral-300);
+  background-color: #fff;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 13px 13px;
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.dark .checkbox-app {
+  border-color: rgba(255, 255, 255, 0.24);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.checkbox-app:hover:not(:disabled) {
+  border-color: var(--color-emerald-500);
+}
+
+.checkbox-app:checked,
+.checkbox-app:indeterminate {
+  border-color: var(--color-emerald-500);
+  background-color: var(--color-emerald-500);
+}
+
+.checkbox-app:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.4l3 3 6-6.8'/%3E%3C/svg%3E");
+}
+
+/* L'état intermédiaire dit « une partie seulement » : un trait, pas une
+   coche. Les confondre ferait croire qu'un morceau est entièrement retenu. */
+.checkbox-app:indeterminate {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M4.2 8h7.6'/%3E%3C/svg%3E");
+}
+
+.checkbox-app:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* En contraste élevé, une case vide doit se voir sans la chercher : le trait
+   passe au gris franc, et son fond cesse d'être translucide. */
+:root[data-contrast="high"] .checkbox-app {
+  border-color: oklch(0.5 0 0);
+}
+:root[data-contrast="high"].dark .checkbox-app {
+  border-color: oklch(0.78 0 0);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    MODE CONTRASTE ÉLEVÉ  —  <html data-contrast="high">
    ═══════════════════════════════════════════════════════════════════════
 

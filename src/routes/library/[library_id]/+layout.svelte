@@ -45,6 +45,19 @@ $effect(() => {
 
 let { children } = $props();
 
+/**
+ * L'atelier de tags se passe de l'habillage de bibliothèque.
+ *
+ * C'est un écran de **travail**, pas de navigation : l'en-tête (statistiques,
+ * import, synchronisation) et les onglets de section appartiennent au parcours
+ * de la bibliothèque et n'ont rien à y faire. Ils coûtent surtout près de
+ * 250 px de hauteur — dans un tableau, plusieurs lignes de moins sous les yeux.
+ *
+ * L'atelier porte déjà son propre en-tête, avec son titre, sa source et son
+ * bouton de retour.
+ */
+let isFocusedView = $derived(page.url.pathname.endsWith("/tags"));
+
 // Drag & drop : importer des fichiers audio directement dans la bibliothèque
 function handleDragOver(e: DragEvent) {
   e.preventDefault();
@@ -100,6 +113,7 @@ async function handleDrop(e: DragEvent) {
      ondragleave={handleDragLeave}
      ondrop={handleDrop}>
 
+  {#if !isFocusedView}
   <!-- HEADER PREMIUM -->
   <div class="relative px-4 md:px-8 pt-4 md:pt-6 pb-3 md:pb-4 overflow-hidden shrink-0">
     <div class="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-6">
@@ -163,6 +177,7 @@ async function handleDrop(e: DragEvent) {
   <div class="shrink-0">
     <LibraryTabBar libraryId={library.id as number} />
   </div>
+  {/if}
 
   <!-- Contenu (prend tout l'espace restant, scroll interne) -->
   <div class="flex-1 min-h-0 overflow-hidden">

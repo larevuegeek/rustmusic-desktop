@@ -1,5 +1,147 @@
 # Changelog
 
+## [0.2.0] - 2026-08-14
+
+Deux chantiers structurants : la **sortie bit-perfect est complète sur les trois
+systèmes**, et l'application sait désormais **écrire les tags** — pas seulement
+les lire.
+
+### Audio — Sortie bit-perfect sur les trois systèmes
+- **DoP natif sous Linux** via ALSA `hw:` en accès exclusif : le DSD part au DAC
+  sans conversion PCM, marqueurs DoP continus (musique et silence), sans
+  resampling ni volume logiciel. Équivalent Linux du WASAPI exclusive de Windows.
+- **Réservation D-Bus `org.freedesktop.ReserveDevice1`** : PipeWire/WirePlumber
+  libère la carte avant l'ouverture exclusive et la reprend à l'arrêt. Plus
+  aucune manipulation manuelle (`pactl`).
+- **DoP natif sur macOS** via CoreAudio *hog mode*.
+- **Sortie exclusive PCM** sur macOS et Linux, en plus du DSD.
+- **Lecture sans blanc** entre les pistes.
+- Persistance du périphérique de sortie : le choix est écrit en config et
+  restauré au démarrage, l'énumération ne l'écrase plus.
+- Énumération nettoyée : les alias ALSA virtuels (`plughw:`, `surround`,
+  `iec958`, `sysdefault`…) sont filtrés aussi sur le champ pilote — fin des
+  doublons dans la liste des sorties.
+- Correction : deux endpoints portant le même nom brut ne se confondent plus.
+
+### Audio — Replay Gain
+- Lecture des tags `REPLAYGAIN_*` et application du gain sans base de données :
+  atomique global greffé sur le volume, chaîne DoP intacte.
+- Préampli réglable, modes piste / album, dans les Réglages Audio.
+
+### Tags — Écriture complète (MP3, FLAC, DSF, DFF)
+- Nouveau module `core/audio_metadata/injector/`, miroir en écriture de
+  l'extracteur. Texte et images, sur les quatre formats.
+- **Rien n'est perdu** : les frames et blocs non édités sont recopiés tels
+  quels — corriger un titre ne fait perdre ni pochette, ni note, ni
+  identifiants MusicBrainz. Une image conservée est recopiée octet pour octet,
+  la promouvoir en pochette ne la réencode jamais.
+- **Écriture en place** quand le bloc de remplissage le permet : 2613 ms → 20 ms
+  sur un FLAC de 34 Mo via SMB. Repli sur réécriture atomique complète sinon.
+- Les images sont désignées par un hash de leur **contenu**, jamais par leur
+  position : un décalage d'indice supprimerait la mauvaise image.
+- Le backend reçoit l'**état visé**, pas des opérations : ajouter, remplacer,
+  supprimer, réordonner et définir la pochette tiennent en une seule écriture.
+- Éditeur individuel : popin deux colonnes, suivi des modifications champ par
+  champ avec rétablissement, veto de fermeture sur travail non enregistré,
+  gestion complète des médias intégrés.
+
+### Tags — Atelier par lot
+- Nouvelle page dédiée, deux vues au choix : tableur ou liste + panneau.
+- Moteur de traitement par lot avec progression, annulation entre les lots et
+  rapport d'échecs ; une tâche qui panique devient un échec, jamais un arrêt.
+- Édition multiple : un champ inchangé est **omis** et non envoyé vide — la
+  distinction entre « ne touche pas » et « efface » est ce qui évite de
+  détruire cent tags que personne n'a demandé de supprimer.
+- Remplissage vers le bas, numérotation automatique, tri par colonne,
+  pochette commune.
+- Lecture parallèle des fichiers (rayon) : 769 ms → 35 ms à froid pour seize
+  fichiers, et cent six allers-retours IPC supprimés.
+
+### Tags — Récupération depuis Deezer
+- Recherche d'album, appariement des pistes par titre, durée et numéro, avec
+  score et niveau de confiance ; un appariement écarté n'est jamais appliqué.
+- Écran de revue **par morceau** : les valeurs du fichier en regard de celles
+  de Deezer, dépliables champ par champ. Trois niveaux de choix — une valeur,
+  un morceau, un champ sur toute la sélection.
+- Pochette par ligne : la vignette du fichier dans la liste, celle de Deezer
+  en regard quand elle est retenue, avec ses dimensions et son poids **après
+  préparation**. Cochée d'office seulement là où il n'y en a aucune.
+- Recherche de **piste** pour un fichier isolé, avec comparaison avant/après et
+  sélection champ par champ.
+- Rien n'est écrit directement : tout passe par les modifications en attente de
+  l'atelier, relues avant d'écrire.
+- Débit limité côté client ; l'objet `error` des réponses est vérifié — l'API
+  répond 200 même en cas d'échec.
+
+### Réglages — Refonte en sous-pages
+- Page monolithique éclatée en `/settings/general`, `appearance`, `audio`,
+  `network`, `storage`, `about`, avec navigation latérale par sections et
+  en-tête fixe.
+- Nouveaux composants réutilisables : `OptionRow`, `ToggleSwitch`,
+  `ActionButton`.
+
+### Linux — Fiabilité du rendu
+- Un démarrage GPU qui plante avant d'afficher l'interface (EGL_BAD_PARAMETER,
+  fenêtre blanche) est détecté par fichier sentinelle et bascule
+  automatiquement l'app en rendu logiciel au lancement suivant.
+- Écoute du signal WebKit `web-process-terminated` : un crash du processus de
+  rendu en mode GPU est persisté et l'app redémarre d'elle-même en logiciel.
+  Jamais de boucle : un crash en mode logiciel n'est que journalisé.
+- Un Alt+F4 sur la fenêtre blanche ne désarme plus la sentinelle.
+- Détection SteamOS : rendu logiciel d'office sur Steam Deck.
+- Variable `RUSTMUSIC_RENDER=gpu|software|auto`, prioritaire sur le réglage.
+- `scripts/fix-appimage-wayland.sh` : retire les `libwayland-*` embarquées par
+  linuxdeploy, cause racine du crash EGL sur SteamOS, Arch et Ubuntu 26.04.
+
+### Accessibilité — Mode contraste élevé
+- `<html data-contrast="high">` redéfinit les variables de couleur de Tailwind :
+  tous les gris secondaires deviennent lisibles d'un coup, sans reprendre les
+  composants un par un.
+- Les flous d'arrière-plan sont coupés — ils brouillent le texte posé dessus.
+- Focus clavier franchement visible ; `data-focus-ring` permet à un composant de
+  **déplacer** l'indicateur, jamais de le supprimer.
+- Cases à cocher entièrement redessinées : `accent-color` ne repeint que l'état
+  coché, une case vide restait un carré blanc dessiné par le système. La coche
+  est une image SVG de fond et non un pseudo-élément — WebKit ne rend pas ceux
+  des champs de formulaire.
+
+### Bibliothèque
+- **Bibliothèque par défaut** : marqueur par profil, unicité tenue par un index
+  partiel en base plutôt que par le code. Reprise automatique à la création de
+  la première bibliothèque et à la suppression de celle par défaut.
+- Menu contextuel au clic droit dans « Récemment joués ».
+- « Corriger les tags » dans les menus contextuels des albums et des listings.
+
+### Fiabilité sur les partages réseau
+- `is_network_path()` ignorait les lecteurs mappés (`S:` pour `\\NAS\music`).
+  Ces fichiers gardaient une poignée ouverte pendant la lecture, et SMB refuse
+  alors tout remplacement — d'où l'échec « accès refusé » à l'édition. Le type
+  de lecteur est maintenant demandé à l'OS, et la lecture depuis un NAS
+  précharge enfin en RAM comme prévu.
+- Windows refuse de renommer par-dessus un fichier en lecture seule :
+  l'attribut est levé puis reposé. Réessai court pour les gêneurs passagers.
+- Ouverture du dossier d'un morceau : `revealItemInDir` remplace `openPath`,
+  dont la capability était limitée à `$HOME` et `$APPDATA`.
+
+### Dépendances
+- symphonia 0.5.5 → 0.6.0 (nouvelle API probe/décodeur/buffers, tags typés).
+  Conversion audio via `copy_to_vec_interleaved`, qui couvre aussi
+  S24/U16/U24/U32.
+- Feature `isomp4` : les AAC en conteneur M4A sont désormais lisibles.
+- rubato 2 → 3, Tauri 2.11.5, alsa 0.11, zbus 5, regex 1.13.
+- SvelteKit 2.69.2, Vite 8.1.4, svelte-check 4.7.2. TypeScript maintenu en 6.x.
+- sqlx maintenu en 0.8.6 (0.9 bloqué par tauri-plugin-sql).
+
+### Projet
+- Modèles d'issues GitHub et politique de sécurité.
+- Bouton mini-lecteur déplacé dans la barre de titre, à côté des contrôles de
+  fenêtre (adapté aux trois styles et aux deux positions).
+
+### Connu, non livré
+- Navigation clavier dans le tableur de l'atelier.
+- Renommage de fichiers et restructuration de dossiers depuis des motifs de
+  tags — prévus, non commencés.
+
 ## [0.1.9] - 2026-07-08
 
 ### UI — Minuterie de veille (sleep timer)

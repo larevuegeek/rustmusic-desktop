@@ -5,6 +5,7 @@
   import { toQueueTracks, type TrackLike } from "$lib/helper/tools/queueTools";
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
   import { invoke } from "@tauri-apps/api/core";
+  import { t } from "$lib/i18n";
   import { open } from "@tauri-apps/plugin-dialog";
   import type { Playlist } from "$lib/types/db/playlist/Playlist";
   import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
@@ -20,9 +21,17 @@
     oncover?: () => void;
     albumId?: string | null;
     artistName?: string | null;
+    /**
+     * Ouvre l'atelier de tags sur cette collection.
+     *
+     * Fourni par l'appelant plutôt que construit ici : le menu ne sait pas
+     * d'où viennent ses morceaux — un album les charge par identifiant, une
+     * playlist autrement.
+     */
+    onedittags?: () => void;
   };
 
-  let { title, type, loadTracks, x, y, onclose, oncover, albumId = null, artistName = null }: Props = $props();
+  let { title, type, loadTracks, x, y, onclose, oncover, albumId = null, artistName = null, onedittags }: Props = $props();
 
   let loading = $state(false);
   let showPlaylistSub = $state(false);
@@ -216,6 +225,18 @@
     <Icon icon="lucide:list-end" width="14" class="opacity-60" />
     Ajouter tout à la file
   </button>
+
+  {#if onedittags}
+    <div class="h-px mx-3 my-1 bg-white/6"></div>
+    <button
+      class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
+             text-neutral-200 hover:bg-white/10 transition-colors"
+      onclick={() => { onclose(); onedittags(); }}
+    >
+      <Icon icon="lucide:table-properties" width="14" class="opacity-60" />
+      {$t('workshop.fix_tags')}
+    </button>
+  {/if}
 
   <!-- Séparateur -->
   <div class="h-px mx-3 my-1 bg-white/6"></div>

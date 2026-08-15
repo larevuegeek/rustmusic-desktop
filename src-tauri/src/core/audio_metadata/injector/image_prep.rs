@@ -57,6 +57,29 @@ pub fn image_id(data: &[u8]) -> String {
     format!("{hash:016x}")
 }
 
+/// Réduit une image à une vignette, pour l'afficher en liste.
+///
+/// # Pourquoi ne pas envoyer l'original
+/// Une pochette pèse couramment 400 Ko, et son encodage en base64 un tiers de
+/// plus. Pour cent morceaux affichés côte à côte, cela ferait cinquante
+/// mégaoctets à faire transiter puis à garder en mémoire dans l'interface —
+/// pour des vignettes de trente pixels de côté.
+///
+/// Toujours en JPEG : une vignette n'a pas besoin de canal alpha, et le PNG y
+/// serait plus lourd sans rien apporter.
+pub fn thumbnail(bytes: &[u8], max_edge: u32) -> Result<Vec<u8>, InjectError> {
+    let img = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|e| InjectError::Malformed(format!("format d'image illisible : {e}")))?
+        .decode()
+        .map_err(|e| InjectError::Malformed(format!("image invalide : {e}")))?;
+
+    // `resize` conserve le rapport et ne fait que réduire : une pochette déjà
+    // minuscule n'est pas agrandie, ce qui la rendrait floue pour rien.
+    let small = img.resize(max_edge, max_edge, image::imageops::FilterType::Triangle);
+    encode_jpeg(&small)
+}
+
 /// Une image prête à être intégrée, avec de quoi expliquer ce qui a été fait.
 #[derive(Debug, Clone)]
 pub struct PreparedImage {

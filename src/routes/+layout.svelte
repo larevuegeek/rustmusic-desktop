@@ -29,6 +29,8 @@ import { taskProgressStore } from "$lib/stores/ui/taskProgress.store";
 import { artistImageReadyStore } from "$lib/stores/library/artistImageReady.store";
 import { refreshDlnaStatus } from "$lib/stores/dlna/dlna.store";
 import { initPlaybackPipelineListener } from "$lib/stores/player/playbackPipeline.store";
+import { initBatchListeners } from "$lib/stores/ui/batch.store";
+import BatchPanel from "$lib/components/ui/batch/BatchPanel.svelte";
 import { trackNotificationService } from "$lib/services/notification/trackNotification.service";
 import { mediaControlsService } from "$lib/services/mediaControls/mediaControls.service";
 import { onDestroy } from "svelte";
@@ -74,6 +76,7 @@ onMount(async () => {
   // Subscribe to the backend playback-pipeline event so the player status
   // bar can show "source → output" when a conversion happens.
   initPlaybackPipelineListener();
+  initBatchListeners();
 
   // Notif OS sur changement de morceau (cover + titre + artiste).
   // Skip la 1re émission (restore de la queue au démarrage).
@@ -303,6 +306,9 @@ function handleKeydown(e: KeyboardEvent) {
   <Toast />
   <UpdateBanner />
   <Popin />
+  <!-- Panneau flottant : un lot peut durer des minutes, l'application doit
+       rester utilisable pendant ce temps. -->
+  <BatchPanel />
   <ProfilSelectorPopin />
 </main>
 {/if}

@@ -40,7 +40,8 @@ use std::path::Path;
 
 use crate::core::audio_metadata::injector::atomic_write;
 use crate::core::audio_metadata::injector::edit::{
-    FieldEdit, ImagePlan, ImageSlot, ImageSource, TagEdit,
+    ExistingImage, FieldEdit, ImagePlan, ImageSlot, ImageSource, TagEdit,
+    PICTURE_TYPE_COVER_FRONT as COVER_FRONT,
 };
 use crate::core::audio_metadata::injector::image_prep::image_id;
 use crate::core::audio_metadata::injector::injector::InjectError;
@@ -50,13 +51,16 @@ const BLOCK_PADDING: u8 = 1;
 const BLOCK_VORBIS_COMMENT: u8 = 4;
 const BLOCK_PICTURE: u8 = 6;
 
+/// En-tête d'un bloc : 1 octet de type et de drapeau, 3 de longueur.
+const BLOCK_HEADER_LEN: usize = 4;
 /// La longueur d'un bloc tient sur 24 bits — au-delà, il est inécrivable.
 const MAX_BLOCK_LEN: usize = 0xFF_FFFF;
 /// Remplissage laissé pour qu'un autre éditeur puisse retoucher les tags sans
 /// réécrire le fichier entier.
 const PADDING_LEN: usize = 1024;
-/// Type d'image « pochette avant », même code qu'en ID3.
-const PICTURE_TYPE_COVER_FRONT: u32 = 3;
+/// Même code qu'en ID3, mais sur 32 bits ici : le bloc `PICTURE` stocke le
+/// type d'image sur quatre octets là où l'ID3 se contente d'un seul.
+const PICTURE_TYPE_COVER_FRONT: u32 = COVER_FRONT as u32;
 const PICTURE_TYPE_OTHER: u32 = 0;
 
 struct Block {
@@ -106,10 +110,7 @@ pub fn apply(path: &Path, edit: &TagEdit) -> Result<(), InjectError> {
     // ─── Reconstruction ───
     // STREAMINFO d'abord (la spécification l'impose), puis les blocs qu'on ne
     // touche pas, puis les nôtres. Le PADDING d'origine est écarté : on remet
-    // le nôtre en dernier.
-    let mut out = Vec::new();
-    out.extend_from_slice(b"fLaC");
-
+    // le nôtre en dernier, dimensionné plus bas.
     let mut rebuilt: Vec<(u8, Vec<u8>)> = Vec::new();
     for block in &blocks {
         match block.kind {
@@ -121,7 +122,24 @@ pub fn apply(path: &Path, edit: &TagEdit) -> Result<(), InjectError> {
     for picture in &pictures {
         rebuilt.push((BLOCK_PICTURE, encode_picture(picture)));
     }
-    rebuilt.push((BLOCK_PADDING, vec![0u8; PADDING_LEN]));
+
+    // Place occupée par tout sauf le remplissage — en-tête de bloc compris.
+    let fixed: usize = 4 + rebuilt.iter().map(|(_, data)| BLOCK_HEADER_LEN + data.len()).sum::<usize>();
+    let available = audio_start as usize;
+
+    // Chemin rapide : si tout tient dans la zone déjà réservée, le remplissage
+    // absorbe l'écart au octet près et on réécrit **uniquement** l'en-tête.
+    // C'est exactement ce à quoi sert le bloc PADDING du FLAC, et ça évite de
+    // recopier des dizaines de mégaoctets d'audio pour changer un titre.
+    let padding = if fixed + BLOCK_HEADER_LEN <= available {
+        Some(available - fixed - BLOCK_HEADER_LEN)
+    } else {
+        None
+    };
+
+    let mut out = Vec::new();
+    out.extend_from_slice(b"fLaC");
+    rebuilt.push((BLOCK_PADDING, vec![0u8; padding.unwrap_or(PADDING_LEN)]));
 
     let last = rebuilt.len() - 1;
     for (index, (kind, data)) in rebuilt.iter().enumerate() {
@@ -129,6 +147,17 @@ pub fn apply(path: &Path, edit: &TagEdit) -> Result<(), InjectError> {
     }
 
     let metadata_len = out.len();
+
+    if padding.is_some() {
+        debug_assert_eq!(metadata_len, available, "l'en-tête réécrit décalerait l'audio");
+        atomic_write::write_in_place(path, 0, &out)?;
+        log::info!(
+            "🏷  Tags FLAC réécrits sur place : {} ({} octets)",
+            path.display(),
+            metadata_len
+        );
+        return Ok(());
+    }
     atomic_write::replace_file_with(path, move |dest| {
         dest.write_all(&out)?;
         // Les trames audio sont recopiées par blocs : un FLAC 24/192 d'un
@@ -476,14 +505,26 @@ fn encode_picture(picture: &Picture) -> Vec<u8> {
 
 /// Construit la liste finale des images, mêmes règles qu'en ID3.
 fn apply_images(existing: &[Picture], plan: &ImagePlan) -> Result<Vec<Picture>, InjectError> {
-    let ImagePlan::Replace(slots) = plan else {
+    // Ce que le plan a besoin de savoir du fichier pour se réduire à une liste.
+    let inventory: Vec<ExistingImage> = existing
+        .iter()
+        .map(|p| ExistingImage {
+            id: image_id(&p.data),
+            // Un type au-delà de 255 serait hors spécification ; il retombe
+            // sur « autre » plutôt que d'être tronqué en silence.
+            picture_type: u8::try_from(p.picture_type).unwrap_or(0),
+            description: p.description.clone(),
+        })
+        .collect();
+
+    let Some(slots) = plan.resolve(&inventory) else {
         return Ok(existing.to_vec());
     };
 
     let mut rebuilt = Vec::with_capacity(slots.len());
     let mut cover_taken = false;
 
-    for slot in slots {
+    for slot in &slots {
         let mut picture = resolve_slot(existing, slot)?;
         if picture.picture_type == PICTURE_TYPE_COVER_FRONT {
             if cover_taken {
@@ -682,6 +723,66 @@ mod tests {
         // `reread` échouerait si le drapeau était mal placé : il suit la chaîne.
         let (blocks, _) = reread(&file);
         assert_eq!(blocks.last().unwrap().kind, BLOCK_PADDING);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_second_edit_is_written_in_place() {
+        // La première écriture pose le remplissage ; la seconde doit tenir
+        // dedans et ne réécrire que l'en-tête. Ce qu'on vérifie ici, c'est que
+        // l'audio n'a pas bougé d'un octet — c'est la seule chose qui compte,
+        // le gain de vitesse en découle.
+        let dir = temp_dir("in-place");
+        let file = dir.join("piste.flac");
+        fs::write(&file, build_flac(&[])).unwrap();
+
+        apply(&file, &set_title("Premier")).unwrap();
+        let after_first = fs::metadata(&file).unwrap().len();
+        let (_, audio_before) = reread(&file);
+
+        apply(&file, &set_title("Second, plus long que le premier")).unwrap();
+
+        assert_eq!(
+            fs::metadata(&file).unwrap().len(),
+            after_first,
+            "la taille du fichier a changé : l'audio a été décalé"
+        );
+        let (_, audio_after) = reread(&file);
+        assert_eq!(audio_after, audio_before, "les trames audio ont bougé");
+        assert_eq!(audio_after, FAKE_AUDIO);
+        assert_eq!(value(&file, "TITLE").as_deref(), Some("Second, plus long que le premier"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_tag_too_big_for_the_padding_falls_back_to_a_full_rewrite() {
+        // Le chemin rapide n'est qu'une optimisation : quand le contenu déborde
+        // de la zone réservée, il faut décaler l'audio, et le fichier doit
+        // rester correct.
+        let dir = temp_dir("overflow");
+        let file = dir.join("piste.flac");
+        fs::write(&file, build_flac(&[])).unwrap();
+
+        apply(&file, &set_title("Court")).unwrap();
+        let before = fs::metadata(&file).unwrap().len();
+
+        // Un commentaire bien plus gros que le remplissage de 1 Ko.
+        apply(
+            &file,
+            &TagEdit {
+                comment: FieldEdit::Set("x".repeat(5000)),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert!(
+            fs::metadata(&file).unwrap().len() > before,
+            "le fichier aurait dû grandir"
+        );
+        let (_, audio) = reread(&file);
+        assert_eq!(audio, FAKE_AUDIO, "l'audio a été abîmé par le décalage");
+        assert_eq!(value(&file, "TITLE").as_deref(), Some("Court"));
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -964,6 +1065,52 @@ mod tests {
 
         assert!(result.is_err(), "référence inconnue acceptée en silence");
         assert_eq!(fs::read(&file).unwrap(), before, "le fichier a été touché");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn setting_the_cover_keeps_the_other_pictures() {
+        // Même garantie qu'en ID3 : poser une pochette commune sur un lot ne
+        // doit pas emporter les livrets des fichiers qu'on ne connaît pas.
+        let dir = temp_dir("set-cover");
+        let file = dir.join("piste.flac");
+        fs::write(&file, build_flac(&[])).unwrap();
+
+        apply(
+            &file,
+            &with_images(vec![
+                added(b"ancienne-pochette", 3),
+                added(b"verso", 4),
+                added(b"livret", 5),
+            ]),
+        )
+        .unwrap();
+
+        apply(
+            &file,
+            &TagEdit {
+                images: ImagePlan::SetCover(added(b"NOUVELLE-POCHETTE", 0)),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let pictures = pictures_of(&file);
+        assert_eq!(
+            pictures.iter().map(|p| p.data.clone()).collect::<Vec<_>>(),
+            vec![
+                b"NOUVELLE-POCHETTE".to_vec(),
+                b"verso".to_vec(),
+                b"livret".to_vec()
+            ],
+            "les images conservées ont bougé ou disparu"
+        );
+        assert_eq!(pictures[0].picture_type, 3);
+        assert_eq!(
+            pictures.iter().filter(|p| p.picture_type == 3).count(),
+            1,
+            "l'ancienne pochette n'a pas été remplacée"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 

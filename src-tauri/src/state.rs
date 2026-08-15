@@ -3,6 +3,7 @@ use std::sync::Arc;
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 
+use crate::core::batch::runner::BatchRegistry;
 use crate::core::dlna_server::server::DlnaServer;
 
 #[derive(Clone)]
@@ -11,6 +12,10 @@ pub struct AppState {
     /// DLNA server lifecycle. `None` when stopped, `Some(...)` when running.
     /// Wrapped in Mutex so start/stop commands serialize properly.
     pub dlna_server: Arc<Mutex<Option<DlnaServer>>>,
+    /// Lots en cours. Point de rendez-vous entre la commande qui lance un
+    /// traitement de masse et celle qui l'annule — elles arrivent par deux
+    /// appels séparés.
+    pub batch: Arc<BatchRegistry>,
 }
 
 impl AppState {
@@ -137,6 +142,7 @@ impl AppState {
         Ok(Self {
             pool,
             dlna_server: Arc::new(Mutex::new(None)),
+            batch: Arc::new(BatchRegistry::default()),
         })
     }
 }

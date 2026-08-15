@@ -72,6 +72,15 @@ pub mod audio_resampler {
     pub mod resampler;
 }
 
+pub mod metadata_source {
+    pub mod deezer;
+    pub mod matching;
+}
+
+pub mod batch {
+    pub mod runner;
+}
+
 pub mod audio_quality;
 pub mod gpu_sentinel;
 pub mod render_mode;

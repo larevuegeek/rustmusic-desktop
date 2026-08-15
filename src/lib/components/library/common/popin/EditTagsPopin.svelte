@@ -26,12 +26,17 @@
   import { fade, scale } from "svelte/transition";
   import { open } from "@tauri-apps/plugin-dialog";
   import { popinStore } from "$lib/stores/ui/popin.store";
+  import TagField from "$lib/components/ui/input/TagField.svelte";
+  import TrackLookup from "$lib/components/ui/deezer/TrackLookup.svelte";
+  import TrackCompare from "$lib/components/ui/deezer/TrackCompare.svelte";
+  import type { TrackHit, TrackValues } from "$lib/services/tags/metadata.service";
   import { t } from "$lib/i18n";
   import {
     buildEdit,
     formatBytes,
     pictureTypeKey,
     prepareImage,
+    type DownloadedImage,
     promoteToCover,
     readTrackImages,
     readTrackTags,
@@ -84,6 +89,12 @@
   let fieldsPane: HTMLElement | null = $state(null);
   /** Compteur de clés pour les images ajoutées, qui n'ont pas d'identifiant. */
   let addedCount = 0;
+  /** Vrai quand la récupération Deezer occupe la popin. */
+  let lookup = $state(false);
+  /** La piste retenue, dont on compare les valeurs aux nôtres. */
+  let picked: { values: TrackValues; hit: TrackHit } | null = $state(null);
+  /** Ce que Deezer vient de remplir, pour le dire une fois et l'oublier. */
+  let filled: string[] = $state([]);
 
   // Ouvrir un éditeur et devoir cliquer dans le premier champ avant de pouvoir
   // taper est une friction gratuite. On attend la fin du chargement : avant, les
@@ -255,6 +266,81 @@
   let filename = $derived(path.split(/[\\/]/).pop() ?? path);
   let extension = $derived((filename.split(".").pop() ?? "").toUpperCase());
 
+  // ─── Récupération depuis Deezer ───
+
+  /**
+   * Amorce de recherche.
+   *
+   * L'artiste et le titre déjà présents sont presque toujours la bonne
+   * requête ; à défaut, le nom du fichier, qui les contient le plus souvent.
+   */
+  let lookupQuery = $derived(
+    [form.artist, form.title].filter(Boolean).join(" ").trim() ||
+      filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "),
+  );
+
+  /** Ferme la récupération et oublie la piste retenue. */
+  function closeLookup() {
+    lookup = false;
+    picked = null;
+  }
+
+  /**
+   * Verse dans le formulaire ce que la comparaison a retenu.
+   *
+   * Seuls les champs cochés arrivent ici : le tri s'est fait à l'écran, les
+   * deux valeurs côte à côte. Ce qui protège ensuite, c'est l'existant —
+   * chaque champ modifié porte sa marque et son bouton de rétablissement avec
+   * l'ancienne valeur, et rien n'est écrit tant qu'on n'a pas enregistré.
+   */
+  function applyFromSource(
+    fields: Record<string, string>,
+    cover: DownloadedImage | null,
+  ) {
+    const touched: string[] = [];
+    for (const [key, value] of Object.entries(fields)) {
+      if (form[key] === value) continue;
+      form[key] = value;
+      touched.push(key);
+    }
+
+    if (cover) {
+      applyCover(cover);
+      touched.push("cover");
+    }
+
+    filled = touched;
+    closeLookup();
+  }
+
+  /**
+   * Pose la pochette venue de la source.
+   *
+   * Elle **remplace** celle qui portait le rôle, à sa place dans la liste, et
+   * ne touche à rien d'autre : livret et pochette arrière survivent. Un
+   * fichier qui n'en avait aucune la reçoit en tête.
+   */
+  function applyCover(image: DownloadedImage) {
+    addedCount += 1;
+    const slot: MediaSlot = {
+      key: `deezer-${addedCount}`,
+      id: null,
+      path: image.path,
+      src: image.src,
+      picture_type: PICTURE_TYPE_COVER,
+      description: "",
+      mime_type: image.mime_type,
+      bytes: image.bytes,
+      originalBytes: image.original_bytes,
+      recompressed: image.recompressed,
+    };
+
+    const index = slots.findIndex((s) => s.picture_type === PICTURE_TYPE_COVER);
+    slots = index >= 0
+      ? slots.map((s, i) => (i === index ? slot : s))
+      : [slot, ...slots];
+  }
+
   async function submit() {
     if (!dirty || isSubmitting) return;
     error = null;
@@ -289,6 +375,19 @@
       zoomed = null;
       return;
     }
+    // Deux niveaux, refermés de l'intérieur vers l'extérieur : la comparaison
+    // d'abord, la recherche ensuite. Tout fermer d'un coup renverrait au
+    // formulaire alors qu'on voulait juste changer de piste.
+    if (e.key === "Escape" && picked) {
+      e.stopPropagation();
+      picked = null;
+      return;
+    }
+    if (e.key === "Escape" && lookup) {
+      e.stopPropagation();
+      closeLookup();
+      return;
+    }
     if (e.key === "Escape" && confirmingClose) {
       e.stopPropagation();
       confirmingClose = false;
@@ -300,75 +399,16 @@
 
 <svelte:window onkeydowncapture={onKeydown} />
 
-<!-- ══ Champ ══
-     Un bloc à fond plein, **sans trait de contour** : c'est le fond qui délimite
-     le champ. Les traits, eux, s'accumulent — douze cadres empilés donnent une
-     grille de formulaire administratif. Et les blocs sont espacés : collés les
-     uns aux autres ils formaient une dalle grise illisible.
-
-     Le focus n'ajoute jamais de rectangle : fond teinté, intitulé coloré, halo
-     diffus. `data-focus-ring` déplace vers ce bloc l'indicateur de contraste
-     élevé, qui sinon dessinerait un cadre dur autour de la seule saisie
-     (voir `app.css`).
-
-     Deux signaux distincts : le **focus** allume le bloc, la **modification**
-     pose une barre au bord gauche et sort le bouton de rétablissement. -->
 {#snippet cell(key: string, labelKey: string, large: boolean)}
-  <div
-    data-focus-ring="row"
-    class="group relative rounded-lg overflow-hidden transition-all duration-150
-           bg-neutral-100/70 dark:bg-white/4
-           hover:bg-neutral-200/50 dark:hover:bg-white/6
-           focus-within:bg-emerald-500/10
-           focus-within:shadow-lg focus-within:shadow-emerald-500/25"
-  >
-    {#if isDirty(key)}
-      <span
-        class="absolute left-0 inset-y-0 w-0.75 bg-emerald-500"
-        transition:fade={{ duration: 120 }}
-      ></span>
-    {/if}
-
-    <label class="block px-3.5 py-2 cursor-text">
-      <span
-        class="block text-[10px] font-semibold uppercase tracking-[0.09em] leading-none
-               text-neutral-400 dark:text-neutral-500
-               group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-400
-               transition-colors"
-      >
-        {$t(labelKey)}
-      </span>
-      <input
-        type="text"
-        data-focus-ring="none"
-        bind:value={form[key]}
-        disabled={isSubmitting || isLoading}
-        placeholder="—"
-        class="w-full mt-1.5 bg-transparent leading-tight outline-none
-               text-neutral-900 dark:text-neutral-50
-               placeholder:text-neutral-300 dark:placeholder:text-neutral-700
-               disabled:opacity-50
-               {large ? 'text-[15px] font-medium' : 'text-[13px]'}
-               {isDirty(key) ? 'pr-8' : ''}"
-      />
-    </label>
-
-    {#if isDirty(key)}
-      <button
-        type="button"
-        onclick={() => revert(key)}
-        title="{$t('tags.revert')} : {original[key] || '—'}"
-        aria-label={$t('tags.revert')}
-        class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md cursor-pointer
-               flex items-center justify-center
-               text-neutral-400 dark:text-neutral-500
-               hover:text-emerald-600 dark:hover:text-emerald-400
-               hover:bg-emerald-500/15 transition-colors"
-      >
-        <Icon icon="lucide:rotate-ccw" width="12" />
-      </button>
-    {/if}
-  </div>
+  <TagField
+    label={$t(labelKey)}
+    bind:value={form[key]}
+    dirty={isDirty(key)}
+    disabled={isSubmitting || isLoading}
+    revertLabel="{$t('tags.revert')} : {original[key] || '—'}"
+    {large}
+    onrevert={() => revert(key)}
+  />
 {/snippet}
 
 <!-- ══ Cellule « n sur N » ══
@@ -376,30 +416,11 @@
      cases séparées mentiraient sur le format et prendraient deux fois la
      place ; la barre oblique le dit visuellement. -->
 {#snippet pairCell(numKey: string, totalKey: string, labelKey: string)}
-  <div
-    data-focus-ring="row"
-    class="group relative rounded-lg overflow-hidden transition-all duration-150
-           bg-neutral-100/70 dark:bg-white/4
-           hover:bg-neutral-200/50 dark:hover:bg-white/6
-           focus-within:bg-emerald-500/10
-           focus-within:shadow-lg focus-within:shadow-emerald-500/25"
+  <TagField
+    label={$t(labelKey)}
+    dirty={isDirty(numKey) || isDirty(totalKey)}
   >
-    {#if isDirty(numKey) || isDirty(totalKey)}
-      <span
-        class="absolute left-0 inset-y-0 w-0.75 bg-emerald-500"
-        transition:fade={{ duration: 120 }}
-      ></span>
-    {/if}
-
-    <div class="px-3.5 py-2">
-      <span
-        class="block text-[10px] font-semibold uppercase tracking-[0.09em] leading-none
-               text-neutral-400 dark:text-neutral-500
-               group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-400
-               transition-colors"
-      >
-        {$t(labelKey)}
-      </span>
+    {#snippet children()}
       <div class="flex items-baseline gap-1.5 mt-1.5">
         <input
           type="text"
@@ -427,68 +448,23 @@
                  disabled:opacity-50"
         />
       </div>
-    </div>
-  </div>
+    {/snippet}
+  </TagField>
 {/snippet}
 
 <!-- ══ Commentaire ══
      Un commentaire tient rarement sur une ligne : une case simple obligerait à
      faire défiler le texte horizontalement pour se relire. -->
 {#snippet areaCell(key: string, labelKey: string)}
-  <div
-    data-focus-ring="row"
-    class="group relative rounded-lg overflow-hidden transition-all duration-150
-           bg-neutral-100/70 dark:bg-white/4
-           hover:bg-neutral-200/50 dark:hover:bg-white/6
-           focus-within:bg-emerald-500/10
-           focus-within:shadow-lg focus-within:shadow-emerald-500/25"
-  >
-    {#if isDirty(key)}
-      <span
-        class="absolute left-0 inset-y-0 w-0.75 bg-emerald-500"
-        transition:fade={{ duration: 120 }}
-      ></span>
-    {/if}
-
-    <label class="block px-3.5 py-2 cursor-text">
-      <span
-        class="block text-[10px] font-semibold uppercase tracking-[0.09em] leading-none
-               text-neutral-400 dark:text-neutral-500
-               group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-400
-               transition-colors"
-      >
-        {$t(labelKey)}
-      </span>
-      <textarea
-        rows="2"
-        data-focus-ring="none"
-        bind:value={form[key]}
-        disabled={isSubmitting || isLoading}
-        placeholder="—"
-        class="w-full mt-1.5 bg-transparent text-[13px] leading-snug resize-none scrollbar-none
-               outline-none
-               text-neutral-900 dark:text-neutral-50
-               placeholder:text-neutral-300 dark:placeholder:text-neutral-700
-               disabled:opacity-50"
-      ></textarea>
-    </label>
-
-    {#if isDirty(key)}
-      <button
-        type="button"
-        onclick={() => revert(key)}
-        title={$t('tags.revert')}
-        aria-label={$t('tags.revert')}
-        class="absolute right-1.5 top-1.5 w-6 h-6 rounded-md cursor-pointer
-               flex items-center justify-center
-               text-neutral-400 dark:text-neutral-500
-               hover:text-emerald-600 dark:hover:text-emerald-400
-               hover:bg-emerald-500/15 transition-colors"
-      >
-        <Icon icon="lucide:rotate-ccw" width="12" />
-      </button>
-    {/if}
-  </div>
+  <TagField
+    label={$t(labelKey)}
+    bind:value={form[key]}
+    dirty={isDirty(key)}
+    disabled={isSubmitting || isLoading}
+    revertLabel={$t('tags.revert')}
+    multiline
+    onrevert={() => revert(key)}
+  />
 {/snippet}
 
 {#snippet groupTitle(labelKey: string)}
@@ -532,6 +508,54 @@
 {/snippet}
 
 <div class="flex-1 min-h-0 flex flex-col">
+  {#if lookup}
+    <!-- ─────────── Récupération depuis Deezer ───────────
+         Elle prend toute la largeur, colonne des médias comprise : la
+         comparaison a deux colonnes de valeurs à montrer côte à côte, plus la
+         pochette d'ici et celle de là-bas. Coincée dans la colonne des champs
+         elle tronquerait tout. -->
+    <div class="flex-1 min-h-0 flex flex-col">
+      <div class="shrink-0 flex items-center gap-2.5 px-4 py-2.5
+                  border-b border-neutral-200/70 dark:border-white/8">
+        <Icon icon="lucide:cloud-download" width="14"
+              class="shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <span class="flex-1 min-w-0 text-[12.5px] font-medium truncate
+                     text-neutral-800 dark:text-neutral-100">
+          {$t('source.title')}
+        </span>
+        <button
+          type="button"
+          onclick={closeLookup}
+          class="flex items-center gap-1.5 px-2 h-7 rounded-lg text-[11.5px]
+                 cursor-pointer transition-colors
+                 text-neutral-500 dark:text-neutral-400
+                 hover:bg-neutral-200/70 dark:hover:bg-white/8"
+        >
+          <Icon icon="lucide:x" width="12" />
+          {$t('source.back_to_fields')}
+        </button>
+      </div>
+
+      <div class="flex-1 min-h-0">
+        {#if picked}
+          <TrackCompare
+            current={form}
+            currentCover={coverSlot}
+            values={picked.values}
+            hit={picked.hit}
+            onback={() => (picked = null)}
+            onapply={applyFromSource}
+          />
+        {:else}
+          <TrackLookup
+            initialQuery={lookupQuery}
+            onpick={(values, hit) => (picked = { values, hit })}
+            oncancel={closeLookup}
+          />
+        {/if}
+      </div>
+    </div>
+  {:else}
   <div class="flex-1 min-h-0 flex">
     <!-- ─────────── Colonne des médias ─────────── -->
     <aside
@@ -751,6 +775,37 @@
     </aside>
 
     <!-- ─────────── Colonne des champs ─────────── -->
+    <div class="flex-1 min-w-0 flex flex-col min-h-0">
+      <!-- Barre de la colonne : ce que la source vient de remplir, et l'accès
+           à la recherche. -->
+      <div class="shrink-0 flex items-center gap-2 px-4 py-2
+                  border-b border-neutral-200/70 dark:border-white/8">
+        {#if filled.length > 0}
+          <span class="flex-1 min-w-0 flex items-center gap-1.5 text-[11px] truncate
+                       text-emerald-600 dark:text-emerald-400"
+                transition:fade={{ duration: 120 }}>
+            <Icon icon="lucide:sparkles" width="11" class="shrink-0" />
+            <!-- On nomme les champs repris : « 6 champs » laisserait chercher
+                 lesquels dans le formulaire. -->
+            {filled.map((k) => $t(`tags.${k}`)).join(', ')}
+          </span>
+        {:else}
+          <span class="flex-1"></span>
+        {/if}
+        <button
+          type="button"
+          onclick={() => (lookup = true)}
+          disabled={isLoading || isSubmitting}
+          class="shrink-0 flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11.5px]
+                 cursor-pointer transition-colors disabled:opacity-40
+                 text-emerald-600 dark:text-emerald-400
+                 hover:bg-emerald-500/12"
+        >
+          <Icon icon="lucide:cloud-download" width="12" />
+          {$t('source.fetch')}
+        </button>
+      </div>
+
     <div
       bind:this={fieldsPane}
       class="flex-1 min-w-0 overflow-y-auto scrollbar-none px-5 py-4 space-y-5"
@@ -811,7 +866,9 @@
         </section>
       {/if}
     </div>
+    </div>
   </div>
+  {/if}
 
   <!-- Le message d'erreur a sa propre bande : dans le pied de page il
        repousserait les boutons hors de portée dès qu'il est un peu long. -->

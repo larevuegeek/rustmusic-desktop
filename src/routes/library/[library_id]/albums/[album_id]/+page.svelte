@@ -544,6 +544,7 @@ async function loadAlbumTracks(
     x={albumContextMenu.x}
     y={albumContextMenu.y}
     onclose={() => albumContextMenu = null}
+    onedittags={() => goto(`/library/${libraryId}/tags?album=${album?.id}`)}
     oncover={() => {
         if (album) {
             loadAlbum(album.id).then(result => { if (result) album = result; });

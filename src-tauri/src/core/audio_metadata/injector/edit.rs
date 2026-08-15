@@ -107,11 +107,69 @@ pub enum ImagePlan {
     Keep,
     /// Remplacer intégralement la liste par celle-ci, dans cet ordre.
     Replace(Vec<ImageSlot>),
+    /// Remplacer la seule **pochette avant**, et laisser les autres images en
+    /// place.
+    ///
+    /// # Pourquoi cette variante existe
+    /// `Replace` décrit la liste finale, ce qui suppose de connaître les images
+    /// du fichier. C'est vrai quand on en édite un seul, faux dès qu'on en
+    /// traite cinquante : poser une pochette commune avec `Replace`
+    /// supprimerait au passage les livrets et pochettes arrière de chacun,
+    /// sans que personne ne l'ait demandé.
+    SetCover(ImageSlot),
 }
+
+/// Ce qu'un conteneur sait dire d'une image déjà présente dans le fichier.
+///
+/// Sert d'intermédiaire entre les formats : l'ID3 et le FLAC stockent leurs
+/// images très différemment, mais tous deux savent produire ces trois
+/// informations, et c'est tout ce dont `resolve` a besoin.
+#[derive(Debug, Clone)]
+pub struct ExistingImage {
+    /// Identifiant de contenu (cf. `image_prep::image_id`).
+    pub id: String,
+    pub picture_type: u8,
+    pub description: String,
+}
+
+/// Code ID3 de la pochette avant, partagé par l'ID3 et le FLAC.
+pub const PICTURE_TYPE_COVER_FRONT: u8 = 3;
 
 impl ImagePlan {
     pub fn is_change(&self) -> bool {
         !matches!(self, ImagePlan::Keep)
+    }
+
+    /// Réduit le plan à une liste finale, connaissant les images du fichier.
+    ///
+    /// `None` pour `Keep`. Les encodeurs n'ont donc qu'un seul cas à traiter :
+    /// une liste d'emplacements dans l'ordre voulu.
+    pub fn resolve(&self, existing: &[ExistingImage]) -> Option<Vec<ImageSlot>> {
+        match self {
+            ImagePlan::Keep => None,
+            ImagePlan::Replace(slots) => Some(slots.clone()),
+            ImagePlan::SetCover(cover) => {
+                // La nouvelle pochette en tête, puis tout ce qui n'est pas une
+                // pochette avant — c'est ce qui préserve les images d'un
+                // fichier dont l'appelant ignore le contenu.
+                let mut slots = Vec::with_capacity(existing.len() + 1);
+                slots.push(ImageSlot {
+                    picture_type: PICTURE_TYPE_COVER_FRONT,
+                    ..cover.clone()
+                });
+                slots.extend(
+                    existing
+                        .iter()
+                        .filter(|image| image.picture_type != PICTURE_TYPE_COVER_FRONT)
+                        .map(|image| ImageSlot {
+                            source: ImageSource::Existing(image.id.clone()),
+                            picture_type: image.picture_type,
+                            description: image.description.clone(),
+                        }),
+                );
+                Some(slots)
+            }
+        }
     }
 }
 
@@ -197,6 +255,70 @@ mod tests {
         let mut edit = TagEdit::default();
         edit.album = FieldEdit::Set("Space Oddity".into());
         assert!(!edit.is_empty());
+    }
+
+    fn new_slot(kind: u8) -> ImageSlot {
+        ImageSlot {
+            source: ImageSource::New {
+                data: b"nouvelle-pochette".to_vec(),
+                mime_type: "image/jpeg".into(),
+                width: 1200,
+                height: 1200,
+            },
+            picture_type: kind,
+            description: String::new(),
+        }
+    }
+
+    fn existing(id: &str, kind: u8) -> ExistingImage {
+        ExistingImage {
+            id: id.into(),
+            picture_type: kind,
+            description: String::new(),
+        }
+    }
+
+    #[test]
+    fn set_cover_keeps_the_other_images() {
+        // Le cœur de la variante : en édition multiple on ignore ce que
+        // contiennent les autres fichiers, il ne faut donc rien y supprimer.
+        let plan = ImagePlan::SetCover(new_slot(0));
+        let slots = plan
+            .resolve(&[
+                existing("ancienne-pochette", PICTURE_TYPE_COVER_FRONT),
+                existing("livret", 5),
+                existing("verso", 4),
+            ])
+            .unwrap();
+
+        assert_eq!(slots.len(), 3, "une image a été perdue ou dupliquée");
+        assert!(
+            matches!(slots[0].source, ImageSource::New { .. }),
+            "la nouvelle pochette doit venir en tête"
+        );
+        assert_eq!(
+            slots[0].picture_type, PICTURE_TYPE_COVER_FRONT,
+            "le type de la pochette doit être imposé, pas hérité de l'appelant"
+        );
+        assert_eq!(
+            slots[1].source,
+            ImageSource::Existing("livret".into()),
+            "le livret a disparu"
+        );
+        assert_eq!(slots[2].source, ImageSource::Existing("verso".into()));
+    }
+
+    #[test]
+    fn set_cover_on_a_file_without_images_just_adds_it() {
+        let slots = ImagePlan::SetCover(new_slot(0)).resolve(&[]).unwrap();
+        assert_eq!(slots.len(), 1);
+        assert_eq!(slots[0].picture_type, PICTURE_TYPE_COVER_FRONT);
+    }
+
+    #[test]
+    fn keep_resolves_to_nothing_at_all() {
+        // Les encodeurs s'appuient dessus pour ne pas toucher aux images.
+        assert!(ImagePlan::Keep.resolve(&[existing("x", 3)]).is_none());
     }
 
     #[test]

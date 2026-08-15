@@ -9,6 +9,14 @@
   import { toasts } from "$lib/stores/ui/toast.store";
   import type { Playlist } from "$lib/types/db/playlist/Playlist";
   import { fade, fly } from "svelte/transition";
+  import { popinStore } from "$lib/stores/ui/popin.store";
+  import { batchStore } from "$lib/stores/ui/batch.store";
+  import { canWriteTags } from "$lib/services/tags/tagEditor.service";
+  import { t } from "$lib/i18n";
+  import EditTagsBatchPopin from "$lib/components/library/common/popin/EditTagsBatchPopin.svelte";
+  import { goto } from "$app/navigation";
+  import { page } from "$app/state";
+  import { tagWorkshop } from "$lib/stores/tags/tagWorkshop.store";
 
   let selection = $derived($selectionStore);
   let showPlaylistMenu = $state(false);
@@ -21,6 +29,78 @@
     await queueState.loadTracks(queueTracks);
     playerService.playFile(queueTracks[0]);
     selectionStore.stop();
+  }
+
+  /**
+   * Ouvre l'éditeur sur les fichiers réinscriptibles de la sélection.
+   *
+   * Le tri a lieu ici plutôt que dans l'éditeur : proposer de corriger des
+   * fichiers dont on sait déjà qu'ils échoueront reviendrait à peupler le
+   * compte rendu d'échecs annoncés. Le backend seul sait quels conteneurs il
+   * réécrit, d'où l'aller-retour.
+   */
+  async function handleEditTags() {
+    const tracks = selectionStore.getSelectedTracks();
+    const candidates = tracks.map((tk) => tk.path).filter((p): p is string => !!p);
+    if (candidates.length === 0) return;
+
+    const checks = await Promise.all(candidates.map((p) => canWriteTags(p)));
+    const writable = candidates.filter((_, i) => checks[i]);
+
+    if (writable.length === 0) {
+      toasts.push({
+        type: "info",
+        title: $t("tags.edit"),
+        message: $t("tags.none_writable"),
+      });
+      return;
+    }
+    if (writable.length < candidates.length) {
+      toasts.push({
+        type: "info",
+        title: $t("tags.edit"),
+        message: `${candidates.length - writable.length} ${$t("tags.skipped_unsupported")}`,
+      });
+    }
+
+    selectionStore.stop();
+    popinStore.open(
+      $t("tags.edit"),
+      EditTagsBatchPopin,
+      { paths: writable },
+      { size: "xl", flush: true, icon: "lucide:tags" },
+    );
+  }
+
+  /**
+   * Envoie la sélection dans l'atelier.
+   *
+   * Le jeu de travail passe par le magasin et non par l'adresse : une liste de
+   * cinquante chemins ne tient pas dans une URL. La page n'est donc pas
+   * rechargeable dans ce cas — contrairement à l'entrée par album, qui elle
+   * porte son identifiant.
+   */
+  async function handleOpenWorkshop() {
+    const tracks = selectionStore.getSelectedTracks();
+    const candidates = tracks.map((tk) => tk.path).filter((p): p is string => !!p);
+    if (candidates.length === 0) return;
+
+    const checks = await Promise.all(candidates.map((p) => canWriteTags(p)));
+    const writable = candidates.filter((_, i) => checks[i]);
+
+    if (writable.length === 0) {
+      toasts.push({
+        type: "info",
+        title: $t("workshop.title"),
+        message: $t("tags.none_writable"),
+      });
+      return;
+    }
+
+    const libraryId = page.params.library_id;
+    selectionStore.stop();
+    await tagWorkshop.load(writable, $t("workshop.from_selection"), page.url.pathname);
+    await goto(`/library/${libraryId}/tags`);
   }
 
   async function handleAddToQueue() {
@@ -85,6 +165,34 @@
       >
         <Icon icon="lucide:play" width={13} />
         Lire
+      </button>
+
+      <!-- Modifier les tags -->
+      <button
+        type="button"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer
+               text-neutral-300 hover:text-white hover:bg-white/8
+               transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        onclick={handleEditTags}
+        disabled={$batchStore.running}
+        title={$batchStore.running ? $t("tags.batch_already_running") : $t("tags.edit")}
+      >
+        <Icon icon="lucide:tags" width={13} />
+        {$t("tags.edit_short")}
+      </button>
+
+      <!-- Atelier -->
+      <button
+        type="button"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer
+               text-neutral-300 hover:text-white hover:bg-white/8
+               transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        onclick={handleOpenWorkshop}
+        disabled={$batchStore.running || !page.params.library_id}
+        title={$t("workshop.title")}
+      >
+        <Icon icon="lucide:table-properties" width={13} />
+        {$t("workshop.short")}
       </button>
 
       <!-- Add to queue -->

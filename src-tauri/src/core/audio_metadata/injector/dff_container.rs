@@ -73,7 +73,17 @@ pub fn apply(path: &Path, edit: &TagEdit) -> Result<(), InjectError> {
     // tronqués : on ne parcourt que ce qui existe vraiment.
     let body_end = (CHUNK_HEADER_LEN + form_size).min(file_len);
 
-    let (mut parts, existing) = scan_chunks(&mut file, body_end, file_len)?;
+    let (mut parts, existing, tag_offset) = scan_chunks(&mut file, body_end, file_len)?;
+
+    // Chemin rapide : un tag de même longueur laisse la taille du chunk et
+    // celle de FRM8 inchangées, donc rien d'autre à corriger dans le fichier.
+    if let (Some(blob), Some(offset)) = (&existing, tag_offset) {
+        if let Some(tag) = id3v2_writer::rewrite_sized(Some(blob), edit, blob.len())? {
+            atomic_write::write_in_place(path, offset, &tag)?;
+            log::info!("🏷  Tags DFF réécrits sur place : {}", path.display());
+            return Ok(());
+        }
+    }
 
     let new_tag = id3v2_writer::rewrite(existing.as_deref(), edit)?;
     let chunk = build_id3_chunk(&new_tag);
@@ -128,9 +138,11 @@ fn scan_chunks(
     file: &mut fs::File,
     body_end: u64,
     file_len: u64,
-) -> Result<(Vec<Part>, Option<Vec<u8>>), InjectError> {
+) -> Result<(Vec<Part>, Option<Vec<u8>>, Option<u64>), InjectError> {
     let mut parts = Vec::new();
     let mut existing = None;
+    // Position des données du chunk ID3, pour pouvoir le réécrire sur place.
+    let mut tag_offset = None;
     let mut cursor = FORM_HEADER_LEN;
     let mut keep_from = FORM_HEADER_LEN;
 
@@ -157,6 +169,7 @@ fn scan_chunks(
             let mut blob = vec![0u8; size as usize];
             file.read_exact(&mut blob)?;
             existing = Some(blob);
+            tag_offset = Some(cursor + CHUNK_HEADER_LEN);
             parts.push(Part::Tag);
             keep_from = cursor + advance;
         }
@@ -170,7 +183,7 @@ fn scan_chunks(
         parts.push(Part::Copy(keep_from, file_len - keep_from));
     }
 
-    Ok((parts, existing))
+    Ok((parts, existing, tag_offset))
 }
 
 fn build_id3_chunk(tag: &[u8]) -> Vec<u8> {

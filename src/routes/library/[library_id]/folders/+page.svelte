@@ -7,6 +7,11 @@
   import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
   import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
   import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
+  import { goto } from "$app/navigation";
+  import { t } from "$lib/i18n";
+  import { tagWorkshop } from "$lib/stores/tags/tagWorkshop.store";
+  import { canWriteTags } from "$lib/services/tags/tagEditor.service";
+  import { toasts } from "$lib/stores/ui/toast.store";
   import { formatBitrate } from "$lib/helper/tools/audioFormatTools";
 
   type LibraryDir = {
@@ -161,6 +166,42 @@
     return sr >= 1000 ? `${(sr / 1000).toFixed(1)} kHz` : `${sr} Hz`;
   }
 
+  let openingWorkshop = $state(false);
+
+  /**
+   * Envoie les fichiers du dossier courant dans l'atelier de tags.
+   *
+   * C'est l'entrée la plus naturelle : un dossier est presque toujours un
+   * album, et c'est là qu'on constate qu'il manque l'année ou que l'artiste
+   * est mal orthographié. Seuls les fichiers du niveau affiché partent — pas
+   * les sous-dossiers, dont le contenu n'est pas sous les yeux.
+   */
+  async function openWorkshop() {
+    const files = entries.filter(e => !e.is_dir).map(e => e.path);
+    if (files.length === 0 || openingWorkshop) return;
+
+    openingWorkshop = true;
+    try {
+      const checks = await Promise.all(files.map(p => canWriteTags(p)));
+      const writable = files.filter((_, i) => checks[i]);
+
+      if (writable.length === 0) {
+        toasts.push({
+          type: "info",
+          title: $t("workshop.title"),
+          message: $t("tags.none_writable"),
+        });
+        return;
+      }
+
+      const folder = breadcrumb[breadcrumb.length - 1]?.name ?? $t("nav.folders");
+      await tagWorkshop.load(writable, folder, `/library/${libraryId}/folders`);
+      await goto(`/library/${libraryId}/tags`);
+    } finally {
+      openingWorkshop = false;
+    }
+  }
+
   let dirCount = $derived(entries.filter(e => e.is_dir).length);
   let fileCount = $derived(entries.filter(e => !e.is_dir).length);
 
@@ -207,6 +248,26 @@
       {/each}
 
       <div class="ml-auto flex items-center gap-3 text-[10px] text-neutral-400">
+        {#if fileCount > 0}
+          <button
+            type="button"
+            onclick={openWorkshop}
+            disabled={openingWorkshop}
+            class="flex items-center gap-1.5 px-2 h-6 rounded-lg text-[11px]
+                   cursor-pointer transition-colors disabled:opacity-40
+                   text-neutral-500 dark:text-neutral-400
+                   hover:text-emerald-600 dark:hover:text-emerald-400
+                   hover:bg-emerald-500/10"
+            title={$t('workshop.fix_tags')}
+          >
+            <Icon
+              icon={openingWorkshop ? 'lucide:loader-circle' : 'lucide:table-properties'}
+              width="12"
+              class={openingWorkshop ? 'animate-spin' : ''}
+            />
+            {$t('workshop.short')}
+          </button>
+        {/if}
         {#if dirCount > 0}
           <span>{dirCount} dossier{dirCount > 1 ? 's' : ''}</span>
         {/if}

@@ -2,6 +2,7 @@
 import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
 import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import CollectionContextMenu from "$lib/components/ui/contextmenu/CollectionContextMenu.svelte";
+import { goto } from "$app/navigation";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
@@ -137,6 +138,7 @@ async function loadAlbumTracks() {
         x={contextMenu.x}
         y={contextMenu.y}
         onclose={() => contextMenu = null}
+        onedittags={() => goto(`/library/${libraryId}/tags?album=${album.id}`)}
         albumId={album.id}
         artistName={album.artist}
     />

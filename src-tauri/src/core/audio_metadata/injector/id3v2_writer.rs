@@ -26,7 +26,8 @@
 use std::collections::HashMap;
 
 use crate::core::audio_metadata::injector::edit::{
-    FieldEdit, ImagePlan, ImageSlot, ImageSource, TagEdit,
+    ExistingImage, FieldEdit, ImagePlan, ImageSlot, ImageSource, TagEdit,
+    PICTURE_TYPE_COVER_FRONT,
 };
 use crate::core::audio_metadata::injector::image_prep::image_id;
 use crate::core::audio_metadata::injector::injector::InjectError;
@@ -58,7 +59,45 @@ pub fn rewrite(existing: Option<&[u8]>, edit: &TagEdit) -> Result<Vec<u8>, Injec
     };
 
     apply_edit(version, &mut frames, edit)?;
-    Ok(encode(version, &frames))
+    Ok(encode(version, &frames, PADDING))
+}
+
+/// Réécrit un tag pour qu'il occupe **exactement** `target_len` octets.
+///
+/// Renvoie `None` quand le contenu ne tient pas dans cette place — l'appelant
+/// retombe alors sur une réécriture complète du fichier.
+///
+/// C'est à ça que sert le remplissage : tant que le tag ne grossit pas au-delà
+/// de ce qui lui est déjà réservé, on le réécrit **sur place** sans toucher aux
+/// mégaoctets d'audio qui le suivent. Sur un DSD de 300 Mo, c'est la différence
+/// entre instantané et plusieurs secondes.
+pub fn rewrite_sized(
+    existing: Option<&[u8]>,
+    edit: &TagEdit,
+    target_len: usize,
+) -> Result<Option<Vec<u8>>, InjectError> {
+    let (version, mut frames) = match existing {
+        Some(blob) => read_frames(blob)?,
+        None => (3, Vec::new()),
+    };
+
+    apply_edit(version, &mut frames, edit)?;
+
+    // Taille de l'en-tête et des frames, sans remplissage.
+    let content = HEADER_LEN + frames_len(version, &frames);
+    if content > target_len {
+        return Ok(None);
+    }
+
+    Ok(Some(encode(version, &frames, target_len - content)))
+}
+
+/// Longueur de l'en-tête ID3v2, avant les frames.
+const HEADER_LEN: usize = 10;
+
+fn frames_len(version: u8, frames: &[RawFrame]) -> usize {
+    let _ = version; // l'en-tête de frame fait 10 octets dans les deux versions
+    frames.iter().map(|f| 10 + f.body.len()).sum()
 }
 
 /// Longueur totale du tag ID3v2 placé en tête de `data`, `0` s'il n'y en a pas.
@@ -237,9 +276,6 @@ fn apply_edit(version: u8, frames: &mut Vec<RawFrame>, edit: &TagEdit) -> Result
 
 // ─── Images intégrées ────────────────────────────────────────────────────
 
-/// Type ID3 de la pochette avant. Une image n'est pas la pochette parce
-/// qu'elle arrive en premier, mais parce qu'elle porte ce type.
-const PICTURE_TYPE_COVER_FRONT: u8 = 3;
 /// Type de repli quand on doit rétrograder une seconde pochette avant.
 const PICTURE_TYPE_OTHER: u8 = 0;
 
@@ -263,16 +299,30 @@ fn apply_images(
     frames: &mut Vec<RawFrame>,
     plan: &ImagePlan,
 ) -> Result<(), InjectError> {
-    let ImagePlan::Replace(slots) = plan else {
-        return Ok(());
-    };
-
-    // Index par contenu : c'est la clé que l'interface renvoie, et la seule
-    // qui ne puisse pas dériver (cf. `image_prep::image_id`).
-    let existing: HashMap<String, Apic> = frames
+    // Les images du fichier, décodées une fois : dans l'ordre pour que le plan
+    // sache ce qu'il conserve, et indexées par contenu pour les retrouver.
+    // C'est la seule clé qui ne puisse pas dériver (cf. `image_prep::image_id`).
+    let decoded: Vec<Apic> = frames
         .iter()
         .filter(|f| &f.id == b"APIC")
         .filter_map(|f| decode_apic(&f.body))
+        .collect();
+
+    let inventory: Vec<ExistingImage> = decoded
+        .iter()
+        .map(|a| ExistingImage {
+            id: image_id(&a.data),
+            picture_type: a.picture_type,
+            description: a.description.clone(),
+        })
+        .collect();
+
+    let Some(slots) = plan.resolve(&inventory) else {
+        return Ok(());
+    };
+
+    let existing: HashMap<String, Apic> = decoded
+        .into_iter()
         .map(|a| (image_id(&a.data), a))
         .collect();
 
@@ -282,7 +332,7 @@ fn apply_images(
     // tranche à sa façon et l'affichage devient imprévisible.
     let mut cover_taken = false;
 
-    for slot in slots {
+    for slot in &slots {
         let mut apic = resolve_slot(&existing, slot)?;
         if apic.picture_type == PICTURE_TYPE_COVER_FRONT {
             if cover_taken {
@@ -596,7 +646,7 @@ fn comment_frame(version: u8, value: &str) -> RawFrame {
 
 // ─── Sérialisation ───────────────────────────────────────────────────────
 
-fn encode(version: u8, frames: &[RawFrame]) -> Vec<u8> {
+fn encode(version: u8, frames: &[RawFrame], padding: usize) -> Vec<u8> {
     let mut body = Vec::new();
 
     for frame in frames {
@@ -611,7 +661,7 @@ fn encode(version: u8, frames: &[RawFrame]) -> Vec<u8> {
         body.extend_from_slice(&frame.body);
     }
 
-    body.extend(std::iter::repeat(0u8).take(PADDING));
+    body.extend(std::iter::repeat(0u8).take(padding));
 
     let mut out = Vec::with_capacity(10 + body.len());
     out.extend_from_slice(b"ID3");
@@ -694,7 +744,7 @@ mod tests {
             flags: 0,
             body: b"charge utile opaque".to_vec(),
         });
-        let with_unknown = encode(version, &frames);
+        let with_unknown = encode(version, &frames, PADDING);
 
         let after = rewrite(Some(&with_unknown), &edit_title("Autre titre")).unwrap();
 
@@ -929,6 +979,54 @@ mod tests {
         );
 
         assert!(result.is_err(), "référence inconnue acceptée en silence");
+    }
+
+    #[test]
+    fn setting_the_cover_keeps_the_other_images() {
+        // Le cas de l'édition multiple : on pose une pochette commune sur des
+        // fichiers dont on ignore le contenu. Livrets et pochettes arrière
+        // doivent survivre, sinon corriger un album détruirait ses scans.
+        let base = rewrite(
+            None,
+            &with_images(vec![
+                added(b"ancienne-pochette", 3),
+                added(b"verso", 4),
+                added(b"livret", 5),
+            ]),
+        )
+        .unwrap();
+
+        let after = rewrite(
+            Some(&base),
+            &TagEdit {
+                images: ImagePlan::SetCover(added(b"NOUVELLE-POCHETTE", 0)),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let tags = reparse(&after);
+        assert_eq!(
+            payloads(&tags),
+            vec![
+                b"NOUVELLE-POCHETTE".to_vec(),
+                b"verso".to_vec(),
+                b"livret".to_vec()
+            ],
+            "les images conservées ont bougé ou disparu"
+        );
+        assert!(
+            matches!(tags.attached_images[0].image_type, Some(ImageType::CoverFront)),
+            "la nouvelle image n'a pas le type pochette"
+        );
+        assert_eq!(
+            tags.attached_images
+                .iter()
+                .filter(|i| matches!(i.image_type, Some(ImageType::CoverFront)))
+                .count(),
+            1,
+            "l'ancienne pochette n'a pas été remplacée"
+        );
     }
 
     #[test]

@@ -30,8 +30,13 @@ use crate::commands::audio_command::{
     set_next_track, set_replay_gain_settings,
 };
 use crate::commands::system_command::{get_render_mode, notify_ui_ready, set_render_mode};
+use crate::commands::batch_command::cancel_batch;
+use crate::commands::metadata_command::{
+    metadata_match_album, metadata_search_albums, metadata_search_tracks, metadata_track_values,
+};
 use crate::commands::tag_command::{
-    can_write_tags, prepare_image, read_track_images, read_track_tags, write_track_tags,
+    can_write_tags, prepare_image, prepare_image_from_url, read_track_images, read_track_tags, read_workshop_tracks, write_tags_batch, write_tags_each,
+    write_track_tags,
 };
 use crate::commands::media_controls_command::{
     disable_media_controls, enable_media_controls, is_media_controls_active,
@@ -523,8 +528,17 @@ pub async fn run() {
             can_write_tags,
             read_track_tags,
             prepare_image,
+            prepare_image_from_url,
             read_track_images,
+            read_workshop_tracks,
             write_track_tags,
+            write_tags_batch,
+            write_tags_each,
+            cancel_batch,
+            metadata_search_albums,
+            metadata_match_album,
+            metadata_search_tracks,
+            metadata_track_values,
             get_render_mode,
             set_render_mode,
             notify_ui_ready,

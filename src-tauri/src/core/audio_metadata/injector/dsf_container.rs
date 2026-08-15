@@ -76,6 +76,18 @@ pub fn apply(path: &Path, edit: &TagEdit) -> Result<(), InjectError> {
         None
     };
 
+    // Chemin rapide : un tag de même longueur se réécrit par-dessus l'ancien.
+    // Les deux champs de l'en-tête restent alors justes sans qu'on y touche —
+    // la taille totale ne bouge pas, ni la position du chunk. C'est ici que le
+    // gain compte le plus : un DSD dépasse couramment les 300 Mo.
+    if let Some(blob) = &existing {
+        if let Some(tag) = id3v2_writer::rewrite_sized(Some(blob), edit, blob.len())? {
+            atomic_write::write_in_place(path, audio_len, &tag)?;
+            log::info!("🏷  Tags DSF réécrits sur place : {}", path.display());
+            return Ok(());
+        }
+    }
+
     let new_tag = id3v2_writer::rewrite(existing.as_deref(), edit)?;
     let tag_len = new_tag.len() as u64;
     let total_len = audio_len + tag_len;

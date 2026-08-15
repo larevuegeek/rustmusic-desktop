@@ -37,6 +37,14 @@ export type TagEditPayload = {
    * réordonner — en une seule écriture atomique du fichier.
    */
   images?: ImageSlotPayload[];
+  /**
+   * Pochette commune à poser **sans toucher aux autres images**.
+   *
+   * S'exclut de `images`. C'est la forme qu'utilise l'édition multiple : on
+   * ignore ce que contiennent les autres fichiers, donc décrire leur liste
+   * finale supprimerait leurs livrets et pochettes arrière.
+   */
+  cover?: ImageSlotPayload;
 };
 
 /** Une image de la liste finale. `id` et `path` s'excluent. */
@@ -148,6 +156,25 @@ export async function prepareImage(path: string): Promise<PreparedImage> {
   return invoke<PreparedImage>("prepare_image", { path });
 }
 
+/**
+ * Une image téléchargée, prête à rejoindre la liste des médias.
+ *
+ * Elle porte un `path` — celui d'un fichier temporaire côté Rust — et se
+ * comporte donc en tout point comme une image choisie sur le disque.
+ */
+export type DownloadedImage = PreparedImage & { path: string };
+
+/**
+ * Télécharge une image et l'apprête, pour aperçu avant validation.
+ *
+ * Le pendant distant de `prepareImage`, pour la pochette que propose une
+ * source en ligne : on la voit à côté de celle qu'elle remplacerait avant de
+ * trancher, et son poids réel est connu.
+ */
+export async function prepareImageFromUrl(url: string): Promise<DownloadedImage> {
+  return invoke<DownloadedImage>("prepare_image_from_url", { url });
+}
+
 /** Liste les images intégrées, dans leur ordre d'apparition. */
 export async function readTrackImages(path: string): Promise<EmbeddedImage[]> {
   return invoke<EmbeddedImage[]>("read_track_images", { path });
@@ -237,6 +264,28 @@ export function formatBytes(bytes: number): string {
   return `${bytes} o`;
 }
 
+/** Un morceau tel que l'atelier a besoin de le connaître. */
+export type WorkshopTrack = {
+  path: string;
+  tags: EditableTags;
+  /** Vignette de la pochette en data URI, `null` s'il n'y en a pas. */
+  cover: string | null;
+  readable: boolean;
+  /** Le format sait-il recevoir une réécriture de ses tags ? */
+  writable: boolean;
+};
+
+/**
+ * Lit tout ce dont l'atelier a besoin, en une seule passe par fichier.
+ *
+ * Remplace cent appels à `readTrackTags` : cette analyse extrayait déjà toutes
+ * les images intégrées et les encodait en base64 — que l'atelier jetait. Ici
+ * elle sert aussi à produire une vignette réduite de la pochette.
+ */
+export async function readWorkshopTracks(paths: string[]): Promise<WorkshopTrack[]> {
+  return invoke<WorkshopTrack[]>("read_workshop_tracks", { paths });
+}
+
 /** Le fichier accepte-t-il une réécriture de ses tags ? */
 export async function canWriteTags(path: string): Promise<boolean> {
   try {
@@ -252,6 +301,66 @@ export async function canWriteTags(path: string): Promise<boolean> {
  */
 export async function writeTrackTags(path: string, edit: TagEditPayload): Promise<unknown> {
   return invoke("write_track_tags", { path, edit });
+}
+
+/** Marque une valeur qui diffère d'un fichier à l'autre dans une sélection. */
+export const MIXED = Symbol("valeurs multiples");
+
+/** Valeur commune à tous les fichiers, ou `MIXED` s'ils divergent. */
+export type CommonValue = string | typeof MIXED;
+
+/**
+ * Réduit les tags de N fichiers à une seule vue éditable.
+ *
+ * Un champ dont les N valeurs coïncident se comporte comme en édition simple.
+ * Dès qu'elles divergent, il n'y a **pas** de valeur d'origine à afficher :
+ * le champ vaut `MIXED`, et c'est ce qui interdit de le comparer pour savoir
+ * s'il a été modifié — il faut suivre l'intention, pas la valeur.
+ */
+export function mergeTags(
+  perFile: Record<string, string>[],
+): Record<string, CommonValue> {
+  const merged: Record<string, CommonValue> = {};
+  if (perFile.length === 0) return merged;
+
+  for (const key of Object.keys(perFile[0])) {
+    const first = perFile[0][key] ?? "";
+    merged[key] = perFile.every((tags) => (tags[key] ?? "") === first)
+      ? first
+      : MIXED;
+  }
+  return merged;
+}
+
+/**
+ * Construit la charge utile d'une édition multiple.
+ *
+ * `touched` porte l'intention : un champ divergent qu'on n'a pas touché est
+ * **omis** (« ne touche pas »), alors qu'un champ divergent qu'on a vidé
+ * exprès est envoyé vide (« efface partout »). Se fier à la valeur seule
+ * confondrait les deux et effacerait N tags que personne n'a demandé de
+ * supprimer — le piège classique des éditeurs de tags.
+ */
+export function buildBatchEdit(
+  common: Record<string, CommonValue>,
+  current: Record<string, string>,
+  touched: Set<string>,
+): TagEditPayload {
+  const edit: Record<string, string> = {};
+
+  for (const key of Object.keys(current)) {
+    const origin = common[key];
+    const value = current[key] ?? "";
+
+    if (origin === MIXED) {
+      // Aucune valeur commune : seule l'intention compte.
+      if (touched.has(key)) edit[key] = value;
+    } else if (value !== (origin ?? "")) {
+      edit[key] = value;
+    }
+  }
+
+  return edit as TagEditPayload;
 }
 
 /**
