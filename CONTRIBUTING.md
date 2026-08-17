@@ -4,7 +4,7 @@ Merci de t'intéresser au projet ! Voici les éléments à connaître avant de p
 
 ## Avant de commencer
 
-1. **Vérifie que l'issue n'existe pas déjà** dans les [issues GitHub](https://github.com/larevuegeek/rustmusic/issues).
+1. **Vérifie que l'issue n'existe pas déjà** dans les [issues GitHub](https://github.com/larevuegeek/rustmusic-desktop/issues).
 2. **Pour les changements significatifs** (nouvelle feature, refactor majeur), **ouvre d'abord une issue de discussion** avant d'écrire du code. Ça évite les déceptions si la direction n'est pas alignée.
 3. **Les petits fix** (bug, typo, traduction, doc) peuvent aller directement en PR.
 

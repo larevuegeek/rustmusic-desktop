@@ -589,5 +589,109 @@
     "identical_short": "identique",
     "doubtful": "Appariement à vérifier",
     "cover_replaced": "sera remplacée"
+  },
+  "audit": {
+    "title": "À corriger",
+    "scanning": "Analyse de la bibliothèque…",
+    "tracks_concerned": "morceaux concernés",
+    "rescan": "Réanalyser",
+    "all_good": "Rien à corriger",
+    "all_good_hint": "Tous les morceaux ont leurs tags essentiels, et aucun album ne se contredit.",
+    "severity": {
+      "essential": "Introuvables",
+      "coherence": "Incohérences d'album",
+      "duplicate": "Doublons",
+      "incomplete": "Incomplets",
+      "blocked": "Non corrigeables"
+    },
+    "kind": {
+      "missing_title": "Sans titre",
+      "missing_artist": "Sans artiste",
+      "missing_album": "Sans album",
+      "missing_year": "Sans année",
+      "missing_track_number": "Sans numéro de piste",
+      "missing_cover": "Sans pochette",
+      "not_writable": "Format non réinscriptible",
+      "album_year_mismatch": "Années divergentes sur un même album",
+      "undeclared_compilation": "Compilation sans artiste d'album",
+      "duplicate_track_number": "Numéros de piste en double",
+      "track_number_gap": "Trou dans la numérotation",
+      "duplicate": "Morceaux en double"
+    }
+  },
+  "rename": {
+    "title": "Renommer les fichiers",
+    "short": "Renommer",
+    "fields": "Champs",
+    "presets": "Modèles",
+    "current": "Nom actuel",
+    "after": "Après renommage",
+    "unchanged": "déjà conforme",
+    "no_file": "Aucun fichier dans l'atelier.",
+    "computing": "Calcul de l'aperçu…",
+    "will_change": "seront renommés",
+    "blocked": "bloqués",
+    "already_ok": "déjà conformes",
+    "issue": {
+      "missing_fields": "Champs vides",
+      "collision": "Deux fichiers visent ce nom",
+      "occupied": "Un fichier porte déjà ce nom",
+      "chain": "Renommage en chaîne",
+      "too_long": "Chemin trop long",
+      "empty": "Le motif ne produit aucun nom",
+      "known_in_library": "Ce chemin est déjà connu de la bibliothèque"
+    },
+    "field": {
+      "artist": "artiste",
+      "albumartist": "artiste de l'album",
+      "album": "album",
+      "title": "titre",
+      "year": "année",
+      "genre": "genre",
+      "track": "numéro de piste",
+      "disc": "numéro de disque",
+      "composer": "compositeur",
+      "ext": "extension"
+    },
+    "apply": "Renommer",
+    "confirm": "fichiers vont être renommés sur le disque. Continuer ?",
+    "confirm_yes": "Renommer",
+    "renamed": "fichiers renommés",
+    "failed": "échecs",
+    "undo": "Annuler ce lot",
+    "mode_name": "Nom du fichier",
+    "mode_tree": "Arborescence",
+    "destination": "Destination",
+    "satellites": "Emporter paroles, pochette et feuillet",
+    "cleanup": "Supprimer les dossiers devenus vides",
+    "no_destination": "Choisissez un dossier de destination."
+  },
+  "history": {
+    "title": "Historique des lots",
+    "empty": "Aucun lot enregistré.",
+    "undo": "Annuler",
+    "confirm": "Confirmer",
+    "already_undone": "annulé",
+    "restored": "fichiers remis en place",
+    "retention": "Les cinquante derniers lots sont conservés.",
+    "kind": {
+      "rename": "Renommage",
+      "restructure": "Réorganisation"
+    }
+  },
+  "clean": {
+    "title": "Nettoyer les tags",
+    "short": "Nettoyer",
+    "hint": "Rien n'est appliqué avant que vous ne validiez, et les corrections vont dans les modifications en attente — pas dans les fichiers.",
+    "pick_rule": "Choisissez une règle pour voir son effet.",
+    "nothing": "Aucune valeur à nettoyer avec ces règles.",
+    "changes": "valeurs seront corrigées",
+    "rule": {
+      "underscores": "Soulignés → espaces",
+      "leading_number": "Retirer le n° en tête de titre",
+      "featuring": "Uniformiser « feat. »",
+      "spaces": "Espaces en trop",
+      "title_case": "Capitales (anglais)"
+    }
   }
 }

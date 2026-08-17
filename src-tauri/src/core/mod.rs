@@ -81,6 +81,20 @@ pub mod batch {
     pub mod runner;
 }
 
+pub mod tag_audit {
+    pub mod audit;
+}
+
+pub mod tag_clean {
+    pub mod rules;
+}
+
+pub mod tag_pattern {
+    pub mod pattern;
+    pub mod planner;
+    pub mod sanitize;
+}
+
 pub mod audio_quality;
 pub mod gpu_sentinel;
 pub mod render_mode;

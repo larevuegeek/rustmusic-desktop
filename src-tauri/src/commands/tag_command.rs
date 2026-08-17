@@ -32,6 +32,7 @@ use crate::core::audio_metadata::injector::image_prep;
 use crate::core::audio_metadata::injector::injector;
 use crate::repository::library::library_files_repository::LibraryFilesRepository;
 use crate::service::library::library_service::{create_context, save_track_to_library};
+use crate::service::library::move_service;
 use crate::state::AppState;
 use crate::entity::audio::audio_tags::ImageType;
 use crate::mapper::library::track::track_list_item_view::TrackListView;
@@ -186,7 +187,7 @@ impl TryFrom<TagEditPayload> for TagEdit {
 /// projection de la base, qui ne stocke qu'une partie des tags (ni commentaire,
 /// ni compositeur, ni totaux). Un éditeur qui s'appuierait dessus afficherait
 /// des champs vides pour tout le reste, et les effacerait à l'enregistrement.
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct EditableTags {
     pub title: Option<String>,
     pub artist: Option<String>,
@@ -546,6 +547,99 @@ pub async fn prepare_image_from_url(url: String) -> Result<DownloadedImageView, 
     })
 }
 
+/// Photographie les tags d'un lot avant de le réécrire.
+///
+/// Rendue à part parce que les deux commandes de lot en ont besoin, et parce
+/// que la lecture est bloquante : cinq cents fichiers sur un partage réseau
+/// n'ont rien à faire sur la boucle asynchrone.
+async fn snapshot_tags(
+    pool: &sqlx::SqlitePool,
+    library_id: Option<i64>,
+    paths: &[String],
+) -> Option<String> {
+    let list = paths.to_vec();
+    let snapshots = tokio::task::spawn_blocking(move || {
+        use rayon::prelude::*;
+        list.par_iter()
+            .map(|path| {
+                let blob = read_track_tags(path.clone())
+                    .ok()
+                    .and_then(|tags| serde_json::to_string(&tags).ok());
+                (path.clone(), blob)
+            })
+            .collect::<Vec<_>>()
+    })
+    .await
+    .ok()?;
+
+    let map: std::collections::HashMap<String, Option<String>> = snapshots.into_iter().collect();
+    move_service::journal_tags(pool, library_id, paths, |path| {
+        map.get(path).cloned().flatten()
+    })
+    .await
+    .ok()
+}
+
+/// Réécrit dans un fichier les tags que le journal a conservés.
+///
+/// Chaque champ est explicitement posé — `Set` s'il avait une valeur, `Clear`
+/// s'il était vide. Omettre les champs vides voudrait dire « ne touche pas »,
+/// et l'annulation laisserait en place ce que le lot avait ajouté.
+///
+/// Les images ne sont pas restaurées : le journal ne les conserve pas. Une
+/// pochette pèse plusieurs centaines de kilooctets, et cinquante lots de cinq
+/// cents fichiers en feraient une base plus lourde que la bibliothèque. C'est
+/// dit à l'utilisateur plutôt que promis à tort.
+pub async fn restore_tags(
+    app: &tauri::AppHandle,
+    pool: &sqlx::SqlitePool,
+    path: &str,
+    blob: &str,
+) -> Result<(), String> {
+    let tags: EditableTags =
+        serde_json::from_str(blob).map_err(|e| format!("Journal illisible : {e}"))?;
+
+    let field = |value: Option<String>| match value {
+        Some(v) => FieldEdit::Set(v),
+        None => FieldEdit::Clear,
+    };
+    let number = |value: Option<u16>| match value {
+        Some(v) => FieldEdit::Set(v),
+        None => FieldEdit::Clear,
+    };
+
+    let edit = TagEdit {
+        title: field(tags.title),
+        artist: field(tags.artist),
+        album: field(tags.album),
+        album_artist: field(tags.album_artist),
+        year: field(tags.year),
+        genre: field(tags.genre),
+        comment: field(tags.comment),
+        composer: field(tags.composer),
+        track_number: number(tags.track_number),
+        total_tracks: number(tags.total_tracks),
+        disc_number: number(tags.disc_number),
+        total_discs: number(tags.total_discs),
+        images: ImagePlan::Keep,
+    };
+
+    let target = path.to_string();
+    tokio::task::spawn_blocking(move || {
+        injector::apply(std::path::Path::new(&target), &edit).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("Restauration interrompue : {e}"))??;
+
+    // La base décrit encore l'état corrigé : on rejoue l'import, comme après
+    // n'importe quelle écriture.
+    if let Ok(Some(file)) = LibraryFilesRepository::find_by_path_any(pool, path).await {
+        let ctx = create_context(app.clone(), pool);
+        let _ = save_track_to_library(&ctx, file.library_id, None, path.to_string()).await;
+    }
+    Ok(())
+}
+
 /// Applique le **même** jeu de modifications à plusieurs fichiers.
 ///
 /// Rend la main tout de suite avec l'identifiant du lot : le traitement se
@@ -564,6 +658,10 @@ pub async fn write_tags_batch(
     // La préparation a lieu **une seule fois** pour tout le lot. La refaire par
     // fichier redécoderait et réencoderait la même image cinq cents fois.
     let tag_edit = prepare_shared_edit(edit).await?;
+
+    // L'instantané est pris **avant** que rien ne soit écrit : c'est lui qui
+    // rend le lot annulable, et le prendre après n'aurait aucun sens.
+    let _ = snapshot_tags(&state.pool, None, &paths).await;
 
     let job_id = uuid::Uuid::new_v4().to_string();
     let cancel = state.batch.start(&job_id);
@@ -642,6 +740,8 @@ pub async fn write_tags_each(
         })
         .await
         .map_err(|e| format!("Préparation du lot interrompue : {e}"))??;
+
+    let _ = snapshot_tags(&state.pool, None, &paths).await;
 
     let job_id = uuid::Uuid::new_v4().to_string();
     let cancel = state.batch.start(&job_id);

@@ -589,5 +589,109 @@
     "identical_short": "idéntico",
     "doubtful": "Emparejamiento a verificar",
     "cover_replaced": "será reemplazada"
+  },
+  "audit": {
+    "title": "Por corregir",
+    "scanning": "Analizando la biblioteca…",
+    "tracks_concerned": "pistas afectadas",
+    "rescan": "Volver a analizar",
+    "all_good": "Nada que corregir",
+    "all_good_hint": "Todas las pistas tienen sus etiquetas esenciales y ningún álbum se contradice.",
+    "severity": {
+      "essential": "Ilocalizables",
+      "coherence": "Incoherencias de álbum",
+      "duplicate": "Duplicados",
+      "incomplete": "Incompletas",
+      "blocked": "No corregibles"
+    },
+    "kind": {
+      "missing_title": "Sin título",
+      "missing_artist": "Sin artista",
+      "missing_album": "Sin álbum",
+      "missing_year": "Sin año",
+      "missing_track_number": "Sin número de pista",
+      "missing_cover": "Sin portada",
+      "not_writable": "Formato no reescribible",
+      "album_year_mismatch": "Años divergentes en un mismo álbum",
+      "undeclared_compilation": "Recopilación sin artista de álbum",
+      "duplicate_track_number": "Números de pista duplicados",
+      "track_number_gap": "Hueco en la numeración",
+      "duplicate": "Pistas duplicadas"
+    }
+  },
+  "rename": {
+    "title": "Renombrar los archivos",
+    "short": "Renombrar",
+    "fields": "Campos",
+    "presets": "Modelos",
+    "current": "Nombre actual",
+    "after": "Tras renombrar",
+    "unchanged": "ya correcto",
+    "no_file": "Ningún archivo en el taller.",
+    "computing": "Calculando la vista previa…",
+    "will_change": "se renombrarán",
+    "blocked": "bloqueados",
+    "already_ok": "ya correctos",
+    "issue": {
+      "missing_fields": "Campos vacíos",
+      "collision": "Dos archivos apuntan a este nombre",
+      "occupied": "Ya existe un archivo con este nombre",
+      "chain": "Renombrado en cadena",
+      "too_long": "Ruta demasiado larga",
+      "empty": "El patrón no produce ningún nombre",
+      "known_in_library": "Esta ruta ya es conocida por la biblioteca"
+    },
+    "field": {
+      "artist": "artista",
+      "albumartist": "artista del álbum",
+      "album": "álbum",
+      "title": "título",
+      "year": "año",
+      "genre": "género",
+      "track": "número de pista",
+      "disc": "número de disco",
+      "composer": "compositor",
+      "ext": "extensión"
+    },
+    "apply": "Renombrar",
+    "confirm": "archivos se renombrarán en el disco. ¿Continuar?",
+    "confirm_yes": "Renombrar",
+    "renamed": "archivos renombrados",
+    "failed": "fallos",
+    "undo": "Deshacer este lote",
+    "mode_name": "Nombre de archivo",
+    "mode_tree": "Estructura de carpetas",
+    "destination": "Destino",
+    "satellites": "Llevar letras, portada y libreto",
+    "cleanup": "Eliminar las carpetas que queden vacías",
+    "no_destination": "Elija una carpeta de destino."
+  },
+  "history": {
+    "title": "Historial de lotes",
+    "empty": "Ningún lote registrado.",
+    "undo": "Deshacer",
+    "confirm": "Confirmar",
+    "already_undone": "deshecho",
+    "restored": "archivos restaurados",
+    "retention": "Se conservan los últimos cincuenta lotes.",
+    "kind": {
+      "rename": "Renombrado",
+      "restructure": "Reorganización"
+    }
+  },
+  "clean": {
+    "title": "Limpiar las etiquetas",
+    "short": "Limpiar",
+    "hint": "No se aplica nada hasta que usted confirme, y las correcciones van a los cambios pendientes, no a los archivos.",
+    "pick_rule": "Elija una regla para ver su efecto.",
+    "nothing": "Nada que limpiar con estas reglas.",
+    "changes": "valores se corregirán",
+    "rule": {
+      "underscores": "Guiones bajos → espacios",
+      "leading_number": "Quitar el n.º inicial del título",
+      "featuring": "Uniformar «feat.»",
+      "spaces": "Espacios sobrantes",
+      "title_case": "Mayúsculas (inglés)"
+    }
   }
 }

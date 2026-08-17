@@ -14,6 +14,8 @@ pub mod system_command;
 pub mod media_controls_command;
 pub mod wasapi_command;
 pub mod device_command;
+pub mod audit_command;
+pub mod rename_command;
 pub mod batch_command;
 pub mod metadata_command;
 pub mod tag_command;

@@ -19,7 +19,11 @@
   import { t } from "$lib/i18n";
   import TagGrid from "$lib/components/library/tags/TagGrid.svelte";
   import TagPanelView from "$lib/components/library/tags/TagPanelView.svelte";
+  import TagAuditView from "$lib/components/library/tags/TagAuditView.svelte";
   import TagSourcePopin from "$lib/components/library/common/popin/TagSourcePopin.svelte";
+  import RenamePopin from "$lib/components/library/common/popin/RenamePopin.svelte";
+  import BatchHistoryPopin from "$lib/components/library/common/popin/BatchHistoryPopin.svelte";
+  import CleanTagsPopin from "$lib/components/library/common/popin/CleanTagsPopin.svelte";
   import { popinStore } from "$lib/stores/ui/popin.store";
   import {
     tagWorkshop,
@@ -32,6 +36,8 @@
   import { batchStore } from "$lib/stores/ui/batch.store";
   import { writeTagsEach } from "$lib/services/batch/batch.service";
   import { loadTracksByAlbum } from "$lib/services/library/library.service";
+  import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
+  import type { AuditGroup } from "$lib/services/tags/audit.service";
   import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
   import { prepareImage } from "$lib/services/tags/tagEditor.service";
   import { open } from "@tauri-apps/plugin-dialog";
@@ -80,6 +86,18 @@
     navigation.cancel();
     confirmingLeave = true;
   });
+
+  /**
+   * Verse une catégorie de l'inventaire dans l'atelier.
+   *
+   * Pas d'origine : contrairement à un album, une catégorie n'est pas un
+   * endroit où revenir — le bouton retour ramènerait sur une liste qui n'est
+   * plus à jour une fois les corrections écrites.
+   */
+  async function loadFromAudit(group: AuditGroup, label: string) {
+    loadedAlbum = null;
+    await tagWorkshop.load(group.paths, label);
+  }
 
   async function loadAlbum(albumId: string) {
     const tracks: TrackListView[] = await loadTracksByAlbum(libraryId, albumId);
@@ -131,6 +149,64 @@
    * revue ne pouvait montrer que la nouvelle valeur, jamais celle qu'elle
    * remplace — ce qui est précisément ce qu'on a besoin de vérifier.
    */
+  /**
+   * Ouvre l'aperçu de renommage.
+   *
+   * Sur les lignes cochées, ou sur tout l'atelier si rien ne l'est : renommer
+   * un album entier est le cas courant, et exiger un « tout sélectionner »
+   * préalable serait une friction gratuite.
+   */
+  /**
+   * Recale l'application après un déplacement de fichiers.
+   *
+   * Deux choses à reprendre, et les oublier rendait les morceaux introuvables :
+   * l'atelier tient ses chemins en mémoire — recharger avec les anciens ne
+   * trouve plus rien —, et le cache de la bibliothèque garde les vues d'album
+   * telles qu'elles étaient, donc le lecteur y prenait encore l'ancien chemin.
+   */
+  async function resync(moved: [string, string][]) {
+    if (moved.length === 0) return;
+
+    const replacement = new Map(moved);
+    const paths = workshop.files.map((f) => replacement.get(f.path) ?? f.path);
+
+    await libraryContentStore.refresh();
+    await tagWorkshop.load(paths, workshop.source);
+  }
+
+  function openRename() {
+    popinStore.open(
+      $t('rename.title'),
+      RenamePopin,
+      { libraryId, onapplied: resync },
+      { size: "xl", flush: true, icon: "lucide:file-pen-line" },
+    );
+  }
+
+  /**
+   * Ouvre l'historique des lots.
+   *
+   * Le bouton « Annuler » du compte rendu ne vit que le temps d'une popin ; on
+   * se rend compte d'une erreur en regardant sa bibliothèque, pas dans la
+   * seconde qui suit.
+   */
+  function openHistory() {
+    popinStore.open(
+      $t('history.title'),
+      BatchHistoryPopin,
+      { onundone: resync },
+      { size: "lg", flush: true, icon: "lucide:history" },
+    );
+  }
+
+  function openClean() {
+    popinStore.open($t('clean.title'), CleanTagsPopin, {}, {
+      size: "xl",
+      flush: true,
+      icon: "lucide:sparkles",
+    });
+  }
+
   function openSource() {
     popinStore.open($t('source.title'), TagSourcePopin, {}, {
       size: "xl",
@@ -354,6 +430,43 @@
 
       <button
         type="button"
+        onclick={openRename}
+        class="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11px]
+               cursor-pointer transition-colors
+               text-neutral-500 dark:text-neutral-400
+               hover:bg-neutral-100 dark:hover:bg-white/6"
+      >
+        <Icon icon="lucide:file-pen-line" width="12" />
+        {$t('rename.short')}
+      </button>
+
+      <button
+        type="button"
+        onclick={openClean}
+        class="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11px]
+               cursor-pointer transition-colors
+               text-neutral-500 dark:text-neutral-400
+               hover:bg-neutral-100 dark:hover:bg-white/6"
+      >
+        <Icon icon="lucide:sparkles" width="12" />
+        {$t('clean.short')}
+      </button>
+
+      <button
+        type="button"
+        onclick={openHistory}
+        title={$t('history.title')}
+        aria-label={$t('history.title')}
+        class="flex items-center justify-center w-7 h-7 rounded-lg
+               cursor-pointer transition-colors
+               text-neutral-500 dark:text-neutral-400
+               hover:bg-neutral-100 dark:hover:bg-white/6"
+      >
+        <Icon icon="lucide:history" width="13" />
+      </button>
+
+      <button
+        type="button"
         onclick={() => (onlyIncomplete = !onlyIncomplete)}
         class="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11px]
                cursor-pointer transition-colors
@@ -442,21 +555,11 @@
       <Icon icon="lucide:loader-circle" width="24" class="animate-spin text-emerald-500" />
     </div>
   {:else if workshop.files.length === 0}
-    <!-- L'atelier n'a pas de contenu propre : il faut lui en donner un.
-         L'état vide explique par où, plutôt que d'afficher un tableau vide. -->
-    <div class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
-      <div class="w-14 h-14 rounded-2xl flex items-center justify-center
-                  bg-neutral-100 dark:bg-neutral-800">
-        <Icon icon="lucide:table-properties" width="24"
-              class="text-neutral-300 dark:text-neutral-600" />
-      </div>
-      <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200">
-        {$t('workshop.empty')}
-      </p>
-      <p class="max-w-sm text-[12px] leading-relaxed text-neutral-400 dark:text-neutral-500">
-        {$t('workshop.empty_hint')}
-      </p>
-    </div>
+    <!-- L'atelier sans sélection affichait « aucun fichier chargé » et un
+         conseil : un cul-de-sac, puisqu'il fallait déjà savoir quel album
+         ouvrir. L'inventaire prend sa place — il dit ce qui cloche, et un clic
+         verse les fichiers concernés ici même. -->
+    <TagAuditView {libraryId} onpick={loadFromAudit} />
   {:else}
     <div class="flex-1 min-h-0 flex">
       <div class="flex-1 min-w-0 flex flex-col">

@@ -589,5 +589,109 @@
     "identical_short": "identisch",
     "doubtful": "Zuordnung prüfen",
     "cover_replaced": "wird ersetzt"
+  },
+  "audit": {
+    "title": "Zu korrigieren",
+    "scanning": "Bibliothek wird analysiert…",
+    "tracks_concerned": "betroffene Titel",
+    "rescan": "Erneut prüfen",
+    "all_good": "Nichts zu korrigieren",
+    "all_good_hint": "Alle Titel haben ihre wesentlichen Tags, und kein Album widerspricht sich.",
+    "severity": {
+      "essential": "Nicht auffindbar",
+      "coherence": "Album-Widersprüche",
+      "duplicate": "Duplikate",
+      "incomplete": "Unvollständig",
+      "blocked": "Nicht korrigierbar"
+    },
+    "kind": {
+      "missing_title": "Ohne Titel",
+      "missing_artist": "Ohne Interpret",
+      "missing_album": "Ohne Album",
+      "missing_year": "Ohne Jahr",
+      "missing_track_number": "Ohne Titelnummer",
+      "missing_cover": "Ohne Cover",
+      "not_writable": "Format nicht neu beschreibbar",
+      "album_year_mismatch": "Abweichende Jahre in einem Album",
+      "undeclared_compilation": "Sampler ohne Album-Interpret",
+      "duplicate_track_number": "Doppelte Titelnummern",
+      "track_number_gap": "Lücke in der Nummerierung",
+      "duplicate": "Doppelte Titel"
+    }
+  },
+  "rename": {
+    "title": "Dateien umbenennen",
+    "short": "Umbenennen",
+    "fields": "Felder",
+    "presets": "Vorlagen",
+    "current": "Aktueller Name",
+    "after": "Nach dem Umbenennen",
+    "unchanged": "bereits korrekt",
+    "no_file": "Keine Datei in der Werkstatt.",
+    "computing": "Vorschau wird berechnet…",
+    "will_change": "werden umbenannt",
+    "blocked": "blockiert",
+    "already_ok": "bereits korrekt",
+    "issue": {
+      "missing_fields": "Leere Felder",
+      "collision": "Zwei Dateien zielen auf diesen Namen",
+      "occupied": "Eine Datei trägt diesen Namen bereits",
+      "chain": "Verkettetes Umbenennen",
+      "too_long": "Pfad zu lang",
+      "empty": "Das Muster erzeugt keinen Namen",
+      "known_in_library": "Dieser Pfad ist der Bibliothek bereits bekannt"
+    },
+    "field": {
+      "artist": "Interpret",
+      "albumartist": "Album-Interpret",
+      "album": "Album",
+      "title": "Titel",
+      "year": "Jahr",
+      "genre": "Genre",
+      "track": "Titelnummer",
+      "disc": "CD-Nummer",
+      "composer": "Komponist",
+      "ext": "Erweiterung"
+    },
+    "apply": "Umbenennen",
+    "confirm": "Dateien werden auf der Festplatte umbenannt. Fortfahren?",
+    "confirm_yes": "Umbenennen",
+    "renamed": "Dateien umbenannt",
+    "failed": "Fehlschläge",
+    "undo": "Diesen Vorgang rückgängig machen",
+    "mode_name": "Dateiname",
+    "mode_tree": "Ordnerstruktur",
+    "destination": "Ziel",
+    "satellites": "Liedtexte, Cover und Booklet mitnehmen",
+    "cleanup": "Leer gewordene Ordner löschen",
+    "no_destination": "Wählen Sie einen Zielordner."
+  },
+  "history": {
+    "title": "Vorgangsverlauf",
+    "empty": "Kein Vorgang aufgezeichnet.",
+    "undo": "Rückgängig",
+    "confirm": "Bestätigen",
+    "already_undone": "rückgängig gemacht",
+    "restored": "Dateien zurückgesetzt",
+    "retention": "Die letzten fünfzig Vorgänge werden aufbewahrt.",
+    "kind": {
+      "rename": "Umbenennung",
+      "restructure": "Umstrukturierung"
+    }
+  },
+  "clean": {
+    "title": "Tags bereinigen",
+    "short": "Bereinigen",
+    "hint": "Nichts wird angewendet, bevor Sie bestätigen; Korrekturen gehen in die ausstehenden Änderungen — nicht in die Dateien.",
+    "pick_rule": "Wählen Sie eine Regel, um ihre Wirkung zu sehen.",
+    "nothing": "Mit diesen Regeln gibt es nichts zu bereinigen.",
+    "changes": "Werte werden korrigiert",
+    "rule": {
+      "underscores": "Unterstriche → Leerzeichen",
+      "leading_number": "Führende Titelnummer entfernen",
+      "featuring": "„feat.“ vereinheitlichen",
+      "spaces": "Überzählige Leerzeichen",
+      "title_case": "Großschreibung (Englisch)"
+    }
   }
 }

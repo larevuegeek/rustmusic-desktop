@@ -30,6 +30,11 @@ use crate::commands::audio_command::{
     set_next_track, set_replay_gain_settings,
 };
 use crate::commands::system_command::{get_render_mode, notify_ui_ready, set_render_mode};
+use crate::commands::audit_command::audit_library;
+use crate::commands::rename_command::{
+    apply_rename, check_pattern, clean_tags, list_batch_journal, order_moves, preview_rename,
+    undo_batch,
+};
 use crate::commands::batch_command::cancel_batch;
 use crate::commands::metadata_command::{
     metadata_match_album, metadata_search_albums, metadata_search_tracks, metadata_track_values,
@@ -535,6 +540,14 @@ pub async fn run() {
             write_tags_batch,
             write_tags_each,
             cancel_batch,
+            audit_library,
+            check_pattern,
+            preview_rename,
+            apply_rename,
+            order_moves,
+            clean_tags,
+            list_batch_journal,
+            undo_batch,
             metadata_search_albums,
             metadata_match_album,
             metadata_search_tracks,

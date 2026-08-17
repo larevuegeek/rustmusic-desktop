@@ -589,5 +589,109 @@
     "identical_short": "identico",
     "doubtful": "Abbinamento da verificare",
     "cover_replaced": "verrà sostituita"
+  },
+  "audit": {
+    "title": "Da correggere",
+    "scanning": "Analisi della libreria…",
+    "tracks_concerned": "brani interessati",
+    "rescan": "Rianalizza",
+    "all_good": "Niente da correggere",
+    "all_good_hint": "Tutti i brani hanno i tag essenziali e nessun album si contraddice.",
+    "severity": {
+      "essential": "Introvabili",
+      "coherence": "Incoerenze di album",
+      "duplicate": "Duplicati",
+      "incomplete": "Incompleti",
+      "blocked": "Non correggibili"
+    },
+    "kind": {
+      "missing_title": "Senza titolo",
+      "missing_artist": "Senza artista",
+      "missing_album": "Senza album",
+      "missing_year": "Senza anno",
+      "missing_track_number": "Senza numero di traccia",
+      "missing_cover": "Senza copertina",
+      "not_writable": "Formato non riscrivibile",
+      "album_year_mismatch": "Anni divergenti in uno stesso album",
+      "undeclared_compilation": "Raccolta senza artista dell'album",
+      "duplicate_track_number": "Numeri di traccia duplicati",
+      "track_number_gap": "Buco nella numerazione",
+      "duplicate": "Brani duplicati"
+    }
+  },
+  "rename": {
+    "title": "Rinomina i file",
+    "short": "Rinomina",
+    "fields": "Campi",
+    "presets": "Modelli",
+    "current": "Nome attuale",
+    "after": "Dopo la rinomina",
+    "unchanged": "già corretto",
+    "no_file": "Nessun file nel laboratorio.",
+    "computing": "Calcolo dell'anteprima…",
+    "will_change": "verranno rinominati",
+    "blocked": "bloccati",
+    "already_ok": "già corretti",
+    "issue": {
+      "missing_fields": "Campi vuoti",
+      "collision": "Due file puntano a questo nome",
+      "occupied": "Un file ha già questo nome",
+      "chain": "Rinomina a catena",
+      "too_long": "Percorso troppo lungo",
+      "empty": "Il modello non produce alcun nome",
+      "known_in_library": "Questo percorso è già noto alla libreria"
+    },
+    "field": {
+      "artist": "artista",
+      "albumartist": "artista dell'album",
+      "album": "album",
+      "title": "titolo",
+      "year": "anno",
+      "genre": "genere",
+      "track": "numero di traccia",
+      "disc": "numero di disco",
+      "composer": "compositore",
+      "ext": "estensione"
+    },
+    "apply": "Rinomina",
+    "confirm": "file verranno rinominati sul disco. Continuare?",
+    "confirm_yes": "Rinomina",
+    "renamed": "file rinominati",
+    "failed": "errori",
+    "undo": "Annulla questo lotto",
+    "mode_name": "Nome del file",
+    "mode_tree": "Struttura delle cartelle",
+    "destination": "Destinazione",
+    "satellites": "Portare testi, copertina e libretto",
+    "cleanup": "Eliminare le cartelle rimaste vuote",
+    "no_destination": "Scegli una cartella di destinazione."
+  },
+  "history": {
+    "title": "Cronologia dei lotti",
+    "empty": "Nessun lotto registrato.",
+    "undo": "Annulla",
+    "confirm": "Conferma",
+    "already_undone": "annullato",
+    "restored": "file ripristinati",
+    "retention": "Vengono conservati gli ultimi cinquanta lotti.",
+    "kind": {
+      "rename": "Rinomina",
+      "restructure": "Riorganizzazione"
+    }
+  },
+  "clean": {
+    "title": "Pulire i tag",
+    "short": "Pulire",
+    "hint": "Nulla viene applicato finché non confermi, e le correzioni vanno nelle modifiche in attesa — non nei file.",
+    "pick_rule": "Scegli una regola per vederne l'effetto.",
+    "nothing": "Niente da pulire con queste regole.",
+    "changes": "valori verranno corretti",
+    "rule": {
+      "underscores": "Trattini bassi → spazi",
+      "leading_number": "Togliere il n. iniziale dal titolo",
+      "featuring": "Uniformare «feat.»",
+      "spaces": "Spazi in eccesso",
+      "title_case": "Maiuscole (inglese)"
+    }
   }
 }

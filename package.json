@@ -6,10 +6,10 @@
   "homepage": "https://rustmusic.dev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/larevuegeek/rustmusic.git"
+    "url": "git+https://github.com/larevuegeek/rustmusic-desktop.git"
   },
   "bugs": {
-    "url": "https://github.com/larevuegeek/rustmusic/issues",
+    "url": "https://github.com/larevuegeek/rustmusic-desktop/issues",
     "email": "contact@rustmusic.dev"
   },
   "author": {

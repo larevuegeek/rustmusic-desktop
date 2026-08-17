@@ -589,5 +589,109 @@
     "identical_short": "identical",
     "doubtful": "Match worth checking",
     "cover_replaced": "will be replaced"
+  },
+  "audit": {
+    "title": "To fix",
+    "scanning": "Scanning the library…",
+    "tracks_concerned": "tracks affected",
+    "rescan": "Rescan",
+    "all_good": "Nothing to fix",
+    "all_good_hint": "Every track has its essential tags, and no album contradicts itself.",
+    "severity": {
+      "essential": "Unfindable",
+      "coherence": "Album inconsistencies",
+      "duplicate": "Duplicates",
+      "incomplete": "Incomplete",
+      "blocked": "Not fixable"
+    },
+    "kind": {
+      "missing_title": "No title",
+      "missing_artist": "No artist",
+      "missing_album": "No album",
+      "missing_year": "No year",
+      "missing_track_number": "No track number",
+      "missing_cover": "No cover",
+      "not_writable": "Format cannot be rewritten",
+      "album_year_mismatch": "Conflicting years on one album",
+      "undeclared_compilation": "Compilation with no album artist",
+      "duplicate_track_number": "Duplicate track numbers",
+      "track_number_gap": "Gap in the numbering",
+      "duplicate": "Duplicate tracks"
+    }
+  },
+  "rename": {
+    "title": "Rename files",
+    "short": "Rename",
+    "fields": "Fields",
+    "presets": "Presets",
+    "current": "Current name",
+    "after": "After renaming",
+    "unchanged": "already correct",
+    "no_file": "No file in the workshop.",
+    "computing": "Computing the preview…",
+    "will_change": "will be renamed",
+    "blocked": "blocked",
+    "already_ok": "already correct",
+    "issue": {
+      "missing_fields": "Empty fields",
+      "collision": "Two files target this name",
+      "occupied": "A file already has this name",
+      "chain": "Chained rename",
+      "too_long": "Path too long",
+      "empty": "The pattern produces no name",
+      "known_in_library": "This path is already known to the library"
+    },
+    "field": {
+      "artist": "artist",
+      "albumartist": "album artist",
+      "album": "album",
+      "title": "title",
+      "year": "year",
+      "genre": "genre",
+      "track": "track number",
+      "disc": "disc number",
+      "composer": "composer",
+      "ext": "extension"
+    },
+    "apply": "Rename",
+    "confirm": "files will be renamed on disk. Continue?",
+    "confirm_yes": "Rename",
+    "renamed": "files renamed",
+    "failed": "failures",
+    "undo": "Undo this batch",
+    "mode_name": "File name",
+    "mode_tree": "Folder tree",
+    "destination": "Destination",
+    "satellites": "Take lyrics, cover and booklet along",
+    "cleanup": "Delete folders left empty",
+    "no_destination": "Choose a destination folder."
+  },
+  "history": {
+    "title": "Batch history",
+    "empty": "No batch recorded.",
+    "undo": "Undo",
+    "confirm": "Confirm",
+    "already_undone": "undone",
+    "restored": "files put back",
+    "retention": "The last fifty batches are kept.",
+    "kind": {
+      "rename": "Rename",
+      "restructure": "Restructure"
+    }
+  },
+  "clean": {
+    "title": "Clean tags",
+    "short": "Clean",
+    "hint": "Nothing is applied until you confirm, and fixes go to pending changes — not to the files.",
+    "pick_rule": "Pick a rule to see its effect.",
+    "nothing": "Nothing to clean with these rules.",
+    "changes": "values will be fixed",
+    "rule": {
+      "underscores": "Underscores → spaces",
+      "leading_number": "Strip leading track number",
+      "featuring": "Normalise “feat.”",
+      "spaces": "Extra spaces",
+      "title_case": "Title Case (English)"
+    }
   }
 }

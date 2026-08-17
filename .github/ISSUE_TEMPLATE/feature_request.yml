@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Merci pour l'idée. Un coup d'œil au
-        [ROADMAP.md](https://github.com/larevuegeek/rustmusic/blob/main/ROADMAP.md)
+        [ROADMAP.md](https://github.com/larevuegeek/rustmusic-desktop/blob/main/ROADMAP.md)
         avant de poster : elle est peut-être déjà prévue, ou explicitement
         écartée (MQA, streaming intégré…).
 

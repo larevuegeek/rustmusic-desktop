@@ -1,0 +1,11 @@
+-- Instantané des tags avant réécriture, pour pouvoir revenir en arrière.
+--
+-- Le journal ne connaissait que des couples de chemins : de quoi annuler un
+-- renommage, pas une correction de tags. Corriger cinq cents fichiers avec un
+-- mauvais motif de remplissage n'est pas plus rattrapable à la main qu'un
+-- renommage — il fallait donc conserver l'état d'origine.
+--
+-- Le blob est du JSON et non des colonnes : les champs éditables évoluent, et
+-- une migration par champ ajouté serait absurde pour une donnée qu'on ne
+-- requête jamais autrement que par lot.
+ALTER TABLE batch_journal_items ADD COLUMN tags_before TEXT;
