@@ -54,6 +54,17 @@ impl ArtistRepository {
         Ok(result)
     }
 
+    /// Nom d'un artiste, par son identifiant.
+    pub async fn find_name_by_id<'e, E>(exec: E, id: &str) -> Result<Option<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar::<_, String>("SELECT name FROM artists WHERE id = ?")
+            .bind(id)
+            .fetch_optional(exec)
+            .await
+    }
+
     pub async fn find_one_by_normalized_name<'e, E>(
         exec: E,
         name_normalized: &str

@@ -1,3 +1,4 @@
+pub mod batch;
 pub mod artist;
 pub mod library;
 pub mod audio_lyrics;

@@ -9,3 +9,5 @@ pub mod library_track_repository;
 pub mod library_track_artist_repository;
 pub mod library_genre_repository;
 pub mod library_stats_repository;
+pub mod library_audit_repository;
+pub mod track_path_repository;

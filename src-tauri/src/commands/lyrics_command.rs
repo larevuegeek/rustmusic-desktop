@@ -1,4 +1,5 @@
 use tauri::State;
+use crate::repository::library::library_files_repository::LibraryFilesRepository;
 
 use crate::core::audio_lyrics::{lrclib_client, sidecar};
 use crate::entity::audio_lyrics::lyrics::{Lyrics, LyricsSource, LyricsUpsert};
@@ -13,12 +14,7 @@ async fn find_file_id_by_path(
     pool: &sqlx::SqlitePool,
     path: &str,
 ) -> Result<Option<String>, sqlx::Error> {
-    sqlx::query_scalar::<_, String>(
-        "SELECT id FROM library_files WHERE path = ? LIMIT 1"
-    )
-    .bind(path)
-    .fetch_optional(pool)
-    .await
+    LibraryFilesRepository::find_id_by_path(pool, path).await
 }
 
 /// Récupère les paroles d'un morceau via son chemin de fichier audio.

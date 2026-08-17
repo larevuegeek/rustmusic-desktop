@@ -21,6 +21,8 @@ use tauri::State;
 
 use crate::core::tag_pattern::pattern::{self, PatternError};
 use crate::core::tag_pattern::planner::{self, FileInput, Mode, PlanIssue, PlannedMove};
+use crate::repository::library::library_dirs_repository::LibraryDirRepository;
+use crate::repository::library::track_path_repository::TrackPathRepository;
 use crate::service::library::move_service::{self, MoveOptions, MoveOutcome};
 use crate::state::AppState;
 
@@ -160,7 +162,9 @@ pub async fn preview_rename(
         .filter(|m| !m.unchanged && !m.blocked())
         .map(|m| m.to.clone())
         .collect();
-    let known = known_paths(&state.pool, &targets).await?;
+    let known = TrackPathRepository::known(&state.pool, &targets)
+        .await
+        .map_err(|e| format!("Vérification des chemins : {e}"))?;
 
     let moves = plan
         .moves
@@ -203,41 +207,6 @@ pub async fn preview_rename(
     })
 }
 
-/// Les chemins déjà connus de la base parmi ceux qu'on vise.
-async fn known_paths(
-    pool: &sqlx::SqlitePool,
-    targets: &[String],
-) -> Result<std::collections::HashSet<String>, String> {
-    let mut known = std::collections::HashSet::new();
-    if targets.is_empty() {
-        return Ok(known);
-    }
-
-    // Une requête par lot de cinq cents : SQLite plafonne le nombre de
-    // paramètres liés, et un album de trente morceaux n'est pas la limite —
-    // une bibliothèque entière, si.
-    for chunk in targets.chunks(500) {
-        let holders = vec!["?"; chunk.len()].join(",");
-        let sql = format!(
-            "SELECT path FROM library_cache WHERE path IN ({holders})
-             UNION SELECT path FROM recent_files WHERE path IN ({holders})"
-        );
-        let mut query = sqlx::query_as::<_, (String,)>(&sql);
-        for path in chunk {
-            query = query.bind(path);
-        }
-        for path in chunk {
-            query = query.bind(path);
-        }
-        let rows = query
-            .fetch_all(pool)
-            .await
-            .map_err(|e| format!("Vérification des chemins : {e}"))?;
-        known.extend(rows.into_iter().map(|r| r.0));
-    }
-    Ok(known)
-}
-
 /// Exécute le lot : déplace les fichiers **et** met la base à jour.
 ///
 /// Ne reçoit que les déplacements, jamais le motif : l'aperçu a déjà tranché,
@@ -270,16 +239,9 @@ pub async fn apply_rename(
     // garde-fou du nettoyage, et un garde-fou qu'on peut passer en paramètre
     // n'en est pas un.
     if options.cleanup_empty {
-        options.roots = sqlx::query_as::<_, (String,)>(
-            "SELECT path FROM library_dirs WHERE library_id = ? AND is_active = 1",
-        )
-        .bind(library_id)
-        .fetch_all(&state.pool)
-        .await
-        .map_err(|e| format!("Lecture des dossiers : {e}"))?
-        .into_iter()
-        .map(|r| r.0)
-        .collect();
+        options.roots = LibraryDirRepository::active_paths(&state.pool, library_id.unwrap_or(0))
+            .await
+            .map_err(|e| format!("Lecture des dossiers : {e}"))?;
     }
 
     move_service::apply_moves(&state.pool, library_id, kind, &pattern, moves, options).await

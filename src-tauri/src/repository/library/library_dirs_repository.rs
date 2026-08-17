@@ -6,6 +6,23 @@ use crate::entity::library::library_dirs::{LibraryDir, LibraryDirCreate};
 pub struct LibraryDirRepository;
 
 impl LibraryDirRepository {
+    /// Les chemins des dossiers actifs d'une bibliothèque.
+    ///
+    /// Ce sont les **racines** au-delà desquelles aucun nettoyage ne remonte.
+    /// Elles se lisent en base et ne transitent jamais par l'interface : un
+    /// garde-fou qu'on peut passer en paramètre n'en est pas un.
+    pub async fn active_paths<'e, E>(exec: E, library_id: i64) -> Result<Vec<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar::<_, String>(
+            "SELECT path FROM library_dirs WHERE library_id = ? AND is_active = 1",
+        )
+        .bind(library_id)
+        .fetch_all(exec)
+        .await
+    }
+
 
     // =========================================
     // INSERT

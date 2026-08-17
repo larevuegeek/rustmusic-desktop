@@ -30,6 +30,9 @@
 use serde::Serialize;
 use sqlx::SqlitePool;
 
+use crate::repository::batch::batch_journal_repository::BatchJournalRepository as Journal;
+use crate::repository::library::track_path_repository::TrackPathRepository;
+
 /// Ce qu'un lot a produit.
 #[derive(Debug, Serialize)]
 pub struct MoveOutcome {
@@ -241,9 +244,9 @@ fn file_name(path: &str) -> String {
 
 /// Date de modification, en secondes depuis l'époque.
 ///
-/// Enregistrée juste après le déplacement : si elle a changé au moment
-/// d'annuler, le fichier a été retouché entre-temps et le remettre à son
-/// ancien nom laisserait croire qu'on a tout rétabli.
+/// Relevée juste après le déplacement : si elle a changé au moment d'annuler,
+/// le fichier a été retouché entre-temps, et le remettre à son ancien nom
+/// laisserait croire qu'on a tout rétabli.
 fn modified_at(path: &str) -> Option<i64> {
     std::fs::metadata(path)
         .ok()?
@@ -252,53 +255,6 @@ fn modified_at(path: &str) -> Option<i64> {
         .duration_since(std::time::UNIX_EPOCH)
         .ok()
         .map(|d| d.as_secs() as i64)
-}
-
-/// Met à jour les tables qui stockent le chemin.
-///
-/// Rendue à part pour servir aussi bien au déplacement qu'à son annulation :
-/// annuler, c'est le même travail dans l'autre sens.
-async fn repoint(
-    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    from: &str,
-    to: &str,
-) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE library_files SET path = ?, filename = ? WHERE path = ?")
-        .bind(to)
-        .bind(file_name(to))
-        .bind(from)
-        .execute(&mut **tx)
-        .await?;
-
-    sqlx::query("UPDATE library_cache SET path = ? WHERE path = ?")
-        .bind(to)
-        .bind(from)
-        .execute(&mut **tx)
-        .await?;
-
-    sqlx::query("UPDATE recent_files SET path = ? WHERE path = ?")
-        .bind(to)
-        .bind(from)
-        .execute(&mut **tx)
-        .await?;
-
-    sqlx::query("UPDATE track_liked SET path = ? WHERE path = ?")
-        .bind(to)
-        .bind(from)
-        .execute(&mut **tx)
-        .await?;
-
-    // La file d'attente aussi. Elle ne figurait pas dans l'inventaire des
-    // tables à chemin absolu, et c'est pourtant **celle qui casse la lecture** :
-    // le morceau reste dans la file avec son ancien nom, et le lecteur va
-    // chercher un fichier qui n'existe plus.
-    sqlx::query("UPDATE queue_tracks SET path = ? WHERE path = ?")
-        .bind(to)
-        .bind(from)
-        .execute(&mut **tx)
-        .await?;
-
-    Ok(())
 }
 
 /// Applique un lot de déplacements.
@@ -313,16 +269,9 @@ pub async fn apply_moves(
     moves: Vec<(String, String)>,
     options: MoveOptions,
 ) -> Result<MoveOutcome, String> {
-    let batch_id: (String,) =
-        sqlx::query_as("INSERT INTO batch_journal (library_id, kind, pattern, total) VALUES (?, ?, ?, ?) RETURNING id")
-            .bind(library_id)
-            .bind(kind)
-            .bind(pattern)
-            .bind(moves.len() as i64)
-            .fetch_one(pool)
-            .await
-            .map_err(|e| format!("Ouverture du journal : {e}"))?;
-    let batch_id = batch_id.0;
+    let batch_id = Journal::open(pool, library_id, kind, Some(pattern), moves.len())
+        .await
+        .map_err(|e| format!("Ouverture du journal : {e}"))?;
 
     let mut succeeded = 0usize;
     let mut failed: Vec<MoveFailure> = Vec::new();
@@ -360,21 +309,13 @@ pub async fn apply_moves(
                 path: from.clone(),
                 message: format!("{e}"),
             });
-            let _ = sqlx::query(
-                "INSERT INTO batch_journal_items (batch_id, before_path, after_path, status, error) VALUES (?, ?, ?, 'failed', ?)",
-            )
-            .bind(&batch_id)
-            .bind(&from)
-            .bind(&to)
-            .bind(format!("{e}"))
-            .execute(pool)
-            .await;
+            let _ = Journal::record_failure(pool, &batch_id, &from, &to, &format!("{e}")).await;
             continue;
         }
 
         let outcome = async {
             let mut tx = pool.begin().await?;
-            repoint(&mut tx, &from, &to).await?;
+            TrackPathRepository::repoint(&mut tx, &from, &to).await?;
             tx.commit().await
         }
         .await;
@@ -383,15 +324,7 @@ pub async fn apply_moves(
             Ok(()) => {
                 succeeded += 1;
                 applied.push((from.clone(), to.clone()));
-                let _ = sqlx::query(
-                    "INSERT INTO batch_journal_items (batch_id, before_path, after_path, modified_at, status) VALUES (?, ?, ?, ?, 'done')",
-                )
-                .bind(&batch_id)
-                .bind(&from)
-                .bind(&to)
-                .bind(modified_at(&to))
-                .execute(pool)
-                .await;
+                let _ = Journal::record_move(pool, &batch_id, &from, &to, modified_at(&to)).await;
 
                 // Les paroles et le feuillet suivent la piste. Ils ne sont dans
                 // aucune table — seul le journal les connaît, et c'est lui qui
@@ -402,15 +335,9 @@ pub async fn apply_moves(
                         let moved =
                             tokio::task::spawn_blocking(move || move_file(&f, &t)).await;
                         if matches!(moved, Ok(Ok(()))) {
-                            let _ = sqlx::query(
-                                "INSERT INTO batch_journal_items (batch_id, before_path, after_path, modified_at, status) VALUES (?, ?, ?, ?, 'done')",
-                            )
-                            .bind(&batch_id)
-                            .bind(&sfrom)
-                            .bind(&sto)
-                            .bind(modified_at(&sto))
-                            .execute(pool)
-                            .await;
+                            let _ =
+                                Journal::record_move(pool, &batch_id, &sfrom, &sto, modified_at(&sto))
+                                    .await;
                         }
                     }
                 }
@@ -425,15 +352,7 @@ pub async fn apply_moves(
                     path: from.clone(),
                     message: message.clone(),
                 });
-                let _ = sqlx::query(
-                    "INSERT INTO batch_journal_items (batch_id, before_path, after_path, status, error) VALUES (?, ?, ?, 'failed', ?)",
-                )
-                .bind(&batch_id)
-                .bind(&from)
-                .bind(&to)
-                .bind(&message)
-                .execute(pool)
-                .await;
+                let _ = Journal::record_failure(pool, &batch_id, &from, &to, &message).await;
             }
         }
     }
@@ -449,15 +368,8 @@ pub async fn apply_moves(
                 let (f, t) = (sfrom.clone(), sto.clone());
                 let moved = tokio::task::spawn_blocking(move || move_file(&f, &t)).await;
                 if matches!(moved, Ok(Ok(()))) {
-                    let _ = sqlx::query(
-                        "INSERT INTO batch_journal_items (batch_id, before_path, after_path, modified_at, status) VALUES (?, ?, ?, ?, 'done')",
-                    )
-                    .bind(&batch_id)
-                    .bind(&sfrom)
-                    .bind(&sto)
-                    .bind(modified_at(&sto))
-                    .execute(pool)
-                    .await;
+                    let _ =
+                        Journal::record_move(pool, &batch_id, &sfrom, &sto, modified_at(&sto)).await;
                 }
             }
         }
@@ -470,14 +382,8 @@ pub async fn apply_moves(
         let _ = tokio::task::spawn_blocking(move || cleanup_empty_dirs(&dirs, &roots)).await;
     }
 
-    let _ = sqlx::query("UPDATE batch_journal SET succeeded = ?, failed = ? WHERE id = ?")
-        .bind(succeeded as i64)
-        .bind(failed.len() as i64)
-        .bind(&batch_id)
-        .execute(pool)
-        .await;
-
-    purge(pool).await;
+    let _ = Journal::set_counts(pool, &batch_id, succeeded, failed.len()).await;
+    let _ = Journal::purge(pool, KEEP_BATCHES).await;
 
     Ok(MoveOutcome {
         batch_id,
@@ -494,32 +400,6 @@ pub async fn apply_moves(
 /// dans la minute qui suit, pas six mois plus tard.
 const KEEP_BATCHES: i64 = 50;
 
-/// Écarte les lots les plus anciens.
-///
-/// Les éléments sont supprimés **explicitement** et non par cascade : la base
-/// n'active pas `PRAGMA foreign_keys`, donc les clauses `ON DELETE CASCADE` du
-/// schéma ne s'exécutent jamais. S'y fier laisserait des milliers d'orphelins.
-async fn purge(pool: &SqlitePool) {
-    let _ = sqlx::query(
-        "DELETE FROM batch_journal_items WHERE batch_id IN (
-            SELECT id FROM batch_journal
-            ORDER BY created_at DESC LIMIT -1 OFFSET ?
-         )",
-    )
-    .bind(KEEP_BATCHES)
-    .execute(pool)
-    .await;
-
-    let _ = sqlx::query(
-        "DELETE FROM batch_journal WHERE id IN (
-            SELECT id FROM batch_journal ORDER BY created_at DESC LIMIT -1 OFFSET ?
-         )",
-    )
-    .bind(KEEP_BATCHES)
-    .execute(pool)
-    .await;
-}
-
 /// Enregistre l'état des tags **avant** une réécriture.
 ///
 /// Le journal ne connaissait que des couples de chemins : de quoi annuler un
@@ -535,39 +415,19 @@ pub async fn journal_tags(
     paths: &[String],
     snapshot: impl Fn(&str) -> Option<String> + Send + Sync,
 ) -> Result<String, String> {
-    let batch_id: (String,) = sqlx::query_as(
-        "INSERT INTO batch_journal (library_id, kind, pattern, total) VALUES (?, 'tags', NULL, ?) RETURNING id",
-    )
-    .bind(library_id)
-    .bind(paths.len() as i64)
-    .fetch_one(pool)
-    .await
-    .map_err(|e| format!("Ouverture du journal : {e}"))?;
-    let batch_id = batch_id.0;
+    let batch_id = Journal::open(pool, library_id, "tags", None, paths.len())
+        .await
+        .map_err(|e| format!("Ouverture du journal : {e}"))?;
 
-    let mut kept = 0i64;
+    let mut kept = 0usize;
     for path in paths {
         let Some(blob) = snapshot(path) else { continue };
-        let _ = sqlx::query(
-            "INSERT INTO batch_journal_items (batch_id, before_path, after_path, tags_before, status)
-             VALUES (?, ?, ?, ?, 'done')",
-        )
-        .bind(&batch_id)
-        .bind(path)
-        .bind(path)
-        .bind(&blob)
-        .execute(pool)
-        .await;
+        let _ = Journal::record_tags(pool, &batch_id, path, &blob).await;
         kept += 1;
     }
 
-    let _ = sqlx::query("UPDATE batch_journal SET succeeded = ? WHERE id = ?")
-        .bind(kept)
-        .bind(&batch_id)
-        .execute(pool)
-        .await;
-
-    purge(pool).await;
+    let _ = Journal::set_counts(pool, &batch_id, kept, 0).await;
+    let _ = Journal::purge(pool, KEEP_BATCHES).await;
     Ok(batch_id)
 }
 
@@ -576,69 +436,37 @@ pub async fn tags_to_restore(
     pool: &SqlitePool,
     batch_id: &str,
 ) -> Result<Vec<(i64, String, String)>, String> {
-    sqlx::query_as(
-        "SELECT id, before_path, tags_before FROM batch_journal_items
-         WHERE batch_id = ? AND status = 'done' AND tags_before IS NOT NULL ORDER BY id",
-    )
-    .bind(batch_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| format!("Lecture du journal : {e}"))
+    Ok(Journal::tags_to_restore(pool, batch_id)
+        .await
+        .map_err(|e| format!("Lecture du journal : {e}"))?
+        .into_iter()
+        .map(|s| (s.item_id, s.path, s.blob))
+        .collect())
 }
 
 /// Marque un lot de tags comme annulé.
 pub async fn mark_tags_undone(pool: &SqlitePool, batch_id: &str, restored: &[i64]) {
     for id in restored {
-        let _ = sqlx::query("UPDATE batch_journal_items SET status = 'undone' WHERE id = ?")
-            .bind(id)
-            .execute(pool)
-            .await;
+        let _ = Journal::mark_item_undone(pool, *id).await;
     }
-    let _ = sqlx::query("UPDATE batch_journal SET undone_at = CURRENT_TIMESTAMP WHERE id = ?")
-        .bind(batch_id)
-        .execute(pool)
-        .await;
+    let _ = Journal::mark_undone(pool, batch_id).await;
 }
 
 /// La nature d'un lot, pour savoir comment l'annuler.
 pub async fn batch_kind(pool: &SqlitePool, batch_id: &str) -> Result<(String, bool), String> {
-    let row: Option<(String, Option<String>)> =
-        sqlx::query_as("SELECT kind, CAST(undone_at AS TEXT) FROM batch_journal WHERE id = ?")
-            .bind(batch_id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| format!("Lecture du journal : {e}"))?;
-
-    match row {
-        None => Err("Lot introuvable.".to_string()),
-        Some((kind, undone)) => Ok((kind, undone.is_some())),
-    }
+    Journal::kind(pool, batch_id)
+        .await
+        .map_err(|e| format!("Lecture du journal : {e}"))?
+        .ok_or_else(|| "Lot introuvable.".to_string())
 }
 
-/// Un lot du journal, tel que l'écran d'historique le montre.
-#[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct JournalEntry {
-    pub id: String,
-    pub kind: String,
-    pub pattern: Option<String>,
-    pub created_at: String,
-    pub total: i64,
-    pub succeeded: i64,
-    pub failed: i64,
-    pub undone_at: Option<String>,
-}
+pub use crate::repository::batch::batch_journal_repository::JournalEntry;
 
 /// Les derniers lots, du plus récent au plus ancien.
 pub async fn list_batches(pool: &SqlitePool, limit: i64) -> Result<Vec<JournalEntry>, String> {
-    sqlx::query_as::<_, JournalEntry>(
-        "SELECT id, kind, pattern, CAST(created_at AS TEXT) AS created_at, total, succeeded, failed,
-                CAST(undone_at AS TEXT) AS undone_at
-         FROM batch_journal ORDER BY created_at DESC LIMIT ?",
-    )
-    .bind(limit)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| format!("Lecture du journal : {e}"))
+    Journal::list(pool, limit)
+        .await
+        .map_err(|e| format!("Lecture du journal : {e}"))
 }
 
 /// Annule un lot.
@@ -649,33 +477,26 @@ pub async fn list_batches(pool: &SqlitePool, limit: i64) -> Result<Vec<JournalEn
 /// ancien nom donnerait à croire qu'on a tout rétabli, alors que son contenu a
 /// changé entre-temps.
 pub async fn undo_batch(pool: &SqlitePool, batch_id: &str) -> Result<MoveOutcome, String> {
-    let already: Option<(Option<String>,)> =
-        sqlx::query_as("SELECT CAST(undone_at AS TEXT) FROM batch_journal WHERE id = ?")
-            .bind(batch_id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| format!("Lecture du journal : {e}"))?;
-
-    match already {
-        None => return Err("Lot introuvable.".to_string()),
-        Some((Some(_),)) => return Err("Ce lot a déjà été annulé.".to_string()),
-        Some((None,)) => {}
+    let (_, already_undone) = batch_kind(pool, batch_id).await?;
+    if already_undone {
+        return Err("Ce lot a déjà été annulé.".to_string());
     }
 
-    let items: Vec<(i64, String, String, Option<i64>)> = sqlx::query_as(
-        "SELECT id, before_path, after_path, modified_at FROM batch_journal_items
-         WHERE batch_id = ? AND status = 'done' ORDER BY id DESC",
-    )
-    .bind(batch_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| format!("Lecture du journal : {e}"))?;
+    let items = Journal::moves_to_undo(pool, batch_id)
+        .await
+        .map_err(|e| format!("Lecture du journal : {e}"))?;
 
     let mut succeeded = 0usize;
     let mut failed: Vec<MoveFailure> = Vec::new();
     let mut applied: Vec<(String, String)> = Vec::new();
 
-    for (item_id, before, after, stamp) in items {
+    for record in items {
+        let (item_id, before, after, stamp) = (
+            record.item_id,
+            record.before_path,
+            record.after_path,
+            record.modified_at,
+        );
         // Le fichier a-t-il bougé ou changé depuis ?
         let current = modified_at(&after);
         if current.is_none() {
@@ -710,7 +531,7 @@ pub async fn undo_batch(pool: &SqlitePool, batch_id: &str) -> Result<MoveOutcome
 
         let outcome = async {
             let mut tx = pool.begin().await?;
-            repoint(&mut tx, &after, &before).await?;
+            TrackPathRepository::repoint(&mut tx, &after, &before).await?;
             tx.commit().await
         }
         .await;
@@ -719,10 +540,7 @@ pub async fn undo_batch(pool: &SqlitePool, batch_id: &str) -> Result<MoveOutcome
             Ok(()) => {
                 succeeded += 1;
                 applied.push((after.clone(), before.clone()));
-                let _ = sqlx::query("UPDATE batch_journal_items SET status = 'undone' WHERE id = ?")
-                    .bind(item_id)
-                    .execute(pool)
-                    .await;
+                let _ = Journal::mark_item_undone(pool, item_id).await;
             }
             Err(e) => {
                 let (f, t) = (before.clone(), after.clone());
@@ -737,10 +555,7 @@ pub async fn undo_batch(pool: &SqlitePool, batch_id: &str) -> Result<MoveOutcome
 
     // Marqué comme annulé même en cas d'échecs partiels : ce lot ne doit pas
     // pouvoir être rejoué, et l'écran d'historique montre le détail.
-    let _ = sqlx::query("UPDATE batch_journal SET undone_at = CURRENT_TIMESTAMP WHERE id = ?")
-        .bind(batch_id)
-        .execute(pool)
-        .await;
+    let _ = Journal::mark_undone(pool, batch_id).await;
 
     Ok(MoveOutcome {
         batch_id: batch_id.to_string(),

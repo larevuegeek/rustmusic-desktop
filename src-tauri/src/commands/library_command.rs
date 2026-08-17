@@ -17,6 +17,7 @@ use crate::mapper::library::album::album_list_view::AlbumListView;
 use crate::mapper::library::artist::artist_detail_view::ArtistDetailView;
 use crate::mapper::library::artist::artist_list_view::ArtistListView;
 use crate::mapper::library::track::track_detail_view::TrackDetailView;
+use crate::repository::artist::artist_repository::ArtistRepository;
 use crate::repository::library::library_album_repository::LibraryAlbumRepository;
 use crate::repository::library::library_artist_repository::LibraryArtistRepository;
 use crate::repository::library::library_cache_repository::LibraryCacheRepository;
@@ -637,7 +638,6 @@ pub async fn fetch_artist_image(
     artist_id: String,
     artist_name: String,
 ) -> Result<Option<String>, String> {
-    use crate::repository::artist::artist_repository::ArtistRepository;
 
     // 1. Vérifier le cache DB
     let existing = ArtistRepository::get_image_url(&state.pool, &artist_id)
@@ -727,7 +727,6 @@ pub async fn fetch_all_artist_images(
     state: State<'_, AppState>,
     force: Option<bool>,
 ) -> Result<u32, String> {
-    use crate::repository::artist::artist_repository::ArtistRepository;
 
     // Si force=true, on reset toutes les URLs pour re-télécharger
     if force.unwrap_or(false) {
@@ -1055,13 +1054,11 @@ pub async fn fetch_all_album_covers(
         }));
 
         // On cherche par artiste_id → nom
-        let artist: Option<String> = match sqlx::query_as::<_, (String,)>("SELECT name FROM artists WHERE id = ?")
-            .bind(&album.artist_id)
-            .fetch_optional(&state.pool)
-            .await {
-            Ok(Some(row)) => Some(row.0),
-            _ => None,
-        };
+        let artist: Option<String> =
+            ArtistRepository::find_name_by_id(&state.pool, &album.artist_id)
+                .await
+                .ok()
+                .flatten();
 
         let query = if let Some(ref a) = artist {
             format!("{} {}", a, album.title)

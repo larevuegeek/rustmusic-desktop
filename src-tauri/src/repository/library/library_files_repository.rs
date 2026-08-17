@@ -7,6 +7,22 @@ use crate::entity::library::library_files::LibraryFileCreate;
 pub struct LibraryFilesRepository;
 
 impl LibraryFilesRepository {
+    /// Identifiant d'un fichier, par son chemin.
+    ///
+    /// Volontairement limité à cette colonne : lire la ligne entière casse sur
+    /// `modified_at`, stocké en INTEGER mais déclaré `Option<String>` dans
+    /// l'entité. Tant que ce conflit de décodage n'est pas repris, la requête
+    /// ciblée est la seule à passer.
+    pub async fn find_id_by_path<'e, E>(exec: E, path: &str) -> Result<Option<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar::<_, String>("SELECT id FROM library_files WHERE path = ? LIMIT 1")
+            .bind(path)
+            .fetch_optional(exec)
+            .await
+    }
+
 
     pub async fn insert_library_file<'e, E>(
         exec: E,
