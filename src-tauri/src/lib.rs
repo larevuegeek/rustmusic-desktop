@@ -221,7 +221,16 @@ pub async fn run() {
     let database_url: String = get_database_url("com.larevuegeek.rustmusic", "rustmusic.db".into());
     log::info!("SQLite DB = {}", database_url);
 
-    let app_state: AppState = AppState::new(&database_url).await.expect("Connexion SQL Impossible");
+    // Pas d'`expect` : c'est le seul point de démarrage qui échoue pour une
+    // raison que l'utilisateur peut corriger, et il échoue avant qu'une fenêtre
+    // existe. Un panic ici ne laisse aucune trace — ni message, ni journal.
+    let app_state: AppState = match AppState::new(&database_url).await {
+        Ok(state) => state,
+        Err(error) => crate::helper::fatal::fatal(
+            "RustMusic — impossible de démarrer",
+            &crate::helper::fatal::explain_migration(&error),
+        ),
+    };
 
     // ─── CONFIGURATION ENV LINUX ─────────────────────────────────
     // Lit le setting `render_mode` (auto par défaut), puis applique les env

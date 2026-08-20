@@ -1,5 +1,80 @@
 # Changelog
 
+## [0.2.1] - 2026-08-20
+
+L'atelier de tags gagne de quoi ranger une bibliothèque, pas seulement la
+corriger : trouver ce qui cloche, renommer, réorganiser les dossiers, et
+revenir en arrière.
+
+### Tags — Inventaire « à corriger »
+- L'atelier ouvert sans sélection montre désormais ce qu'il y a à reprendre,
+  au lieu d'un écran vide : sans titre, sans artiste, sans album, sans année,
+  sans numéro, sans pochette, format non réinscriptible.
+- Détection des incohérences d'album : années divergentes, compilation sans
+  artiste d'album, numéros de piste en double, trou dans la numérotation.
+- Détection des doublons : même titre et même artiste, à deux secondes près.
+  Ils se chaînent de proche en proche — 180 / 181,5 / 183 secondes sont bien
+  le même enregistrement, alors qu'aucune paire extrême ne tient dans la
+  tolérance.
+- Un clic sur une catégorie charge les fichiers concernés dans le tableur.
+
+### Tags — Renommage des fichiers
+- Motifs avec champs, complément par des zéros (`{track:02}`), repli
+  (`{albumartist|artist}`) et groupes optionnels (`[{disc}-]`) qui
+  disparaissent entièrement quand le champ est vide.
+- Aperçu avant/après ligne par ligne, recalculé à la frappe, avec sélection
+  individuelle : on décoche ce qu'on ne veut pas renommer.
+- Détection avant exécution des collisions, des cibles déjà occupées, des
+  renommages en chaîne et des chemins trop longs.
+- Les noms sont assainis pour Windows, macOS et Linux. Les séparateurs
+  `/ \ : |` deviennent un tiret — « Main Title / Chase The Red BMW » donne
+  « Main Title - Chase The Red BMW » et non une suite de soulignés — et les
+  ornements `? * " < >` disparaissent.
+- Le motif s'applique aux tags **corrigés** : on corrige dans le tableur, on
+  renomme d'après ce qu'on vient d'écrire.
+
+### Tags — Réorganisation des dossiers
+- Le motif recompose l'arborescence complète, avec quatre modèles courants.
+- Les fichiers compagnons suivent : `.lrc` et `.cue` avec leur piste, les
+  pochettes et les `.m3u` avec leur dossier — et seulement si tout le dossier
+  part au même endroit.
+- Nettoyage des dossiers devenus vides, jamais au-delà des racines de la
+  bibliothèque.
+- Le changement de volume est traité : copie, vérification, puis suppression
+  de la source — jamais l'inverse.
+
+### Tags — Journal et annulation
+- Chaque lot est journalisé : renommages, déplacements, et l'état des tags
+  avant réécriture.
+- Écran d'historique avec le motif employé, les compteurs, et l'annulation
+  en deux temps. Les cinquante derniers lots sont conservés.
+- L'annulation rend compte comme un lot : elle peut échouer et le dit. Un
+  fichier retouché depuis l'opération n'est pas remis en place.
+
+### Tags — Règles de nettoyage
+- Cinq règles, aucune cochée d'office : soulignés en espaces, retrait du
+  numéro en tête de titre, uniformisation de « feat. », espaces en trop,
+  capitales à l'anglaise.
+- Aperçu cellule par cellule ; le résultat va dans les modifications en
+  attente, pas dans les fichiers.
+
+### Corrections
+- **Un morceau renommé devenait illisible.** La file d'attente conservait
+  l'ancien chemin : sept tables stockent un chemin absolu, et celle-là
+  manquait à l'inventaire. Corrigé, et couvert par l'annulation.
+- L'atelier et le cache de la bibliothèque se remettent à jour après un
+  déplacement — ils gardaient les chemins d'avant.
+- **L'application ne démarrait plus après une mise à jour partielle.** Quand
+  la base a été migrée par une version plus récente, le démarrage échouait
+  sans un mot : sous Windows une application graphique n'a pas de console, et
+  les erreurs fatales ne passaient pas par le journal. Elle affiche désormais
+  un message qui dit quoi faire.
+
+### Interne
+- Tout le SQL de données est passé dans `repository/` : trente et une requêtes
+  vivaient encore dans les commandes et les services.
+- 197 tests Rust.
+
 ## [0.2.0] - 2026-08-14
 
 Deux chantiers structurants : la **sortie bit-perfect est complète sur les trois

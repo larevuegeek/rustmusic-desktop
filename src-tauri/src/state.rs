@@ -62,10 +62,11 @@ impl AppState {
         // ═══════════════════════════════════════════════════════════════
         // Migrations — Création/mise à jour du schéma
         // ═══════════════════════════════════════════════════════════════
-        sqlx::migrate!("./SQL/")
-                .run(&pool)
-                .await
-                .expect("Erreur fatale lors de l'exécution des migrations SQLX !");
+        // L'erreur remonte, elle ne tue pas le processus. Un `expect` ici est
+        // invisible : une application graphique n'a pas de console sous
+        // Windows, le panic part dans le vide, et l'utilisateur voit une
+        // application qui « ne se lance pas » sans un mot d'explication.
+        sqlx::migrate!("./SQL/").run(&pool).await?;
 
         log::info!("✅ Migrations terminées avec succès !");
 
