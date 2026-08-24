@@ -505,6 +505,47 @@ pub struct WasapiSymphoniaState {
 /// `available_frames * channels` samples par cycle.
 pub fn run_wasapi_playback<C>(
     format: NegotiatedFormat,
+    consumer: C,
+    is_paused: Arc<AtomicBool>,
+    is_stopped: Arc<AtomicBool>,
+    volume: Arc<AtomicU8>,
+    current_position_frames: Arc<AtomicUsize>,
+    seek_flush: Arc<AtomicBool>,
+    preferred_device_name: Option<String>,
+    sym: WasapiSymphoniaState,
+    stream_ready: Arc<AtomicBool>,
+) -> Result<(), WasapiPlayerError>
+where
+    C: Consumer<Item = f32>,
+{
+    // Le signal est levé quoi qu'il arrive.
+    //
+    // L'initialisation du flux compte une demi-douzaine de sorties d'erreur —
+    // périphérique occupé, format refusé, poignée d'événement indisponible.
+    // Chacune quittait la fonction sans lever le drapeau, et l'appelant
+    // attendait alors son délai complet : cinq secondes de gel pour une panne
+    // connue dès la première milliseconde.
+    //
+    // L'enveloppe le garantit sur **toutes** les portes de sortie, y compris
+    // celles qu'on ajoutera plus tard.
+    let outcome = run_wasapi_playback_inner(
+        format,
+        consumer,
+        is_paused,
+        is_stopped,
+        volume,
+        current_position_frames,
+        seek_flush,
+        preferred_device_name,
+        sym,
+        stream_ready.clone(),
+    );
+    stream_ready.store(true, Ordering::Release);
+    outcome
+}
+
+fn run_wasapi_playback_inner<C>(
+    format: NegotiatedFormat,
     mut consumer: C,
     is_paused: Arc<AtomicBool>,
     is_stopped: Arc<AtomicBool>,
@@ -513,13 +554,28 @@ pub fn run_wasapi_playback<C>(
     seek_flush: Arc<AtomicBool>,
     preferred_device_name: Option<String>,
     sym: WasapiSymphoniaState,
+    // Levé au **premier tampon réellement écrit au périphérique**. Pas à
+    // l'ouverture du flux : en mode exclusif, `start_stream` rend la main bien
+    // avant que le DAC se soit verrouillé sur la fréquence. Entre les deux il
+    // s'écoule une à deux secondes pendant lesquelles rien ne sort — et c'est
+    // précisément l'intervalle où l'interface croyait la lecture commencée.
+    stream_ready: Arc<AtomicBool>,
 ) -> Result<(), WasapiPlayerError>
 where
     C: Consumer<Item = f32>,
 {
     // À appeler depuis un thread dédié au playback. Si ce thread est dans STA
     // (par ex. accidentellement réutilisé), l'init MTA va échouer ici proprement.
+    // Chronomètre interne au fil de rendu.
+    //
+    // Vu du dehors, l'ouverture du périphérique prend deux millisecondes : ce
+    // n'est que le lancement de ce fil. Tout le délai réel — près de deux
+    // secondes mesurées — se passe ici, et il fallait le découper pour savoir
+    // laquelle de ces six étapes le porte.
+    let mut phases = crate::core::audio_player::startup_timer::StartupTimer::new();
+
     ensure_com_initialized_current_thread().map_err(WasapiPlayerError::ComInit)?;
+    phases.mark("init COM");
 
     // ─── 1. Ouvrir le device + AudioClient ───
     // On cible le device sélectionné par l'utilisateur si possible (matching
@@ -531,6 +587,8 @@ where
     let mut audio_client = device
         .get_iaudioclient()
         .map_err(|e| WasapiPlayerError::NoDevice(format!("get_iaudioclient: {e:?}")))?;
+
+    phases.mark("ouverture du device");
 
     // ─── 2. WaveFormat exclusive ───
     let (storage_bits, valid_bits) = if format.bits_per_sample == 24 {
@@ -558,6 +616,8 @@ where
         .calculate_aligned_period_near(desired_period_hns, Some(128), &wave_fmt)
         .map_err(|e| WasapiPlayerError::InitFailed(format!("calculate_aligned_period: {e:?}")))?;
 
+    phases.mark("format et période");
+
     // ─── 4. Initialize en exclusive event-driven ───
     let stream_mode = StreamMode::EventsExclusive { period_hns };
     audio_client
@@ -565,6 +625,11 @@ where
         .map_err(|e| WasapiPlayerError::InitFailed(format!(
             "initialize_client (likely device busy or format rejected): {e:?}"
         )))?;
+
+    // C'est ici que Windows reprend l'endpoint à son mixeur : s'il est déjà
+    // ouvert en mode partagé par une autre application, il faut d'abord l'en
+    // déloger.
+    phases.mark("prise exclusive du périphérique");
 
     // ─── 5. Event handle + render client + démarrage ───
     let event_handle = audio_client
@@ -577,6 +642,8 @@ where
     audio_client
         .start_stream()
         .map_err(|e| WasapiPlayerError::InitFailed(format!("start_stream: {e:?}")))?;
+
+    phases.mark("démarrage du flux");
 
     log::info!(
         "▶️  WASAPI exclusive: stream démarré ({} Hz, {}-bit, {} ch, period {} ms)",
@@ -593,6 +660,7 @@ where
 
     // Diagnostic (premières ~2 s) : compteurs pour comprendre un éventuel
     // silence. On log une synthèse après ~100 cycles puis on arrête.
+    let mut first_buffer_written = false;
     let mut diag_cycles: u32 = 0;
     let mut diag_frames_written: u64 = 0;
     let mut diag_underruns: u32 = 0;
@@ -795,8 +863,18 @@ where
             }
         }
 
-        if let Err(e) = render_client.write_to_device(available, &output_bytes, None) {
-            log::warn!("write_to_device: {e:?}");
+        match render_client.write_to_device(available, &output_bytes, None) {
+            Ok(()) => {
+                // Le premier tampon est parti : à cet instant, et pas avant, la
+                // lecture a réellement commencé.
+                if !first_buffer_written {
+                    first_buffer_written = true;
+                    stream_ready.store(true, Ordering::Release);
+                    phases.mark("attente du premier événement");
+                    phases.finish("fil de rendu WASAPI");
+                }
+            }
+            Err(e) => log::warn!("write_to_device: {e:?}"),
         }
     }
 

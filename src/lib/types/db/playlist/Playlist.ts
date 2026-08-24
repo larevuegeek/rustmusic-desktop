@@ -10,6 +10,8 @@ export interface Playlist {
   track_count: number;
   duration: number;
   position: number;
+  /** Vrai si le contenu se calcule à partir de règles au lieu d'être rangé. */
+  is_smart: boolean;
   created_at: string;
   updated_at: string | null;
 }

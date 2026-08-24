@@ -9,6 +9,66 @@ html {
   font-family: 'Inter Variable', system-ui, sans-serif;
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+   Contrôles natifs : leur dire quel thème on porte
+   ───────────────────────────────────────────────────────────────────────────
+   Une partie de l'interface n'est pas dessinée par la page mais par le
+   système : la liste qui s'ouvre sous un `<select>`, les cases à cocher, les
+   flèches d'un champ numérique. Aucune classe posée sur le `<select>` ne les
+   atteint — la liste déroulante est une fenêtre à part, hors du document.
+
+   `color-scheme` est la seule façon de leur dire dans quel thème les dessiner.
+   Sans elle, le navigateur suppose « clair » : d'où des menus déroulants blancs
+   au milieu d'une application sombre.
+
+   Déclaré sur `html` et non sur `:root` seul, parce que c'est la classe `dark`
+   posée sur `<html>` par le sélecteur de thème qui bascule. */
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Le menu déroulant d'un `<select>`
+   ───────────────────────────────────────────────────────────────────────────
+   `color-scheme` ci-dessus règle les cases à cocher et les barres de
+   défilement, mais pas ce menu-là, et il faut comprendre pourquoi.
+
+   Les `<select>` de l'application portent `dark:bg-white/5` : un fond blanc à
+   cinq pour cent, translucide. Le contrôle fermé s'affiche bien, parce qu'il
+   laisse voir la fenêtre sombre derrière lui. Mais la liste qui s'ouvre est une
+   surface à part : elle n'a rien derrière elle à laisser transparaître. Le
+   navigateur ne peut donc pas s'en servir et retombe sur son fond par défaut,
+   blanc — pendant que la couleur du texte, elle, est bien héritée. D'où des
+   intitulés gris clair sur blanc, illisibles.
+
+   La seule surface que le navigateur consulte pour ce menu est celle des
+   `<option>`. On la lui donne, opaque. */
+select option {
+  background-color: #ffffff;
+  color: #171717;
+}
+
+html.dark select option {
+  background-color: #262626;
+  color: #e5e5e5;
+}
+
+/* Le contrôle fermé garde son fond translucide, mais en contraste élevé le
+   système écrase les couleurs : on redonne alors une surface franche. */
+html[data-contrast="high"] select option {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+html.dark[data-contrast="high"] select option {
+  background-color: #000000;
+  color: #ffffff;
+}
+
 /* Fenêtre applicative : jamais de scroll au niveau du document (le scroll se
    fait dans des conteneurs internes). Évite les scrollbars natives parasites,
    notamment en mode mini-player où la fenêtre est très petite. */
@@ -378,4 +438,40 @@ html, body {
 :root[data-contrast="high"] [data-focus-ring="row"]:focus-within {
   outline: 1px solid var(--color-emerald-500);
   outline-offset: -1px;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Lignes de liste : ne peindre que ce qui est à l'écran
+   ───────────────────────────────────────────────────────────────────────────
+   Les bibliothèques chargent par lots au défilement, et les lots s'ajoutent
+   sans jamais être retirés : après quelques écrans, plusieurs milliers de
+   lignes vivent dans le document. Le navigateur en refait la disposition et la
+   peinture à chaque image, y compris pour les 99 % situées hors du cadre.
+
+   `content-visibility: auto` lui dit de sauter ce travail tant que la ligne
+   n'approche pas de la zone visible. La ligne reste dans le document — la
+   recherche du navigateur, l'ancrage du défilement et la hauteur de la barre
+   continuent d'en tenir compte — mais elle ne coûte plus rien à afficher.
+
+   `contain-intrinsic-size: auto <hauteur>` fournit la hauteur présumée d'une
+   ligne jamais encore affichée. Le mot-clé `auto` fait mémoriser au navigateur
+   la hauteur réelle dès le premier affichage : la valeur ci-dessous ne sert
+   donc qu'au tout premier passage, et une approximation suffit.
+
+   Ces classes s'appliquent à la racine des composants de ligne — jamais à un
+   parent d'élément flottant : le confinement rognerait un menu contextuel ou
+   une infobulle qui dépasse de la ligne. */
+.row-track {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 112px;
+}
+
+.row-track-compact {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 40px;
+}
+
+.row-album-track {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
 }

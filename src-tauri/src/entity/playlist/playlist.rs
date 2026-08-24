@@ -14,6 +14,11 @@ pub struct Playlist {
     pub track_count: i64,
     pub duration: i64, // en secondes
     pub position: i64,
+    /// Vrai si le contenu se calcule au lieu d'être rangé dans
+    /// `playlist_items`. L'interface s'en sert pour proposer l'édition des
+    /// règles plutôt que le retrait d'un morceau.
+    #[serde(default)]
+    pub is_smart: bool,
     pub created_at: String,
     pub updated_at: Option<String>,
 }

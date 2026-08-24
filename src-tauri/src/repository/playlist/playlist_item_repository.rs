@@ -108,6 +108,7 @@ impl PlaylistItemRepository {
                 lt.id                AS library_track_id,
                 lt.title             AS title,
                 lt.duration          AS duration,
+                lt.play_count        AS play_count,
                 lt.track_number      AS track_number,
                 lt.disc_number       AS disc_number,
 

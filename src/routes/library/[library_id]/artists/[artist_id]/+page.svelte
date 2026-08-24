@@ -9,9 +9,13 @@ import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import { loadArtist } from "$lib/services/library/library.service";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
+import { settingsStore } from "$lib/stores/settings/settings.store";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import AlbumListItem from "$lib/components/library/album/AlbumListItem.svelte";
 import AlbumListTrackItem from "$lib/components/library/album/AlbumListTrackItem.svelte";
+import TrackTable from "$lib/components/library/track/TrackTable.svelte";
+import { trierPistes, resetTagCache } from "$lib/config/trackColumns";
+import { viewMode } from "$lib/stores/ui/viewMode.store";
 import ArtistListItem from "$lib/components/library/artist/ArtistListItem.svelte";
 import type { ArtistListView } from "$lib/types/ui/library/artist/ArtistListView";
 import { t } from "$lib/i18n";
@@ -74,6 +78,32 @@ let sortedTracks = $derived.by(() => {
 let visibleTracks = $derived(
   showAllTracks ? sortedTracks : sortedTracks.slice(0, TRACKS_PER_PAGE)
 );
+
+// ─── Tri du tableau ───
+//
+// Toutes les pistes de l'artiste sont en mémoire : le classement se fait sur
+// place et porte sur l'ensemble, pas sur la portion affichée. Il s'applique
+// donc avant le découpage — trier puis tronquer donne bien les dix premières
+// du classement, là que tronquer puis trier ne rangerait que la première page.
+let tableSortKey = $state<string | null>(null);
+let tableSortDir = $state<SortDir>('asc');
+
+let tableTracks = $derived(
+  trierPistes(sortedTracks, tableSortKey, tableSortDir)
+    .slice(0, showAllTracks ? undefined : TRACKS_PER_PAGE)
+);
+
+function handleTableSort(key: string, dir: SortDir) {
+  tableSortKey = key;
+  tableSortDir = dir;
+}
+
+// Les tags analysés appartiennent aux pistes chargées : changer d'artiste doit
+// vider ce qui a été mis en cache pour le précédent.
+$effect(() => {
+  const _pistes = artistTracks;
+  resetTagCache();
+});
 
 function toggleTracksSort(field: TrackSortField) {
   if (tracksSort === field) {
@@ -184,8 +214,20 @@ async function loadData(
     artistImageUrl = artistData?.thumbnail_path ?? null;
     loadingHero = false;
 
-    // Deezer image fetch (non-blocking)
-    if (artistData?.name && artistData?.id) {
+    // ─── Portrait de l'artiste, depuis Deezer ───
+    //
+    // C'est le seul appel réseau que l'application déclenche d'elle-même :
+    // ouvrir une fiche artiste sans portrait interroge Deezer. Le résultat est
+    // mis en cache en base — y compris l'absence de résultat — donc une fiche
+    // déjà vue ne redemande rien.
+    //
+    // Le réglage ne touche qu'à ce déclenchement automatique : le bouton de
+    // récupération groupée reste disponible, un clic étant une demande
+    // explicite.
+    const autoArtistImages =
+      settingsStore.get('auto_download_artist_images') !== 'false';
+
+    if (autoArtistImages && artistData?.name && artistData?.id) {
       invoke<string | null>('fetch_artist_image', {
         artistId: artistData.id,
         artistName: artistData.name
@@ -387,11 +429,21 @@ async function loadData(
       {#if loadingTracks}
         <LibraryTrackSkeleton rows={8} />
       {:else if artistTracks.length > 0}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-1">
-          {#each visibleTracks as track (track.id)}
-            <AlbumListTrackItem libraryId={libraryId} {track} showAlbum={true} />
-          {/each}
-        </div>
+        {#if $viewMode === 'list'}
+          <TrackTable
+            {libraryId}
+            tracks={tableTracks}
+            sortKey={tableSortKey}
+            sortDir={tableSortDir}
+            onsort={handleTableSort}
+          />
+        {:else}
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-1">
+            {#each visibleTracks as track (track.id)}
+              <AlbumListTrackItem libraryId={libraryId} {track} showAlbum={true} />
+            {/each}
+          </div>
+        {/if}
 
         {#if artistTracks.length > TRACKS_PER_PAGE}
           <button

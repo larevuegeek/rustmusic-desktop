@@ -24,6 +24,25 @@ let trackAdvancedUnlisten: UnlistenFn | null = null;
 let sleepUnsubscribe: (() => void) | null = null;
 let playStartedAt = 0; // timestamp (Date.now()) au moment où CPAL démarre vraiment
 
+// ─── Compteur d'écoutes ───
+//
+// Chemin du morceau déjà compté, pour ne l'être qu'une fois. Remis à zéro à
+// chaque nouvelle lecture.
+let playCountedPath: string | null = null;
+
+/**
+ * Durée d'écoute au-delà de laquelle un morceau compte pour une écoute.
+ *
+ * La moitié du morceau, plafonnée à une minute. Compter dès le premier
+ * échantillon ferait d'un survol de bibliothèque une série de fausses écoutes,
+ * et « les plus écoutés » remonterait ce qu'on a le plus vite passé. Le plafond
+ * évite qu'un morceau de vingt minutes ne compte jamais.
+ */
+function seuilEcoute(duree: number): number {
+    if (!duree || duree <= 0) return 60;
+    return Math.min(60, duree / 2);
+}
+
 // Piste annoncée au backend pour le préchargement (lecture sans blanc).
 // On mémorise l'index en plus du morceau : à la promotion, c'est lui qui
 // permet d'avancer la file sans avoir à rechercher par chemin (un même
@@ -89,9 +108,10 @@ class PlayerService {
                 basePos = 0;
                 baseTime = Date.now();
             } else {
-                // CPAL démarre vraiment maintenant : mémoriser l'instant pour
-                // détecter les "playback-ended" trop rapides (= bug driver).
+                // Le son part vraiment maintenant : c'est ici, et nulle part
+                // avant, que l'animation a le droit de commencer.
                 playStartedAt = Date.now();
+                this.startAnimation();
             }
         });
     }
@@ -233,6 +253,12 @@ class PlayerService {
 
             const track = advanced.track;
 
+            // L'enchaînement sans blanc change de morceau sans repasser par
+            // `playFile` : sans cette remise à zéro, le morceau promu ne serait
+            // jamais compté, et l'enchaînement — le mode d'écoute le plus
+            // courant — échapperait entièrement au compteur.
+            playCountedPath = null;
+
             try {
                 const audioFile = await invoke("open_file", { path: track.path }) as AudioFile;
 
@@ -323,8 +349,22 @@ class PlayerService {
                 status: "playing",
                 pathFile: track.path,
                 audioFile,
-                trackId: track.queueId
+                trackId: track.queueId,
+                // Figé d'emblée, sans attendre l'événement du backend : celui-ci
+                // part d'un fil qui vient d'être lancé, et les quelques images
+                // qui séparent les deux suffiraient à faire sauter la barre.
+                // Le backend rendra la main avec `playback-preparing: false`
+                // quand le premier échantillon partira vraiment.
+                isPreparing: true,
+                jsPosition: 0,
+                rustPosition: 0,
             });
+
+            // Nouvelle lecture, nouvelle écoute à compter. Rejouer deux fois
+            // le même morceau doit compter deux fois : c'est le garde par
+            // chemin, remis à zéro ici, qui empêche seulement de le compter
+            // plusieurs fois pendant une même lecture.
+            playCountedPath = null;
 
             await invoke("play_file", { path: track.path });
 
@@ -333,8 +373,19 @@ class PlayerService {
             // pour les profils Low/Minimal).
             playStartedAt = Date.now();
 
+            // Le sondage de position démarre, pas l'animation.
+            //
+            // `play_file` lance un fil et rend la main en quelques
+            // millisecondes ; le son, lui, ne part qu'une à deux secondes plus
+            // tard — ouverture du périphérique, négociation du format,
+            // pré-remplissage. Animer dès maintenant, c'est compter dans le
+            // vide, puis revenir à zéro quand la vraie position arrive.
+            //
+            // C'est donc le backend qui donne le départ, par
+            // `playback-preparing: false`. À défaut, `runPosition` s'en charge
+            // dès qu'il voit la position avancer — un filet, pas le chemin
+            // normal.
             this.runPosition();
-            this.startAnimation();
 
             // Gestion récents
             const libraryCacheId = await invoke<number | null>(
@@ -509,8 +560,24 @@ class PlayerService {
 
         if (get(player).status !== "playing") return;
 
+        // ─── Une seule chaîne de sondage à la fois ───
+        //
+        // Chaque tour programme le suivant. Si deux chaînes coexistent — un
+        // sondage encore en vol pendant qu'un changement de piste en relance un
+        // — elles ne se remplacent pas, elles s'additionnent, et le compte
+        // double à chaque piste. On annule donc l'échéance en attente avant
+        // d'en programmer une nouvelle.
+        if (timer) clearTimeout(timer);
+        timer = null;
+
         try {
             const [current, total] = await invoke<[number, number]>("get_progress");
+
+            // L'aller-retour ci-dessus prend le temps qu'il prend, et la
+            // lecture a pu se terminer pendant. Poursuivre reviendrait à
+            // ressusciter l'animation d'un morceau fini et à reprogrammer un
+            // sondage que plus personne n'arrêtera.
+            if (get(player).status !== "playing") return;
 
             if (seekPending) {
                 // Après un seek, ignorer les positions Rust stale
@@ -530,11 +597,45 @@ class PlayerService {
                 duration: total
             });
 
+            // ─── L'écoute se compte ici ───
+            //
+            // Ce sondage tourne une fois par seconde pendant toute la lecture :
+            // c'est le seul endroit qui sait combien on a réellement écouté.
+            // Compter au démarrage aurait été plus simple, et faux — voir
+            // `seuilEcoute`.
+            const p = get(player);
+            if (
+                p.pathFile &&
+                p.pathFile !== playCountedPath &&
+                current >= seuilEcoute(total)
+            ) {
+                playCountedPath = p.pathFile;
+                // Sans `await` : un compteur ne doit pas retarder le sondage de
+                // position, et son échec ne regarde pas la lecture.
+                invoke('mark_track_played', { path: p.pathFile }).catch(e =>
+                    console.error('Compteur d\'écoutes :', e)
+                );
+            }
+
+            // Filet : si la position avance alors que l'animation dort, c'est
+            // que le signal de départ s'est perdu — un chemin de lecture qui
+            // ne l'émet pas, un événement manqué au démarrage. On ne laisse pas
+            // la barre figée pour autant.
+            if (current > 0 && raf === 0) {
+                player.update({ isPreparing: false });
+                this.startAnimation();
+            }
+
         } catch (err) {
             console.error("Erreur récupération état:", err);
         }
 
-        timer = setTimeout(() => this.runPosition(), 300);
+        // Une seconde, et non trois cents millisecondes : cette position ne
+        // sert qu'à recaler l'animation lorsqu'elle dérive de plus de deux
+        // secondes. Interroger trois fois par seconde pour détecter un écart de
+        // deux secondes, ce sont trois allers-retours qui réveillent le backend
+        // pour rien. La reprise après un seek, elle, garde sa cadence rapide.
+        timer = setTimeout(() => this.runPosition(), 1000);
     }
 
     // ==========================================
@@ -546,6 +647,11 @@ class PlayerService {
 
         basePos = get(player).rustPosition;
         baseTime = Date.now();
+
+        // Dernière valeur poussée dans le store, et seconde entière déjà
+        // affichée. Voir la condition de poussée dans la boucle.
+        let lastPush = 0;
+        let lastWhole = -1;
 
         const loop = () => {
 
@@ -577,9 +683,33 @@ class PlayerService {
             const elapsed = (Date.now() - baseTime) / 1000;
             const pos = basePos + elapsed;
 
-            player.update({
-                jsPosition: Math.min(pos, p.duration)
-            });
+            // ─── Ne réveiller l'interface que quand ça se voit ───
+            //
+            // Cette boucle tourne à soixante images par seconde, et chaque
+            // écriture dans le store réveille les six composants qui s'y
+            // abonnent — lecteur, mini-lecteur, file d'attente, paroles — qui
+            // recalculent tous leurs dérivés et se redessinent.
+            //
+            // Or la position ne se voit qu'à deux endroits : une étiquette au
+            // format `m:ss`, qui change une fois par seconde, et une barre dont
+            // la largeur bouge d'un pixel tous les millièmes de morceau.
+            // Soixante hertz pour ça, ce sont cinquante rafraîchissements par
+            // seconde qui ne changent rien à l'écran.
+            //
+            // On pousse donc sur deux motifs : la seconde affichée change, ou
+            // un dixième de seconde s'est écoulé — un déplacement de barre
+            // largement sous le seuil de perception, et six fois moins de
+            // travail pour l'interface.
+            const now = Date.now();
+            const whole = Math.floor(pos);
+
+            if (whole !== lastWhole || now - lastPush >= 100) {
+                lastWhole = whole;
+                lastPush = now;
+                player.update({
+                    jsPosition: Math.min(pos, p.duration)
+                });
+            }
 
             raf = requestAnimationFrame(loop);
         };

@@ -57,6 +57,7 @@ pub fn to_track_list_view(
         extra_tags: cache.extra_tags.clone(),
         thumbnail_path: cache.thumbnail_path.clone(),
         last_scanned_at: cache.last_scanned_at,
+        tags: track.tags.clone(),
 
         // ===== Stats =====
         play_count: track.play_count,

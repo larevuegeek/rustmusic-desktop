@@ -12,6 +12,9 @@ import { handleAlbumEnqueue } from "$lib/actions/queue/QueueAction";
 import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
 import AlbumListTrackItem from "$lib/components/library/album/AlbumListTrackItem.svelte";
+import TrackTable from "$lib/components/library/track/TrackTable.svelte";
+import { trierPistes, resetTagCache } from "$lib/config/trackColumns";
+import { viewMode } from "$lib/stores/ui/viewMode.store";
 import AlbumListItem from "$lib/components/library/album/AlbumListItem.svelte";
 import ArtistListItem from "$lib/components/library/artist/ArtistListItem.svelte";
 import { loadAlbums, loadArtists } from "$lib/services/library/library.service";
@@ -62,6 +65,31 @@ let sortedTracks = $derived.by(() => {
     return trackSortDir === 'desc' ? -cmp : cmp;
   });
   return sorted;
+});
+
+// ─── Tri du tableau ───
+//
+// Toutes les pistes de l'album sont en mémoire : le classement se fait donc
+// sur place, sans aller-retour, et il est exact — contrairement à l'onglet
+// Morceaux où seule une page est chargée et où la base doit trancher.
+//
+// Il s'applique par-dessus `sortedTracks` : sans colonne triée, l'ordre du
+// disque est conservé, et c'est bien celui qu'on veut par défaut sur un album.
+let tableSortKey = $state<string | null>(null);
+let tableSortDir = $state<SortDir>('asc');
+
+let tableTracks = $derived(trierPistes(sortedTracks, tableSortKey, tableSortDir));
+
+function handleTableSort(key: string, dir: SortDir) {
+  tableSortKey = key;
+  tableSortDir = dir;
+}
+
+// Les tags analysés appartiennent aux pistes chargées : changer d'album doit
+// vider ce qui a été mis en cache pour le précédent.
+$effect(() => {
+  const _pistes = tracks;
+  resetTagCache();
 });
 
 function toggleTrackSort(field: TrackSortField) {
@@ -421,11 +449,21 @@ async function loadAlbumTracks(
       </div>
     {/if}
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-1">
-      {#each sortedTracks as track }
-        <AlbumListTrackItem libraryId={libraryId} track={track} />
-      {/each}
-    </div>
+    {#if $viewMode === 'list'}
+      <TrackTable
+        {libraryId}
+        tracks={tableTracks}
+        sortKey={tableSortKey}
+        sortDir={tableSortDir}
+        onsort={handleTableSort}
+      />
+    {:else}
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-1">
+        {#each sortedTracks as track }
+          <AlbumListTrackItem libraryId={libraryId} track={track} />
+        {/each}
+      </div>
+    {/if}
   </div>
 
   <!-- ================= CONTENT ================= -->

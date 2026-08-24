@@ -10,7 +10,27 @@ export type ContrastMode = 'normal' | 'high';
  * dalle peu contrastée. Le mode élevé neutralise ces effets — voir les règles
  * `[data-contrast="high"]` dans `app.css`.
  */
+/**
+ * Mémorise un choix pour le script de démarrage de `app.html`.
+ *
+ * Celui-ci s'exécute avant tout : il ne peut pas interroger la base, qui
+ * demande un aller-retour asynchrone. `localStorage` est synchrone et
+ * disponible immédiatement — c'est le seul endroit où il peut lire.
+ *
+ * La base reste la source de vérité ; ceci n'en est qu'un reflet, rafraîchi à
+ * chaque application, et sans conséquence s'il diverge.
+ */
+function remember(key: string, value: string) {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // Stockage indisponible : on perd seulement le confort du démarrage
+        // sans clignotement, jamais le réglage lui-même.
+    }
+}
+
 export function applyContrastMode(mode: ContrastMode) {
+    remember("rustmusic:contrast", mode);
     const root = document.documentElement;
     if (mode === 'high') {
         root.setAttribute('data-contrast', 'high');
@@ -27,6 +47,7 @@ let mediaQueryListener: ((e: MediaQueryListEvent) => void) | null = null;
  * - 'auto' : suit la préférence système et écoute les changements en live
  */
 export function applyThemeMode(mode: ThemeMode) {
+    remember("rustmusic:theme", mode);
     cleanupAutoListener();
 
     if (mode === 'auto') {

@@ -624,16 +624,29 @@ fn id3v1_genre_name(n: u8) -> Option<&'static str> {
     GENRES.iter().find(|(k, _)| *k == n).map(|(_, v)| *v)
 }
 
-/// Map POPM rating byte (0-255) to 0-5 stars, same algorithm as the
-/// existing Symphonia-based reader to stay consistent with the DB.
-fn popm_to_stars(rating: u8) -> i32 {
+/// Traduit l'octet POPM (0-255) en étoiles, par pas d'un demi.
+///
+/// # Pourquoi ces bornes
+/// POPM n'a pas de barème normalisé : chaque logiciel a le sien. Les valeurs
+/// pivots retenues — 1, 64, 128, 196, 255 — sont celles qu'écrit Windows Media
+/// Player, devenues l'usage de fait ; les demi-crans reprennent ceux de
+/// MediaMonkey, seul logiciel répandu à les écrire.
+///
+/// Les intervalles restent larges de part et d'autre de chaque pivot, pour que
+/// la note d'un logiciel au barème légèrement différent tombe quand même sur
+/// le bon cran.
+fn popm_to_stars(rating: u8) -> f64 {
     match rating {
-        0 => 0,
-        1..=31 => 1,
-        32..=95 => 2,
-        96..=159 => 3,
-        160..=223 => 4,
-        _ => 5,
+        0 => 0.0,
+        1..=17 => 1.0,
+        18..=41 => 1.5,
+        42..=79 => 2.0,
+        80..=105 => 2.5,
+        106..=143 => 3.0,
+        144..=173 => 3.5,
+        174..=209 => 4.0,
+        210..=239 => 4.5,
+        _ => 5.0,
     }
 }
 
@@ -683,4 +696,63 @@ fn is_itunes_internal_comment(description: &str) -> bool {
 /// Convert a 4-byte frame ID to a printable string for `custom_tags`.
 fn id_to_string(id: &[u8; 4]) -> String {
     id.iter().map(|&b| b as char).collect()
+}
+
+#[cfg(test)]
+mod tests_popm {
+    use super::popm_to_stars;
+
+    #[test]
+    fn les_pivots_de_windows_media_player_tombent_juste() {
+        // Ces cinq valeurs sont celles qu'écrit WMP : elles doivent rendre
+        // exactement 1 à 5 étoiles pleines.
+        assert_eq!(popm_to_stars(1), 1.0);
+        assert_eq!(popm_to_stars(64), 2.0);
+        assert_eq!(popm_to_stars(128), 3.0);
+        assert_eq!(popm_to_stars(196), 4.0);
+        assert_eq!(popm_to_stars(255), 5.0);
+    }
+
+    #[test]
+    fn les_demi_crans_de_mediamonkey_tombent_juste() {
+        assert_eq!(popm_to_stars(31), 1.5);
+        assert_eq!(popm_to_stars(96), 2.5);
+        assert_eq!(popm_to_stars(160), 3.5);
+        assert_eq!(popm_to_stars(224), 4.5);
+    }
+
+    #[test]
+    fn zero_reste_zero() {
+        // Zéro signifie « pas de note » dans POPM, et ne doit surtout pas
+        // devenir une demi-étoile.
+        assert_eq!(popm_to_stars(0), 0.0);
+    }
+
+    #[test]
+    fn chaque_note_tombe_sur_un_demi_cran_exact() {
+        // Le doublement doit rendre un entier, sans reste : c'est ce qui
+        // garantit que les comparaisons d'égalité restent exactes malgré le
+        // flottant. Vrai ici parce que les dénominateurs sont des puissances
+        // de deux.
+        for octet in 0..=255u8 {
+            let note = popm_to_stars(octet);
+            assert_eq!(note * 2.0, (note * 2.0).trunc(), "cran bâtard à {octet}");
+        }
+    }
+
+    #[test]
+    fn le_bareme_ne_recule_jamais() {
+        // Une note plus haute dans le fichier ne peut pas donner moins
+        // d'étoiles : sans ça, un tri par note deviendrait incohérent.
+        let mut precedent = 0.0;
+        for octet in 0..=255u8 {
+            let actuel = popm_to_stars(octet);
+            assert!(
+                actuel >= precedent,
+                "recul à {octet} : {precedent} puis {actuel}"
+            );
+            assert!((0.0..=5.0).contains(&actuel), "hors bornes à {octet}");
+            precedent = actuel;
+        }
+    }
 }

@@ -139,8 +139,8 @@
   <button
     type="button"
     class="fixed top-6 right-6 z-200 w-11 h-11 rounded-full flex items-center justify-center
-           bg-white/10 backdrop-blur-md border border-white/10
-           text-white/50 hover:text-white hover:bg-white/20
+           bg-neutral-200/60 dark:bg-white/10 backdrop-blur-md border border-neutral-200 dark:border-white/10
+           text-neutral-500 dark:text-neutral-400 dark:text-white/50 hover:text-neutral-900 dark:hover:text-white hover:bg-white/20
            transition-all duration-200 cursor-pointer"
     aria-label="Fermer"
     onclick={close}
@@ -155,10 +155,10 @@
     <div class="flex flex-col items-center gap-12">
       <!-- Titre -->
       <div class="text-center space-y-3">
-        <h2 class="text-4xl font-bold text-white tracking-tight">
+        <h2 class="text-4xl font-bold text-neutral-900 dark:text-white tracking-tight">
           Qui écoute ?
         </h2>
-        <p class="text-sm text-white/35 max-w-md">
+        <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-white/35 max-w-md">
           Sélectionne ton profil pour retrouver tes bibliothèques et playlists
         </p>
       </div>
@@ -188,7 +188,7 @@
 
             <!-- Nom + badge -->
             <div class="flex flex-col items-center gap-1.5">
-              <span class="text-sm font-medium text-white/60 group-hover:text-white
+              <span class="text-sm font-medium text-neutral-600 dark:text-white/60 group-hover:text-white
                            transition-colors duration-200 text-center truncate w-32">
                 {profil.name}
               </span>
@@ -201,8 +201,8 @@
             <button
               type="button"
               class="flex items-center gap-1.5 px-3 py-1 rounded-full cursor-pointer
-                     text-[11px] font-medium text-white/20
-                     hover:text-white/50 hover:bg-white/5
+                     text-[11px] font-medium text-neutral-600 dark:text-neutral-300 dark:text-white/20
+                     hover:text-neutral-500 dark:text-neutral-400 dark:text-white/50 hover:bg-neutral-100 dark:bg-white/5
                      transition-all duration-200"
               onclick={() => switchToEdit(profil)}
             >
@@ -219,18 +219,18 @@
           <button
             type="button"
             class="w-32 h-32 rounded-2xl cursor-pointer
-                   border-[3px] border-dashed border-white/12
-                   hover:border-white/25 hover:bg-white/5
+                   border-[3px] border-dashed border-neutral-200 dark:border-white/12
+                   hover:border-white/25 hover:bg-neutral-100 dark:bg-white/5
                    flex items-center justify-center
                    transition-all duration-300 ease-out hover:scale-105"
             aria-label="Ajouter un profil"
             onclick={switchToCreate}
           >
-            <svg class="w-10 h-10 text-white/20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <svg class="w-10 h-10 text-neutral-600 dark:text-neutral-300 dark:text-white/20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </button>
-          <span class="text-sm font-medium text-white/35">
+          <span class="text-sm font-medium text-neutral-500 dark:text-neutral-400 dark:text-white/35">
             Ajouter
           </span>
         </div>
@@ -241,7 +241,7 @@
     <!-- FORMULAIRE CREATE / EDIT PREMIUM -->
     {@const selectedHex = mode === 'edit' ? PALETTE[editIndex] : PALETTE[selectedColorIndex]}
     <div class="w-full max-w-lg">
-      <div class="relative rounded-3xl border border-white/8 bg-white/3 backdrop-blur-2xl
+      <div class="relative rounded-3xl border border-neutral-200 dark:border-white/8 bg-neutral-100 dark:bg-white/3 backdrop-blur-2xl
                   shadow-[0_8px_64px_rgba(0,0,0,0.6)] overflow-hidden">
 
         <!-- Glow supérieur dynamique -->
@@ -253,7 +253,7 @@
         <!-- Bouton retour -->
         <button
           type="button"
-          class="absolute top-5 left-6 z-10 text-white/25 hover:text-white/60
+          class="absolute top-5 left-6 z-10 text-neutral-500 dark:text-neutral-400 dark:text-white/25 hover:text-neutral-600 dark:text-white/60
                  transition-all duration-200 cursor-pointer flex items-center gap-1.5 text-xs font-medium
                  hover:gap-2"
           onclick={back}
@@ -283,10 +283,10 @@
           </div>
 
           <div class="text-center space-y-1">
-            <h2 class="text-2xl font-bold text-white tracking-tight">
+            <h2 class="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">
               {mode === 'create' ? 'Nouveau profil' : 'Modifier le profil'}
             </h2>
-            <p class="text-xs text-white/30">
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-white/30">
               {mode === 'create' ? 'Crée un profil pour personnaliser ton expérience' : 'Modifie les informations de ce profil'}
             </p>
           </div>
@@ -300,18 +300,18 @@
 
           <!-- Champ nom -->
           <div class="space-y-2">
-            <label for="profil_name" class="block text-[11px] font-semibold uppercase tracking-widest text-white/40 mb-1">
+            <label for="profil_name" class="block text-[11px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-400 dark:text-white/40 mb-1">
               Nom du profil
             </label>
             <input
               id="profil_name"
               type="text"
               class="w-full rounded-xl px-5 py-3.5 text-sm font-medium
-                     bg-white/6 border border-white/8
-                     text-white placeholder-white/25
+                     bg-neutral-100 dark:bg-white/6 border border-neutral-200 dark:border-white/8
+                     text-neutral-900 dark:text-white placeholder-white/25
                      outline-none transition-all duration-200
-                     hover:bg-white/8 hover:border-white/12
-                     focus:bg-white/8 focus:border-white/20 focus:ring-1
+                     hover:bg-neutral-200/50 dark:bg-white/8 hover:border-neutral-200 dark:border-white/12
+                     focus:bg-neutral-200/50 dark:bg-white/8 focus:border-white/20 focus:ring-1
                      {errorName
                        ? 'border-red-400/50 focus:ring-red-400/30'
                        : 'focus:ring-white/10'}"
@@ -333,7 +333,7 @@
 
           <!-- Sélecteur de couleur -->
           <div class="space-y-2">
-            <span class="block text-[11px] font-semibold uppercase tracking-widest text-white/40 mb-4">
+            <span class="block text-[11px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-400 dark:text-white/40 mb-4">
               Couleur du profil
             </span>
             <div class="flex items-center gap-2.5">
@@ -393,7 +393,7 @@
             <div class="flex items-center gap-4">
               <button
                 type="button"
-                class="text-sm font-medium text-white/30 hover:text-white/60
+                class="text-sm font-medium text-neutral-500 dark:text-neutral-400 dark:text-white/30 hover:text-neutral-600 dark:text-white/60
                        transition-colors cursor-pointer disabled:opacity-50"
                 onclick={back}
                 disabled={isSubmitting}
@@ -403,7 +403,7 @@
 
               <button
                 type="button"
-                class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold text-white
+                class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold text-neutral-900 dark:text-white
                        transition-all duration-200 cursor-pointer
                        hover:brightness-110 hover:shadow-lg
                        active:scale-95
@@ -448,7 +448,7 @@
               <input
                 type="text"
                 class="w-full rounded-lg px-3.5 py-2 text-xs
-                       bg-black/20 border border-red-500/15 text-white placeholder-white/15
+                       bg-black/20 border border-red-500/15 text-neutral-900 dark:text-white placeholder-white/15
                        outline-none focus:border-red-400/40 focus:ring-1 focus:ring-red-400/15
                        transition-all duration-200"
                 placeholder="Tapez supprimer"
@@ -462,7 +462,7 @@
                          transition-all duration-200
                          {deleteConfirmText.toLowerCase().trim() === 'supprimer'
                            ? 'bg-red-500 text-white hover:bg-red-600 active:scale-97'
-                           : 'bg-white/4 text-white/15 cursor-not-allowed'}"
+                           : 'bg-neutral-100 text-neutral-300 dark:bg-white/4 dark:text-white/15 cursor-not-allowed'}"
                   disabled={deleteConfirmText.toLowerCase().trim() !== 'supprimer' || isSubmitting}
                   onclick={() => editId && handleDelete(editId)}
                 >
@@ -470,8 +470,8 @@
                 </button>
                 <button
                   type="button"
-                  class="px-4 py-2 rounded-lg text-xs text-white/30 hover:text-white/60
-                         hover:bg-white/5 transition-all duration-200 cursor-pointer"
+                  class="px-4 py-2 rounded-lg text-xs text-neutral-500 dark:text-neutral-400 dark:text-white/30 hover:text-neutral-600 dark:text-white/60
+                         hover:bg-neutral-100 dark:bg-white/5 transition-all duration-200 cursor-pointer"
                   onclick={() => { showDeleteConfirm = false; deleteConfirmText = ""; }}
                 >
                   Annuler

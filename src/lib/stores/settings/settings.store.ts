@@ -26,6 +26,13 @@ export type AppSettings = {
   contrast: string;                  // 'normal' | 'high' — lisibilité renforcée
   window_controls_style: string;     // 'auto' | 'macos' | 'windows'
   window_controls_position: string;  // 'right' | 'left'
+  // 'true' | 'false' — interroger Deezer à l'ouverture d'une fiche artiste.
+  // Par défaut actif : c'est le comportement historique, et le couper sans
+  // le dire priverait les bibliothèques existantes de leurs portraits.
+  auto_download_artist_images: string;
+  // Colonnes de l'onglet Morceaux, en JSON : un tableau de clés, dans l'ordre
+  // d'affichage. Voir `$lib/config/trackColumns`.
+  track_columns: string;
 };
 
 const defaults: AppSettings = {
@@ -46,6 +53,8 @@ const defaults: AppSettings = {
   contrast: 'normal',
   window_controls_style: 'auto',
   window_controls_position: 'right',
+  auto_download_artist_images: 'true',
+  track_columns: '["artist","album","rating","duration"]',
 };
 
 // Actions spéciales par clé — exécutées APRÈS la sauvegarde en BDD
@@ -128,14 +137,6 @@ export const settingsStore = {
     try {
       const all = await invoke<Record<string, string>>('get_all_settings');
 
-      // Vérifier l'état réel de l'autostart (le registre peut avoir été modifié manuellement)
-      try {
-        const realAutostart = await isAutostartEnabled();
-        all['auto_start'] = realAutostart ? 'true' : 'false';
-      } catch (e) {
-        console.warn('[settings] Impossible de vérifier autostart:', e);
-      }
-
       settingsWriter.update(state => ({
         ...state,
         ...Object.fromEntries(
@@ -143,10 +144,27 @@ export const settingsStore = {
         ),
       }));
 
-      // Applique le thème et le contraste dès le chargement
+      // Thème et contraste appliqués **avant** la vérification de l'autostart.
+      //
+      // Celle-ci interroge le registre Windows ou le fichier d'autostart Linux,
+      // et peut prendre plusieurs secondes. Elle se trouvait avant : le thème
+      // attendait donc derrière elle, et l'interface restait dans la couleur du
+      // démarrage tout ce temps — jusqu'à une dizaine de secondes sur certaines
+      // machines. L'ordre seul règle ça ; rien d'autre ne change.
       const finalTheme = get(settingsWriter).theme;
-      applyThemeMode((finalTheme as ThemeMode) ?? 'dark');
+      applyThemeMode((finalTheme as ThemeMode) ?? 'auto');
       applyContrastMode((get(settingsWriter).contrast as ContrastMode) ?? 'normal');
+
+      // L'autostart ensuite : personne ne le regarde pendant le démarrage.
+      try {
+        const realAutostart = await isAutostartEnabled();
+        settingsWriter.update(state => ({
+          ...state,
+          auto_start: realAutostart ? 'true' : 'false',
+        }));
+      } catch (e) {
+        console.warn('[settings] Impossible de vérifier autostart:', e);
+      }
     } catch (e) {
       console.error('[settingsStore] Failed to load settings', e);
     }

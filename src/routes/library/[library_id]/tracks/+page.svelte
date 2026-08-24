@@ -13,6 +13,8 @@ import { handleAddFiles, handleAddDirectory } from "$lib/actions/library/Library
 import { t } from "$lib/i18n";
 import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import FilterBar from "$lib/components/library/common/FilterBar.svelte";
+import TrackTable from "$lib/components/library/track/TrackTable.svelte";
+import { resetTagCache, type SortDir } from "$lib/config/trackColumns";
 
 const libraryId = $derived(Number(page.params.library_id));
 const currentLibrary = $derived(
@@ -42,6 +44,20 @@ $effect(() => {
   try { localStorage.setItem(SORT_KEY, JSON.stringify({ sortBy, sortDir })); }
   catch {}
 });
+
+/**
+ * Tri demandé depuis un en-tête de colonne.
+ *
+ * On écrit dans le même état que la barre de filtres : les deux commandes
+ * disent la même chose, et l'une doit refléter ce que l'autre a fait. Le
+ * rechargement suit, puisque le classement est l'affaire de la base.
+ */
+function handleHeaderSort(key: string, dir: SortDir) {
+  sortBy = key;
+  sortDir = dir;
+  fetchTracks(true);
+  scrollEl?.scrollTo({ top: 0 });
+}
 
 let scrollEl = $state<HTMLDivElement | null>(null);
 
@@ -85,6 +101,7 @@ async function fetchTracks(reset = false) {
       missingCover: $libraryContentStore.missingAlbumCover,
     });
 
+    if (reset) resetTagCache();
     tracks = reset ? result.tracks : [...tracks, ...result.tracks];
     totalTracks = result.total;
   } catch (e) {
@@ -186,21 +203,15 @@ function handleFilterChange() {
           </div>
         {:else}
           {#if $viewMode === 'list'}
-            <div class="flex items-center gap-3 py-1 px-2 mb-1 text-[10px] uppercase tracking-wider text-neutral-400
-                        border-b border-neutral-200/60 dark:border-white/5">
-              <div class="w-5 text-right">#</div>
-              <div class="w-8"></div>
-              <div class="flex-1">Titre</div>
-              <div class="hidden sm:block w-40">Artiste</div>
-              <div class="hidden md:block w-44">Album</div>
-              <div class="hidden lg:block w-20">Notation</div>
-              <div class="w-6"></div>
-              <div class="w-10 text-right">Durée</div>
-              <div class="w-6"></div>
-            </div>
-            {#each tracks as track (track.id)}
-              <TrackListCompact {libraryId} {track} />
-            {/each}
+            <!-- Le tri part en base, pas en mémoire : ne ranger que les cent
+                 lignes déjà chargées donnerait un résultat faux à l'air juste. -->
+            <TrackTable
+              {libraryId}
+              {tracks}
+              sortKey={sortBy === 'default' ? null : sortBy}
+              sortDir={sortDir as SortDir}
+              onsort={handleHeaderSort}
+            />
           {:else}
             {#each tracks as track (track.id)}
               <TrackListItem {libraryId} {track} />

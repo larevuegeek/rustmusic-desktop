@@ -454,10 +454,23 @@ pub async fn get_track(
 pub async fn set_track_rating(
     state: State<'_, AppState>,
     track_id: String,
-    rating: Option<i32>,
+    rating: Option<f64>,
 ) -> Result<(), String> {
-    // Normaliser 0-5, 0 = pas de rating → NULL
-    let normalized = rating.and_then(|r| if r > 0 && r <= 5 { Some(r) } else { None });
+    // Une note va de 0,5 à 5,0 par pas d'un demi. Hors de ces bornes — zéro
+    // compris — elle vaut « pas de note », donc NULL : c'est ce qui distingue
+    // « jamais noté » de « noté zéro » dans les tris.
+    //
+    // On aligne sur le demi-cran le plus proche plutôt que de refuser une
+    // valeur intermédiaire. Un arrondi de l'interface ne doit pas se solder par
+    // une note perdue en silence.
+    let normalized = rating.and_then(|r| {
+        let crans = (r * 2.0).round();
+        if (1.0..=10.0).contains(&crans) {
+            Some(crans / 2.0)
+        } else {
+            None
+        }
+    });
     LibraryTrackRepository::update_rating(&state.pool, &track_id, normalized)
         .await
         .map_err(|e| format!("Failed to update rating: {}", e))
@@ -475,10 +488,131 @@ pub async fn get_tracks(
         .map_err(|e| format!("Failed to get tracks: {}", e))
 }
 
+/// Enregistre qu'un morceau a été écouté.
+///
+/// # Pourquoi par le chemin
+/// La file d'attente ne transporte pas l'identifiant d'une piste de la
+/// bibliothèque : elle sert aussi bien un fichier ouvert au vol qu'un morceau
+/// de la bibliothèque, et le chemin est la seule chose que les deux ont en
+/// commun. Un fichier hors bibliothèque ne correspond à aucune ligne, la
+/// commande ne fait alors rien — ce qui est le comportement voulu.
+///
+/// # Rendue muette en cas d'échec
+/// Un compteur d'écoutes n'est pas une donnée dont dépend la lecture. Le seul
+/// appelant est la boucle de position, et lui faire remonter une erreur
+/// reviendrait à salir la console pendant tout un morceau.
+#[tauri::command]
+pub async fn mark_track_played(
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<(), String> {
+    let touchees = sqlx::query(
+        "UPDATE library_tracks
+            SET play_count = play_count + 1,
+                last_played_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+          WHERE file_id IN (SELECT id FROM library_files WHERE path = ?)",
+    )
+    .bind(&path)
+    .execute(&state.pool)
+    .await
+    .map_err(|e| format!("Compteur d'écoutes : {e}"))?
+    .rows_affected();
+
+    // Tracé en information, et non en débogage.
+    //
+    // Le compteur ne se voit qu'au bout d'une minute d'écoute, et seulement
+    // dans une playlist qui s'en sert : quand il ne marche pas, rien ne le dit.
+    // Cette ligne est le seul moyen de distinguer « jamais déclenché » de
+    // « déclenché sans rien trouver » — deux pannes qui n'ont pas le même
+    // remède.
+    if touchees == 0 {
+        log::info!("♪ Écoute non comptée, chemin absent de la bibliothèque : {path}");
+    } else {
+        log::info!("♪ Écoute comptée : {path}");
+    }
+
+    Ok(())
+}
+
 #[derive(Serialize)]
 pub struct PaginatedTracks {
     pub tracks: Vec<TrackListView>,
     pub total: i64,
+}
+
+/// Traduit une clé de tri en expression SQL, et en valeur à lier s'il en faut.
+///
+/// # Le nom du tag ne rejoint jamais le texte de la requête
+/// Les clés `tag:…` viennent de l'interface, donc en dernier ressort d'un
+/// fichier de l'utilisateur : un morceau peut porter un tag nommé
+/// `x'; DROP TABLE library_tracks; --`. Les recopier dans le SQL ouvrirait une
+/// injection par simple ajout d'un fichier dans la bibliothèque.
+///
+/// L'expression rendue ne contient donc jamais le nom : elle contient un `?`,
+/// et le nom part comme valeur liée. Le moteur ne peut alors plus le
+/// réinterpréter comme du code, quelle que soit sa forme.
+///
+/// # Le coût, mesuré
+/// Trier sur un tag libre demande une sous-requête corrélée — `custom_tags`
+/// est une liste de paires, pas un objet. Sur neuf mille pistes avec toutes
+/// les jointures, la page revient en cinquante-six millisecondes. C'est ce
+/// chiffre qui a décidé de trier en base plutôt qu'en mémoire : trier en
+/// mémoire n'aurait rangé que les cent lignes déjà chargées, en donnant au
+/// résultat l'apparence d'un tri complet.
+fn resolve_sort(sort_by: Option<&str>) -> (String, Option<String>) {
+    // Tag libre : la valeur se cherche dans la liste de paires.
+    if let Some(nom) = sort_by.and_then(|s| s.strip_prefix("tag:custom:")) {
+        return (
+            "(SELECT json_extract(je.value, '$[1]') \
+              FROM json_each(json_extract(lt.tags, '$.custom_tags')) je \
+              WHERE json_extract(je.value, '$[0]') = ? LIMIT 1) COLLATE NOCASE"
+                .to_string(),
+            Some(nom.to_string()),
+        );
+    }
+
+    // Champ nommé de la structure de tags.
+    if let Some(champ) = sort_by.and_then(|s| s.strip_prefix("tag:")) {
+        return (
+            "json_extract(lt.tags, ?) COLLATE NOCASE".to_string(),
+            Some(format!("$.{champ}")),
+        );
+    }
+
+    // Colonnes de la bibliothèque. La liste est close : tout ce qui n'y figure
+    // pas retombe sur l'ordre naturel plutôt que d'atteindre le SQL.
+    let expr = match sort_by {
+        Some("title") => "lt.title_normalized",
+        Some("artist") => "a.name COLLATE NOCASE",
+        Some("album") => "la.title COLLATE NOCASE",
+        Some("album_artist") => "lc.album_artist COLLATE NOCASE",
+        Some("year") => "lc.year",
+        Some("genre") => "lc.genre COLLATE NOCASE",
+        Some("duration") => "lt.duration",
+        // `date` est le nom historique employé par la barre de filtres ;
+        // `created_at` celui de la colonne. Les deux mènent au même endroit.
+        Some("date") | Some("created_at") => "lt.created_at",
+        Some("last_played_at") => "lt.last_played_at",
+        Some("play_count") => "lt.play_count",
+        Some("track_number") => "lt.track_number",
+        Some("disc_number") => "lt.disc_number",
+        Some("bitrate") => "lt.bitrate",
+        Some("sample_rate") => "lt.sample_rate",
+        Some("bits_per_sample") => "lc.bits_per_sample",
+        Some("channels") => "lc.channels",
+        Some("audio_format") => "lc.audio_format COLLATE NOCASE",
+        Some("extension") => "lf.extension COLLATE NOCASE",
+        Some("file_size") => "COALESCE(lc.file_size, lf.size)",
+        Some("filename") => "lf.filename COLLATE NOCASE",
+        Some("path") => "lf.path COLLATE NOCASE",
+        // `IS NULL` d'abord : les pistes jamais notées se rangent en bas quel
+        // que soit le sens, comme partout ailleurs dans l'application.
+        Some("rating") => "lt.rating IS NULL, lt.rating",
+        _ => "a.name COLLATE NOCASE, la.title COLLATE NOCASE, lt.disc_number, lt.track_number",
+    };
+
+    (expr.to_string(), None)
 }
 
 #[tauri::command]
@@ -493,16 +627,7 @@ pub async fn get_tracks_paginated(
     missing_cover: Option<bool>,
 ) -> Result<PaginatedTracks, String> {
 
-    let sort_col = match sort_by.as_deref() {
-        Some("title") => "lt.title_normalized",
-        Some("artist") => "a.name COLLATE NOCASE",
-        Some("album") => "la.title COLLATE NOCASE",
-        Some("duration") => "lt.duration",
-        Some("date") => "lt.created_at",
-        Some("bitrate") => "lt.bitrate",
-        Some("rating") => "lt.rating IS NULL, lt.rating",
-        _ => "a.name COLLATE NOCASE, la.title COLLATE NOCASE, lt.disc_number, lt.track_number",
-    };
+    let (sort_col, sort_bind) = resolve_sort(sort_by.as_deref());
 
     let dir = match sort_dir.as_deref() {
         Some("desc") => "DESC",
@@ -510,7 +635,8 @@ pub async fn get_tracks_paginated(
     };
 
     let (tracks, total) = LibraryTrackRepository::find_tracks_paginated(
-        &state.pool, library_id, offset, limit, sort_col, dir, filter.as_deref(), missing_cover.unwrap_or(false),
+        &state.pool, library_id, offset, limit, &sort_col, sort_bind.as_deref(), dir,
+        filter.as_deref(), missing_cover.unwrap_or(false),
     ).await.map_err(|e| format!("Failed to get tracks: {}", e))?;
 
     Ok(PaginatedTracks { tracks, total })
@@ -1126,6 +1252,106 @@ pub async fn fetch_all_album_covers(
 // GENRES
 // ============================================================================
 
+/// Un tag proposable en colonne, avec le nombre de pistes qui le renseignent.
+#[derive(Debug, Serialize)]
+pub struct TagColumnCandidate {
+    /// Clé stable : soit un champ nommé (`composer`), soit un tag libre
+    /// préfixé (`custom:Label`). Le préfixe évite qu'un tag nommé « genre »
+    /// écrit à la main dans un fichier n'entre en collision avec le champ.
+    pub key: String,
+    /// Nombre de pistes où ce tag porte une valeur non vide.
+    pub filled: i64,
+}
+
+/// Recense les tags réellement présents dans une bibliothèque.
+///
+/// # Pourquoi compter plutôt que lister
+/// La structure des tags compte une quarantaine de champs nommés, dont la
+/// plupart ne sont jamais renseignés — sur une discothèque réelle, `conductor`,
+/// `mood` ou `isrc` sont vides partout. Proposer la liste théorique noierait
+/// les cinq tags utiles sous trente-cinq inutiles.
+///
+/// On rend donc ce qui existe, avec son effectif, et l'interface range les plus
+/// répandus en tête.
+///
+/// # Le coût
+/// Une lecture de la colonne `tags` de toute la bibliothèque, et autant
+/// d'analyses JSON. Sur quatorze mille pistes, l'ordre de grandeur est la
+/// fraction de seconde — acceptable pour une liste ouverte à la demande, et
+/// c'est pourquoi elle n'est pas calculée au démarrage.
+#[tauri::command]
+pub async fn get_library_tag_keys(
+    state: State<'_, AppState>,
+    library_id: i64,
+) -> Result<Vec<TagColumnCandidate>, String> {
+    let lignes: Vec<(Option<String>,)> =
+        sqlx::query_as("SELECT tags FROM library_tracks WHERE library_id = ?")
+            .bind(library_id)
+            .fetch_all(&state.pool)
+            .await
+            .map_err(|e| format!("Failed to read tags: {e}"))?;
+
+    let mut effectifs: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+
+    for (brut,) in lignes {
+        let Some(json) = brut else { continue };
+        let Ok(valeur) = serde_json::from_str::<serde_json::Value>(&json) else {
+            continue;
+        };
+        let Some(objet) = valeur.as_object() else { continue };
+
+        for (cle, val) in objet {
+            match cle.as_str() {
+                // Les images n'ont rien à faire dans une colonne de texte, et
+                // les tags libres sont dépouillés juste en dessous.
+                "attached_images" => continue,
+                "custom_tags" => {
+                    if let Some(paires) = val.as_array() {
+                        for paire in paires {
+                            let Some(paire) = paire.as_array() else { continue };
+                            let (Some(k), Some(v)) = (paire.first(), paire.get(1)) else {
+                                continue;
+                            };
+                            if let (Some(k), Some(v)) = (k.as_str(), v.as_str()) {
+                                if !v.trim().is_empty() {
+                                    *effectifs.entry(format!("custom:{k}")).or_insert(0) += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    if est_renseigne(val) {
+                        *effectifs.entry(cle.clone()).or_insert(0) += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let mut sortie: Vec<TagColumnCandidate> = effectifs
+        .into_iter()
+        .map(|(key, filled)| TagColumnCandidate { key, filled })
+        .collect();
+
+    // Les plus répandus d'abord ; à effectif égal, l'ordre alphabétique, pour
+    // que deux appels successifs rendent la même liste.
+    sortie.sort_by(|a, b| b.filled.cmp(&a.filled).then_with(|| a.key.cmp(&b.key)));
+
+    Ok(sortie)
+}
+
+/// Un tag vaut d'être proposé s'il porte autre chose que du vide.
+fn est_renseigne(val: &serde_json::Value) -> bool {
+    match val {
+        serde_json::Value::Null => false,
+        serde_json::Value::String(s) => !s.trim().is_empty(),
+        serde_json::Value::Array(a) => !a.is_empty(),
+        serde_json::Value::Object(o) => !o.is_empty(),
+        _ => true,
+    }
+}
+
 #[tauri::command]
 pub async fn get_tracks_by_genre(
     state: State<'_, AppState>,
@@ -1193,4 +1419,70 @@ pub async fn get_library_stats(
         }).collect(),
         quality_hires, quality_lossless, quality_lossy,
     })
+}
+#[cfg(test)]
+mod tests_tri {
+    use super::resolve_sort;
+
+    #[test]
+    fn une_colonne_connue_donne_son_expression_sans_liaison() {
+        let (expr, bind) = resolve_sort(Some("duration"));
+        assert_eq!(expr, "lt.duration");
+        assert!(bind.is_none());
+    }
+
+    #[test]
+    fn une_cle_inconnue_retombe_sur_l_ordre_naturel() {
+        // Le point important n'est pas la valeur rendue mais qu'aucune clé
+        // étrangère ne puisse atteindre le SQL : tout ce qui n'est pas prévu
+        // donne la même expression close.
+        let (attendu, _) = resolve_sort(None);
+        for cle in ["", "lt.title; DROP TABLE library_tracks", "../../etc", "RANDOM()"] {
+            let (expr, bind) = resolve_sort(Some(cle));
+            assert_eq!(expr, attendu, "clé : {cle}");
+            assert!(bind.is_none(), "clé : {cle}");
+        }
+    }
+
+    #[test]
+    fn un_champ_nomme_part_en_chemin_lie() {
+        let (expr, bind) = resolve_sort(Some("tag:composer"));
+        assert_eq!(expr, "json_extract(lt.tags, ?) COLLATE NOCASE");
+        assert_eq!(bind.as_deref(), Some("$.composer"));
+    }
+
+    #[test]
+    fn un_tag_libre_part_en_valeur_liee() {
+        let (expr, bind) = resolve_sort(Some("tag:custom:Label"));
+        assert!(expr.contains("json_each"), "expression : {expr}");
+        assert_eq!(bind.as_deref(), Some("Label"));
+    }
+
+    #[test]
+    fn le_nom_d_un_tag_ne_rejoint_jamais_le_texte_de_la_requete() {
+        // Un fichier de la bibliothèque peut porter n'importe quel nom de tag,
+        // y compris hostile. L'expression rendue ne doit jamais le contenir :
+        // il ne circule que comme valeur liée, que le moteur ne réinterprète
+        // pas comme du code.
+        let mechants = [
+            "x'; DROP TABLE library_tracks; --",
+            "a\" OR 1=1 --",
+            "'||(SELECT value FROM settings)||'",
+        ];
+
+        for nom in mechants {
+            for cle in [format!("tag:custom:{nom}"), format!("tag:{nom}")] {
+                let (expr, bind) = resolve_sort(Some(&cle));
+                assert!(
+                    !expr.contains(nom),
+                    "le nom a fuité dans l'expression : {expr}"
+                );
+                assert!(bind.is_some(), "le nom doit partir en liaison : {cle}");
+                assert!(
+                    bind.as_deref().unwrap().contains(nom),
+                    "le nom doit être porté par la liaison"
+                );
+            }
+        }
+    }
 }

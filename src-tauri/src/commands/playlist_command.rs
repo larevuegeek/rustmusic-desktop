@@ -90,10 +90,39 @@ pub async fn get_playlists(
     profil_id: i64,
 ) -> Result<Vec<Playlist>, String> {
 
-    let playlists: Vec<Playlist> = match PlaylistRepository::find_all_by_profil_id(&state.pool, profil_id).await {
+    let mut playlists: Vec<Playlist> = match PlaylistRepository::find_all_by_profil_id(&state.pool, profil_id).await {
         Ok(playlists) => playlists,
         Err(e) => return Err(format!("Failed to get playlists : {}", e))
     };
+
+    // ─── Le compte d'une playlist intelligente se recalcule ───
+    //
+    // Sa colonne `track_count` n'était mise à jour qu'à l'enregistrement de ses
+    // règles. Or son contenu bouge tout seul : une playlist « les plus
+    // écoutés » créée alors qu'aucun morceau n'avait d'écoute restait figée à
+    // zéro dans la barre latérale, même après en avoir écouté dix. Le même
+    // piège que le compteur de « Grunge », sous une autre forme — un chiffre
+    // qui a l'air d'une donnée alors qu'il n'est qu'un souvenir.
+    //
+    // On paie une requête par playlist intelligente, à l'ouverture et au
+    // rafraîchissement seulement. Mesuré sur quatorze mille pistes, chacune
+    // tient dans la fraction de seconde ; afficher un chiffre faux coûte plus
+    // cher.
+    //
+    // Un échec laisse la valeur enregistrée plutôt que d'effacer la liste : un
+    // compteur approximatif vaut mieux qu'une barre latérale vide.
+    for p in playlists.iter_mut().filter(|p| p.is_smart) {
+        let Some(json) = PlaylistRepository::find_rules(&state.pool, p.id).await.ok().flatten()
+        else {
+            continue;
+        };
+        let Ok(regles) = serde_json::from_str(&json) else {
+            continue;
+        };
+        if let Ok(n) = crate::core::smart_playlist::engine::count(&state.pool, &regles).await {
+            p.track_count = n;
+        }
+    }
 
     Ok(playlists)
 }
@@ -186,6 +215,27 @@ pub async fn get_playlist_tracks(
     state: State<'_, AppState>,
     playlist_id: i64,
 ) -> Result<Vec<PlaylistTrackView>, String> {
+
+    // ─── Une playlist intelligente se calcule au lieu de se lire ───
+    //
+    // La bifurcation est ici, et nulle part ailleurs : la page, la lecture, la
+    // mise en file et l'export interrogent tous cette commande. Elle rend la
+    // même forme dans les deux cas, si bien que rien en aval n'a à connaître la
+    // différence.
+    let regles: Option<String> =
+        sqlx::query_scalar("SELECT rules FROM playlists WHERE id = ? AND is_smart = 1")
+            .bind(playlist_id)
+            .fetch_optional(&state.pool)
+            .await
+            .map_err(|e| format!("Failed to read playlist : {e}"))?
+            .flatten();
+
+    if let Some(json) = regles {
+        let rules: crate::core::smart_playlist::rules::SmartRules =
+            serde_json::from_str(&json).map_err(|e| format!("Règles illisibles : {e}"))?;
+        return crate::core::smart_playlist::engine::evaluate(&state.pool, playlist_id, &rules)
+            .await;
+    }
 
     let tracks: Vec<PlaylistTrackView> = match PlaylistItemRepository::find_all_tracks_by_playlist_id(&state.pool, playlist_id).await {
         Ok(tracks) => tracks,

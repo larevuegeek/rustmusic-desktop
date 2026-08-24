@@ -32,11 +32,14 @@ export interface TrackListView {
   file_size: number | null;
 
   extra_tags: string | null;
+  /** Jeu complet des tags du fichier, en JSON. Source des colonnes de tags. */
+  tags: string | null;
   thumbnail_path: string | null;
   last_scanned_at: string | null;
 
   play_count: number;
   last_played_at: string | null;
+  /** Étoiles, 0,5 à 5,0 par demi (3.5 = trois et demie). `null` = jamais noté. */
   rating: number | null;
   favorite: boolean;
 

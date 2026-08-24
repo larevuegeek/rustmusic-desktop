@@ -7,8 +7,13 @@ import { settingsStore } from "$lib/stores/settings/settings.store";
 import Icon from "@iconify/svelte";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import StarRating from "$lib/components/ui/rating/StarRating.svelte";
+import type { TrackColumn } from "$lib/config/trackColumns";
 
-let { libraryId, track }: { libraryId: any; track: any } = $props();
+// Les colonnes viennent de la page : c'est elle qui tient le choix de
+// l'utilisateur, et la ligne n'a pas à le relire des réglages cent fois
+// par écran.
+let { libraryId, track, columns = [] }:
+    { libraryId: any; track: any; columns?: TrackColumn[] } = $props();
 
 let contextMenu = $state<{ x: number; y: number } | null>(null);
 let isLiked = $derived($liked.paths.has(track.path));
@@ -16,6 +21,12 @@ let selection = $derived($selectionStore);
 let isSelected = $derived(selection.active && selection.ids.has(track.id));
 let singleClickPlay = $derived(settingsStore.get('single_click_play') === 'true');
 
+// Appelée depuis toute la ligne, pas seulement le titre.
+//
+// Le gabarit gardait cet appel derrière `if (selection.active)` : hors mode
+// sélection, cliquer une ligne ne déclenchait donc rien, et le réglage
+// « simple clic = lecture » restait inatteignable. C'est ici que le choix se
+// fait — cocher, lire, ou précharger.
 function handleClick() {
     if (selection.active) {
         selectionStore.toggle(track.id, track);
@@ -30,12 +41,12 @@ function handleClick() {
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
-    class="group flex items-center gap-3 py-1.5 px-2 rounded-md
+    class="row-track-compact group flex items-center gap-3 py-1.5 px-2 rounded-md
            transition-colors duration-100
            {isSelected ? 'bg-emerald-500/10 dark:bg-emerald-500/10' : 'hover:bg-neutral-100 dark:hover:bg-neutral-900'}
            {selection.active ? 'cursor-pointer' : ''}"
     ondblclick={() => { if (!selection.active) handlePlayTrack(track.path); }}
-    onclick={() => { if (selection.active) handleClick(); }}
+    onclick={handleClick}
     oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY }; }}
 >
     <!-- # / Checkbox -->
@@ -83,20 +94,33 @@ function handleClick() {
         </span>
     </button>
 
-    <!-- Artiste -->
-    <span class="hidden sm:block w-40 text-xs text-neutral-500 dark:text-neutral-400 truncate shrink-0">
-        {track.artist ?? ''}
-    </span>
+    <!-- Colonnes choisies -->
+    <!--
+        Largeur et alignement viennent de la même définition que l'en-tête :
+        une colonne ajoutée là se place ici sans rien retoucher.
 
-    <!-- Album -->
-    <span class="hidden md:block w-44 text-xs text-neutral-500 dark:text-neutral-400 truncate shrink-0">
-        {track.album ?? ''}
-    </span>
-
-    <!-- Rating -->
-    <div class="hidden lg:flex shrink-0 w-20">
-        <StarRating trackId={track.id} value={track.rating} size={11} />
-    </div>
+        Plus de `hidden sm:block` : ces seuils masquaient des colonnes que
+        l'utilisateur venait d'ajouter, ce qui donnait une fenêtre où sa
+        décision restait sans effet visible. Le choix des colonnes lui
+        appartient maintenant, et il voit ce qu'il a coché.
+    -->
+    {#each columns as col (col.key)}
+        {#if col.widget === 'rating'}
+            <div class="flex shrink-0 {col.width}">
+                <StarRating trackId={track.id} value={track.rating} size={11} />
+            </div>
+        {:else}
+            <span
+                class="text-xs text-neutral-500 dark:text-neutral-400 truncate shrink-0
+                       {col.width}
+                       {col.align === 'right' ? 'text-right' : ''}
+                       {col.numeric ? 'tabular-nums' : ''}"
+                title={col.value?.(track) ?? ''}
+            >
+                {col.value?.(track) ?? ''}
+            </span>
+        {/if}
+    {/each}
 
     <!-- Like -->
     <button
@@ -107,15 +131,6 @@ function handleClick() {
     >
         <Icon icon={isLiked ? "mynaui:heart-solid" : "lucide:heart"} width={13} />
     </button>
-
-    <!-- Durée -->
-    <span class="text-[11px] tabular-nums text-neutral-400 dark:text-neutral-500 w-10 text-right shrink-0">
-        {#if track.duration}
-            {Math.floor(track.duration / 60)}:{String(Math.floor(track.duration % 60)).padStart(2, '0')}
-        {:else}
-            —
-        {/if}
-    </span>
 
     <!-- Menu -->
     <button

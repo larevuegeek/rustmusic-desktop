@@ -323,7 +323,9 @@
     "wasapi_exclusive_warning": "In modalità esclusiva, RustMusic prende il controllo completo del dispositivo audio: nessunaltra applicazione (browser, gioco, notifiche di sistema) potrà emettere suono durante la riproduzione.",
     "dsd_dop": "DSD nativo (DoP)",
     "dsd_dop_desc": "Invia i tuoi file DSD al DAC senza conversione PCM",
-    "dsd_dop_warning": "Il DSD viene inviato così com'è al DAC (DoP), che lo decodifica in modo nativo. Il volume software è disattivato (bit-perfect): regola il volume sul tuo amplificatore/DAC. Se il DAC rifiuta il formato, viene automaticamente utilizzata la conversione PCM."
+    "dsd_dop_warning": "Il DSD viene inviato così com'è al DAC (DoP), che lo decodifica in modo nativo. Il volume software è disattivato (bit-perfect): regola il volume sul tuo amplificatore/DAC. Se il DAC rifiuta il formato, viene automaticamente utilizzata la conversione PCM.",
+    "auto_download_artist_images": "Scaricamento dei ritratti degli artisti",
+    "auto_download_artist_images_desc": "Interrogare Deezer all'apertura di una scheda artista senza ritratto. Il recupero in blocco resta disponibile su richiesta."
   },
   "about": {
     "title": "Informazioni",

@@ -71,7 +71,7 @@ impl LibraryTrackRepository {
     pub async fn update_rating<'e, E>(
         exec: E,
         track_id: &str,
-        rating: Option<i32>,
+        rating: Option<f64>,
     ) -> Result<(), sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
@@ -225,6 +225,21 @@ impl LibraryTrackRepository {
                 lt.last_played_at                  AS last_played_at,
                 lt.rating                          AS rating,
                 lt.favorite                        AS favorite,
+                -- Les tags ne sont pas transportés ici, et c'est délibéré.
+                --
+                -- Cette requête charge la bibliothèque entière d'un coup, et le
+                -- résultat est ensuite gardé en mémoire et mis en cache côté
+                -- interface. Y joindre le JSON des tags fait passer la charge
+                -- de 6,9 à 18,3 Mo sur neuf mille pistes — mesuré — pour une
+                -- vue qui n'affiche que des cartes, sans colonne de tag.
+                --
+                -- La colonne reste sélectionnée, à NULL : `TrackListView`
+                -- l'exige, et une requête qui ne la fournirait pas échouerait à
+                -- l'exécution sans que le compilateur puisse le signaler.
+                --
+                -- Toute vue en tableau passe par une requête ciblée — album,
+                -- artiste, genre, ou la requête paginée — qui les porte.
+                NULL                               AS tags,
                 lt.created_at                      AS created_at,
                 lt.updated_at                      AS updated_at,
 
@@ -289,6 +304,9 @@ impl LibraryTrackRepository {
         offset: i64,
         limit: i64,
         sort_col: &str,
+        // Valeur à lier au `?` que `sort_col` peut contenir — le nom d'un tag,
+        // tenu hors du texte de la requête. Voir `resolve_sort`.
+        sort_bind: Option<&str>,
         sort_dir: &str,
         filter: Option<&str>,
         missing_cover: bool,
@@ -341,6 +359,7 @@ impl LibraryTrackRepository {
                 COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
                 lt.play_count AS play_count, lt.last_played_at AS last_played_at,
                 lt.rating AS rating, lt.favorite AS favorite,
+                lt.tags AS tags,
                 lt.created_at AS created_at, lt.updated_at AS updated_at,
                 lf.path AS path, lf.filename AS filename, lf.extension AS extension,
                 lf.size AS size, lf.status AS status, lf.is_available AS is_available,
@@ -366,10 +385,16 @@ impl LibraryTrackRepository {
             filter_clause, cover_clause, sort_col, sort_dir
         );
 
+        // L'ordre des liaisons suit celui des `?` dans le texte : la clause
+        // WHERE, puis l'expression de tri qui la suit dans l'ORDER BY, puis
+        // LIMIT et OFFSET. Intervertir ces deux-là ferait trier sur « 100 ».
         let mut data_query = sqlx::query_as::<_, TrackListView>(&data_sql)
             .bind(library_id);
         if let Some(ref pat) = like_pattern {
             data_query = data_query.bind(pat).bind(pat).bind(pat);
+        }
+        if let Some(nom) = sort_bind {
+            data_query = data_query.bind(nom);
         }
         let data_query = data_query.bind(limit).bind(offset);
         let tracks = data_query.fetch_all(&*pool).await?;
@@ -398,6 +423,7 @@ impl LibraryTrackRepository {
                 COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
                 lt.play_count AS play_count, lt.last_played_at AS last_played_at,
                 lt.rating AS rating, lt.favorite AS favorite,
+                lt.tags AS tags,
                 lt.created_at AS created_at, lt.updated_at AS updated_at,
                 lf.path AS path, lf.filename AS filename, lf.extension AS extension,
                 lf.size AS size, lf.status AS status, lf.is_available AS is_available,
@@ -451,6 +477,7 @@ impl LibraryTrackRepository {
                 COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
                 lt.play_count AS play_count, lt.last_played_at AS last_played_at,
                 lt.rating AS rating, lt.favorite AS favorite,
+                lt.tags AS tags,
                 lt.created_at AS created_at, lt.updated_at AS updated_at,
                 lf.path AS path, lf.filename AS filename, lf.extension AS extension,
                 lf.size AS size, lf.status AS status, lf.is_available AS is_available,
@@ -529,6 +556,7 @@ impl LibraryTrackRepository {
                 COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
                 lt.play_count AS play_count, lt.last_played_at AS last_played_at,
                 lt.rating AS rating, lt.favorite AS favorite,
+                lt.tags AS tags,
                 lt.created_at AS created_at, lt.updated_at AS updated_at,
                 lf.path AS path, lf.filename AS filename, lf.extension AS extension,
                 lf.size AS size, lf.status AS status, lf.is_available AS is_available,
@@ -576,6 +604,7 @@ impl LibraryTrackRepository {
                 COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
                 lt.play_count AS play_count, lt.last_played_at AS last_played_at,
                 lt.rating AS rating, lt.favorite AS favorite,
+                lt.tags AS tags,
                 lt.created_at AS created_at, lt.updated_at AS updated_at,
                 lf.path AS path, lf.filename AS filename, lf.extension AS extension,
                 lf.size AS size, lf.status AS status, lf.is_available AS is_available,
@@ -631,6 +660,7 @@ impl LibraryTrackRepository {
                 lt.last_played_at                  AS last_played_at,
                 lt.rating                          AS rating,
                 lt.favorite                        AS favorite,
+                lt.tags                            AS tags,
                 lt.created_at                      AS created_at,
                 lt.updated_at                      AS updated_at,
 
@@ -847,6 +877,7 @@ impl LibraryTrackRepository {
                 COALESCE(lt.bitrate, lc.bitrate) AS bitrate,
                 COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
                 lt.play_count, lt.last_played_at, lt.rating, lt.favorite,
+                lt.tags,
                 lt.created_at, lt.updated_at,
                 lf.path, lf.filename, lf.extension, lf.size,
                 lf.status, lf.is_available, lf.error_message,

@@ -10,6 +10,12 @@ pub struct PlaylistTrackView {
     pub library_track_id: String,
     pub title: Option<String>,
     pub duration: Option<f64>,
+    /// Nombre d'écoutes de la piste.
+    ///
+    /// Porté jusqu'ici parce qu'une playlist est justement l'endroit où l'on se
+    /// demande ce qu'on a déjà usé — et où une liste « les plus écoutés » doit
+    /// pouvoir se justifier ligne à ligne.
+    pub play_count: i64,
     pub track_number: Option<i64>,
     pub disc_number: Option<i64>,
 

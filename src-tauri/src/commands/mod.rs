@@ -18,4 +18,6 @@ pub mod audit_command;
 pub mod rename_command;
 pub mod batch_command;
 pub mod metadata_command;
-pub mod tag_command;
+pub mod tag_command;pub mod export_command;
+pub mod smart_playlist_command;
+pub mod playlist_view_command;

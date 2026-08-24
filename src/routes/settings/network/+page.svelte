@@ -12,12 +12,19 @@
     type DlnaSettings,
   } from "$lib/services/dlna/dlna.service";
   import { dlnaStatusStore, refreshDlnaStatus } from "$lib/stores/dlna/dlna.store";
+  import { settingsStore } from "$lib/stores/settings/settings.store";
 
   let dlnaSettings = $state<DlnaSettings | null>(null);
   let dlnaToggling = $state(false);
   let dlnaSavingName = $state(false);
   let dlnaSavingPort = $state(false);
   let dlnaCopied = $state(false);
+
+  // Absent des réglages d'une installation antérieure : on lit donc
+  // « actif » par défaut, pour ne pas changer le comportement d'un coup.
+  let autoArtistImages = $derived(
+    $settingsStore.auto_download_artist_images !== 'false'
+  );
 
   onMount(async () => {
     try {
@@ -158,4 +165,25 @@
       />
     </OptionRow>
   {/if}
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────────
+     Téléchargements automatiques
+
+     L'application ne contacte d'elle-même qu'un seul service : Deezer, pour
+     le portrait d'un artiste dont la fiche s'ouvre sans image. Tout le reste
+     — pochettes, paroles, correction de tags — attend une demande explicite.
+     ─────────────────────────────────────────────────────────────────────── -->
+<section class="space-y-1 mt-8">
+  <OptionRow
+    icon="lucide:user-round-search"
+    title={$t('settings.auto_download_artist_images')}
+    desc={$t('settings.auto_download_artist_images_desc')}
+  >
+    <ToggleSwitch
+      checked={autoArtistImages}
+      label={$t('settings.auto_download_artist_images')}
+      onclick={() => settingsStore.toggle('auto_download_artist_images')}
+    />
+  </OptionRow>
 </section>

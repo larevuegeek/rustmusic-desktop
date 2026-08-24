@@ -7,8 +7,10 @@
 
 #![cfg(target_os = "windows")]
 
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
 
 use ringbuf::traits::Consumer;
 
@@ -30,7 +32,23 @@ pub struct WasapiExclusiveOutput {
     device_name: String,
     /// Atomics partagés. Le Drop set `is_stopped=true` pour signaler au thread.
     atomics: PlaybackAtomics,
+    /// Levé par le fil de rendu au premier tampon réellement écrit.
+    stream_ready: Arc<AtomicBool>,
 }
+
+/// Délai maximal d'attente du premier tampon.
+///
+/// Au-delà, on rend la main plutôt que de figer l'interface : un périphérique
+/// qui n'a rien émis en cinq secondes ne le fera pas, et mieux vaut une barre
+/// qui avance à tort qu'une application qui paraît bloquée.
+const READY_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Au-delà de ce délai, on note combien de temps le DAC a mis à répondre.
+///
+/// Un démarrage bit-perfect n'est jamais instantané — le pilote reprend la
+/// carte, le convertisseur se verrouille sur la fréquence — mais au-delà d'une
+/// demi-seconde il se passe autre chose, et on veut le chiffre.
+const SLOW_START: Duration = Duration::from_millis(500);
 
 /// Erreur enrichie qui rend le `Consumer` au caller si la négociation échoue,
 /// pour permettre un fallback CPAL propre. Le commit (spawn du thread) prend
@@ -100,6 +118,9 @@ impl WasapiExclusiveOutput {
             pending_seek_frames: shared.pending_seek_frames.clone(),
             output_channels: shared.output_channels,
         };
+        let stream_ready = Arc::new(AtomicBool::new(false));
+        let stream_ready_thread = stream_ready.clone();
+
         let handle = std::thread::Builder::new()
             .name("rustmusic-wasapi-render".into())
             .spawn(move || {
@@ -113,6 +134,7 @@ impl WasapiExclusiveOutput {
                     seek_flush,
                     preferred_for_thread,
                     sym_state,
+                    stream_ready_thread,
                 )
             })
             // Si le spawn échoue (très rare — typiquement OOM), on n'a plus le
@@ -131,15 +153,52 @@ impl WasapiExclusiveOutput {
             format,
             device_name,
             atomics,
+            stream_ready,
         })
     }
 }
 
 impl AudioOutput for WasapiExclusiveOutput {
     fn start(&mut self) -> Result<(), AudioOutputError> {
-        // Pas d'action : le thread render est déjà en cours dès `try_new`.
-        // `start()` existe pour aligner avec CPAL où `stream.play()` doit être
-        // appelé explicitement.
+        // # Attendre le son, pas le thread
+        //
+        // Le fil de rendu tourne depuis `try_new`, mais il n'a alors ni ouvert
+        // le périphérique, ni négocié le format, ni verrouillé le DAC. Rendre
+        // la main tout de suite — ce que faisait cette méthode — revenait à
+        // annoncer une lecture qui ne commencerait qu'une à deux secondes plus
+        // tard. L'interface démarrait sa barre de progression sur cette
+        // promesse, comptait dans le vide, puis se faisait rappeler à l'ordre
+        // par la vraie position et revenait en arrière.
+        //
+        // On attend donc le premier tampon réellement écrit. `start()` est
+        // appelée depuis le fil de lecture, jamais depuis celui de l'interface.
+        let began = Instant::now();
+        while !self.stream_ready.load(Ordering::Acquire) {
+            if self.atomics.is_stopped.load(Ordering::Relaxed) {
+                return Ok(());
+            }
+            if began.elapsed() >= READY_TIMEOUT {
+                log::warn!(
+                    "WASAPI exclusive : aucun tampon écrit après {} s, on continue sans attendre",
+                    READY_TIMEOUT.as_secs()
+                );
+                return Ok(());
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+
+        let waited = began.elapsed();
+        if waited >= SLOW_START {
+            log::warn!(
+                "WASAPI exclusive : premier tampon après {} ms",
+                waited.as_millis()
+            );
+        } else {
+            log::debug!(
+                "▶️  WASAPI exclusive : son effectif après {} ms",
+                waited.as_millis()
+            );
+        }
         Ok(())
     }
 

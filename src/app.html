@@ -1,10 +1,41 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>RustMusic</title>
+    <script>
+      // Thème appliqué AVANT le premier rendu.
+      //
+      // La classe `dark` était écrite en dur sur <html> : chaque chargement
+      // démarrait donc en sombre, et le thème réel n'arrivait qu'une fois
+      // l'application démarrée, les réglages lus en base et l'autostart
+      // vérifié. D'où l'écran qui « redevient sombre » à chaque rechargement,
+      // parfois pendant plusieurs secondes.
+      //
+      // Ce script lit le dernier thème connu dans `localStorage` — synchrone,
+      // disponible immédiatement — et pose la classe avant que quoi que ce
+      // soit ne s'affiche. La base reste la source de vérité : elle corrigera
+      // au chargement si les deux divergent, sans que personne ne le voie.
+      (function () {
+        try {
+          var mode = localStorage.getItem("rustmusic:theme") || "auto";
+          var dark =
+            mode === "dark" ||
+            (mode === "auto" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+
+          if (localStorage.getItem("rustmusic:contrast") === "high") {
+            document.documentElement.setAttribute("data-contrast", "high");
+          }
+        } catch (e) {
+          // Stockage indisponible : on laisse le thème clair, que la base
+          // corrigera. Mieux vaut un bref passage en clair qu'un écran noir.
+        }
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body class="bg-white dark:bg-zinc-950" data-sveltekit-preload-data="hover">

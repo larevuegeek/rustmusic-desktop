@@ -3,6 +3,13 @@ import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView
 import { formatTime } from "$lib/helper/tools/dateTools";
 import { recent } from "$lib/stores/recent/recent.store";
 import Icon from "@iconify/svelte";
+import { invoke } from "@tauri-apps/api/core";
+import ViewModeToggle from "$lib/components/ui/input/ViewModeToggle.svelte";
+import TrackTable from "$lib/components/library/track/TrackTable.svelte";
+import { viewMode } from "$lib/stores/ui/viewMode.store";
+import { libraryStore } from "$lib/stores/library/library.store";
+import { trierPistes, resetTagCache, type SortDir } from "$lib/config/trackColumns";
+import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import PageHeader from "$lib/components/ui/header/PageHeader.svelte";
 import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
@@ -12,6 +19,51 @@ import { onMount } from "svelte";
 import { t } from "$lib/i18n";
 
 let tracks: RecentFileListView[] = $state([]);
+
+// ─── Vue tableau ───
+//
+// Les mêmes colonnes et le même tri que l'onglet Morceaux. La vue tableau se
+// compose à partir de `TrackListView`, que l'historique ne porte pas : il
+// désigne ses morceaux par chemin. On va donc les chercher, et seulement quand
+// le mode tableau est demandé.
+let tableTracks = $state<TrackListView[]>([]);
+let tableSortKey = $state<string | null>(null);
+let tableSortDir = $state<SortDir>('asc');
+let tableLoading = $state(false);
+
+const tableLibraryId = $derived(
+  // La bibliothèque par défaut d'abord : c'est celle dont les tags ont le
+  // plus de chances de correspondre à ce qu'on regarde. Retomber sur la
+  // première venue dépendrait d'un ordre que rien ne garantit.
+  $libraryStore.libraries.find(l => l.is_default)?.id
+    ?? $libraryStore.libraries[0]?.id
+    ?? null
+);
+const tableSorted = $derived(trierPistes(tableTracks, tableSortKey, tableSortDir));
+
+function handleTableSort(key: string, dir: SortDir) {
+  tableSortKey = key;
+  tableSortDir = dir;
+}
+
+$effect(() => {
+  const chemins = tracks.map(t => t.path).filter((p): p is string => !!p);
+  if ($viewMode !== 'list' || chemins.length === 0) return;
+  chargerTableau(chemins);
+});
+
+async function chargerTableau(chemins: string[]) {
+  tableLoading = true;
+  try {
+    resetTagCache();
+    tableTracks = await invoke<TrackListView[]>('get_tracks_view_by_paths', { paths: chemins });
+  } catch (e) {
+    console.error('Vue tableau :', e);
+    tableTracks = [];
+  } finally {
+    tableLoading = false;
+  }
+}
 let loading = $state(false);
 let contextMenu = $state<{ x: number; y: number; track: RecentFileListView } | null>(null);
 
@@ -39,7 +91,11 @@ onMount(() => {
 });
 </script>
 
-<div class="py-5 px-4 md:px-10">
+<!-- La fenêtre ne défile jamais : `html, body` sont en `overflow: hidden`, et
+     le conteneur de contenu de la mise en page l'est aussi. Chaque page doit
+     donc fournir sa propre zone de défilement, sinon ce qui dépasse est
+     simplement rogné — ici la fin de la liste, cachée derrière le lecteur. -->
+<div class="h-full overflow-y-auto scrollbar-app py-5 px-4 md:px-10">
 
   <PageHeader
     title="Récemment joués"
@@ -50,6 +106,12 @@ onMount(() => {
     countLabel="titre"
   >
     {#snippet actions()}
+      <div class="flex items-center gap-2">
+        <!-- La bascule grille/liste vit dans la barre d'onglets de la bibliothèque,
+             qui ne couvre pas ces pages. Sans elle ici, le mode tableau existait
+             sans qu'on puisse le demander. -->
+        <ViewModeToggle />
+      </div>
       {#if tracks.length > 0}
         <button
           class="text-xs text-red-400/60 hover:text-red-400 cursor-pointer transition-colors flex items-center gap-1"
@@ -81,6 +143,21 @@ onMount(() => {
   </div>
 {:else}
 
+  {#if $viewMode === "list"}
+    {#if tableLoading}
+      <div class="flex items-center justify-center py-16">
+        <Icon icon="lucide:loader-2" width="20" class="animate-spin text-neutral-400" />
+      </div>
+    {:else}
+      <TrackTable
+        libraryId={tableLibraryId}
+        tracks={tableSorted}
+        sortKey={tableSortKey}
+        sortDir={tableSortDir}
+        onsort={handleTableSort}
+      />
+    {/if}
+  {:else}
   {#each tracks as track, index (track.path)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="flex items-center justify-between py-3 px-3 rounded-md
@@ -154,6 +231,7 @@ onMount(() => {
       </div>
     </div>
   {/each}
+  {/if}
 {/if}
 </div>
 

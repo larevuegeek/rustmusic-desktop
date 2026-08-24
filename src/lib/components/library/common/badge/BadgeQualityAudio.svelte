@@ -179,7 +179,7 @@ type QualityType = "dsd" | "hires" | "lossless" | "high" | "medium" | "low" | "u
       case "sm":
         return "rounded-sm text-[10px] font-semibold";
       default:
-        return "py-1rounded-md text-[10px] font-semibold";
+        return "py-1 rounded-md text-[10px] font-semibold";
     }
   }
   
@@ -189,7 +189,7 @@ type QualityType = "dsd" | "hires" | "lossless" | "high" | "medium" | "low" | "u
 
 {#if badge}
   <span
-    class={`inline-flex items-center px-2 tracking-wide backdrop-blur-sm 
+    class={`inline-flex items-center px-2 tracking-wide
         ${classes(
         badge.type
         )}

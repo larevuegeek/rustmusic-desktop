@@ -24,6 +24,12 @@ function handleContextMenu(e: MouseEvent) {
     contextMenu = { x: e.clientX, y: e.clientY };
 }
 
+// Appelée depuis toute la ligne, pas seulement le titre.
+//
+// Le gabarit gardait cet appel derrière `if (selection.active)` : hors mode
+// sélection, cliquer une ligne ne déclenchait donc rien, et le réglage
+// « simple clic = lecture » restait inatteignable. C'est ici que le choix se
+// fait — cocher, lire, ou précharger.
 function handleClick() {
     if (selection.active) {
         selectionStore.toggle(track.id, track);
@@ -37,12 +43,12 @@ function handleClick() {
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
-  class="flex items-center justify-between py-3 px-3 rounded-md
+  class="row-track flex items-center justify-between py-3 px-3 rounded-md
           transition-colors duration-150
           {isSelected ? 'bg-emerald-500/10 dark:bg-emerald-500/10' : 'hover:bg-neutral-100 dark:hover:bg-neutral-900'}
           {selection.active ? 'cursor-pointer' : ''}"
   ondblclick={() => { if (!selection.active) handlePlayTrack(track.path); }}
-  onclick={() => { if (selection.active) handleClick(); }}
+  onclick={handleClick}
   oncontextmenu={handleContextMenu}
 >
 <!-- LEFT -->

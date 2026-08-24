@@ -4,6 +4,7 @@ pub mod audio_player {
     pub mod pipeline_info;
     pub mod preload;
     pub mod replay_gain;
+    pub mod startup_timer;
     // WASAPI exclusive mode — Windows only. Sur les autres OS le module est
     // entièrement skipped grâce au `#![cfg(target_os = "windows")]` interne.
     #[cfg(target_os = "windows")]
@@ -128,3 +129,4 @@ pub mod dlna_server {
         pub mod sqlite_provider;
     }
 }
+pub mod smart_playlist;

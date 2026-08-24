@@ -95,7 +95,7 @@ async function loadAlbumTracks() {
         <button
             type="button"
             class="absolute bottom-2 right-2 w-7 h-7 rounded-full
-                   bg-white/10 backdrop-blur-md text-white/60
+                   bg-white/10 group-hover:backdrop-blur-md text-white/60
                    flex items-center justify-center
                    opacity-0 group-hover:opacity-100
                    scale-75 group-hover:scale-100

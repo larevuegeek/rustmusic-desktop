@@ -22,6 +22,7 @@ export interface LibraryTrack {
   play_count: number;
   last_played_at: string | null;
 
+  /** Étoiles, 0,5 à 5,0 par demi (3.5 = trois et demie). `null` = jamais noté. */
   rating: number | null;
   favorite: boolean;
 

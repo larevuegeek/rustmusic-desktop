@@ -12,7 +12,7 @@ pub struct AudioTags {
     pub comment: Option<String>,
     pub track_number: Option<u16>,
     pub genre: Option<String>,
-    pub rating: Option<i32>, // 0-5 stars (POPM → mappé)
+    pub rating: Option<f64>, // 0,5 à 5,0 par demi (POPM → mappé)
 
     // Extensions for ID3v2 and other formats
     pub album_artist: Option<String>,

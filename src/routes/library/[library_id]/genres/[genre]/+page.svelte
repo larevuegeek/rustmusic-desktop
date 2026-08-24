@@ -7,6 +7,9 @@ import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
 import { libraryHeader } from "$lib/stores/library/libraryHeader";
 import AlbumListItem from "$lib/components/library/album/AlbumListItem.svelte";
+import TrackTable from "$lib/components/library/track/TrackTable.svelte";
+import { trierPistes, resetTagCache } from "$lib/config/trackColumns";
+import { viewMode } from "$lib/stores/ui/viewMode.store";
 import { t } from "$lib/i18n";
 import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import { toQueueTracks } from "$lib/helper/tools/queueTools";
@@ -55,6 +58,48 @@ async function playAll() {
   const queueTracks = toQueueTracks(allTracks);
   await queueState.loadTracks(queueTracks);
   playerService.playFile(queueTracks[0]);
+}
+
+// ─── Les morceaux du genre ───
+//
+// Cette page ne montrait que des albums. Les pistes ne sont donc chargées que
+// lorsqu'on demande la vue tableau : les tirer à chaque visite ferait payer une
+// requête sur toute la bibliothèque à qui vient seulement parcourir les
+// pochettes.
+type SortDir = 'asc' | 'desc';
+
+let genreTracks = $state<TrackListView[]>([]);
+let loadingTracks = $state(false);
+let loadedFor = $state<string | null>(null);
+
+let tableSortKey = $state<string | null>(null);
+let tableSortDir = $state<SortDir>('asc');
+
+let tableTracks = $derived(trierPistes(genreTracks, tableSortKey, tableSortDir));
+
+function handleTableSort(key: string, dir: SortDir) {
+  tableSortKey = key;
+  tableSortDir = dir;
+}
+
+$effect(() => {
+  const cible = `${libraryId}:${genreName}`;
+  if ($viewMode !== 'list' || !genreName || loadedFor === cible) return;
+  loadedFor = cible;
+  loadTracks();
+});
+
+async function loadTracks() {
+  loadingTracks = true;
+  try {
+    resetTagCache();
+    genreTracks = await invoke<TrackListView[]>('get_tracks_by_genre', { libraryId, genre: genreName });
+  } catch (e) {
+    console.error('Failed to load genre tracks:', e);
+    genreTracks = [];
+  } finally {
+    loadingTracks = false;
+  }
 }
 </script>
 
@@ -136,9 +181,28 @@ async function playAll() {
     </div>
   </div>
 
-  <!-- ALBUMS -->
+  <!-- ALBUMS ou MORCEAUX, selon le mode d'affichage choisi -->
   <div class="px-8 py-8">
-    {#if genreAlbums.length === 0}
+    {#if $viewMode === 'list'}
+      <h2 class="text-lg font-semibold text-neutral-800 dark:text-neutral-200 mb-4">
+        {$t('library.tracks')}
+      </h2>
+      {#if loadingTracks}
+        <div class="flex items-center justify-center py-16">
+          <Icon icon="lucide:loader-2" width="22" class="animate-spin text-neutral-400" />
+        </div>
+      {:else if genreTracks.length === 0}
+        <p class="text-sm text-neutral-400 text-center py-10">{$t('library.no_album_genre')}</p>
+      {:else}
+        <TrackTable
+          {libraryId}
+          tracks={tableTracks}
+          sortKey={tableSortKey}
+          sortDir={tableSortDir}
+          onsort={handleTableSort}
+        />
+      {/if}
+    {:else if genreAlbums.length === 0}
       <p class="text-sm text-neutral-400 text-center py-10">{$t('library.no_album_genre')}</p>
     {:else}
       <h2 class="text-lg font-semibold text-neutral-800 dark:text-neutral-200 mb-4">{$t('library.albums')}</h2>

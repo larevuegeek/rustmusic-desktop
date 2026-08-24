@@ -276,9 +276,13 @@ impl AudioAnalyser {
                     StandardTag::Rating(ppm) => {
                         // 0.6 normalise le rating en PPM (0..=1_000_000),
                         // quel que soit le format source (POPM, Vorbis…).
-                        // → 0-5 étoiles avec arrondi au plus proche.
-                        let stars = ((*ppm as f64 / 1_000_000.0) * 5.0).round() as i32;
-                        tags.rating = Some(stars.clamp(0, 5));
+                        //
+                        // Cette échelle est bien plus fine que ce qu'on affiche :
+                        // on peut donc arrondir à la demi-étoile sans rien
+                        // inventer, là où l'arrondi à l'étoile entière jetait la
+                        // moitié de l'information portée par le fichier.
+                        let crans = ((*ppm as f64 / 1_000_000.0) * 10.0).round();
+                        tags.rating = Some(crans.clamp(0.0, 10.0) / 2.0);
                     }
                     other => {
                         // Clé connue mais non encore mappée : on garde la clé

@@ -12,17 +12,100 @@
   import { popinStore } from "$lib/stores/ui/popin.store";
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
   import EditPlaylistPopin from "$lib/components/playlist/popin/EditPlaylistPopin.svelte";
+  import SmartPlaylistPopin from "$lib/components/playlist/smart/SmartPlaylistPopin.svelte";
+  import { resumerRegles, type FieldOption, type Group, type Vocabulary } from "$lib/components/playlist/smart/types";
   import PageHeader from "$lib/components/ui/header/PageHeader.svelte";
   import { goto } from "$app/navigation";
   import { t } from "$lib/i18n";
   import { toQueueTracks } from "$lib/helper/tools/queueTools";
   import { queueState } from "$lib/stores/queue/queueState.store";
   import { playerService } from "$lib/services/player/player.service";
+  import ViewModeToggle from "$lib/components/ui/input/ViewModeToggle.svelte";
+  import TrackTable from "$lib/components/library/track/TrackTable.svelte";
+  import { viewMode } from "$lib/stores/ui/viewMode.store";
+  import { libraryStore } from "$lib/stores/library/library.store";
+  import { trierPistes, resetTagCache, type SortDir } from "$lib/config/trackColumns";
+  import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 
   let playlist: Playlist | null = $state(null);
   let tracks: PlaylistTrackView[] = $state([]);
   let loading = $state(true);
   let contextMenu = $state<{ x: number; y: number; track: PlaylistTrackView } | null>(null);
+
+  // ─── Vue tableau ───
+  //
+  // Les mêmes colonnes et le même tri que l'onglet Morceaux. Une commande
+  // dédiée rend la même liste au format de la bibliothèque : `PlaylistTrackView`
+  // ne porte qu'une douzaine de champs, de quoi afficher une ligne mais pas de
+  // quoi trier par débit ni montrer un label de disque.
+  //
+  // Elle sert aussi bien une playlist rangée qu'une intelligente : la
+  // bifurcation est côté Rust, et cette page n'a pas à la connaître.
+  let tableTracks = $state<TrackListView[]>([]);
+  let tableSortKey = $state<string | null>(null);
+  let tableSortDir = $state<SortDir>('asc');
+  let tableLoading = $state(false);
+
+  const tableLibraryId = $derived(
+    // La bibliothèque par défaut d'abord : c'est celle dont les tags ont le
+    // plus de chances de correspondre à ce qu'on regarde. Retomber sur la
+    // première venue dépendrait d'un ordre que rien ne garantit.
+    $libraryStore.libraries.find(l => l.is_default)?.id
+      ?? $libraryStore.libraries[0]?.id
+      ?? null
+  );
+  const tableSorted = $derived(trierPistes(tableTracks, tableSortKey, tableSortDir));
+
+  function handleTableSort(key: string, dir: SortDir) {
+    tableSortKey = key;
+    tableSortDir = dir;
+  }
+
+  $effect(() => {
+    const id = playlistId;
+    if ($viewMode !== 'list' || !id) return;
+    chargerTableau(id);
+  });
+
+  // ─── Ce que la playlist demande, écrit en clair ───
+  //
+  // Une playlist intelligente affichait son nom et son contenu, mais jamais ses
+  // règles. Quand les deux divergeaient — un nom resté d'une recette, des
+  // conditions venues d'une autre — rien ne le signalait : elle avait l'air
+  // correcte partout, et il fallait ouvrir l'éditeur pour s'en apercevoir.
+  let resume = $state<string | null>(null);
+
+  $effect(() => {
+    const id = playlistId;
+    if (!id || !playlist?.is_smart) { resume = null; return; }
+    chargerResume(id);
+  });
+
+  async function chargerResume(id: number) {
+    try {
+      const [voc, regles] = await Promise.all([
+        invoke<Vocabulary>('get_rule_vocabulary'),
+        invoke<Group | null>('get_smart_playlist_rules', { playlistId: id }),
+      ]);
+      resume = regles ? resumerRegles(regles, voc, voc.fields as FieldOption[]) : null;
+    } catch (e) {
+      console.error('Résumé des règles :', e);
+      resume = null;
+    }
+  }
+
+  async function chargerTableau(id: number) {
+    tableLoading = true;
+    try {
+      resetTagCache();
+      tableTracks = await invoke<TrackListView[]>('get_playlist_tracks_view', { playlistId: id });
+    } catch (e) {
+      console.error('Vue tableau :', e);
+      tableTracks = [];
+    } finally {
+      tableLoading = false;
+    }
+  }
 
   const playlistId = $derived(Number(page.params.id));
 
@@ -75,7 +158,11 @@
   });
 </script>
 
-<div class="py-5 px-4 md:px-10">
+<!-- La fenêtre ne défile jamais : `html, body` sont en `overflow: hidden`, et
+     le conteneur de contenu de la mise en page l'est aussi. Chaque page doit
+     donc fournir sa propre zone de défilement, sinon ce qui dépasse est
+     simplement rogné — ici la fin de la liste, cachée derrière le lecteur. -->
+<div class="h-full overflow-y-auto scrollbar-app py-5 px-4 md:px-10">
   {#if loading}
     <div class="flex items-center gap-3 py-20 justify-center text-neutral-500">
       <Icon icon="lucide:loader-2" class="w-5 h-5 animate-spin" />
@@ -84,22 +171,45 @@
   {:else if playlist}
     <PageHeader
       title={playlist.name}
-      subtitle="Playlist"
+      subtitle={playlist.is_smart && resume
+        ? `Playlist intelligente · ${resume}`
+        : playlist.is_smart ? "Playlist intelligente" : "Playlist"}
       icon={playlist.icon}
       iconColor={playlist.color}
-      count={playlist.track_count}
+      count={tracks.length}
       countLabel="titre"
     >
       {#snippet actions()}
         <div class="flex items-center gap-2">
+          <!-- La bascule grille/liste vit dans la barre d'onglets de la bibliothèque,
+             qui ne couvre pas ces pages. Sans elle ici, le mode tableau existait
+             sans qu'on puisse le demander. -->
+          <ViewModeToggle />
+
+          <div class="w-px h-4 bg-neutral-200 dark:bg-white/10"></div>
+
+          <!-- Une playlist intelligente ne se modifie pas comme une autre :
+               ce qu'on veut y changer, ce sont ses règles, pas sa liste. -->
           <button
             type="button"
             class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200
                    cursor-pointer transition-colors flex items-center gap-1"
-            onclick={() => playlist && popinStore.open("Modifier la playlist", EditPlaylistPopin, { playlist })}
+            onclick={() => {
+              if (!playlist) return;
+              if (playlist.is_smart) {
+                popinStore.open(
+                  'Playlist intelligente',
+                  SmartPlaylistPopin,
+                  { playlistId: playlist.id },
+                  { size: 'xl', icon: 'lucide:sparkles', flush: true },
+                );
+              } else {
+                popinStore.open("Modifier la playlist", EditPlaylistPopin, { playlist });
+              }
+            }}
           >
-            <Icon icon="lucide:pen-line" class="w-3 h-3" />
-            {$t('playlist_page.modify')}
+            <Icon icon={playlist?.is_smart ? 'lucide:sparkles' : 'lucide:pen-line'} class="w-3 h-3" />
+            {playlist?.is_smart ? 'Règles' : $t('playlist_page.modify')}
           </button>
 
           <div class="w-px h-4 bg-neutral-200 dark:bg-white/10"></div>
@@ -157,7 +267,30 @@
         </p>
       </div>
     {:else}
-      {#each tracks as track, index (track.playlist_item_id)}
+      <!-- Clé sur la piste, pas sur la ligne de playlist.
+           `playlist_item_id` désigne une ligne de `playlist_items`, qui n'existe
+           que pour les playlists rangées. Une playlist intelligente calcule son
+           contenu : toutes ses lignes portaient donc zéro, et Svelte refusait
+           des clés en double.
+           `library_track_id` convient aux deux : une contrainte d'unicité
+           interdit deux fois le même morceau dans une playlist rangée, et la
+           requête d'évaluation rend une ligne par piste. -->
+      {#if $viewMode === "list"}
+        {#if tableLoading}
+          <div class="flex items-center justify-center py-16">
+            <Icon icon="lucide:loader-2" width="20" class="animate-spin text-neutral-400" />
+          </div>
+        {:else}
+          <TrackTable
+            libraryId={tableLibraryId}
+            tracks={tableSorted}
+            sortKey={tableSortKey}
+            sortDir={tableSortDir}
+            onsort={handleTableSort}
+          />
+        {/if}
+      {:else}
+      {#each tracks as track, index (track.library_track_id)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="flex items-center justify-between py-3 px-3 rounded-md
                     hover:bg-neutral-100 dark:hover:bg-neutral-900
@@ -205,6 +338,21 @@
 
           <!-- RIGHT -->
           <div class="flex items-center gap-6 text-sm text-neutral-500 dark:text-neutral-400 shrink-0">
+            <!-- Le nombre d'écoutes, seulement s'il y en a.
+                 Afficher « 0 écoute » sur les neuf dixièmes d'une bibliothèque
+                 ajouterait une colonne de zéros qui ne dit rien. L'absence est
+                 déjà l'information : ce qui porte un chiffre a été écouté. -->
+            {#if track.play_count > 0}
+              <span
+                class="hidden sm:flex items-center gap-1 text-[11px] tabular-nums
+                       text-neutral-400 dark:text-neutral-500"
+                title="{track.play_count} écoute{track.play_count > 1 ? 's' : ''}"
+              >
+                <Icon icon="mynaui:music" width="11" height="11" />
+                {track.play_count}
+              </span>
+            {/if}
+
             <span class="tabular-nums">
               {formatTime(track.duration ?? 0)}
             </span>
@@ -220,6 +368,7 @@
           </div>
         </div>
       {/each}
+      {/if}
     {/if}
   {/if}
 </div>
@@ -231,9 +380,21 @@
     y={contextMenu.y}
     onclose={() => contextMenu = null}
     showAddToPlaylist={false}
-    showDelete={true}
-    deleteLabel="Retirer de la playlist"
-    ondelete={() => { if (contextMenu) handleRemoveFromPlaylist(contextMenu.track.playlist_item_id); }}
+    {...(playlist?.is_smart
+      ? {
+          // Une playlist intelligente n'a pas de ligne à retirer : son contenu
+          // découle des règles. Proposer « retirer » n'aurait rien fait, et le
+          // morceau aurait disparu de l'écran pour réapparaître au rechargement
+          // — le pire des deux, une action qui semble marcher.
+          showDelete: false,
+        }
+      : {
+          showDelete: true,
+          deleteLabel: "Retirer de la playlist",
+          ondelete: () => {
+            if (contextMenu) handleRemoveFromPlaylist(contextMenu.track.playlist_item_id);
+          },
+        })}
   />
 {/if}
 

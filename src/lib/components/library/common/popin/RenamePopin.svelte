@@ -305,7 +305,7 @@
           <select
             bind:value={root}
             class="h-7 px-2 rounded-lg text-[11.5px] outline-none cursor-pointer
-                   bg-white dark:bg-white/5
+                   bg-white dark:bg-neutral-800
                    ring-1 ring-inset ring-neutral-200 dark:ring-white/10
                    text-neutral-800 dark:text-neutral-100"
           >

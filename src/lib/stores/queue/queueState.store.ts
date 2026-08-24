@@ -345,7 +345,18 @@ export const queueState = {
             title: audioFile.tags.title as string,
             artist: audioFile.tags.artist as string,
             duration: audioFile.duration as number,
-            cover: audioFile.tags.attached_images?.[0].image_src ?? undefined,
+            // `?.[0]?.` et non `?.[0].` : le premier point d'interrogation ne
+            // protège que l'absence du tableau. Sur une liste **vide** — un
+            // morceau sans pochette intégrée, cas courant quand l'illustration
+            // est un `folder.jpg` à côté — `[0]` rend `undefined`, et lire
+            // `.image_src` dessus lève une exception.
+            //
+            // Elle remontait jusqu'au `catch` de `handlePlayTrack`, qui
+            // l'écrivait dans la console et n'en faisait rien : cliquer sur un
+            // tel morceau ne lançait donc **rien du tout**, sans le moindre
+            // message. Lancer un album entier passait, lui, par un autre
+            // chemin — d'où l'impression que seuls les albums étaient jouables.
+            cover: audioFile.tags.attached_images?.[0]?.image_src ?? undefined,
         };
 
         // 1. On met à jour l'état (le UI va s'actualiser direct)

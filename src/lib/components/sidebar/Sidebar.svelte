@@ -8,6 +8,7 @@ import { liked, likedCount } from "$lib/stores/playlist/like.store";
 import { popinStore } from "$lib/stores/ui/popin.store";
 import AddLibraryPopin from "$lib/components/library/common/popin/AddLibraryPopin.svelte";
 import AddPlaylistPopin from "$lib/components/playlist/popin/AddPlaylistPopin.svelte";
+import SmartPlaylistPopin from "$lib/components/playlist/smart/SmartPlaylistPopin.svelte";
 import PlaylistItem from "./PlaylistItem.svelte";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { playlistStore } from "$lib/stores/playlist/playlist.store";
@@ -197,15 +198,38 @@ onMount(() => {
         <h3 class="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-500">
           {$t('nav.playlists')}
         </h3>
-        <button
-          class="w-5 h-5 flex items-center justify-center rounded
-                 text-neutral-400 hover:text-green-500 cursor-pointer
-                 transition-colors"
-          onclick={() => popinStore.open($t('nav.playlists'), AddPlaylistPopin, {})}
-          aria-label="Ajouter une playlist"
-        >
-          <Icon icon="lucide:plus" width="13" height="13" />
-        </button>
+        <div class="flex items-center gap-0.5">
+          <!-- Playlist intelligente : un bouton distinct plutôt qu'un choix
+               dans une fenêtre. Ce sont deux gestes différents — poser une
+               question à la bibliothèque, ou commencer une liste vide — et les
+               confondre derrière un même bouton obligerait à choisir avant de
+               savoir ce qu'on veut. -->
+          <button
+            class="w-5 h-5 flex items-center justify-center rounded
+                   text-neutral-400 hover:text-violet-500 cursor-pointer
+                   transition-colors"
+            onclick={() => popinStore.open(
+              'Playlist intelligente',
+              SmartPlaylistPopin,
+              {},
+              { size: 'xl', icon: 'lucide:sparkles', flush: true },
+            )}
+            aria-label="Nouvelle playlist intelligente"
+            title="Playlist intelligente — se remplit toute seule selon des règles"
+          >
+            <Icon icon="lucide:sparkles" width="13" height="13" />
+          </button>
+          <button
+            class="w-5 h-5 flex items-center justify-center rounded
+                   text-neutral-400 hover:text-green-500 cursor-pointer
+                   transition-colors"
+            onclick={() => popinStore.open($t('nav.playlists'), AddPlaylistPopin, {})}
+            aria-label="Ajouter une playlist"
+            title="Nouvelle playlist"
+          >
+            <Icon icon="lucide:plus" width="13" height="13" />
+          </button>
+        </div>
       </div>
 
       <!-- Liked -->

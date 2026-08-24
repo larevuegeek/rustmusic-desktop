@@ -14,7 +14,10 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::Manager;
 use simplelog::{CombinedLogger, ColorChoice, TermLogger, TerminalMode, WriteLogger, LevelFilter, ConfigBuilder};
 
-use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_track, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_by_genre, list_directory, remove_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, save_thumbnail, read_cover_as_base64};
+use crate::commands::smart_playlist_command::{count_smart_playlist, create_smart_playlist, get_rule_vocabulary, get_smart_playlist_rules, preview_smart_playlist, update_smart_playlist};
+use crate::commands::playlist_view_command::{get_playlist_tracks_view, get_tracks_view_by_paths};
+use crate::commands::export_command::{export_settings_and_playlists, import_settings_and_playlists, preview_import};
+use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_library_tag_keys, get_track, mark_track_played, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_by_genre, list_directory, remove_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, save_thumbnail, read_cover_as_base64};
 use crate::commands::player_command::{AUDIO_PLAYER, get_progress, open_file, open_files, pause_play, play_file, seek_to, stop_play};
 use crate::commands::playlist_command::{add_track_liked, get_tracks_liked, remove_track_liked, get_playlists, get_playlist, create_playlist, update_playlist, delete_playlist, get_playlist_tracks, add_track_to_playlist, remove_track_from_playlist};
 use crate::commands::profil_command::{get_profil, get_all_profils, create_profil, update_profil, delete_profil};
@@ -55,6 +58,28 @@ use crate::core::audio_player::audio_player::AudioPlayer;
 use crate::helper::database::sqlite::{get_database_url};
 use crate::state::AppState;
 
+/// Taille au-delà de laquelle le journal est archivé.
+///
+/// Sans borne, un fichier ouvert en ajout grossit indéfiniment. Cinq mégaoctets
+/// représentent des dizaines de milliers de lignes : de quoi couvrir plusieurs
+/// semaines d'usage, tout en restant ouvrable dans un éditeur.
+const LOG_MAX_BYTES: u64 = 5 * 1024 * 1024;
+
+/// Archive le journal s'il a dépassé sa taille, en n'en gardant qu'un.
+///
+/// Deux fichiers suffisent : l'actuel et le précédent. Au-delà, on accumule
+/// des archives que personne ne relit — et le but est de borner, pas de
+/// constituer un historique.
+fn rotate_log(path: &std::path::Path) {
+    let too_big = fs::metadata(path).map(|m| m.len() > LOG_MAX_BYTES).unwrap_or(false);
+    if !too_big {
+        return;
+    }
+    let archive = path.with_extension("log.1");
+    let _ = fs::remove_file(&archive);
+    let _ = fs::rename(path, &archive);
+}
+
 fn init_logger() {
     let mut log_dir = dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     log_dir.push("com.larevuegeek.rustmusic");
@@ -62,6 +87,7 @@ fn init_logger() {
     fs::create_dir_all(&log_dir).ok();
 
     let log_file = log_dir.join("rustmusic.log");
+    rotate_log(&log_file);
 
     // Ouvrir le fichier en mode append (on ne perd pas les anciens logs)
     if let Ok(file) = fs::OpenOptions::new()
@@ -69,15 +95,38 @@ fn init_logger() {
         .append(true)
         .open(&log_file)
     {
-        let log_config = ConfigBuilder::new()
+        // Date **et** heure. Sans la date, un journal qui couvre plusieurs
+        // jours est illisible : « 12:02:55 » ne dit pas de quel jour, et deux
+        // lignes voisines peuvent être séparées d'une semaine.
+        //
+        // La macro vérifie le format à la compilation : une faute de frappe
+        // devient une erreur de build et non un horodatage muet à l'exécution.
+        let time_format = time::macros::format_description!(
+            "[year]-[month]-[day] [hour]:[minute]:[second]"
+        );
+
+        let mut builder = ConfigBuilder::new();
+        builder
+            .set_time_format_custom(time_format)
             .add_filter_ignore_str("zbus")
             .add_filter_ignore_str("zvariant")
             .add_filter_ignore_str("tracing")
             .add_filter_ignore_str("hyper")
             .add_filter_ignore_str("reqwest")
             .add_filter_ignore_str("h2")
-            .add_filter_ignore_str("rustls")
-            .build();
+            .add_filter_ignore_str("rustls");
+
+        // Heure locale plutôt qu'UTC : on relit un journal en le comparant à
+        // « ça a planté vers 18 h », pas à un décalage qu'il faut calculer.
+        //
+        // L'appel échoue sur certains systèmes — lire le fuseau local n'est pas
+        // sûr en présence de plusieurs fils d'exécution. On garde alors UTC,
+        // qui reste exploitable, plutôt que de renoncer au journal.
+        if builder.set_time_offset_to_local().is_err() {
+            eprintln!("Fuseau local indisponible : les horodatages seront en UTC.");
+        }
+
+        let log_config = builder.build();
 
         CombinedLogger::init(vec![
             // Terminal : tout à partir de Info (visible dans `npm run tauri dev`)
@@ -87,14 +136,50 @@ fn init_logger() {
                 TerminalMode::Mixed,
                 ColorChoice::Auto,
             ),
-            // Fichier : erreurs uniquement
-            WriteLogger::new(LevelFilter::Error, log_config, file),
+            // Fichier : avertissements **et** erreurs. Un avertissement est
+            // souvent la trace de ce qui a mené à la panne — un fichier ignoré,
+            // un repli sur un autre chemin. N'en garder que les erreurs revient
+            // à lire la fin d'une histoire sans son début.
+            WriteLogger::new(LevelFilter::Warn, log_config, file),
         ]).ok();
+
+        install_panic_hook();
 
         log::info!("Logger initialisé → {}", log_file.display());
     } else {
         eprintln!("⚠️ Impossible d'initialiser le logger dans {}", log_file.display());
     }
+}
+
+/// Fait passer les paniques par le journal.
+///
+/// Par défaut un `panic!` écrit sur la sortie d'erreur, qui n'existe pas pour
+/// une application graphique lancée depuis l'explorateur : le fichier de
+/// journal reste muet, et la panne devient une énigme. C'est exactement ce qui
+/// s'est produit avec la base migrée par une version plus récente — aucune
+/// trace, pendant des jours.
+///
+/// Le gestionnaire d'origine est conservé et rappelé : on ajoute une écriture,
+/// on ne change pas le comportement du programme.
+fn install_panic_hook() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_else(|| "emplacement inconnu".to_string());
+
+        // La charge utile est une chaîne dans l'immense majorité des cas.
+        let message = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "panique sans message".to_string());
+
+        log::error!("PANIQUE à {location} — {message}");
+        previous(info);
+    }));
 }
 
 /// Configure the WebKitGTK / GTK rendering pipeline before Tauri starts.
@@ -267,9 +352,14 @@ pub async fn run() {
     // les valeurs par défaut (High) au lieu du choix utilisateur.
     crate::commands::audio_command::init_from_settings(&app_state).await;
 
-    // Auto-start DLNA server if it was enabled at last shutdown.
-    // (Errors are logged inside; never blocks startup.)
-    crate::commands::dlna_command::auto_start_if_enabled(&app_state).await;
+    // Le démarrage automatique du serveur DLNA **n'est pas ici** : il attend
+    // le `setup`, après que le plugin d'instance unique a tranché.
+    //
+    // Avant, il ouvrait le port depuis ce point : chaque double-clic sur une
+    // application déjà lancée produisait une seconde instance qui tentait de
+    // s'y lier, échouait, journalisait « adresse déjà utilisée », puis se
+    // refermait une ligne plus loin en découvrant l'instance existante. Cinq
+    // occurrences dans le journal, toutes fausses.
 
         tauri::Builder::default()
         // ⚠️ IMPORTANT : single-instance DOIT être le premier plugin enregistré
@@ -318,6 +408,33 @@ pub async fn run() {
             }
         }))
         .manage(app_state)
+        // ─── Mémoire de la fenêtre ───
+        //
+        // Taille, position, maximisée, plein écran : sans ça l'application
+        // rouvrait invariablement en 1280×900, quel que soit l'état dans lequel
+        // on l'avait laissée.
+        //
+        // Les drapeaux sont choisis, pas laissés par défaut. `DECORATIONS` en
+        // particulier est écarté : la fenêtre est déclarée `decorations: false`
+        // et porte sa propre barre de titre. Le plugin la restaurerait avec les
+        // décorations du système par-dessus.
+        //
+        // Le plugin plutôt qu'une sauvegarde maison dans la table `settings` :
+        // ce n'est pas la sauvegarde qui est difficile, c'est la restauration.
+        // Une position enregistrée sur un écran débranché depuis rouvre la
+        // fenêtre hors du bureau, injoignable. Le plugin ramène ce cas dans les
+        // limites visibles ; l'écrire soi-même, c'est le découvrir en
+        // production.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED
+                        | tauri_plugin_window_state::StateFlags::FULLSCREEN,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
@@ -422,9 +539,22 @@ pub async fn run() {
                 }
             }
 
+            // ─── SERVEUR DLNA ──────────────────────────────────
+            // Ici et pas avant : à ce point, le plugin d'instance unique a
+            // laissé passer ce processus, donc c'est bien lui qui doit tenir
+            // le port. Une seconde instance se sera refermée sans y toucher.
+            //
+            // Détaché, et les erreurs restent internes : un port occupé par un
+            // autre serveur multimédia est un désagrément, pas une raison
+            // d'empêcher l'écoute.
+            let dlna_state = app.state::<AppState>().inner().clone();
+            tauri::async_runtime::spawn(async move {
+                crate::commands::dlna_command::auto_start_if_enabled(&dlna_state).await;
+            });
+
             Ok(())
         })
-        .on_window_event(|_window, event| {
+        .on_window_event(|window, event| {
             // Fermeture propre de la fenêtre = le boot était OK même si le
             // frontend n'a pas eu le temps d'appeler notify_ui_ready
             // (utilisateur qui ferme l'app immédiatement). Sans ça, un
@@ -434,6 +564,23 @@ pub async fn run() {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 if !crate::core::gpu_sentinel::web_process_crashed() {
                     crate::core::gpu_sentinel::disarm();
+                }
+
+                // Sauvegarde explicite de l'état de la fenêtre.
+                //
+                // Le plugin le fait déjà à la sortie du processus, mais cette
+                // sortie n'a pas toujours lieu : l'application garde une icône
+                // dans la zone de notification, et peut donc survivre à la
+                // fermeture de sa fenêtre. Le moment sûr, c'est **maintenant** —
+                // la fenêtre existe encore, ses dimensions sont lisibles.
+                use tauri_plugin_window_state::{AppHandleExt, StateFlags};
+                if let Err(e) = window.app_handle().save_window_state(
+                    StateFlags::SIZE
+                        | StateFlags::POSITION
+                        | StateFlags::MAXIMIZED
+                        | StateFlags::FULLSCREEN,
+                ) {
+                    log::warn!("État de la fenêtre non sauvegardé : {e}");
                 }
             }
         })
@@ -512,6 +659,19 @@ pub async fn run() {
             set_track_rating,
             get_tracks,
             get_tracks_paginated,
+            get_library_tag_keys,
+            get_playlist_tracks_view,
+            get_tracks_view_by_paths,
+            mark_track_played,
+            export_settings_and_playlists,
+            preview_import,
+            get_rule_vocabulary,
+            count_smart_playlist,
+            preview_smart_playlist,
+            create_smart_playlist,
+            update_smart_playlist,
+            get_smart_playlist_rules,
+            import_settings_and_playlists,
             get_tracks_by_album,
             get_album,
             get_albums,
@@ -578,4 +738,66 @@ pub async fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod logger_tests {
+    use super::*;
+
+    /// Dossier temporaire propre à ce test.
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("rustmusic-log-test-{name}"));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn un_journal_court_n_est_pas_archive() {
+        let dir = scratch("court");
+        let log = dir.join("rustmusic.log");
+        fs::write(&log, b"une ligne").unwrap();
+
+        rotate_log(&log);
+
+        assert!(log.exists(), "le journal courant doit rester en place");
+        assert!(!dir.join("rustmusic.log.1").exists());
+    }
+
+    #[test]
+    fn un_journal_trop_gros_est_archive() {
+        let dir = scratch("gros");
+        let log = dir.join("rustmusic.log");
+        fs::write(&log, vec![b'x'; (LOG_MAX_BYTES + 1) as usize]).unwrap();
+
+        rotate_log(&log);
+
+        // L'ancien contenu est préservé sous un autre nom, pas supprimé : c'est
+        // souvent là que se trouve la trace de la panne qu'on cherche.
+        assert!(dir.join("rustmusic.log.1").exists());
+        assert!(!log.exists(), "le nouveau journal sera recréé à l'ouverture");
+    }
+
+    #[test]
+    fn une_seule_archive_est_conservee() {
+        let dir = scratch("archive");
+        let log = dir.join("rustmusic.log");
+        fs::write(dir.join("rustmusic.log.1"), b"archive precedente").unwrap();
+        fs::write(&log, vec![b'x'; (LOG_MAX_BYTES + 1) as usize]).unwrap();
+
+        rotate_log(&log);
+
+        // La précédente est remplacée, pas accumulée : le but est de borner
+        // l'espace occupé, pas de constituer un historique.
+        let archive = fs::read(dir.join("rustmusic.log.1")).unwrap();
+        assert_ne!(archive, b"archive precedente");
+        assert_eq!(archive.len() as u64, LOG_MAX_BYTES + 1);
+    }
+
+    #[test]
+    fn un_journal_absent_ne_fait_rien() {
+        let dir = scratch("absent");
+        rotate_log(&dir.join("rustmusic.log"));
+        assert!(!dir.join("rustmusic.log.1").exists());
+    }
 }

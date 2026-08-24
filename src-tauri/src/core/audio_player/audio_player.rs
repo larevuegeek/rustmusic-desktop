@@ -172,6 +172,10 @@ impl AudioPlayer {
         // Reset seek position pour le nouveau fichier
         self.seek_position.store(u64::MAX, Ordering::Relaxed);
 
+        // Copie pour le garde-fou : `app_handle` part dans le fil, et il faut
+        // pouvoir débloquer l'interface si celui-ci échoue.
+        let app_handle_guard = app_handle.clone();
+
         std::thread::spawn(move || {
             if let Err(e) = Self::play_file_thread(
                 app_handle,
@@ -187,6 +191,10 @@ impl AudioPlayer {
                 seek_position_clone,
             ) {
                 log::error!("❌ Erreur lecture fichier: {}", e);
+                // Sans ça, un échec de démarrage laisse la barre figée à zéro
+                // pour toujours : l'interface attendrait un `false` que plus
+                // personne n'émettra.
+                let _ = app_handle_guard.emit("playback-preparing", false);
             }
         });
 
@@ -251,6 +259,26 @@ impl AudioPlayer {
         //     robustesse plutôt que de play instantané).
         //   - Sinon streaming direct depuis le disque (play instantané,
         //     pas de latence à l'appui sur ▶).
+        // Chronomètre du démarrage. Il ne coûte qu'un `Instant::now()` par
+        // étape, et il est la seule façon de savoir laquelle traîne — les
+        // suppositions se sont déjà trompées une fois.
+        let mut startup =
+            crate::core::audio_player::startup_timer::StartupTimer::new();
+
+        // ─── La barre de progression attend le premier échantillon ───
+        //
+        // `play_file` lance ce fil puis rend la main aussitôt : l'interface
+        // croit donc la lecture commencée alors que rien n'a démarré. Elle
+        // animait la barre pendant les deux secondes d'ouverture du
+        // périphérique, puis la voyait revenir à zéro quand la vraie position
+        // arrivait.
+        //
+        // Le signal existait déjà, mais n'était émis que par le pré-décodage du
+        // profil Minimal. En le posant ici, **tous** les chemins en bénéficient
+        // — WASAPI exclusif, CPAL partagé, DSD, DoP — et le `false` est déjà
+        // émis par chacun au moment où le son commence réellement.
+        let _ = app_handle.emit("playback-preparing", true);
+
         let pipeline_profile = crate::core::audio_quality::current_profile();
         let needs_preload = crate::core::system_detect::is_network_path(&file_path)
             || matches!(
@@ -276,11 +304,17 @@ impl AudioPlayer {
             MediaSourceStream::new(source, Default::default())
         };
 
+        startup.mark("ouverture du fichier");
+
         let format_opts: FormatOptions = Default::default();
         let metadata_opts: MetadataOptions = Default::default();
 
         let mut format: Box<dyn FormatReader> =
             get_probe().probe(&hint, mss, format_opts, metadata_opts)?;
+
+        // L'analyse du conteneur lit les en-têtes et les tags : sur un fichier
+        // sans index, elle peut parcourir un mégaoctet avant de conclure.
+        startup.mark("analyse du conteneur");
 
         // ─── Replay Gain ───
         // Lu ici parce que les tags sont déjà décodés par le probe : aucun
@@ -673,6 +707,8 @@ impl AudioPlayer {
             output_channels,
         };
 
+        startup.mark("préparation du décodeur");
+
         let mut audio_output = output::create_symphonia_output(
             output::current_preference(),
             source_sample_rate,
@@ -686,9 +722,17 @@ impl AudioPlayer {
         )
         .map_err(|e| -> Box<dyn std::error::Error> { format!("AudioOutput: {e}").into() })?;
 
+        // Ouverture du périphérique et négociation du format. En mode exclusif,
+        // c'est ici que le pilote reprend la main sur la carte — et que le DAC
+        // se verrouille sur la fréquence, ce qui n'est pas instantané.
+        startup.mark("ouverture du périphérique");
+
         audio_output
             .start()
             .map_err(|e| -> Box<dyn std::error::Error> { format!("AudioOutput start: {e}").into() })?;
+
+        startup.mark("démarrage du flux");
+        startup.finish(audio_output.backend().display_name());
 
         log::debug!("▶️ Lecture en cours via {}", audio_output.backend().display_name());
 
@@ -915,6 +959,21 @@ impl AudioPlayer {
 
         log::debug!("✅ Lecture terminée");
 
+        // ─── Lire l'intention avant de démonter la sortie ───
+        //
+        // `is_stopped` porte deux sens que rien ne distingue : « l'utilisateur a
+        // demandé l'arrêt » et « le fil de rendu doit se terminer ». Les sorties
+        // exclusives — WASAPI, ALSA — lèvent le second dans leur `Drop`, pour
+        // rendre le périphérique avant que la piste suivante le réclame.
+        //
+        // Conséquence : après `drop`, le drapeau vaut `true` même sur une fin
+        // naturelle, et le test qui garde `playback-ended` plus bas ne passait
+        // jamais. La file ne s'enchaînait donc pas en bit-perfect — alors
+        // qu'elle s'enchaînait en partagé, où CPAL n'a pas ce `Drop`.
+        //
+        // On fige donc la vraie intention ici, tant qu'elle est encore lisible.
+        let user_stopped = is_stopped.load(Ordering::Relaxed);
+
         drop(audio_output);
         log::debug!("🧹 Fin de lecture - backend audio libéré");
 
@@ -927,7 +986,7 @@ impl AudioPlayer {
         // CONSERVE l'annonce, car le frontend l'a peut-être déjà mise à jour
         // pour la piste qui va suivre — l'effacer nous ferait perdre le
         // préchargement du morceau d'après.
-        if is_stopped.load(Ordering::Relaxed) {
+        if user_stopped {
             crate::core::audio_player::preload::reset();
         } else {
             crate::core::audio_player::preload::abort_current_decode();
@@ -939,7 +998,7 @@ impl AudioPlayer {
         // Envoyer un signal au frontend. On renvoie le chemin de la piste
         // RÉELLEMENT en cours : après un ou plusieurs enchaînements, ce n'est
         // plus celle par laquelle la lecture a commencé.
-        if !is_stopped.load(Ordering::Relaxed) {
+        if !user_stopped {
             if let Err(e) = app_handle.emit("playback-ended", playing_path.to_string_lossy().to_string()) {
                 log::error!("❌ Erreur d'envoi de l'event Tauri : {}", e);
             }

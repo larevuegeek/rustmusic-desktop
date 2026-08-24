@@ -65,7 +65,7 @@ pub struct TrackDetailView {
     // =========================
     pub play_count: i64,
     pub last_played_at: Option<DateTime<Utc>>,
-    pub rating: Option<i32>,
+    pub rating: Option<f64>,
     pub favorite: bool,
 
     // =========================
