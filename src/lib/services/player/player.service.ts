@@ -52,6 +52,24 @@ let lastAnnouncedPath: string | null = null;
 
 let initialized = false;
 
+/**
+ * Vrai quand une action de l'utilisateur va muter la file et décidera
+ * elle-même de la suite.
+ *
+ * Sans lui, un clic sur une piste produit deux intentions concurrentes. La file
+ * est mutée, le synchroniseur y voit un changement de piste et lance la
+ * lecture ; puis l'action, qui voulait seulement sélectionner, appelle
+ * `preloadTrack` — dont le `stopPlay` tue ce qui vient de démarrer.
+ *
+ * D'où le symptôme : « Préparation du morceau… » s'affiche, puis rien, ou une
+ * lecture qui part quelques secondes plus tard selon qui gagne la course.
+ *
+ * En mode « simple clic = lecture », le même enchaînement appelait `playFile`
+ * deux fois — le défaut passait inaperçu, la seconde demande annulant la
+ * première.
+ */
+let actionExplicite = false;
+
 class PlayerService {
 
     // ==========================================
@@ -174,6 +192,18 @@ class PlayerService {
 
             if (!track) {
                 this.stopPlay();
+                return;
+            }
+
+            // Une action de l'utilisateur est en cours : elle a muté la file
+            // et sait ce qu'elle veut en faire — lire, ou seulement
+            // sélectionner. Décider ici reviendrait à choisir à sa place.
+            //
+            // Avant la branche du premier chargement, et non après : sur une
+            // file vide, celle-ci préchargerait avant que l'action n'ait la
+            // main, avec l'arrêt et l'ouverture de fichier que ça suppose.
+            if (actionExplicite) {
+                actionExplicite = false;
                 return;
             }
 
@@ -308,7 +338,20 @@ class PlayerService {
     // ==========================================
     // 📦 PRELOAD (conservé)
     // ==========================================
+    /**
+     * Annonce qu'une action va muter la file et décidera elle-même de la suite.
+     *
+     * À appeler juste avant la mutation. Le drapeau est consommé par le
+     * synchroniseur, ou à défaut par la lecture ou le préchargement qui suit :
+     * il ne peut pas rester armé et avaler une lecture ultérieure.
+     */
+    expectExplicitAction() {
+        actionExplicite = true;
+    }
+
     async preloadTrack(track: QueueTrack) {
+        actionExplicite = false;
+
 
         const currentRequestId = ++playRequestId;
 
@@ -335,6 +378,8 @@ class PlayerService {
     // ▶ PLAY
     // ==========================================
     async playFile(track: QueueTrack) {
+        actionExplicite = false;
+
 
         const currentRequestId = ++playRequestId;
 

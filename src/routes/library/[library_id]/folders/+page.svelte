@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
+  import { viewMode } from "$lib/stores/ui/viewMode.store";
   import { page } from "$app/state";
   import { invoke } from "@tauri-apps/api/core";
   import { libraryHeader } from "$lib/stores/library/libraryHeader";
@@ -306,6 +307,49 @@
         </p>
       </div>
     {:else}
+      {#if $viewMode === 'list'}
+        <!-- Vue tableau des dossiers racines.
+             La grille montre de grandes tuiles, agréables mais peu denses : à
+             partir d'une dizaine de dossiers on passe son temps à faire défiler
+             pour comparer des nombres de fichiers alignés nulle part. -->
+        <div class="flex items-center gap-4 px-3 py-2 mb-1
+                    text-[10px] uppercase tracking-wider text-neutral-400
+                    border-b border-neutral-200/60 dark:border-white/5">
+          <div class="w-10 shrink-0"></div>
+          <div class="flex-1 min-w-0">Dossier</div>
+          <div class="hidden sm:block flex-1 min-w-0">Chemin</div>
+          <div class="w-24 text-right shrink-0">Fichiers</div>
+        </div>
+
+        {#each rootDirs as dir (dir.id)}
+          <button
+            type="button"
+            class="w-full group flex items-center gap-4 px-3 py-2.5 rounded-xl cursor-pointer text-left
+                   hover:bg-neutral-50 dark:hover:bg-white/4 transition-colors duration-100"
+            onclick={() => navigateTo(dir.path, dir.name)}
+          >
+            <div class="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center
+                        bg-green-500/8 group-hover:bg-green-500/15 transition-colors">
+              <Icon icon="lucide:folder" width="18"
+                    class="text-green-500/70 group-hover:text-green-500 transition-colors" />
+            </div>
+            <div class="flex-1 min-w-0 text-sm font-medium truncate
+                        text-neutral-800 dark:text-neutral-200">
+              {dir.name}
+            </div>
+            <!-- Le chemin complet, que la grille ne pouvait pas montrer : c'est
+                 lui qui distingue deux dossiers homonymes sur deux disques. -->
+            <div class="hidden sm:block flex-1 min-w-0 text-xs truncate
+                        text-neutral-400 dark:text-neutral-500" title={dir.path}>
+              {dir.path}
+            </div>
+            <div class="w-24 text-right text-xs tabular-nums shrink-0
+                        text-neutral-500 dark:text-neutral-400">
+              {dir.total_files} fichier{dir.total_files !== 1 ? 's' : ''}
+            </div>
+          </button>
+        {/each}
+      {:else}
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-3">
         {#each rootDirs as dir (dir.id)}
           <button
@@ -331,6 +375,7 @@
           </button>
         {/each}
       </div>
+      {/if}
     {/if}
 
   {:else if entries.length === 0}
@@ -360,6 +405,48 @@
         </p>
       </button>
 
+      {#if $viewMode === 'grid'}
+        <!-- Vue grille des entrées.
+             La liste est plus dense et porte l'extension et la taille ; la
+             grille se parcourt à l'œil, ce qui vaut mieux quand on cherche un
+             dossier parmi trente au nom qui se ressemble. -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5
+                    2xl:grid-cols-6 min-[1800px]:grid-cols-8 gap-3 pt-2">
+          {#each entries as entry (entry.path)}
+            <button
+              type="button"
+              class="group flex flex-col items-center gap-2 p-4 rounded-2xl cursor-pointer
+                     bg-white/50 dark:bg-white/3
+                     border border-neutral-200/50 dark:border-white/5
+                     hover:bg-green-500/5 hover:border-green-500/20
+                     active:scale-[0.97] transition-all duration-200"
+              onclick={() => entry.is_dir ? navigateTo(entry.path, entry.name) : handlePlayTrack(entry.path)}
+              oncontextmenu={(e) => !entry.is_dir && handleContextMenu(e, entry)}
+            >
+              <div class="w-14 h-14 rounded-xl flex items-center justify-center transition-colors
+                          {entry.is_dir
+                            ? 'bg-amber-500/8 group-hover:bg-amber-500/15'
+                            : 'bg-green-500/8 group-hover:bg-green-500/15'}">
+                <Icon icon={entry.is_dir ? 'lucide:folder' : 'lucide:file-audio'} width="24"
+                      class={entry.is_dir ? 'text-amber-500' : 'text-green-500'} />
+              </div>
+              <div class="text-center min-w-0 w-full">
+                <p class="text-sm font-medium truncate text-neutral-700 dark:text-neutral-200"
+                   title={entry.name}>
+                  {entry.name}
+                </p>
+                <p class="text-[10px] text-neutral-400 mt-0.5">
+                  {#if entry.is_dir}
+                    dossier
+                  {:else}
+                    {entry.extension ?? ''}{#if entry.size > 0} · {formatSize(entry.size)}{/if}
+                  {/if}
+                </p>
+              </div>
+            </button>
+          {/each}
+        </div>
+      {:else}
       {#each entries as entry (entry.path)}
         <button
           type="button"
@@ -425,6 +512,7 @@
           {/if}
         </button>
       {/each}
+      {/if}
     </div>
   {/if}
 </div>

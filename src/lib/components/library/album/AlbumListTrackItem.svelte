@@ -28,9 +28,13 @@ function handleContextMenu(e: MouseEvent) {
 // sélection, cliquer une ligne ne déclenchait donc rien, et le réglage
 // « simple clic = lecture » restait inatteignable. C'est ici que le choix se
 // fait — cocher, lire, ou précharger.
-function handleClick() {
+function handleClick(e?: MouseEvent) {
     if (selection.active) {
-        selectionStore.toggle(track.id, track);
+        // Maj étend depuis le dernier élément cliqué, comme dans un
+        // explorateur de fichiers. Sans elle, cocher trente morceaux demande
+        // trente clics.
+        if (e?.shiftKey) selectionStore.selectRange(track.id);
+        else selectionStore.toggle(track.id, track);
     } else if (singleClickPlay) {
         handlePlayTrack(track.path);
     } else {
@@ -68,7 +72,7 @@ function handleDblClick() {
                    transition-all duration-150
                    {isSelected
                      ? 'bg-emerald-500 text-white'
-                     : 'bg-white/5 border border-white/15 text-transparent hover:border-emerald-500/40'}"
+                     : 'bg-white dark:bg-white/5 border border-neutral-300 dark:border-white/15 text-transparent hover:border-emerald-500 dark:hover:border-emerald-500/40'}"
             onclick={(e) => { e.stopPropagation(); selectionStore.toggle(track.id, track); }}
           >
             {#if isSelected}

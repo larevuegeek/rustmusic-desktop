@@ -13,6 +13,26 @@ let contextMenu = $state<{ x: number; y: number } | null>(null);
 async function loadAlbumTracks() {
     return await invoke('get_tracks_by_album', { libraryId, libraryAlbumId: album.id }) as any[];
 }
+
+import { selectionStore } from "$lib/stores/ui/selection.store";
+import { cleGroupe, toggleGroupSelection } from "$lib/helper/tools/selectionGroups";
+
+const selection = $derived($selectionStore);
+const cleSel = $derived(cleGroupe('album', libraryId, album.id));
+const isSelected = $derived(selection.groupes.has(cleSel));
+
+/**
+ * En mode sélection, cocher au lieu de naviguer.
+ *
+ * Le lien reste un lien — survol, clic milieu, préchargement — mais la
+ * navigation est retenue tant que la sélection est active.
+ */
+function handleCardClick(e: MouseEvent) {
+    if (!selection.active) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleGroupSelection('album', libraryId, album.id);
+}
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -21,7 +41,22 @@ async function loadAlbumTracks() {
            hover:bg-neutral-50 dark:hover:bg-white/4 transition-colors duration-100"
     href={`/library/${libraryId}/albums/${album.id}`}
     oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY }; }}
+    onclick={handleCardClick}
 >
+
+    <!-- Case de sélection : en tête de ligne, là où la colonne existe déjà. -->
+    {#if selection.active}
+        <div class="w-5 h-5 rounded shrink-0 flex items-center justify-center
+                    transition-all duration-150
+                    {isSelected
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-white dark:bg-white/5 border border-neutral-300 dark:border-white/15 text-transparent'}">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="3" stroke-linecap="round">
+                <path d="m4.5 12.75 6 6 9-13.5"/>
+            </svg>
+        </div>
+    {/if}
     <!-- Cover -->
     <div class="w-12 h-12 rounded-lg overflow-hidden shrink-0
                 bg-neutral-200 dark:bg-neutral-800 shadow-sm">

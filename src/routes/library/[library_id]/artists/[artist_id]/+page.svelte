@@ -1,5 +1,8 @@
 <script lang="ts">
 import { page } from "$app/state";
+import ArtistListRow from "$lib/components/library/artist/ArtistListRow.svelte";
+import AlbumListRow from "$lib/components/library/album/AlbumListRow.svelte";
+import { selectionStore } from "$lib/stores/ui/selection.store";
 import { goto } from "$app/navigation";
 import { profilSelector } from "$lib/stores/profil/profil.store";
 import type { Library } from "$lib/types/db/library/Library";
@@ -103,6 +106,14 @@ function handleTableSort(key: string, dir: SortDir) {
 $effect(() => {
   const _pistes = artistTracks;
   resetTagCache();
+});
+
+// ─── L'ordre affiché, pour la sélection par plage ───
+//
+// Déclaré aussi en vue cartes : Maj + clic doit fonctionner dans les deux modes,
+// et l'ordre n'y est pas le même.
+$effect(() => {
+  selectionStore.setOrder(visibleTracks.map((t) => ({ id: t.id, track: t })));
 });
 
 function toggleTracksSort(field: TrackSortField) {
@@ -378,15 +389,19 @@ async function loadData(
           {/if}
         </div>
 
-        {#if !loadingTracks && artistTracks.length > 0}
-          <div class="flex items-center rounded-full bg-white/4 border border-white/6 p-0.5">
+        <!-- Masquées en vue tableau : l'en-tête y trie déjà, sur bien plus
+             de colonnes. Deux commandes pour la même chose, dont l'une
+             couvre un sous-ensemble de l'autre, laissent surtout se
+             demander laquelle fait foi. -->
+        {#if !loadingTracks && artistTracks.length > 0 && $viewMode !== 'list'}
+          <div class="flex items-center rounded-full bg-neutral-100 dark:bg-white/4 border border-neutral-200 dark:border-white/6 p-0.5">
             <button
               type="button"
               class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
                      transition-all duration-200
                      {tracksSort === 'album'
-                       ? 'text-white bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-300'}"
+                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
+                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
               onclick={() => toggleTracksSort('album')}
             >
               Album
@@ -399,8 +414,8 @@ async function loadData(
               class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
                      transition-all duration-200
                      {tracksSort === 'year'
-                       ? 'text-white bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-300'}"
+                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
+                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
               onclick={() => toggleTracksSort('year')}
             >
               Année
@@ -413,8 +428,8 @@ async function loadData(
               class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
                      transition-all duration-200
                      {tracksSort === 'title'
-                       ? 'text-white bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-300'}"
+                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
+                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
               onclick={() => toggleTracksSort('title')}
             >
               Titre
@@ -483,14 +498,14 @@ async function loadData(
             </p>
           </div>
 
-          <div class="flex items-center rounded-full bg-white/4 border border-white/6 p-0.5">
+          <div class="flex items-center rounded-full bg-neutral-100 dark:bg-white/4 border border-neutral-200 dark:border-white/6 p-0.5">
             <button
               type="button"
               class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
                      transition-all duration-200
                      {albumsSort === 'year'
-                       ? 'text-white bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-300'}"
+                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
+                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
               onclick={() => toggleAlbumsSort('year')}
             >
               Année
@@ -503,8 +518,8 @@ async function loadData(
               class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
                      transition-all duration-200
                      {albumsSort === 'title'
-                       ? 'text-white bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-300'}"
+                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
+                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
               onclick={() => toggleAlbumsSort('title')}
             >
               Titre
@@ -515,11 +530,22 @@ async function loadData(
           </div>
         </div>
 
+        {#if $viewMode === 'list'}
+        <!-- La sous-section suit le mode d'affichage, comme la liste
+             principale. Une page à moitié en grille et à moitié en tableau
+             donnerait l'impression que la bascule ne marche qu'à moitié. -->
+          <div class="flex flex-col">
+            {#each sortedAlbums as album (album.id)}
+              <AlbumListRow {libraryId} album={album} />
+            {/each}
+          </div>
+        {:else}
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-6">
           {#each sortedAlbums as album (album.id)}
             <AlbumListItem album={album} libraryId={libraryId} />
           {/each}
         </div>
+        {/if}
       {:else}
         <p class="text-sm text-neutral-400 dark:text-neutral-500 mt-2">{$t('library.no_album_artist')}</p>
       {/if}
@@ -542,11 +568,22 @@ async function loadData(
           {$t('library.same_genre')}
         </p>
 
+        {#if $viewMode === 'list'}
+        <!-- La sous-section suit le mode d'affichage, comme la liste
+             principale. Une page à moitié en grille et à moitié en tableau
+             donnerait l'impression que la bascule ne marche qu'à moitié. -->
+          <div class="flex flex-col">
+            {#each similarArtists as similarArtist (similarArtist.id)}
+              <ArtistListRow {libraryId} artist={similarArtist} />
+            {/each}
+          </div>
+        {:else}
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-6">
           {#each similarArtists as similarArtist (similarArtist.id)}
             <ArtistListItem libraryId={libraryId} artist={similarArtist} />
           {/each}
         </div>
+        {/if}
       </div>
     {/if}
 

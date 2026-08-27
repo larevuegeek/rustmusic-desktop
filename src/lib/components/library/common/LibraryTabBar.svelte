@@ -4,6 +4,18 @@ import { page } from "$app/state";
 import Icon from "@iconify/svelte";
 import ViewModeToggle from "$lib/components/ui/input/ViewModeToggle.svelte";
 import { t } from "$lib/i18n";
+import { selectionStore } from "$lib/stores/ui/selection.store";
+
+/**
+ * Le mode sélection se déclenche depuis la barre d'onglets, et non depuis la
+ * barre de filtres.
+ *
+ * Celle-ci n'existe que sur quatre pages : l'onglet Dossiers et toutes les
+ * pages de détail — un album, un artiste, un genre — n'avaient donc aucun moyen
+ * d'entrer en sélection, alors que leurs listes savaient parfaitement y
+ * répondre. Un seul bouton ici les couvre toutes.
+ */
+const selection = $derived($selectionStore);
 
 let { libraryId }: { libraryId: number } = $props();
 
@@ -64,11 +76,29 @@ function navigateTab(key: LibraryTab) {
         {/each}
       </div>
 
-      <!-- Toggle grille/liste (uniquement sur les pages listing) -->
-      {#if isListingPage}
-        <div class="shrink-0 ml-2">
-          <ViewModeToggle showAlphabet={hasAlphabetNav} />
-        </div>
-      {/if}
+      <div class="shrink-0 ml-2 flex items-center gap-1.5">
+        {#if !selection.active}
+          <button
+            type="button"
+            class="flex items-center gap-1 px-2 py-1.5 rounded-lg shrink-0
+                   text-[11px] font-medium cursor-pointer transition-colors
+                   text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200
+                   hover:bg-neutral-100 dark:hover:bg-white/5"
+            onclick={() => selectionStore.start()}
+            title="Sélectionner plusieurs éléments"
+          >
+            <Icon icon="lucide:check-square" width={12} />
+            <span class="hidden md:inline">Sélectionner</span>
+          </button>
+        {/if}
+
+        <!-- Toggle grille/liste, partout.
+             Il était réservé aux pages de listing, alors que les pages de
+             détail — un album, un artiste, un genre — savent depuis peu rendre
+             leurs pistes en tableau. Le mode existait sans qu'on puisse le
+             demander. Seule la navigation alphabétique reste conditionnelle :
+             elle n'a de sens que sur une longue liste triée. -->
+        <ViewModeToggle showAlphabet={hasAlphabetNav} />
+      </div>
     </div>
 </div>

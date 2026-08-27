@@ -16,6 +16,7 @@
     libraryId,
     colonnes,
     onchange,
+    onresetwidths,
   }: {
     open: boolean;
     /** `null` : aucun tag à recenser, seuls les champs bâtis sont proposés. */
@@ -23,6 +24,8 @@
     /** Clés actuellement affichées, dans l'ordre. */
     colonnes: string[];
     onchange: (cles: string[]) => void;
+    /** Rend aux colonnes leur largeur d'origine. */
+    onresetwidths?: () => void;
   } = $props();
 
   let choix = $state<string[]>([]);
@@ -299,14 +302,28 @@
     <!-- Pied -->
     <div class="flex items-center justify-between px-6 py-3
                 border-t border-neutral-200/60 dark:border-white/6">
-      <button
-        type="button"
-        onclick={reinitialiser}
-        class="text-xs cursor-pointer text-neutral-500 dark:text-neutral-400
-               hover:text-neutral-800 dark:hover:text-neutral-200"
-      >
-        Rétablir les colonnes d'origine
-      </button>
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          onclick={reinitialiser}
+          class="text-xs cursor-pointer text-neutral-500 dark:text-neutral-400
+                 hover:text-neutral-800 dark:hover:text-neutral-200"
+        >
+          Rétablir les colonnes d'origine
+        </button>
+        {#if onresetwidths}
+          <!-- Une largeur mal tirée n'a aucun autre moyen de revenir : le geste
+               est libre, donc il lui faut une porte de sortie. -->
+          <button
+            type="button"
+            onclick={onresetwidths}
+            class="text-xs cursor-pointer text-neutral-500 dark:text-neutral-400
+                   hover:text-neutral-800 dark:hover:text-neutral-200"
+          >
+            Rétablir les largeurs
+          </button>
+        {/if}
+      </div>
       <div class="flex items-center gap-2">
         <button
           type="button"

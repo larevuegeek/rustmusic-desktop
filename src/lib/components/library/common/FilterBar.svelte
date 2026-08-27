@@ -13,14 +13,12 @@
     sortDir = $bindable('asc'),
     sortOptions = [],
     onchange = () => {},
-    tracks = [],
   }: {
     filterQuery?: string;
     sortBy?: string;
     sortDir?: string;
     sortOptions?: SortOption[];
     onchange?: () => void;
-    tracks?: any[];
   } = $props();
 
   let selection = $derived($selectionStore);
@@ -99,31 +97,17 @@
       <Icon icon={showFilters ? 'lucide:chevron-up' : 'lucide:chevron-down'} width={12} />
     </button>
 
-    <!-- Selection -->
-    {#if !selection.active}
-      <button
-        type="button"
-        class="flex items-center gap-1 px-2 py-1 rounded-md shrink-0
-               text-[10px] font-medium cursor-pointer transition-colors
-               text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300
-               hover:bg-neutral-100 dark:hover:bg-white/5"
-        onclick={() => selectionStore.start()}
-      >
-        <Icon icon="lucide:check-square" width={11} />
-        Sélectionner
-      </button>
-    {:else}
+    <!-- Le bouton d'entrée en sélection est passé dans la barre d'onglets, qui
+         couvre aussi les pages de détail et l'onglet Dossiers. Ne restent ici
+         que les commandes qui n'ont de sens qu'une fois la sélection active. -->
+    {#if selection.active}
       <div class="flex items-center gap-1 shrink-0">
         <button
           type="button"
           class="flex items-center gap-1 px-2 py-1 rounded-md
                  text-[10px] font-medium cursor-pointer transition-colors
                  text-emerald-500 hover:bg-emerald-500/10"
-          onclick={() => {
-            if (tracks.length > 0) {
-              selectionStore.selectAll(tracks.map((t) => ({ id: t.id, track: t })));
-            }
-          }}
+          onclick={() => selectionStore.selectAllVisible()}
         >
           <Icon icon="lucide:check-check" width={11} />
           Tout

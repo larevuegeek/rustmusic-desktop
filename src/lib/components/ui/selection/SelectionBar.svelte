@@ -144,22 +144,22 @@
     transition:fly={{ y: 20, duration: 200 }}
   >
     <div class="flex items-center gap-2 px-4 py-2.5 rounded-2xl
-                bg-neutral-950/95 backdrop-blur-xl
-                border border-white/10
+                bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl
+                border border-neutral-200 dark:border-white/10
                 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
 
       <!-- Count -->
-      <span class="text-xs font-semibold text-emerald-400 tabular-nums px-2">
+      <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums px-2">
         {selection.count} sélectionné{selection.count > 1 ? 's' : ''}
       </span>
 
-      <div class="w-px h-5 bg-white/10"></div>
+      <div class="w-px h-5 bg-neutral-200 dark:bg-white/10"></div>
 
       <!-- Play -->
       <button
         type="button"
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer
-               text-white bg-emerald-500/15 hover:bg-emerald-500/25
+               text-emerald-700 dark:text-white bg-emerald-500/10 dark:bg-emerald-500/15 hover:bg-emerald-500/20 dark:hover:bg-emerald-500/25
                transition-colors"
         onclick={handlePlayAll}
       >
@@ -171,7 +171,7 @@
       <button
         type="button"
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer
-               text-neutral-300 hover:text-white hover:bg-white/8
+               text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8
                transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         onclick={handleEditTags}
         disabled={$batchStore.running}
@@ -185,7 +185,7 @@
       <button
         type="button"
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer
-               text-neutral-300 hover:text-white hover:bg-white/8
+               text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8
                transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         onclick={handleOpenWorkshop}
         disabled={$batchStore.running || !page.params.library_id}
@@ -199,7 +199,7 @@
       <button
         type="button"
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer
-               text-neutral-300 hover:text-white hover:bg-white/8
+               text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8
                transition-colors"
         onclick={handleAddToQueue}
       >
@@ -212,7 +212,7 @@
         <button
           type="button"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer
-                 text-neutral-300 hover:text-white hover:bg-white/8
+                 text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8
                  transition-colors"
           onclick={() => showPlaylistMenu = !showPlaylistMenu}
         >
@@ -225,8 +225,8 @@
                   onclick={() => showPlaylistMenu = false} aria-label="Fermer"></button>
           <div
             class="absolute bottom-full left-0 mb-2 z-20 w-48 py-1
-                   bg-neutral-950/95 backdrop-blur-xl
-                   border border-white/10
+                   bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl
+                   border border-neutral-200 dark:border-white/10
                    rounded-xl shadow-2xl shadow-black/30
                    max-h-48 overflow-y-auto scrollbar-app"
             transition:fly={{ y: 8, duration: 150 }}
@@ -238,7 +238,7 @@
                 <button
                   type="button"
                   class="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left cursor-pointer
-                         text-neutral-300 hover:bg-white/8 transition-colors"
+                         text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-white/8 transition-colors"
                   onclick={() => handleAddToPlaylist(pl)}
                 >
                   <Icon icon={pl.icon ?? "lucide:list-music"} width="13"
@@ -252,13 +252,13 @@
         {/if}
       </div>
 
-      <div class="w-px h-5 bg-white/10"></div>
+      <div class="w-px h-5 bg-neutral-200 dark:bg-white/10"></div>
 
       <!-- Deselect all -->
       <button
         type="button"
         class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer
-               text-neutral-500 hover:text-neutral-300 hover:bg-white/5
+               text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-white/5
                transition-colors"
         onclick={() => selectionStore.deselectAll()}
       >
@@ -269,7 +269,7 @@
       <button
         type="button"
         class="flex items-center justify-center w-7 h-7 rounded-lg cursor-pointer
-               text-neutral-500 hover:text-white hover:bg-white/8
+               text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8
                transition-colors"
         onclick={() => selectionStore.stop()}
         aria-label="Quitter la sélection"

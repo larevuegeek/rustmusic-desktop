@@ -1,5 +1,6 @@
 <script lang="ts">
 import { page } from "$app/state";
+import { selectionStore } from "$lib/stores/ui/selection.store";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
 import { libraryStore } from "$lib/stores/library/library.store";
@@ -58,6 +59,14 @@ function handleHeaderSort(key: string, dir: SortDir) {
   fetchTracks(true);
   scrollEl?.scrollTo({ top: 0 });
 }
+
+// ─── L'ordre affiché, pour la sélection par plage ───
+//
+// Déclaré aussi en vue cartes : Maj + clic doit fonctionner dans les deux modes,
+// et l'ordre n'y est pas le même.
+$effect(() => {
+  selectionStore.setOrder(tracks.map((t) => ({ id: t.id, track: t })));
+});
 
 let scrollEl = $state<HTMLDivElement | null>(null);
 
@@ -182,7 +191,6 @@ function handleFilterChange() {
       bind:filterQuery bind:sortBy bind:sortDir
       {sortOptions}
       onchange={handleFilterChange}
-      {tracks}
     />
 
     <!-- Liste avec infinite scroll -->

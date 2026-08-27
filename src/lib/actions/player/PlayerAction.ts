@@ -19,6 +19,11 @@ async function handleTrack(path: string): Promise<QueueTrack> {
             await playerService.stopPlay();
         }
 
+        // La mutation qui suit fait réagir le synchroniseur de file. On lui
+        // signale que l'appelant prendra la décision, sinon il lance une
+        // lecture que `handleSelectTrack` s'empresse d'arrêter.
+        playerService.expectExplicitAction();
+
         //On raz la queueState et ajouter ce fichier
         const track = await queueState.loadTrack(path);
 

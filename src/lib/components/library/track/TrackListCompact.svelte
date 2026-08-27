@@ -7,13 +7,19 @@ import { settingsStore } from "$lib/stores/settings/settings.store";
 import Icon from "@iconify/svelte";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import StarRating from "$lib/components/ui/rating/StarRating.svelte";
-import type { TrackColumn } from "$lib/config/trackColumns";
+import { largeurDe, estFlexible, styleCellule, type TrackColumn } from "$lib/config/trackColumns";
 
 // Les colonnes viennent de la page : c'est elle qui tient le choix de
 // l'utilisateur, et la ligne n'a pas à le relire des réglages cent fois
 // par écran.
-let { libraryId, track, columns = [] }:
-    { libraryId: any; track: any; columns?: TrackColumn[] } = $props();
+let { libraryId, track, columns = [], largeurs = {} }:
+    {
+        libraryId: any;
+        track: any;
+        columns?: TrackColumn[];
+        /** Largeurs réglées, par clé de colonne. Voir `TrackTable`. */
+        largeurs?: Record<string, number>;
+    } = $props();
 
 let contextMenu = $state<{ x: number; y: number } | null>(null);
 let isLiked = $derived($liked.paths.has(track.path));
@@ -27,9 +33,13 @@ let singleClickPlay = $derived(settingsStore.get('single_click_play') === 'true'
 // sélection, cliquer une ligne ne déclenchait donc rien, et le réglage
 // « simple clic = lecture » restait inatteignable. C'est ici que le choix se
 // fait — cocher, lire, ou précharger.
-function handleClick() {
+function handleClick(e?: MouseEvent) {
     if (selection.active) {
-        selectionStore.toggle(track.id, track);
+        // Maj étend depuis le dernier élément cliqué, comme dans un
+        // explorateur de fichiers. Sans elle, cocher trente morceaux demande
+        // trente clics.
+        if (e?.shiftKey) selectionStore.selectRange(track.id);
+        else selectionStore.toggle(track.id, track);
     } else if (singleClickPlay) {
         handlePlayTrack(track.path);
     } else {
@@ -49,78 +59,90 @@ function handleClick() {
     onclick={handleClick}
     oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY }; }}
 >
-    <!-- # / Checkbox -->
-    {#if selection.active}
-      <button
-        type="button"
-        class="w-5 h-5 rounded shrink-0 flex items-center justify-center cursor-pointer
-               transition-all duration-150
-               {isSelected
-                 ? 'bg-emerald-500 text-white'
-                 : 'bg-white/5 border border-white/15 text-transparent hover:border-emerald-500/40'}"
-        onclick={(e) => { e.stopPropagation(); selectionStore.toggle(track.id, track); }}
-      >
-        {#if isSelected}
-          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-            <path d="m4.5 12.75 6 6 9-13.5"/>
-          </svg>
-        {/if}
-      </button>
-    {:else}
-      <div class="w-5 text-[10px] text-neutral-400 text-right shrink-0 tabular-nums">
-          {track.track_number ?? '—'}
-      </div>
-    {/if}
+    <!-- ─── Les colonnes, dans l'ordre choisi ───
+         Numéro, pochette et titre étaient écrits ici en dur. Passés dans le
+         registre, ils se masquent et se réordonnent comme les autres, et
+         l'en-tête n'a plus qu'une seule liste à suivre.
 
-    <!-- Cover mini -->
-    <button onclick={handleClick} class="shrink-0 cursor-pointer">
-        <div class="w-8 h-8 rounded overflow-hidden bg-neutral-200 dark:bg-neutral-800">
-            {#if track.thumbnail_path}
-                <CoverImg path={track.thumbnail_path} alt="" size="1x"
-                     class="w-full h-full object-cover" />
-            {:else}
-                <div class="w-full h-full flex items-center justify-center">
-                    <Icon icon="lucide:music" width={12} class="text-neutral-400" />
-                </div>
-            {/if}
-        </div>
-    </button>
-
-    <!-- Titre -->
-    <button onclick={() => handleSelectTrack(track.path)} class="flex-1 min-w-0 text-left cursor-pointer">
-        <span class="text-sm text-neutral-800 dark:text-neutral-200 truncate block"
-              title={track.title}>
-            {track.title}
-        </span>
-    </button>
-
-    <!-- Colonnes choisies -->
-    <!--
-        Largeur et alignement viennent de la même définition que l'en-tête :
-        une colonne ajoutée là se place ici sans rien retoucher.
-
-        Plus de `hidden sm:block` : ces seuils masquaient des colonnes que
-        l'utilisateur venait d'ajouter, ce qui donnait une fenêtre où sa
-        décision restait sans effet visible. Le choix des colonnes lui
-        appartient maintenant, et il voit ce qu'il a coché.
-    -->
+         `flex-1` reste porté par le titre : c'est lui qui absorbe la place
+         restante. S'il est masqué, un remplissage prend le relais — sans quoi
+         les colonnes s'étaleraient jusqu'au bord. -->
     {#each columns as col (col.key)}
-        {#if col.widget === 'rating'}
-            <div class="flex shrink-0 {col.width}">
-                <StarRating trackId={track.id} value={track.rating} size={11} />
-            </div>
+      {@const w = largeurDe(col, largeurs)}
+      {#if col.widget === 'index'}
+        {#if selection.active}
+          <button
+            type="button"
+            class="w-5 h-5 rounded shrink-0 flex items-center justify-center cursor-pointer
+                   transition-all duration-150
+                   {isSelected
+                     ? 'bg-emerald-500 text-white'
+                     : 'bg-white dark:bg-white/5 border border-neutral-300 dark:border-white/15 text-transparent hover:border-emerald-500 dark:hover:border-emerald-500/40'}"
+            onclick={(e) => { e.stopPropagation(); selectionStore.toggle(track.id, track); }}
+          >
+            {#if isSelected}
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                <path d="m4.5 12.75 6 6 9-13.5"/>
+              </svg>
+            {/if}
+          </button>
         {:else}
-            <span
-                class="text-xs text-neutral-500 dark:text-neutral-400 truncate shrink-0
-                       {col.width}
-                       {col.align === 'right' ? 'text-right' : ''}
-                       {col.numeric ? 'tabular-nums' : ''}"
-                title={col.value?.(track) ?? ''}
-            >
-                {col.value?.(track) ?? ''}
-            </span>
+          <div class="text-[10px] text-neutral-400 text-right shrink-0 tabular-nums"
+               style="width: {w}px">
+            {track.track_number ?? '—'}
+          </div>
         {/if}
+
+      {:else if col.widget === 'cover'}
+        <button onclick={handleClick} class="shrink-0 cursor-pointer" style="width: {w}px">
+          <div class="w-8 h-8 rounded overflow-hidden bg-neutral-200 dark:bg-neutral-800">
+            {#if track.thumbnail_path}
+              <CoverImg path={track.thumbnail_path} alt="" size="1x"
+                        class="w-full h-full object-cover" />
+            {:else}
+              <div class="w-full h-full flex items-center justify-center">
+                <Icon icon="lucide:music" width={12} class="text-neutral-400" />
+              </div>
+            {/if}
+          </div>
+        </button>
+
+      {:else if col.widget === 'title'}
+        <button
+          onclick={() => handleSelectTrack(track.path)}
+          class="text-left cursor-pointer"
+          style={styleCellule(col, largeurs)}
+        >
+          <span class="text-sm text-neutral-800 dark:text-neutral-200 truncate block"
+                title={track.title}>
+            {track.title}
+          </span>
+        </button>
+
+      {:else if col.widget === 'rating'}
+        <div class="flex shrink-0" style="width: {w}px">
+          <StarRating trackId={track.id} value={track.rating} size={11} />
+        </div>
+
+      {:else}
+        <span
+          class="text-xs text-neutral-500 dark:text-neutral-400 truncate shrink-0
+                 {col.align === 'right' ? 'text-right' : ''}
+                 {col.numeric ? 'tabular-nums' : ''}"
+          style="width: {w}px"
+          title={col.value?.(track) ?? ''}
+        >
+          {col.value?.(track) ?? ''}
+        </span>
+      {/if}
     {/each}
+
+    <!-- Même remplissage que l'en-tête, à la même condition : les deux doivent
+         se répartir la largeur de la même façon, sinon les colonnes se
+         décalent d'une ligne à l'autre. -->
+    {#if !columns.some(c => estFlexible(c, largeurs))}
+      <div class="flex-1 min-w-0"></div>
+    {/if}
 
     <!-- Like -->
     <button

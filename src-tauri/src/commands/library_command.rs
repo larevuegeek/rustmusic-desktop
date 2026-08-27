@@ -595,7 +595,9 @@ fn resolve_sort(sort_by: Option<&str>) -> (String, Option<String>) {
         Some("date") | Some("created_at") => "lt.created_at",
         Some("last_played_at") => "lt.last_played_at",
         Some("play_count") => "lt.play_count",
-        Some("track_number") => "lt.track_number",
+        // « index » est la clé de la colonne affichée, `track_number` celle du
+        // champ. Les deux mènent au numéro de piste.
+        Some("track_number") | Some("index") => "lt.track_number",
         Some("disc_number") => "lt.disc_number",
         Some("bitrate") => "lt.bitrate",
         Some("sample_rate") => "lt.sample_rate",

@@ -8,10 +8,30 @@ import { invoke } from "@tauri-apps/api/core";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import { preload, preloadAlbumData } from "$lib/actions/preload/preloadAction";
 import { handleAlbumEnqueue } from "$lib/actions/queue/QueueAction";
+import { selectionStore } from "$lib/stores/ui/selection.store";
+import { cleGroupe, toggleGroupSelection } from "$lib/helper/tools/selectionGroups";
 
 let { libraryId, album }: { libraryId: number; album: AlbumListView } = $props();
 
 let contextMenu = $state<{ x: number; y: number } | null>(null);
+
+const selection = $derived($selectionStore);
+const cle = $derived(cleGroupe('album', libraryId, album.id));
+const isSelected = $derived(selection.groupes.has(cle));
+
+/**
+ * En mode sélection, la carte coche au lieu de naviguer.
+ *
+ * Le lien reste un lien — c'est ce qui donne le survol, le clic milieu et le
+ * préchargement — mais on empêche la navigation tant que la sélection est
+ * active. Basculer entre `<a>` et `<div>` selon le mode ferait perdre tout ça.
+ */
+function handleCardClick(e: MouseEvent) {
+    if (!selection.active) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toggleGroupSelection('album', libraryId, album.id);
+}
 
 function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
@@ -41,11 +61,30 @@ async function loadAlbumTracks() {
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <a
-    class="group flex flex-col cursor-pointer"
+    class="group flex flex-col cursor-pointer relative"
     href={`/library/${libraryId}/albums/${album.id}`}
+    onclick={handleCardClick}
     oncontextmenu={handleContextMenu}
     use:preload={() => preloadAlbumData(libraryId, album.id)}
 >
+
+    <!-- Case de sélection.
+         Sur la pochette et non à côté : une grille de cartes n'a pas de marge
+         où loger une colonne de cases, et le coin haut-gauche est le seul
+         endroit qu'aucune vignette n'utilise. Elle n'apparaît qu'en mode
+         sélection, pour ne pas encombrer la navigation ordinaire. -->
+    {#if selection.active}
+        <div class="absolute top-2 left-2 z-10 w-5 h-5 rounded flex items-center justify-center
+                    transition-all duration-150
+                    {isSelected
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-black/40 backdrop-blur-sm border border-white/40 text-transparent'}">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="3" stroke-linecap="round">
+                <path d="m4.5 12.75 6 6 9-13.5"/>
+            </svg>
+        </div>
+    {/if}
 
     <!-- COVER -->
     <div class="aspect-square rounded-lg overflow-hidden

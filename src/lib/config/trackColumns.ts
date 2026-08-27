@@ -16,8 +16,36 @@ export type TrackColumn = {
   key: string;
   /** Intitulé affiché dans l'en-tête et dans le sélecteur. */
   label: string;
-  /** Largeur, en classe Tailwind. `flex-1` est réservé au titre. */
-  width: string;
+  /**
+   * Largeur en pixels.
+   *
+   * Un nombre et non une classe : une largeur qu'on peut tirer à la souris ou
+   * ajuster au contenu doit pouvoir prendre n'importe quelle valeur, ce qu'une
+   * échelle de classes prédéfinies interdit. C'est la valeur de départ ; celle
+   * que l'utilisateur a réglée la remplace.
+   */
+  width: number;
+  /**
+   * La colonne absorbe la place restante.
+   *
+   * Réservé au titre. Une seule colonne peut l'être — deux se partageraient le
+   * reste, et aucune n'aurait plus de largeur prévisible à afficher dans une
+   * poignée de redimensionnement.
+   */
+  flexible?: boolean;
+  /**
+   * Largeur au-dessous de laquelle la colonne ne se comprime pas.
+   *
+   * Ne sert qu'à la colonne souple. Toutes les autres sont fixes : c'est donc
+   * le titre, et lui seul, qui absorbe la compression quand on ajoute des
+   * colonnes. Avec un plancher à zéro il disparaissait purement et simplement
+   * au-delà d'une poignée de colonnes — la ligne restait pleine de valeurs sans
+   * qu'on sache de quel morceau elles parlaient.
+   *
+   * Au-delà de ce plancher, c'est la zone qui défile horizontalement : mieux
+   * vaut faire glisser une liste que la rendre illisible.
+   */
+  minWidth?: number;
   /** Aligné à droite pour les valeurs qu'on compare du regard : durées, tailles. */
   align?: "left" | "right";
   /** Chiffres à chasse fixe, pour que les colonnes de nombres s'alignent. */
@@ -26,7 +54,7 @@ export type TrackColumn = {
    * Rendue par un composant plutôt que par du texte. La notation est
    * interactive : elle ne peut pas être une simple chaîne.
    */
-  widget?: "rating";
+  widget?: "rating" | "index" | "cover" | "title";
   /** Texte de la cellule. `null` laisse la cellule vide. */
   value?: (t: TrackListView) => string | null;
   /**
@@ -210,27 +238,39 @@ function frequence(hz: number | null): string | null {
 // ────────────────────────────────────────────────────────────────────────────
 
 export const COLONNES_FIXES: TrackColumn[] = [
-  { key: "artist", label: "Artiste", width: "w-40", value: (t) => t.artist },
-  { key: "album", label: "Album", width: "w-44", value: (t) => t.album },
-  { key: "album_artist", label: "Artiste d'album", width: "w-40", value: (t) => t.album_artist },
-  { key: "year", label: "Année", width: "w-14", numeric: true, value: (t) => t.year },
-  { key: "genre", label: "Genre", width: "w-28", value: (t) => t.genre },
-  { key: "rating", label: "Notation", width: "w-20", widget: "rating", sortOn: (t) => t.rating, sortKind: "number" },
-  { key: "duration", label: "Durée", width: "w-12", align: "right", numeric: true, value: (t) => duree(t.duration), sortOn: (t) => t.duration, sortKind: "number" },
-  { key: "track_number", label: "N° piste", width: "w-12", align: "right", numeric: true, value: (t) => (t.track_number ? String(t.track_number) : null), sortOn: (t) => t.track_number, sortKind: "number" },
-  { key: "disc_number", label: "N° disque", width: "w-12", align: "right", numeric: true, value: (t) => (t.disc_number ? String(t.disc_number) : null), sortOn: (t) => t.disc_number, sortKind: "number" },
-  { key: "play_count", label: "Écoutes", width: "w-14", align: "right", numeric: true, value: (t) => (t.play_count ? String(t.play_count) : null), sortOn: (t) => t.play_count || null, sortKind: "number" },
-  { key: "last_played_at", label: "Dernière écoute", width: "w-24", numeric: true, value: (t) => date(t.last_played_at), sortOn: (t) => instant(t.last_played_at), sortKind: "number" },
-  { key: "created_at", label: "Ajouté le", width: "w-24", numeric: true, value: (t) => date(t.created_at), sortOn: (t) => instant(t.created_at), sortKind: "number" },
-  { key: "audio_format", label: "Format", width: "w-16", value: (t) => t.audio_format },
-  { key: "extension", label: "Extension", width: "w-16", value: (t) => t.extension },
-  { key: "bitrate", label: "Débit", width: "w-20", align: "right", numeric: true, value: (t) => formatBitrate(t.bitrate) || null, sortOn: (t) => t.bitrate, sortKind: "number" },
-  { key: "sample_rate", label: "Fréquence", width: "w-20", align: "right", numeric: true, value: (t) => frequence(t.sample_rate), sortOn: (t) => t.sample_rate, sortKind: "number" },
-  { key: "bits_per_sample", label: "Bits", width: "w-12", align: "right", numeric: true, value: (t) => (t.bits_per_sample ? `${t.bits_per_sample} bit` : null), sortOn: (t) => t.bits_per_sample, sortKind: "number" },
-  { key: "channels", label: "Canaux", width: "w-16", value: (t) => formatChannels(t.channels) || null, sortOn: (t) => t.channels, sortKind: "number" },
-  { key: "file_size", label: "Taille", width: "w-20", align: "right", numeric: true, value: (t) => poids(t.file_size ?? t.size), sortOn: (t) => t.file_size ?? t.size, sortKind: "number" },
-  { key: "filename", label: "Nom de fichier", width: "w-52", value: (t) => t.filename },
-  { key: "path", label: "Chemin", width: "w-72", value: (t) => t.path },
+  // ─── Les trois premières, longtemps intouchables ───
+  //
+  // Le numéro, la pochette et le titre étaient écrits en dur dans la ligne et
+  // dans l'en-tête. Les faire entrer dans le registre coûte peu et rend le
+  // tableau entièrement configurable : sur un écran étroit, ou pour comparer
+  // des débits, se passer de la pochette a du sens.
+  //
+  // Le titre garde `flex-1` : c'est lui qui absorbe la place restante. S'il est
+  // masqué, la ligne se cale à gauche — voir le remplissage dans la ligne.
+  { key: "index", label: "#", width: 20, align: "right", numeric: true, widget: "index", sortOn: (t) => t.track_number, sortKind: "number" },
+  { key: "cover", label: "Pochette", width: 32, widget: "cover" },
+  { key: "title", label: "Titre", width: 240, flexible: true, minWidth: 180, widget: "title", sortOn: (t) => t.title },
+  { key: "artist", label: "Artiste", width: 160, value: (t) => t.artist },
+  { key: "album", label: "Album", width: 176, value: (t) => t.album },
+  { key: "album_artist", label: "Artiste d'album", width: 160, value: (t) => t.album_artist },
+  { key: "year", label: "Année", width: 56, numeric: true, value: (t) => t.year },
+  { key: "genre", label: "Genre", width: 112, value: (t) => t.genre },
+  { key: "rating", label: "Notation", width: 80, widget: "rating", sortOn: (t) => t.rating, sortKind: "number" },
+  { key: "duration", label: "Durée", width: 48, align: "right", numeric: true, value: (t) => duree(t.duration), sortOn: (t) => t.duration, sortKind: "number" },
+  { key: "track_number", label: "N° piste", width: 48, align: "right", numeric: true, value: (t) => (t.track_number ? String(t.track_number) : null), sortOn: (t) => t.track_number, sortKind: "number" },
+  { key: "disc_number", label: "N° disque", width: 48, align: "right", numeric: true, value: (t) => (t.disc_number ? String(t.disc_number) : null), sortOn: (t) => t.disc_number, sortKind: "number" },
+  { key: "play_count", label: "Écoutes", width: 56, align: "right", numeric: true, value: (t) => (t.play_count ? String(t.play_count) : null), sortOn: (t) => t.play_count || null, sortKind: "number" },
+  { key: "last_played_at", label: "Dernière écoute", width: 96, numeric: true, value: (t) => date(t.last_played_at), sortOn: (t) => instant(t.last_played_at), sortKind: "number" },
+  { key: "created_at", label: "Ajouté le", width: 96, numeric: true, value: (t) => date(t.created_at), sortOn: (t) => instant(t.created_at), sortKind: "number" },
+  { key: "audio_format", label: "Format", width: 64, value: (t) => t.audio_format },
+  { key: "extension", label: "Extension", width: 64, value: (t) => t.extension },
+  { key: "bitrate", label: "Débit", width: 80, align: "right", numeric: true, value: (t) => formatBitrate(t.bitrate) || null, sortOn: (t) => t.bitrate, sortKind: "number" },
+  { key: "sample_rate", label: "Fréquence", width: 80, align: "right", numeric: true, value: (t) => frequence(t.sample_rate), sortOn: (t) => t.sample_rate, sortKind: "number" },
+  { key: "bits_per_sample", label: "Bits", width: 48, align: "right", numeric: true, value: (t) => (t.bits_per_sample ? `${t.bits_per_sample} bit` : null), sortOn: (t) => t.bits_per_sample, sortKind: "number" },
+  { key: "channels", label: "Canaux", width: 64, value: (t) => formatChannels(t.channels) || null, sortOn: (t) => t.channels, sortKind: "number" },
+  { key: "file_size", label: "Taille", width: 80, align: "right", numeric: true, value: (t) => poids(t.file_size ?? t.size), sortOn: (t) => t.file_size ?? t.size, sortKind: "number" },
+  { key: "filename", label: "Nom de fichier", width: 208, value: (t) => t.filename },
+  { key: "path", label: "Chemin", width: 288, value: (t) => t.path },
 ];
 
 /**
@@ -290,7 +330,7 @@ export function colonneDeTag(cle: string): TrackColumn {
   return {
     key: `tag:${cle}`,
     label: intituleDeTag(cle),
-    width: "w-32",
+    width: 128,
     value: (t) => valeurDeTag(t, cle),
   };
 }
@@ -307,7 +347,15 @@ export function tagProposable(cle: string): boolean {
 const PAR_CLE = new Map(COLONNES_FIXES.map((c) => [c.key, c]));
 
 /** Colonnes affichées par défaut : celles de la mise en page d'origine. */
-export const COLONNES_PAR_DEFAUT = ["artist", "album", "rating", "duration"];
+export const COLONNES_PAR_DEFAUT = [
+  "index",
+  "cover",
+  "title",
+  "artist",
+  "album",
+  "rating",
+  "duration",
+];
 
 /**
  * Traduit une liste de clés enregistrées en colonnes affichables.
@@ -338,9 +386,6 @@ export function resoudreColonnes(cles: string[]): TrackColumn[] {
  * affiché évite que retirer une colonne ne casse silencieusement le tri.
  */
 function colonneDeTri(cle: string): TrackColumn | null {
-  if (cle === "title") {
-    return { key: "title", label: "Titre", width: "flex-1", value: (t) => t.title };
-  }
   if (cle.startsWith("tag:")) return colonneDeTag(cle.slice("tag:".length));
   return PAR_CLE.get(cle) ?? null;
 }
@@ -364,14 +409,144 @@ export function trierPistes(
 }
 
 /** Lit la liste enregistrée, en retombant sur la mise en page d'origine. */
+/** Colonnes qui étaient écrites en dur avant d'entrer dans le registre. */
+const STRUCTURELLES = ["index", "cover", "title"];
+
 export function lireColonnes(brut: string | undefined): string[] {
   if (!brut) return COLONNES_PAR_DEFAUT;
+
+  let liste: string[];
   try {
     const v = JSON.parse(brut);
-    return Array.isArray(v) && v.every((x) => typeof x === "string")
-      ? v
-      : COLONNES_PAR_DEFAUT;
+    if (!Array.isArray(v) || !v.every((x) => typeof x === "string")) {
+      return COLONNES_PAR_DEFAUT;
+    }
+    liste = v;
   } catch {
     return COLONNES_PAR_DEFAUT;
   }
+
+  // ─── Reprise des réglages antérieurs ───
+  //
+  // Le numéro, la pochette et le titre étaient écrits en dur : les listes
+  // enregistrées avant ce changement n'en parlent donc pas. Les lire telles
+  // quelles ferait disparaître les trois d'un coup — un réglage qu'on n'a
+  // jamais touché se mettrait à supprimer ce qu'on regarde.
+  //
+  // L'absence des trois signale une liste d'avant ; on les remet en tête. Qui
+  // en masque une ensuite en garde au moins une autre, et la liste ne passe
+  // plus pour ancienne.
+  if (!liste.some((c) => STRUCTURELLES.includes(c))) {
+    return [...STRUCTURELLES, ...liste];
+  }
+
+  return liste;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Largeurs réglées par l'utilisateur
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Bornes d'un redimensionnement, en pixels. */
+export const LARGEUR_MIN = 32;
+export const LARGEUR_MAX = 600;
+
+export function lireLargeurs(brut: string | undefined): Record<string, number> {
+  if (!brut) return {};
+  try {
+    const v = JSON.parse(brut);
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+    const sortie: Record<string, number> = {};
+    for (const [cle, val] of Object.entries(v)) {
+      // Une valeur aberrante — enregistrement corrompu, version antérieure —
+      // est écartée plutôt que de rendre une colonne inatteignable.
+      if (typeof val === "number" && val >= LARGEUR_MIN && val <= LARGEUR_MAX) {
+        sortie[cle] = val;
+      }
+    }
+    return sortie;
+  } catch {
+    return {};
+  }
+}
+
+/** La largeur effective d'une colonne : celle réglée, ou celle d'origine. */
+export function largeurDe(col: TrackColumn, reglees: Record<string, number>): number {
+  return reglees[col.key] ?? col.width;
+}
+
+/**
+ * La colonne absorbe-t-elle encore la place restante ?
+ *
+ * Le titre l'absorbe par défaut. Mais `flex: 1 1 <base>` laisse l'algorithme
+ * flex écraser la base : tant qu'il reste souple, lui donner une largeur ne
+ * change rien à l'écran — c'était le seul en-tête qu'on ne pouvait pas
+ * redimensionner.
+ *
+ * Une largeur réglée à la main l'emporte donc, et la colonne devient fixe. Le
+ * tableau se dote alors d'un remplissage pour absorber ce qui reste, sans quoi
+ * les colonnes flotteraient sans occuper la largeur disponible.
+ */
+export function estFlexible(col: TrackColumn, reglees: Record<string, number>): boolean {
+  return Boolean(col.flexible) && reglees[col.key] === undefined;
+}
+
+/**
+ * Le style d'une cellule, identique dans l'en-tête et dans les lignes.
+ *
+ * Écrit une fois : les deux doivent se répartir la largeur exactement de la
+ * même façon, sinon les colonnes se décalent d'une ligne à l'autre — et c'est
+ * le genre d'écart qu'on ne voit qu'après avoir ajouté la sixième colonne.
+ */
+export function styleCellule(col: TrackColumn, reglees: Record<string, number>): string {
+  const w = largeurDe(col, reglees);
+  if (!estFlexible(col, reglees)) return `width: ${w}px`;
+  return `flex: 1 1 ${w}px; min-width: ${col.minWidth ?? 0}px`;
+}
+
+/**
+ * Mesure la largeur qu'il faudrait pour ne rien tronquer.
+ *
+ * # Pourquoi mesurer le texte et non le DOM
+ * Les lignes portent `content-visibility: auto` : celles qui sont hors du cadre
+ * n'ont pas de disposition calculée, et les interroger rendrait zéro. Mesurer
+ * ce qui est visible donnerait une largeur juste pour l'écran courant et fausse
+ * dès qu'on défile.
+ *
+ * Un canevas mesure le texte sans rien afficher, sur **toutes** les valeurs, et
+ * sans provoquer de recalcul de mise en page.
+ */
+let canevas: HTMLCanvasElement | null = null;
+
+export function largeurAjustee(
+  col: TrackColumn,
+  tracks: TrackListView[],
+  police = "12px Inter Variable, system-ui, sans-serif",
+): number {
+  // Une colonne rendue par un composant n'a pas de texte à mesurer : sa
+  // largeur d'origine est déjà celle de son contenu.
+  if (col.widget && col.widget !== "title") return col.width;
+  if (typeof document === "undefined") return col.width;
+
+  canevas ??= document.createElement("canvas");
+  const ctx = canevas.getContext("2d");
+  if (!ctx) return col.width;
+
+  ctx.font = police;
+
+  // L'intitulé compte : une colonne ajustée à un contenu plus court que son
+  // titre afficherait « Dernière éc… » en en-tête.
+  let large = ctx.measureText(col.label).width;
+
+  const lire = col.value ?? ((t: TrackListView) => (col.widget === "title" ? t.title : null));
+  for (const t of tracks) {
+    const texte = lire(t);
+    if (!texte) continue;
+    const w = ctx.measureText(texte).width;
+    if (w > large) large = w;
+  }
+
+  // Marge intérieure et flèche de tri, que la mesure du texte ignore.
+  const total = Math.ceil(large) + 28;
+  return Math.min(LARGEUR_MAX, Math.max(LARGEUR_MIN, total));
 }

@@ -1,5 +1,149 @@
 # Changelog
 
+## [0.2.3] - 2026-08-27
+
+La vue tableau devient une vraie table : colonnes redimensionnables, en-tête
+qui reste visible, et un mode d'affichage disponible partout. La sélection
+multiple sort enfin de l'onglet Morceaux.
+
+### Colonnes — Largeur
+- Redimensionnement à la souris par une poignée sur le bord droit de chaque
+  en-tête. Elle vit hors du bouton de tri : dedans, un appui pour élargir
+  déclencherait le tri de la colonne.
+- Double-clic sur la poignée : la colonne s'ajuste à son contenu. La mesure
+  passe par un canevas et non par le DOM — les lignes portent
+  `content-visibility`, donc celles hors du cadre n'ont pas de disposition
+  calculée et les mesurer rendrait une largeur juste pour l'écran courant.
+- L'intitulé entre dans le calcul : sans lui, une colonne ajustée à un contenu
+  court afficherait « Dernière éc… » en en-tête.
+- Les largeurs sont enregistrées par colonne, et « Rétablir les largeurs »
+  ramène tout à l'origine.
+- Le titre ne descend plus sous 180 pixels. Seule colonne compressible, il
+  absorbait toute la compression et disparaissait au-delà d'une poignée de
+  colonnes ajoutées.
+
+### Colonnes — Affichage
+- L'en-tête reste visible au défilement. Une valeur sans intitulé ne veut rien
+  dire, surtout quand ce sont des tags qu'on a soi-même choisis.
+- Numéro, pochette et titre entrent dans le sélecteur : les trois premières
+  colonnes se masquent et se réordonnent comme les autres.
+- Les réglages écrits avant ce changement sont repris, sans quoi les trois
+  auraient disparu d'un coup.
+
+### Modes d'affichage
+- Vue tableau pour les onglets Genres et Dossiers, qui n'avaient que la grille.
+- La bascule grille/liste s'affiche aussi sur les pages de détail — le mode y
+  existait sans qu'on puisse le demander.
+- Les sous-sections des pages de détail suivent le mode : autres albums de
+  l'artiste, albums du même genre, artistes similaires, discographie.
+
+### Sélection multiple
+- Fonctionne sur les albums, artistes et genres, en grille comme en liste.
+  Cocher un album développe ses pistes : le compteur annonce « 47 titres » et
+  non « 3 éléments », et toutes les actions continuent de ne connaître qu'une
+  seule sorte d'objet.
+- Le bouton « Sélectionner » passe dans la barre d'onglets. Il n'existait que
+  sur quatre pages ; l'onglet Dossiers et les pages de détail n'avaient aucun
+  moyen d'entrer en sélection.
+- Maj + clic étend depuis le dernier élément cliqué, comme dans un explorateur.
+- « Tout » fonctionne partout : il s'appuyait sur une liste que seul l'onglet
+  Morceaux remplissait.
+- Un clic droit sur une ligne déjà cochée porte sur toute la sélection.
+
+### Playlists
+- Le nombre d'écoutes s'affiche sur chaque ligne, et seulement s'il y en a.
+- Les playlists intelligentes se reconnaissent à une pastille dans la barre
+  latérale, et leur compteur se recalcule au lieu de rester figé à sa valeur
+  d'enregistrement.
+- L'en-tête d'une playlist intelligente écrit ses règles en clair.
+- Les recettes sont disponibles à la modification, sous « Remplacer par une
+  recette » — elles étaient masquées, alors que repartir d'une recette est
+  précisément ce qui répare une playlist mal réglée.
+
+### Corrections
+- « Simple clic = lecture » désactivé : cliquer une piste affichait
+  « Préparation du morceau… » puis rien. Un clic produisait deux intentions
+  concurrentes — la file mutée lançait la lecture, l'action la coupait
+  aussitôt. Le même défaut appelait `playFile` deux fois quand le réglage
+  était actif.
+- Le titre était la seule colonne qu'on ne pouvait pas redimensionner :
+  `flex` écrasait la largeur qu'on lui donnait.
+- Une playlist intelligente refusait de s'afficher — toutes ses lignes
+  portaient la même clé.
+- Modifier une playlist intelligente réécrivait sa couleur et son icône : ni
+  l'une ni l'autre n'était rechargée.
+- Une recette appliquée après une autre gardait le nom de la première.
+- Mode clair : cases à cocher blanches sur blanc, menu de sélection resté
+  entièrement sombre, pastilles de tri quasi invisibles.
+- Les pastilles de tri des pages album et artiste disparaissent en vue
+  tableau, où l'en-tête trie déjà.
+- Défilement absent sur les trois pages de playlist.
+- Le menu contextuel ne propose plus « Retirer » sur une playlist
+  intelligente : l'action n'aurait rien fait tout en semblant marcher.
+
+## [0.2.2] - 2026-08-24
+
+Les playlists se composent à partir de règles, les colonnes se choisissent, et
+les réglages s'exportent.
+
+### Playlists intelligentes
+- Des règles sur 24 champs de la bibliothèque et sur n'importe quel tag des
+  fichiers, avec groupes imbriqués, tri et coupe.
+- Le nombre de morceaux retenus se recalcule pendant qu'on écrit les règles :
+  « supérieur à » et « au moins » s'expliquent mal, un compteur qui passe de
+  3 000 à 12 ne laisse aucun doute.
+- Huit recettes toutes faites, dont « les styles les plus écoutés », qui somme
+  les écoutes par genre au lieu de figer une liste décidée un jour.
+- Le contenu ne se stocke pas, il se calcule : la page, la lecture, la mise en
+  file et l'export passent tous par le même chemin sans connaître la
+  différence.
+
+### Compteur d'écoutes
+- Il n'existait pas. La fonction était écrite dans le dépôt mais n'était
+  appelée nulle part, et `play_count` valait zéro sur toute la bibliothèque.
+- Une écoute compte au-delà de la moitié du morceau, plafonnée à une minute.
+  Compter dès le premier échantillon aurait fait d'un survol de bibliothèque
+  une série de fausses écoutes.
+
+### Colonnes au choix
+- 21 champs de la bibliothèque et tous les tags réellement présents dans les
+  fichiers, recensés avec leur effectif — proposer la liste théorique noierait
+  les cinq tags utiles sous trente-cinq inutiles.
+- Tri par en-tête sur n'importe quelle colonne, dans les deux sens : en base
+  pour l'onglet Morceaux, en mémoire ailleurs. Trier en mémoire une page sur
+  quatorze mille morceaux donnerait un résultat faux à l'air juste.
+- La vue tableau s'étend aux albums, artistes, genres et playlists.
+
+### Export et import
+- Réglages, profils, playlists et titres aimés dans un fichier JSON.
+- Les playlists n'emportent pas d'identifiants, qui n'auraient aucun sens
+  ailleurs : chaque piste part avec son chemin et de quoi la reconnaître si ce
+  chemin a changé.
+- L'import annonce ce qu'il fera avant de l'écrire, et ne remplace une
+  playlist existante que si on le demande.
+
+### Notation
+- Demi-étoiles, en décimal. Les notes existantes valent déjà 1,0 à 5,0 :
+  aucune donnée n'est transformée.
+- Les notes lues dans les fichiers gagnent la même finesse, là où l'arrondi à
+  l'étoile entière jetait la moitié de l'information.
+
+### Corrections
+- La file ne s'enchaînait pas en bit-perfect : le `Drop` des sorties
+  exclusives levait le drapeau d'arrêt, et `playback-ended` n'était jamais
+  émis. WASAPI et ALSA étaient touchés.
+- Les compteurs de playlist mentaient. Retirer un dossier efface en cascade
+  fichiers, pistes et entrées de playlist ; le compteur restait sur son
+  ancienne valeur. Il se lit désormais au lieu d'être cru.
+- Menus déroulants blancs en thème sombre : `color-scheme` n'était pas
+  déclaré, et un fond translucide ne peut pas servir de surface à une liste
+  déroulante.
+- Listes plus fluides : `content-visibility` sur les lignes, et un flou
+  d'arrière-plan par piste supprimé — son fond était uni, il n'y avait rien à
+  flouter.
+- Le téléchargement des portraits d'artistes est débrayable.
+- La fenêtre retient sa taille et sa position.
+
 ## [0.2.1] - 2026-08-20
 
 L'atelier de tags gagne de quoi ranger une bibliothèque, pas seulement la

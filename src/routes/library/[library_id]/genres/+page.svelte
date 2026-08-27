@@ -10,6 +10,10 @@ import { libraryStore } from "$lib/stores/library/library.store";
 import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
 import FilterBar from "$lib/components/library/common/FilterBar.svelte";
 import type { GenreView } from "$lib/types/ui/library/genre/GenreView";
+import { selectionStore } from "$lib/stores/ui/selection.store";
+import { viewMode } from "$lib/stores/ui/viewMode.store";
+import GenreListRow from "$lib/components/library/genre/GenreListRow.svelte";
+import { cleGroupe, toggleGroupSelection } from "$lib/helper/tools/selectionGroups";
 
 const libraryId = $derived(Number(page.params.library_id));
 
@@ -85,6 +89,24 @@ $effect(() => {
   });
 });
 
+// ─── Sélection d'un genre ───
+//
+// Un genre n'a pas d'identifiant : son nom en tient lieu, ici comme dans la
+// route et dans la requête.
+const selection = $derived($selectionStore);
+
+function genreSelectionne(nom: string): boolean {
+  return selection.groupes.has(cleGroupe('genre', libraryId, nom));
+}
+
+function handleGenreClick(nom: string) {
+  if (selection.active) {
+    toggleGroupSelection('genre', libraryId, nom);
+    return;
+  }
+  goto(`/library/${libraryId}/genres/${encodeURIComponent(nom)}`);
+}
+
 // Couleurs aléatoires mais déterministes par genre (hash simple)
 function genreColor(name: string): string {
   let hash = 0;
@@ -132,8 +154,22 @@ function genreColor(name: string): string {
       {sortOptions}
     />
 
-    <!-- Grille -->
     <div class="flex-1 scrollbar-app overflow-y-auto p-6">
+      {#if $viewMode === 'list'}
+        <!-- En-tête de colonnes : mêmes largeurs que les lignes. Sans elle, les
+             deux nombres de droite ne s'expliquent pas. -->
+        <div class="flex items-center gap-4 px-3 py-2 mb-1
+                    text-[10px] uppercase tracking-wider text-neutral-400
+                    border-b border-neutral-200/60 dark:border-white/5">
+          <div class="w-12 shrink-0"></div>
+          <div class="flex-1 min-w-0">Genre</div>
+          <div class="hidden sm:block w-24 text-right shrink-0">Albums</div>
+          <div class="w-24 text-right shrink-0">Titres</div>
+        </div>
+        {#each filteredGenres as genre (genre.name)}
+          <GenreListRow {libraryId} {genre} color={genreColor(genre.name)} />
+        {/each}
+      {:else}
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-8 gap-4">
         {#each filteredGenres as genre (genre.name)}
           {@const color = genreColor(genre.name)}
@@ -142,8 +178,22 @@ function genreColor(name: string): string {
             class="group relative aspect-square overflow-hidden rounded-2xl cursor-pointer
                    transition-all duration-200
                    hover:shadow-2xl hover:shadow-black/20 active:scale-[0.97] hover:scale-[1.03]"
-            onclick={() => goto(`/library/${libraryId}/genres/${encodeURIComponent(genre.name)}`)}
+            onclick={() => handleGenreClick(genre.name)}
           >
+            <!-- Case de sélection, posée sur la vignette : une grille n'a pas
+                 de marge où loger une colonne de cases. -->
+            {#if selection.active}
+              <div class="absolute top-2 left-2 z-20 w-5 h-5 rounded flex items-center justify-center
+                          transition-all duration-150
+                          {genreSelectionne(genre.name)
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-black/40 backdrop-blur-sm border border-white/40 text-transparent'}">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="3" stroke-linecap="round">
+                  <path d="m4.5 12.75 6 6 9-13.5"/>
+                </svg>
+              </div>
+            {/if}
             <!-- Fond -->
             {#if genre.covers.length >= 4}
               <div class="absolute inset-0 grid grid-cols-2">
@@ -183,6 +233,7 @@ function genreColor(name: string): string {
           </button>
         {/each}
       </div>
+      {/if}
     </div>
   </div>
 {/if}

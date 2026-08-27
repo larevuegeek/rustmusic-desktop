@@ -33,6 +33,9 @@ export type AppSettings = {
   // Colonnes de l'onglet Morceaux, en JSON : un tableau de clés, dans l'ordre
   // d'affichage. Voir `$lib/config/trackColumns`.
   track_columns: string;
+  // Largeurs réglées à la main, en JSON : clé de colonne → pixels. Les colonnes
+  // absentes gardent leur largeur d'origine.
+  track_column_widths: string;
 };
 
 const defaults: AppSettings = {
@@ -55,6 +58,7 @@ const defaults: AppSettings = {
   window_controls_position: 'right',
   auto_download_artist_images: 'true',
   track_columns: '["artist","album","rating","duration"]',
+  track_column_widths: '{}',
 };
 
 // Actions spéciales par clé — exécutées APRÈS la sauvegarde en BDD
