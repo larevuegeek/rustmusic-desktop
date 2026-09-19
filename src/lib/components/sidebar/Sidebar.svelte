@@ -19,8 +19,50 @@ import LibrarySelector from "$lib/components/library/common/LibrarySelector.svel
 import LogoRustMusic from "$lib/components/ui/logo/LogoRustMusic.svelte";
 import { recentCount } from "$lib/stores/recent/recent.store";
 import { sidebarStore } from "$lib/stores/ui/sidebar.store";
+import { settingsStore } from "$lib/stores/settings/settings.store";
+import {
+  dernierOnglet,
+  lireOnglets,
+  lirePlacement,
+  memoriserOnglet,
+  ongletCourant,
+  resoudreOnglets,
+  type LibraryTabKey,
+} from "$lib/config/libraryTabs";
 
 const pathname = $derived(page.url.pathname);
+
+// `!== 'false'` : sans réglage en base, le défaut est « visible ».
+const montrerLikes = $derived($settingsStore.show_liked_in_playlists !== 'false');
+const montrerRecents = $derived($settingsStore.show_recent_in_playlists !== 'false');
+
+// `=== 'true'` : masqué par défaut, l'absence de réglage vaut « caché ».
+const montrerBoutonsOuvrir = $derived($settingsStore.show_open_buttons === 'true');
+
+// ─── Sections de la bibliothèque ───
+const ongletOuvert = $derived(ongletCourant(pathname));
+
+// Vide si les sections sont voulues en haut. L'onglet courant n'est pas
+// forcé ici : une liste verticale qui gagne une ligne fait sauter la suite.
+const ongletsLateraux = $derived(
+  lirePlacement($settingsStore.library_tabs_position) === 'top'
+    ? []
+    : resoudreOnglets(lireOnglets($settingsStore.library_tabs))
+);
+
+function allerVersOnglet(cle: LibraryTabKey) {
+  const id = $libraryStore.librarySelected?.id;
+  if (id == null) return;
+  memoriserOnglet(id, cle);
+  nav(`/library/${id}/${cle}`);
+}
+
+/** Porte d'entrée indépendante des réglages, vers la dernière section ouverte. */
+function allerVersBibliotheque() {
+  const id = $libraryStore.librarySelected?.id;
+  if (id == null) return;
+  nav(`/library/${id}/${dernierOnglet(id)}`);
+}
 
 // Fermer la sidebar sur mobile quand on navigue
 function nav(path: string) {
@@ -29,10 +71,6 @@ function nav(path: string) {
 }
 const profil = $derived($profilSelector.profilSelected);
 const profilColor = $derived(profil?.color ?? '#22c55e');
-
-function isActive(section: string) {
-  return pathname.endsWith(`/${section}`);
-}
 
 onMount(() => {
   liked.refresh();
@@ -74,12 +112,22 @@ onMount(() => {
     <!-- Navigation -->
     <div class="pb-1 mb-1">
       <SidebarItem onclick={() => nav("/")} icon="mynaui:home-solid" active={pathname === '/'}> {$t('nav.home')}</SidebarItem>
+
+      <!-- Seulement quand la gauche ne liste aucune section : sinon doublon. -->
+      {#if ongletsLateraux.length === 0 && $libraryStore.librarySelected}
+        <SidebarItem
+          onclick={allerVersBibliotheque}
+          icon="lucide:library"
+          active={ongletOuvert !== null}
+        >{$t('nav.library')}</SidebarItem>
+      {/if}
     </div>
 
+    <!-- Masqué par défaut. Le séparateur part avec, sinon il en reste deux. -->
+    {#if montrerBoutonsOuvrir}
     <!-- Séparateur -->
     <div class="h-px mx-3 mb-3 bg-linear-to-r from-transparent via-neutral-200/80 dark:via-neutral-700/30 to-transparent"></div>
 
-    <!-- Import rapide -->
     <h3 class="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-500 px-2 mb-2">
       {$t('nav.open')}
     </h3>
@@ -117,6 +165,7 @@ onMount(() => {
         {$t('nav.import_folder')}
       </button>
     </div>
+    {/if}
 
     <!-- Séparateur gradient -->
     <div class="h-px mx-2 mb-4 bg-linear-to-r from-transparent via-neutral-300/70 dark:via-neutral-700/30 to-transparent"></div>
@@ -181,11 +230,14 @@ onMount(() => {
       {:else}
         <LibrarySelector />
 
-        <SidebarItem onclick={() => nav(`/library/${$libraryStore.librarySelected?.id}/tracks`)} active={isActive("tracks")} icon="mynaui:music">{$t('library.tracks')}</SidebarItem>
-        <SidebarItem onclick={() => nav(`/library/${$libraryStore.librarySelected?.id}/albums`)} active={isActive("albums")} icon="lucide:disc-album">{$t('library.albums')}</SidebarItem>
-        <SidebarItem onclick={() => nav(`/library/${$libraryStore.librarySelected?.id}/artists`)} active={isActive("artists")} icon="lucide:mic-2">{$t('library.artists')}</SidebarItem>
-        <SidebarItem onclick={() => nav(`/library/${$libraryStore.librarySelected?.id}/genres`)} active={isActive("genres")} icon="lucide:tag">{$t('library.genres')}</SidebarItem>
-        <SidebarItem onclick={() => nav(`/library/${$libraryStore.librarySelected?.id}/folders`)} active={isActive("folders")} icon="lucide:folder-open">{$t('nav.explorer')}</SidebarItem>
+        <!-- Registre partagé avec la barre du haut. -->
+        {#each ongletsLateraux as onglet (onglet.key)}
+          <SidebarItem
+            onclick={() => allerVersOnglet(onglet.key)}
+            active={ongletOuvert === onglet.key}
+            icon={onglet.icon}
+          >{$t(onglet.labelKey)}</SidebarItem>
+        {/each}
       {/if}
     </div>
 
@@ -233,6 +285,7 @@ onMount(() => {
       </div>
 
       <!-- Liked -->
+      {#if montrerLikes}
       <button
         class="group flex w-full items-center gap-3 px-2 py-1.5 rounded-lg text-left cursor-pointer
                transition-all duration-150
@@ -254,8 +307,10 @@ onMount(() => {
           <div class="text-[11px] truncate text-neutral-400 dark:text-neutral-500">{$likedCount} titre{$likedCount !== 1 ? 's' : ''}</div>
         </div>
       </button>
+      {/if}
 
       <!-- Recent -->
+      {#if montrerRecents}
       <button
         class="group flex w-full items-center gap-3 px-2 py-1.5 rounded-lg text-left cursor-pointer
                transition-all duration-150
@@ -277,6 +332,7 @@ onMount(() => {
           <div class="text-[11px] truncate text-neutral-400 dark:text-neutral-500">{$recentCount} titre{$recentCount !== 1 ? 's' : ''}</div>
         </div>
       </button>
+      {/if}
 
       <!-- Custom playlists -->
       {#each $playlistStore.playlists as playlist (playlist.id)}

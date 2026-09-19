@@ -33,9 +33,26 @@ impl LibraryStatsRepository {
         .unwrap_or(0)
     }
 
+    /// Les artistes qui ont réellement quelque chose ici. `library_artists`
+    /// seule en garde qui n'ont plus ni piste ni album.
     pub async fn count_artists(pool: &SqlitePool, library_id: i64) -> i64 {
         sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM library_artists WHERE library_id = ?",
+            // Comptage ensembliste, voir `LibraryRepository`.
+            r#"SELECT COUNT(*) FROM (
+                   SELECT la.artist_id FROM library_artists la
+                   WHERE la.library_id = ?1
+                   INTERSECT
+                   SELECT artist_id FROM (
+                       SELECT lt.artist_id FROM library_tracks lt
+                       WHERE lt.library_id = ?1 AND lt.artist_id IS NOT NULL
+                       UNION
+                       SELECT lta.artist_id FROM library_track_artists lta
+                       WHERE lta.library_id = ?1
+                       UNION
+                       SELECT lb.artist_id FROM library_albums lb
+                       WHERE lb.library_id = ?1 AND lb.artist_id IS NOT NULL
+                   )
+               )"#,
         )
         .bind(library_id)
         .fetch_one(pool)
@@ -114,11 +131,22 @@ impl LibraryStatsRepository {
 
     pub async fn get_top_artists(pool: &SqlitePool, library_id: i64) -> Vec<(String, i64)> {
         sqlx::query_as::<_, (String, i64)>(
-            r#"SELECT a.name, COUNT(DISTINCT lt.id) AS cnt
-               FROM library_track_artists lta
-               INNER JOIN artists a ON a.id = lta.artist_id
-               INNER JOIN library_tracks lt ON lt.id = lta.library_track_id
-               WHERE lta.library_id = ?
+            // Les deux sources : l'artiste porté par la piste, et ceux de la
+            // table de liaison, souvent vide.
+            r#"SELECT a.name, COUNT(*) AS cnt
+               FROM (
+                   SELECT lt.artist_id AS artist_id, lt.id AS track_id
+                   FROM library_tracks lt
+                   WHERE lt.library_id = ?1 AND lt.artist_id IS NOT NULL
+
+                   UNION
+
+                   SELECT lta.artist_id, lt.id
+                   FROM library_track_artists lta
+                   INNER JOIN library_tracks lt ON lt.id = lta.library_track_id
+                   WHERE lta.library_id = ?1
+               ) paires
+               INNER JOIN artists a ON a.id = paires.artist_id
                GROUP BY a.id ORDER BY cnt DESC LIMIT 10"#,
         )
         .bind(library_id)

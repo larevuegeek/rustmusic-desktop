@@ -21,6 +21,10 @@ let isLoading = $state(true);
 let error: string | null = $state(null);
 let contextMenu = $state<{ x: number; y: number } | null>(null);
 
+/** Vide tant que les liaisons ne sont pas posées : on retombe sur le tag brut. */
+type TrackArtist = { artist_id: string; library_artist_id: string | null; name: string };
+let artistes = $state<TrackArtist[]>([]);
+
 const libraryId = $derived(Number(page.params.library_id));
 const trackId = $derived(page.params.track_id);
 const profil = $derived($profilSelector.profilSelected);
@@ -58,6 +62,15 @@ async function loadData(libId: number, trackId: string, profilId: number, tag: n
     }
     library = lib;
     track = await loadTrack(trackId);
+
+    // Un échec ici ne doit pas priver la page du reste.
+    try {
+      const credits = await invoke<TrackArtist[]>('get_track_artists', { trackId });
+      if (tag === currentTag) artistes = credits;
+    } catch (e) {
+      console.error('Failed to load track artists:', e);
+      if (tag === currentTag) artistes = [];
+    }
     if (tag !== currentTag) return;
   } catch (e) {
     if (tag !== currentTag) return;
@@ -143,7 +156,21 @@ function handleContextMenu(e: MouseEvent) {
         </h1>
 
         <div class="flex items-center gap-2 mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          {#if track.artist}
+          <!-- Un lien par artiste crédité. -->
+          {#if artistes.length > 0}
+            <span class="flex items-center gap-1 flex-wrap">
+              {#each artistes as credit, i (credit.artist_id)}
+                {#if i > 0}<span class="opacity-40">,</span>{/if}
+                {#if credit.library_artist_id}
+                  <a href={`/library/${libraryId}/artists/${credit.library_artist_id}`}
+                     class="hover:text-green-500 transition-colors">{credit.name}</a>
+                {:else}
+                  <!-- Absent de cette bibliothèque : le lien mènerait au vide. -->
+                  <span>{credit.name}</span>
+                {/if}
+              {/each}
+            </span>
+          {:else if track.artist}
             <a href={`/library/${libraryId}/artists/${track.library_artist_id}`}
                class="hover:text-green-500 transition-colors">
               {track.artist}

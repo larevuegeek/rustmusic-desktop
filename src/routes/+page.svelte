@@ -13,8 +13,22 @@ import openAudioFile, { handleClickOpenDirectory } from "$lib/actions/player/Pla
 import { handleAddFiles, handleAddDirectory } from "$lib/actions/library/LibraryAction";
 import { goto } from "$app/navigation";
 import { t } from "$lib/i18n";
+import { settingsStore } from "$lib/stores/settings/settings.store";
 
 const selectedLibrary = $derived($libraryStore.librarySelected);
+
+// `!== 'false'` : sans réglage en base, le défaut est « visible ».
+const montrerLikes = $derived($settingsStore.show_liked_in_home !== 'false');
+const montrerRecents = $derived($settingsStore.show_recent_in_home !== 'false');
+
+// La grille se redécoupe selon le nombre de cartes restantes. Classes en
+// toutes lettres : Tailwind ne sait pas fabriquer `grid-cols-${n}`.
+const nbCartes = $derived(2 + (montrerLikes ? 1 : 0) + (montrerRecents ? 1 : 0));
+const colonnesStats = $derived(
+  nbCartes === 4 ? 'grid-cols-2 md:grid-cols-4'
+  : nbCartes === 3 ? 'grid-cols-2 md:grid-cols-3'
+  : 'grid-cols-2'
+);
 
 const profil = $derived($profilSelector.profilSelected);
 const profilColor = $derived(profil?.color ?? '#22c55e');
@@ -140,7 +154,7 @@ const handleClickOpenFile = async () => {
   </div>
 
   <!-- STATS RAPIDES -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+  <div class="grid {colonnesStats} gap-3 mb-8">
     <button
       class="group flex items-center gap-3 p-4 rounded-xl cursor-pointer
              bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200/60 dark:border-neutral-800/60
@@ -162,6 +176,7 @@ const handleClickOpenFile = async () => {
       </div>
     </button>
 
+    {#if montrerLikes}
     <button
       class="group flex items-center gap-3 p-4 rounded-xl cursor-pointer
              bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200/60 dark:border-neutral-800/60
@@ -182,7 +197,9 @@ const handleClickOpenFile = async () => {
         </p>
       </div>
     </button>
+    {/if}
 
+    {#if montrerRecents}
     <button
       class="group flex items-center gap-3 p-4 rounded-xl cursor-pointer
              bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200/60 dark:border-neutral-800/60
@@ -203,6 +220,7 @@ const handleClickOpenFile = async () => {
         </p>
       </div>
     </button>
+    {/if}
 
     <div class="flex items-center gap-3 p-4 rounded-xl
                 bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200/60 dark:border-neutral-800/60">
@@ -222,6 +240,8 @@ const handleClickOpenFile = async () => {
   </div>
 
   <!-- RÉCEMMENT JOUÉS -->
+  <!-- Même raccourci que le compteur du haut : un seul réglage pour les deux. -->
+  {#if montrerRecents}
   <div class="flex items-center justify-between mb-4">
     <div>
       <h2 class="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
@@ -245,4 +265,5 @@ const handleClickOpenFile = async () => {
   </div>
 
   <RecentTrackItem />
+  {/if}
 </div>

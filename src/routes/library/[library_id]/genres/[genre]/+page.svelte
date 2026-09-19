@@ -106,7 +106,7 @@ async function loadTracks() {
 <div class="flex flex-col scrollbar-app overflow-y-auto h-full">
 
   <!-- HERO -->
-  <div class="relative shrink-0 overflow-hidden">
+  <div class="sticky left-0 shrink-0 overflow-hidden">
     <!-- Mosaïque de covers floutée en fond -->
     {#if genreAlbums.length > 0}
       <div class="absolute inset-0 pointer-events-none" aria-hidden="true" style="z-index: 0;">
@@ -206,10 +206,7 @@ async function loadTracks() {
       <p class="text-sm text-neutral-400 text-center py-10">{$t('library.no_album_genre')}</p>
     {:else}
       <h2 class="text-lg font-semibold text-neutral-800 dark:text-neutral-200 mb-4">{$t('library.albums')}</h2>
-      <!-- Pas de variante en liste ici : sur cette page, le mode liste montre
-           les morceaux et non les albums. Cette grille ne s'affiche donc qu'en
-           mode grille, et lui proposer une seconde forme reviendrait à écrire
-           une branche que rien n'atteint. -->
+      <!-- Pas de variante en liste : ce mode montre ici les morceaux. -->
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-6">
         {#each genreAlbums as album (album.id)}
           <AlbumListItem {album} {libraryId} />

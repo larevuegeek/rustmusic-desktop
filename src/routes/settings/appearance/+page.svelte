@@ -4,6 +4,15 @@
   import { settingsStore } from "$lib/stores/settings/settings.store";
   import { t } from "$lib/i18n";
   import AppearanceCard from "$lib/components/settings/AppearanceCard.svelte";
+  import ToggleSwitch from "$lib/components/ui/input/ToggleSwitch.svelte";
+  import {
+    ONGLETS_BIBLIOTHEQUE,
+    ONGLETS_PAR_DEFAUT,
+    lireOnglets,
+    lirePlacement,
+    type LibraryTabKey,
+    type PlacementOnglets,
+  } from "$lib/config/libraryTabs";
   import {
     getRenderMode,
     setRenderMode,
@@ -15,6 +24,58 @@
   let contrast = $derived($settingsStore.contrast ?? 'normal');
   let windowControlsStyle = $derived($settingsStore.window_controls_style);
   let windowControlsPosition = $derived($settingsStore.window_controls_position);
+
+  // `!== 'false'` : sans réglage en base, le défaut est « visible ».
+  const raccourcis = $derived([
+    {
+      titre: $t('playlist_page.liked_title'),
+      icone: 'mynaui:heart-solid',
+      couleur: 'text-rose-400',
+      dansPlaylists: { cle: 'show_liked_in_playlists' as const, actif: $settingsStore.show_liked_in_playlists !== 'false' },
+      dansAccueil: { cle: 'show_liked_in_home' as const, actif: $settingsStore.show_liked_in_home !== 'false' },
+    },
+    {
+      titre: $t('playlist_page.recent_title'),
+      icone: 'mynaui:clock-8',
+      couleur: 'text-sky-400',
+      dansPlaylists: { cle: 'show_recent_in_playlists' as const, actif: $settingsStore.show_recent_in_playlists !== 'false' },
+      dansAccueil: { cle: 'show_recent_in_home' as const, actif: $settingsStore.show_recent_in_home !== 'false' },
+    },
+  ]);
+
+  // Masqué des deux côtés, un raccourci n'a plus de porte d'entrée.
+  const totalementMasque = $derived(
+    raccourcis.some((r) => !r.dansPlaylists.actif && !r.dansAccueil.actif)
+  );
+
+  // `=== 'true'` : masqué par défaut.
+  const boutonsOuvrir = $derived($settingsStore.show_open_buttons === 'true');
+
+  // ─── Sections de la bibliothèque ───
+  const placement = $derived(lirePlacement($settingsStore.library_tabs_position));
+  const ongletsRetenus = $derived(lireOnglets($settingsStore.library_tabs));
+
+  const placements: {
+    valeur: PlacementOnglets;
+    labelKey: string;
+    gauche: boolean;
+    haut: boolean;
+  }[] = [
+    { valeur: 'sidebar', labelKey: 'settings.library_tabs_sidebar', gauche: true,  haut: false },
+    { valeur: 'top',     labelKey: 'settings.library_tabs_top',     gauche: false, haut: true  },
+    { valeur: 'both',    labelKey: 'settings.library_tabs_both',    gauche: true,  haut: true  },
+  ];
+
+  /** Conserve l'ordre d'origine : la voir sauter en dernier désorienterait. */
+  function basculerOnglet(cle: LibraryTabKey) {
+    const suivant = ongletsRetenus.includes(cle)
+      ? ongletsRetenus.filter((c) => c !== cle)
+      : ONGLETS_PAR_DEFAUT.filter((c) => c === cle || ongletsRetenus.includes(c));
+
+    // La case est déjà désactivée, mais un réglage importé peut arriver vide.
+    if (suivant.length === 0) return;
+    settingsStore.set('library_tabs', JSON.stringify(suivant));
+  }
 
   // ─── Mode de rendu (Linux WebKit env vars) ───
   let renderMode = $state<RenderModeStatus | null>(null);
@@ -145,6 +206,167 @@
         {$t('settings.contrast_high_note')}
       </p>
     {/if}
+  </div>
+
+  <!-- ─── Raccourcis Titres likés / Récemment joués ─── -->
+  <div class="mb-5">
+    <div class="flex items-center gap-3 mb-2.5 px-1">
+      <Icon icon="lucide:eye" width="18" class="text-neutral-400" />
+      <div>
+        <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200">{$t('settings.builtin_playlists')}</p>
+        <p class="text-[11px] text-neutral-400 dark:text-neutral-500">{$t('settings.builtin_playlists_desc')}</p>
+      </div>
+    </div>
+
+    <div class="max-w-2xl rounded-xl overflow-hidden
+                border border-neutral-200/60 dark:border-white/8">
+      <!-- Sans eux, deux interrupteurs côte à côte ne disent pas lequel fait quoi. -->
+      <div class="flex items-center gap-4 px-4 py-2
+                  text-[10px] uppercase tracking-wider text-neutral-400
+                  bg-neutral-50 dark:bg-white/2
+                  border-b border-neutral-200/60 dark:border-white/6">
+        <span class="flex-1 min-w-0"></span>
+        <span class="w-20 text-center shrink-0">{$t('nav.playlists')}</span>
+        <span class="w-20 text-center shrink-0">{$t('nav.home')}</span>
+      </div>
+
+      {#each raccourcis as raccourci (raccourci.icone)}
+        <div class="flex items-center gap-4 px-4 py-3
+                    border-b border-neutral-200/60 dark:border-white/6 last:border-b-0">
+          <div class="flex items-center gap-2.5 flex-1 min-w-0">
+            <Icon icon={raccourci.icone} width="15" class="shrink-0 {raccourci.couleur}" />
+            <span class="text-sm text-neutral-800 dark:text-neutral-200 truncate">
+              {raccourci.titre}
+            </span>
+          </div>
+
+          <div class="w-20 flex justify-center shrink-0">
+            <ToggleSwitch
+              checked={raccourci.dansPlaylists.actif}
+              label="{raccourci.titre} — {$t('nav.playlists')}"
+              onclick={() => settingsStore.toggle(raccourci.dansPlaylists.cle)}
+            />
+          </div>
+
+          <div class="w-20 flex justify-center shrink-0">
+            <ToggleSwitch
+              checked={raccourci.dansAccueil.actif}
+              label="{raccourci.titre} — {$t('nav.home')}"
+              onclick={() => settingsStore.toggle(raccourci.dansAccueil.cle)}
+            />
+          </div>
+        </div>
+      {/each}
+    </div>
+
+    {#if totalementMasque}
+      <p class="mt-2 px-1 text-[11px] text-neutral-400 dark:text-neutral-500">
+        {$t('settings.builtin_playlists_hidden_note')}
+      </p>
+    {/if}
+
+    <!-- Hors du tableau : un seul emplacement, pas de deuxième colonne. -->
+    <div class="mt-3 max-w-2xl flex items-center justify-between gap-4 px-4 py-3
+                rounded-xl border border-neutral-200/60 dark:border-white/8">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <Icon icon="lucide:folder-open" width="15" class="shrink-0 text-neutral-400" />
+        <div class="min-w-0">
+          <p class="text-sm text-neutral-800 dark:text-neutral-200">
+            {$t('settings.open_buttons')}
+          </p>
+          <p class="text-[11px] text-neutral-400 dark:text-neutral-500">
+            {$t('settings.open_buttons_desc')}
+          </p>
+        </div>
+      </div>
+      <ToggleSwitch
+        checked={boutonsOuvrir}
+        label={$t('settings.open_buttons')}
+        onclick={() => settingsStore.toggle('show_open_buttons')}
+      />
+    </div>
+  </div>
+
+  <!-- ─── Sections de la bibliothèque ─── -->
+  <div class="mb-5">
+    <div class="flex items-center gap-3 mb-2.5 px-1">
+      <Icon icon="lucide:library" width="18" class="text-neutral-400" />
+      <div>
+        <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200">{$t('settings.library_tabs')}</p>
+        <p class="text-[11px] text-neutral-400 dark:text-neutral-500">{$t('settings.library_tabs_desc')}</p>
+      </div>
+    </div>
+
+    <!-- Où les proposer -->
+    <div class="grid grid-cols-3 gap-2 max-w-2xl mb-3">
+      {#each placements as p (p.valeur)}
+        <AppearanceCard
+          label={$t(p.labelKey)}
+          selected={placement === p.valeur}
+          onclick={() => settingsStore.set('library_tabs_position', p.valeur)}
+        >
+          <!-- Une maquette plutôt qu'un intitulé : rien à traduire. -->
+          <div class="w-full h-full flex gap-0.5 p-1.5 bg-neutral-100 dark:bg-neutral-800">
+            <div class="w-1/4 h-full rounded-sm flex flex-col gap-0.5 p-0.5
+                        {p.gauche ? 'bg-emerald-500/25' : 'bg-neutral-300/50 dark:bg-white/5'}">
+              {#if p.gauche}
+                {#each [0, 1, 2] as _}
+                  <div class="h-0.5 rounded-full bg-emerald-500/70"></div>
+                {/each}
+              {/if}
+            </div>
+            <div class="flex-1 h-full flex flex-col gap-0.5">
+              <div class="h-1.5 rounded-sm flex gap-0.5 items-center px-0.5
+                          {p.haut ? 'bg-emerald-500/25' : 'bg-neutral-300/50 dark:bg-white/5'}">
+                {#if p.haut}
+                  {#each [0, 1, 2] as _}
+                    <div class="w-1.5 h-0.5 rounded-full bg-emerald-500/70"></div>
+                  {/each}
+                {/if}
+              </div>
+              <div class="flex-1 rounded-sm bg-neutral-300/40 dark:bg-white/4"></div>
+            </div>
+          </div>
+        </AppearanceCard>
+      {/each}
+    </div>
+
+    <!-- Lesquelles garder -->
+    <div class="max-w-2xl rounded-xl overflow-hidden
+                border border-neutral-200/60 dark:border-white/8">
+      <div class="px-4 py-2 text-[10px] uppercase tracking-wider text-neutral-400
+                  bg-neutral-50 dark:bg-white/2
+                  border-b border-neutral-200/60 dark:border-white/6">
+        {$t('settings.library_tabs_shown')}
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2">
+        {#each ONGLETS_BIBLIOTHEQUE as onglet (onglet.key)}
+          {@const coche = ongletsRetenus.includes(onglet.key)}
+          {@const dernier = coche && ongletsRetenus.length === 1}
+          <label
+            class="flex items-center gap-2 px-2 py-1.5 rounded-md
+                   {dernier ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-neutral-100 dark:hover:bg-white/5'}"
+            title={dernier ? $t('settings.library_tabs_last') : ''}
+          >
+            <input
+              type="checkbox"
+              checked={coche}
+              disabled={dernier}
+              onchange={() => basculerOnglet(onglet.key)}
+              class="accent-emerald-500 {dernier ? '' : 'cursor-pointer'}"
+            />
+            <Icon icon={onglet.icon} width="13" class="shrink-0 text-neutral-400" />
+            <span class="text-xs text-neutral-700 dark:text-neutral-300 truncate">
+              {$t(onglet.labelKey)}
+            </span>
+          </label>
+        {/each}
+      </div>
+    </div>
+
+    <p class="mt-2 px-1 text-[11px] text-neutral-400 dark:text-neutral-500">
+      {$t('settings.library_tabs_note')}
+    </p>
   </div>
 
   <!-- ─── Style des contrôles fenêtre ─── -->

@@ -1,6 +1,6 @@
 [package]
 name = "rustmusic"
-version = "0.2.3"
+version = "0.2.4"
 description = "Audiophile-grade desktop music player with native DSD playback, multichannel SACD support, DLNA server, synced lyrics, and OS media controls."
 authors = ["LaRevueGeeK <contact@rustmusic.dev>"]
 edition = "2021"

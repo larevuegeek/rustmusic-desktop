@@ -22,17 +22,10 @@ function handleContextMenu(e: MouseEvent) {
     contextMenu = { x: e.clientX, y: e.clientY };
 }
 
-// Appelée depuis toute la ligne, pas seulement le titre.
-//
-// Le gabarit gardait cet appel derrière `if (selection.active)` : hors mode
-// sélection, cliquer une ligne ne déclenchait donc rien, et le réglage
-// « simple clic = lecture » restait inatteignable. C'est ici que le choix se
-// fait — cocher, lire, ou précharger.
+// Appelée depuis toute la ligne : cocher, lire, ou précharger.
 function handleClick(e?: MouseEvent) {
     if (selection.active) {
-        // Maj étend depuis le dernier élément cliqué, comme dans un
-        // explorateur de fichiers. Sans elle, cocher trente morceaux demande
-        // trente clics.
+        // Maj étend depuis le dernier cliqué, comme un explorateur.
         if (e?.shiftKey) selectionStore.selectRange(track.id);
         else selectionStore.toggle(track.id, track);
     } else if (singleClickPlay) {
@@ -89,14 +82,14 @@ function handleDblClick() {
 
         <!-- Cover mini -->
         {#if track.thumbnail_path}
-            <button onclick={handleClick} class="shrink-0 cursor-pointer">
+            <button type="button" class="shrink-0 cursor-pointer">
                 <CoverImg path={track.thumbnail_path} alt="" size="1x"
                      class="w-12 h-12 rounded-md object-cover shadow-sm" />
             </button>
         {/if}
 
         <div class="flex flex-col items-stretch min-w-0">
-            <button onclick={handleClick} class="text-left cursor-pointer min-w-0 w-full">
+            <button type="button" class="text-left cursor-pointer min-w-0 w-full">
                 <span class="block font-medium text-sm truncate transition-colors
                       {isSelected
                         ? 'text-emerald-600 dark:text-emerald-400'
@@ -130,7 +123,8 @@ function handleDblClick() {
       <div class="flex items-center gap-4 text-xs text-neutral-500 dark:text-neutral-400 shrink-0">
 
           <button
-              onclick={() => liked.toggle(track.path)}
+              onclick={(e) => { e.stopPropagation(); liked.toggle(track.path); }}
+        ondblclick={(e) => e.stopPropagation()}
               class="p-1 rounded-md cursor-pointer transition-colors
                      {isLiked
                        ? 'text-pink-500 hover:text-pink-400'
@@ -148,7 +142,8 @@ function handleDblClick() {
 
           <div class="opacity-0 group-hover:opacity-100 transition-opacity">
               <button
-                  onclick={(e) => { contextMenu = { x: e.clientX, y: e.clientY }; }}
+                  onclick={(e) => { e.stopPropagation(); contextMenu = { x: e.clientX, y: e.clientY }; }}
+        ondblclick={(e) => e.stopPropagation()}
                   class="p-2 rounded-md cursor-pointer text-neutral-500 dark:text-neutral-400
                          hover:bg-black/5 dark:hover:bg-white/10"
                   aria-label="Actions"

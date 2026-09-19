@@ -294,7 +294,7 @@ async function loadData(
   {#if loadingHero}
     <ArtistHeroSkeleton />
   {:else if artist}
-    <div class="relative px-8 pt-10 pb-14 shrink-0">
+    <div class="sticky left-0 px-8 pt-10 pb-14 shrink-0">
 
       <!-- BG Dual Layer (style Apple Music) -->
       {#if heroBgSrc}
@@ -481,7 +481,7 @@ async function loadData(
     </div>
 
     <!-- ALBUMS -->
-    <div>
+    <div class="sticky left-0">
       {#if loadingAlbums}
         <h2 class="text-xl font-semibold mb-1 text-neutral-800 dark:text-neutral-200">
           {$t('library.albums')}
@@ -531,9 +531,7 @@ async function loadData(
         </div>
 
         {#if $viewMode === 'list'}
-        <!-- La sous-section suit le mode d'affichage, comme la liste
-             principale. Une page à moitié en grille et à moitié en tableau
-             donnerait l'impression que la bascule ne marche qu'à moitié. -->
+        <!-- La sous-section suit le mode d'affichage de la liste principale. -->
           <div class="flex flex-col">
             {#each sortedAlbums as album (album.id)}
               <AlbumListRow {libraryId} album={album} />
@@ -560,7 +558,7 @@ async function loadData(
         <LibraryArtistSkeleton />
       </div>
     {:else if similarArtists.length > 0}
-      <div>
+      <div class="sticky left-0">
         <h2 class="text-xl font-semibold mb-1 text-neutral-800 dark:text-neutral-200">
           {$t('library.similar_artists')}
         </h2>
@@ -569,9 +567,7 @@ async function loadData(
         </p>
 
         {#if $viewMode === 'list'}
-        <!-- La sous-section suit le mode d'affichage, comme la liste
-             principale. Une page à moitié en grille et à moitié en tableau
-             donnerait l'impression que la bascule ne marche qu'à moitié. -->
+        <!-- La sous-section suit le mode d'affichage de la liste principale. -->
           <div class="flex flex-col">
             {#each similarArtists as similarArtist (similarArtist.id)}
               <ArtistListRow {libraryId} artist={similarArtist} />

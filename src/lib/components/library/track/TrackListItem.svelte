@@ -24,17 +24,14 @@ function handleContextMenu(e: MouseEvent) {
     contextMenu = { x: e.clientX, y: e.clientY };
 }
 
-// Appelée depuis toute la ligne, pas seulement le titre.
-//
-// Le gabarit gardait cet appel derrière `if (selection.active)` : hors mode
-// sélection, cliquer une ligne ne déclenchait donc rien, et le réglage
-// « simple clic = lecture » restait inatteignable. C'est ici que le choix se
-// fait — cocher, lire, ou précharger.
+// Appelée depuis toute la ligne : cocher, lire, ou précharger.
 function handleClick(e?: MouseEvent) {
+    // Navigation, pas lecture. Reconnu ici plutôt qu'arrêté sur le lien : le
+    // routeur écoute plus haut.
+    if ((e?.target as HTMLElement | null)?.closest?.('a')) return;
+
     if (selection.active) {
-        // Maj étend depuis le dernier élément cliqué, comme dans un
-        // explorateur de fichiers. Sans elle, cocher trente morceaux demande
-        // trente clics.
+        // Maj étend depuis le dernier cliqué, comme un explorateur.
         if (e?.shiftKey) selectionStore.selectRange(track.id);
         else selectionStore.toggle(track.id, track);
     } else if (singleClickPlay) {
@@ -82,7 +79,7 @@ function handleClick(e?: MouseEvent) {
     {/if}
 
     <!-- THUMBNAIL -->
-     <button onclick={handleClick} class="cursor-pointer">
+     <button type="button" class="cursor-pointer">
         <div class="w-22 h-22 rounded-md overflow-hidden 
                     bg-neutral-200 dark:bg-neutral-700 
                     flex items-center justify-center shrink-0">
@@ -103,7 +100,7 @@ function handleClick(e?: MouseEvent) {
     <div class="flex flex-col items-stretch min-w-0">
 
         <!-- TITLE -->
-        <button onclick={() => handleSelectTrack(track.path)} class="text-left cursor-pointer min-w-0 w-full">
+        <button type="button" class="text-left cursor-pointer min-w-0 w-full">
             <span class="block font-medium text-neutral-800 dark:text-neutral-200 truncate"
                   title={track.title}>
             {track.title}
@@ -166,7 +163,8 @@ function handleClick(e?: MouseEvent) {
     {/if}
 
     <button
-        onclick={() => liked.toggle(track.path)}
+        onclick={(e) => { e.stopPropagation(); liked.toggle(track.path); }}
+        ondblclick={(e) => e.stopPropagation()}
         class="p-1.5 rounded-md cursor-pointer transition-colors
                {isLiked
                  ? 'text-pink-500 hover:text-pink-400'
@@ -177,7 +175,8 @@ function handleClick(e?: MouseEvent) {
     </button>
 
     <button
-        onclick={(e) => { contextMenu = { x: e.clientX, y: e.clientY }; }}
+        onclick={(e) => { e.stopPropagation(); contextMenu = { x: e.clientX, y: e.clientY }; }}
+        ondblclick={(e) => e.stopPropagation()}
         class="p-2 rounded-md cursor-pointer text-neutral-500 dark:text-neutral-400
                hover:bg-black/5 dark:hover:bg-white/10"
         aria-label="Actions"

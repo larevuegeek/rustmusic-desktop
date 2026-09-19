@@ -26,6 +26,9 @@ use crate::repository::library::library_genre_repository::LibraryGenreRepository
 use crate::repository::library::library_repository::LibraryRepository;
 use crate::repository::library::library_stats_repository::LibraryStatsRepository;
 use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::mapper::library::artist::track_artist_view::TrackArtistView;
+use crate::repository::library::library_track_artist_repository::LibraryTrackArtistRepository;
+use crate::service::library::artist_link_repair::ArtistLinkReport;
 use crate::service::library::library_service::{LibrarySaveContext, create_context, save_dir_to_library, save_track_to_library};
 use crate::{state::AppState};
 use crate::mapper::library::track::track_list_item_view::TrackListView;
@@ -68,6 +71,27 @@ pub async fn add_directory(
     let tracks: Vec<TrackListView> = save_dir_to_library(app, &state.pool, library_id, directory).await?;
 
     Ok(tracks)
+}
+
+/// Rejoue les liaisons piste ↔ artiste. Voir `artist_link_repair`.
+/// Les artistes crédités sur une piste. Vide tant que les liaisons ne sont pas
+/// posées — la fiche retombe alors sur le tag brut.
+#[tauri::command]
+pub async fn get_track_artists(
+    state: State<'_, AppState>,
+    track_id: String,
+) -> Result<Vec<TrackArtistView>, String> {
+    LibraryTrackArtistRepository::find_artists_of_track(&state.pool, &track_id)
+        .await
+        .map_err(|e| format!("Failed to get track artists: {}", e))
+}
+
+#[tauri::command]
+pub async fn repair_artist_links(
+    state: State<'_, AppState>,
+    library_id: Option<i64>,
+) -> Result<ArtistLinkReport, String> {
+    crate::service::library::artist_link_repair::repair(&state.pool, library_id).await
 }
 
 #[tauri::command]

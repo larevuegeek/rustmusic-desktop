@@ -9,9 +9,7 @@ import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import StarRating from "$lib/components/ui/rating/StarRating.svelte";
 import { largeurDe, estFlexible, styleCellule, type TrackColumn } from "$lib/config/trackColumns";
 
-// Les colonnes viennent de la page : c'est elle qui tient le choix de
-// l'utilisateur, et la ligne n'a pas à le relire des réglages cent fois
-// par écran.
+// Les colonnes viennent de la page : la ligne n'a pas à relire les réglages.
 let { libraryId, track, columns = [], largeurs = {} }:
     {
         libraryId: any;
@@ -27,17 +25,10 @@ let selection = $derived($selectionStore);
 let isSelected = $derived(selection.active && selection.ids.has(track.id));
 let singleClickPlay = $derived(settingsStore.get('single_click_play') === 'true');
 
-// Appelée depuis toute la ligne, pas seulement le titre.
-//
-// Le gabarit gardait cet appel derrière `if (selection.active)` : hors mode
-// sélection, cliquer une ligne ne déclenchait donc rien, et le réglage
-// « simple clic = lecture » restait inatteignable. C'est ici que le choix se
-// fait — cocher, lire, ou précharger.
+// Appelée depuis toute la ligne : cocher, lire, ou précharger.
 function handleClick(e?: MouseEvent) {
     if (selection.active) {
-        // Maj étend depuis le dernier élément cliqué, comme dans un
-        // explorateur de fichiers. Sans elle, cocher trente morceaux demande
-        // trente clics.
+        // Maj étend depuis le dernier cliqué, comme un explorateur.
         if (e?.shiftKey) selectionStore.selectRange(track.id);
         else selectionStore.toggle(track.id, track);
     } else if (singleClickPlay) {
@@ -94,7 +85,7 @@ function handleClick(e?: MouseEvent) {
         {/if}
 
       {:else if col.widget === 'cover'}
-        <button onclick={handleClick} class="shrink-0 cursor-pointer" style="width: {w}px">
+        <button type="button" class="shrink-0 cursor-pointer" style="width: {w}px">
           <div class="w-8 h-8 rounded overflow-hidden bg-neutral-200 dark:bg-neutral-800">
             {#if track.thumbnail_path}
               <CoverImg path={track.thumbnail_path} alt="" size="1x"
@@ -108,8 +99,9 @@ function handleClick(e?: MouseEvent) {
         </button>
 
       {:else if col.widget === 'title'}
+        <!-- Sans gestionnaire : le clic remonte à la ligne, qui décide. -->
         <button
-          onclick={() => handleSelectTrack(track.path)}
+          type="button"
           class="text-left cursor-pointer"
           style={styleCellule(col, largeurs)}
         >
@@ -146,7 +138,8 @@ function handleClick(e?: MouseEvent) {
 
     <!-- Like -->
     <button
-        onclick={() => liked.toggle(track.path)}
+        onclick={(e) => { e.stopPropagation(); liked.toggle(track.path); }}
+        ondblclick={(e) => e.stopPropagation()}
         class="p-1 rounded cursor-pointer shrink-0 transition-colors
                {isLiked ? 'text-pink-500' : 'text-transparent group-hover:text-neutral-300 dark:group-hover:text-neutral-600 hover:!text-pink-400'}"
         aria-label="Liker"
@@ -156,7 +149,8 @@ function handleClick(e?: MouseEvent) {
 
     <!-- Menu -->
     <button
-        onclick={(e) => { contextMenu = { x: e.clientX, y: e.clientY }; }}
+        onclick={(e) => { e.stopPropagation(); contextMenu = { x: e.clientX, y: e.clientY }; }}
+        ondblclick={(e) => e.stopPropagation()}
         class="p-1 rounded cursor-pointer shrink-0 opacity-0 group-hover:opacity-100
                text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-all"
         aria-label="Actions"

@@ -139,10 +139,20 @@ html, body {
   }
 }
 
-/* scrollbars "app" */
-.scrollbar-app {
-  scrollbar-width: thin;                 /* Firefox */
-  scrollbar-color: rgba(255,255,255,.18) transparent;
+/* Barres de défilement « app ».
+   Depuis Chromium 121, poser `scrollbar-width` ou `scrollbar-color` fait
+   ignorer les `::-webkit-scrollbar*` — et bascule sur la barre du système, qui
+   flotte par-dessus le contenu au lieu d'occuper sa place. D'où ces propriétés
+   réservées aux moteurs qui ignorent `::-webkit-scrollbar`. */
+@supports not selector(::-webkit-scrollbar) {
+  .scrollbar-app {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,.32) transparent;
+  }
+
+  .dark .scrollbar-app {
+    scrollbar-color: rgba(255,255,255,.22) transparent;
+  }
 }
 
 .scrollbar-app::-webkit-scrollbar {
@@ -155,7 +165,7 @@ html, body {
 }
 
 .scrollbar-app::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,.18);
+  background: rgba(0,0,0,.35);
   border-radius: 999px;
   border: 3px solid transparent;         /* crée un "gap" */
   background-clip: content-box;
@@ -167,7 +177,7 @@ html, body {
 }
 
 .scrollbar-app::-webkit-scrollbar-thumb:hover {
-  background: rgba(0,0,0,.28);
+  background: rgba(0,0,0,.5);
   background-clip: content-box;
 }
 
@@ -204,16 +214,25 @@ html, body {
   50% { height: 14px; opacity: 1; }
 }
 
-/* Scrollbar invisible par défaut, visible au hover */
+/* Invisible par défaut, visible au survol. Même partage qu'au-dessus. */
 .smart-scroll {
   overflow-y: auto;
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: transparent transparent; /* Firefox */
-  transition: scrollbar-color 0.3s;
 }
 
-.smart-scroll:hover {
-  scrollbar-color: rgb(163 163 163 / 0.3) transparent; /* Firefox */
+@supports not selector(::-webkit-scrollbar) {
+  .smart-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s;
+  }
+
+  .smart-scroll:hover {
+    scrollbar-color: rgb(0 0 0 / 0.28) transparent;
+  }
+
+  .dark .smart-scroll:hover {
+    scrollbar-color: rgb(82 82 82 / 0.5) transparent;
+  }
 }
 
 /* Webkit (Chrome, Safari, Edge) */
@@ -232,18 +251,14 @@ html, body {
 }
 
 .smart-scroll:hover::-webkit-scrollbar-thumb {
-  background: rgb(163 163 163 / 0.3);
+  background: rgb(0 0 0 / 0.28);
 }
 
 .smart-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgb(163 163 163 / 0.5);
+  background: rgb(0 0 0 / 0.42);
 }
 
 /* Dark mode */
-.dark .smart-scroll:hover {
-  scrollbar-color: rgb(82 82 82 / 0.5) transparent;
-}
-
 .dark .smart-scroll:hover::-webkit-scrollbar-thumb {
   background: rgb(82 82 82 / 0.5);
 }

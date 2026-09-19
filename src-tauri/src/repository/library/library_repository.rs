@@ -71,7 +71,25 @@ impl LibraryRepository {
                 position,
                 total_tracks,
                 total_albums,
-                total_artists,
+                -- Compte vivant : `total_artists`, tenue par des declencheurs,
+                -- ne redescend jamais quand une cascade efface pistes et
+                -- albums. Par ensembles et non par artiste — la version
+                -- correlee prenait 8,5 s contre 16 ms.
+                (SELECT COUNT(*) FROM (
+                    SELECT la.artist_id FROM library_artists la
+                    WHERE la.library_id = library.id
+                    INTERSECT
+                    SELECT artist_id FROM (
+                        SELECT lt.artist_id FROM library_tracks lt
+                        WHERE lt.library_id = library.id AND lt.artist_id IS NOT NULL
+                        UNION
+                        SELECT lta.artist_id FROM library_track_artists lta
+                        WHERE lta.library_id = library.id
+                        UNION
+                        SELECT lb.artist_id FROM library_albums lb
+                        WHERE lb.library_id = library.id AND lb.artist_id IS NOT NULL
+                    )
+                )) AS total_artists,
                 is_default,
                 created_at,
                 updated_at
@@ -103,7 +121,25 @@ impl LibraryRepository {
                 position,
                 total_tracks,
                 total_albums,
-                total_artists,
+                -- Compte vivant : `total_artists`, tenue par des declencheurs,
+                -- ne redescend jamais quand une cascade efface pistes et
+                -- albums. Par ensembles et non par artiste — la version
+                -- correlee prenait 8,5 s contre 16 ms.
+                (SELECT COUNT(*) FROM (
+                    SELECT la.artist_id FROM library_artists la
+                    WHERE la.library_id = library.id
+                    INTERSECT
+                    SELECT artist_id FROM (
+                        SELECT lt.artist_id FROM library_tracks lt
+                        WHERE lt.library_id = library.id AND lt.artist_id IS NOT NULL
+                        UNION
+                        SELECT lta.artist_id FROM library_track_artists lta
+                        WHERE lta.library_id = library.id
+                        UNION
+                        SELECT lb.artist_id FROM library_albums lb
+                        WHERE lb.library_id = library.id AND lb.artist_id IS NOT NULL
+                    )
+                )) AS total_artists,
                 is_default,
                 created_at,
                 updated_at
@@ -134,7 +170,25 @@ impl LibraryRepository {
                 position,
                 total_tracks,
                 total_albums,
-                total_artists,
+                -- Compte vivant : `total_artists`, tenue par des declencheurs,
+                -- ne redescend jamais quand une cascade efface pistes et
+                -- albums. Par ensembles et non par artiste — la version
+                -- correlee prenait 8,5 s contre 16 ms.
+                (SELECT COUNT(*) FROM (
+                    SELECT la.artist_id FROM library_artists la
+                    WHERE la.library_id = library.id
+                    INTERSECT
+                    SELECT artist_id FROM (
+                        SELECT lt.artist_id FROM library_tracks lt
+                        WHERE lt.library_id = library.id AND lt.artist_id IS NOT NULL
+                        UNION
+                        SELECT lta.artist_id FROM library_track_artists lta
+                        WHERE lta.library_id = library.id
+                        UNION
+                        SELECT lb.artist_id FROM library_albums lb
+                        WHERE lb.library_id = library.id AND lb.artist_id IS NOT NULL
+                    )
+                )) AS total_artists,
                 is_default,
                 created_at,
                 updated_at

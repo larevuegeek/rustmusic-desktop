@@ -18,6 +18,7 @@
   let rescanning = $state(false);
   let fetchingImages = $state(false);
   let fetchingCovers = $state(false);
+  let repairingLinks = $state(false);
   let dataDir = $state('');
   let exporting = $state(false);
   let importPath = $state<string | null>(null);
@@ -177,6 +178,41 @@
     }
   }
 
+  /** Voir `artist_link_repair`. Aucun fichier relu, le tag est déjà en base. */
+  async function handleRepairArtistLinks() {
+    repairingLinks = true;
+    try {
+      const bilan = await invoke<{
+        tracks_seen: number;
+        tracks_multi: number;
+        links_created: number;
+        artists_created: number;
+      }>('repair_artist_links', { libraryId: null });
+
+      await libraryStore.refresh();
+
+      toasts.push({
+        type: 'success',
+        title: $t('settings.repair_links'),
+        message: bilan.links_created === 0
+          ? $t('settings.repair_links_none')
+          : $t('settings.repair_links_done')
+              .replace('{links}', String(bilan.links_created))
+              .replace('{multi}', String(bilan.tracks_multi))
+              .replace('{artists}', String(bilan.artists_created)),
+      });
+    } catch (e) {
+      console.error('Repair artist links failed:', e);
+      toasts.push({
+        type: 'error',
+        title: $t('settings.repair_links'),
+        message: String(e),
+      });
+    } finally {
+      repairingLinks = false;
+    }
+  }
+
   async function handleOpenDataFolder() {
     // dataDir est vide tant que le onMount n'a pas résolu le chemin.
     if (!dataDir) return;
@@ -206,6 +242,20 @@
       label={fetchingImages ? $t('common.fetching') : $t('common.fetch')}
       busy={fetchingImages}
       onclick={handleFetchArtistImages}
+    />
+  </OptionRow>
+
+  <!-- Liaisons d'artistes -->
+  <OptionRow
+    icon="lucide:users"
+    title={$t('settings.repair_links')}
+    desc={$t('settings.repair_links_desc')}
+  >
+    <ActionButton
+      icon="lucide:link"
+      label={$t('settings.repair_links_btn')}
+      busy={repairingLinks}
+      onclick={handleRepairArtistLinks}
     />
   </OptionRow>
 

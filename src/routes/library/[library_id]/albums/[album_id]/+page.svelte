@@ -26,6 +26,7 @@ import { t } from "$lib/i18n";
 import { dataCache } from "$lib/stores/cache/dataCache.store";
 import CollectionContextMenu from "$lib/components/ui/contextmenu/CollectionContextMenu.svelte";
 import ImgZoom from "$lib/components/ui/tools/ImgZoom.svelte";
+import { echantillonAleatoire } from "$lib/helper/tools/randomTools";
 
 // ==========================
 // STATE
@@ -231,26 +232,28 @@ async function loadAlbumPage(
       otherAlbums = allAlbums.filter(a => a.artist_id === result.artist_id && a.id !== albumId);
     }
 
-    // Albums du même genre (exclure l'album en cours et ceux du même artiste)
+    // Dix au hasard, et non les dix premiers par nom : sinon deux albums du
+    // même genre proposent la même sélection. Tirage au chargement.
     if (result?.genre) {
       const genre = result.genre.toLowerCase();
-      sameGenreAlbums = allAlbums
-        .filter(a => a.id !== albumId && a.artist_id !== result.artist_id && a.genre?.toLowerCase() === genre)
-        .slice(0, 10);
-    }
 
-    // Artistes du même genre (exclure l'artiste de l'album)
-    if (result?.genre) {
-      const genre = result.genre.toLowerCase();
+      sameGenreAlbums = echantillonAleatoire(
+        allAlbums.filter(a =>
+          a.id !== albumId && a.artist_id !== result.artist_id && a.genre?.toLowerCase() === genre
+        ),
+        10,
+      );
+
       // On récupère les artist_id des albums du même genre
       const genreArtistIds = new Set(
         allAlbums.filter(a => a.genre?.toLowerCase() === genre && a.artist_id !== result.artist_id)
           .map(a => a.artist_id)
           .filter(Boolean)
       );
-      sameGenreArtists = allArtists
-        .filter(a => genreArtistIds.has(a.id))
-        .slice(0, 10);
+      sameGenreArtists = echantillonAleatoire(
+        allArtists.filter(a => genreArtistIds.has(a.id)),
+        10,
+      );
     }
 
   } catch (e) {
@@ -298,7 +301,7 @@ async function loadAlbumTracks(
 <div class="flex flex-col scrollbar-app overflow-y-auto h-full">
 
   <!-- ================= HEADER ================= -->
-  <div class="relative px-8 pt-10 pb-8 shrink-0">
+  <div class="sticky left-0 px-8 pt-10 pb-8 shrink-0">
 
     <!-- BG Dual Layer (style Apple Music) -->
     {#if album.cover_url}
@@ -482,7 +485,7 @@ async function loadAlbumTracks(
   </div>
 
   <!-- ================= CONTENT ================= -->
-  <div class="flex-1 px-8 py-10 space-y-12">
+  <div class="sticky left-0 flex-1 px-8 py-10 space-y-12">
 
     <!-- DESCRIPTION -->
     {#if album.notes}
@@ -542,9 +545,7 @@ async function loadAlbumTracks(
         </div>
 
         {#if $viewMode === 'list'}
-        <!-- La sous-section suit le mode d'affichage, comme la liste
-             principale. Une page à moitié en grille et à moitié en tableau
-             donnerait l'impression que la bascule ne marche qu'à moitié. -->
+        <!-- La sous-section suit le mode d'affichage de la liste principale. -->
           <div class="flex flex-col">
             {#each sortedOtherAlbums as other (other.id)}
               <AlbumListRow {libraryId} album={other} />
@@ -571,9 +572,7 @@ async function loadAlbumTracks(
         </p>
 
         {#if $viewMode === 'list'}
-        <!-- La sous-section suit le mode d'affichage, comme la liste
-             principale. Une page à moitié en grille et à moitié en tableau
-             donnerait l'impression que la bascule ne marche qu'à moitié. -->
+        <!-- La sous-section suit le mode d'affichage de la liste principale. -->
           <div class="flex flex-col">
             {#each sameGenreAlbums as other (other.id)}
               <AlbumListRow {libraryId} album={other} />
@@ -600,9 +599,7 @@ async function loadAlbumTracks(
         </p>
 
         {#if $viewMode === 'list'}
-        <!-- La sous-section suit le mode d'affichage, comme la liste
-             principale. Une page à moitié en grille et à moitié en tableau
-             donnerait l'impression que la bascule ne marche qu'à moitié. -->
+        <!-- La sous-section suit le mode d'affichage de la liste principale. -->
           <div class="flex flex-col">
             {#each sameGenreArtists as artist (artist.id)}
               <ArtistListRow {libraryId} artist={artist} />

@@ -1,5 +1,83 @@
 # Changelog
 
+## [0.2.4] - 2026-09-19
+
+Lancer un morceau d'un clic redevient fiable. Les artistes invités des tags
+« X;Y » et « X Feat. Y » sont enfin crédités, et les compteurs d'artistes
+disent la vérité. Les sections de la bibliothèque se placent et se choisissent.
+
+### Lecture
+- Le clic pour lancer un morceau ne rate plus. Un double-clic envoie
+  `click, click, dblclick` : trois actions faites chacune d'une demi-douzaine
+  d'appels asynchrones, sans garantie de finir dans l'ordre. Quand une
+  sélection terminait après la lecture, son arrêt coupait le morceau qui venait
+  de partir. Les actions passent maintenant par une file d'attente, et celles
+  qu'une action plus récente rend caduques sont sautées.
+- Le titre et la pochette déclenchaient deux actions par clic : leur propre
+  gestionnaire, puis celui de la ligne. En mode sélection, la case était cochée
+  puis décochée aussitôt ; en « simple clic = lecture », une sélection et une
+  lecture partaient en concurrence.
+- Liker un morceau ou ouvrir son menu ne le lance plus.
+- Dans la liste détaillée, cliquer l'artiste ou l'album navigue au lieu de
+  lancer la lecture.
+
+### Tags multi-artistes
+- Nouveau bouton « Réparer les liaisons d'artistes » dans Réglages → Stockage.
+  Les bibliothèques indexées par une version antérieure ne créditaient que le
+  premier artiste d'un tag ; un nouveau scan ne les rattrapait pas, puisqu'il
+  saute les fichiers déjà indexés. La reprise ne relit aucun fichier — le tag
+  est déjà en base — et peut être relancée sans créer de doublon.
+- Sur la fiche d'un morceau, chaque artiste crédité a son propre lien. Le tag
+  s'affichait d'une pièce derrière un lien unique, qui menait au premier nommé.
+  Tant que les liaisons ne sont pas posées, l'ancien affichage est conservé.
+
+### Artistes
+- Le compteur de titres n'affiche plus « 0 ». Un artiste est rattaché à une
+  piste de deux façons ; la liste n'en comptait qu'une, alors que la fiche de
+  l'artiste interrogeait les deux.
+- Les artistes qui n'ont plus ni piste ni album sont écartés de la liste, et
+  l'en-tête les compte de la même façon. Retirer un dossier efface en cascade
+  les pistes et les albums, mais pas la ligne d'artiste : le total ne
+  redescendait jamais.
+- Le classement des artistes les plus écoutés, dans les statistiques, n'est
+  plus vide.
+- « Artistes similaires » et « Albums du même genre » tirent dix entrées au
+  hasard au lieu des dix premières par nom. Sur un genre qui compte deux cents
+  artistes, les mêmes têtes de liste revenaient toujours.
+
+### Sections de la bibliothèque
+- Choix du placement : à gauche, en haut, ou les deux. En mode « en haut »
+  elles suivent sur toutes les pages, y compris l'accueil.
+- Choix des sections affichées, avec un plancher d'une section.
+- Une section masquée reste visible tant qu'on s'y trouve : une barre qui
+  n'indique pas où l'on est ment plus qu'elle n'encombre.
+- Une entrée « Bibliothèque » apparaît dans la barre latérale quand elle ne
+  liste plus aucune section, et mène à la dernière ouverte.
+- « Explorateur » devient « Dossiers » partout : la même page portait deux noms
+  selon l'endroit d'où on l'ouvrait.
+
+### Affichage
+- Les barres de défilement redeviennent visibles en mode clair. Depuis
+  Chromium 121, `scrollbar-color` fait ignorer les règles `::-webkit-scrollbar`
+  — et sa valeur n'avait jamais été déclinée pour le thème clair.
+- Le bouton « choisir les colonnes » redevient cliquable. La même propriété
+  bascule sur la barre du système, qui flotte par-dessus le contenu et
+  s'élargit à l'approche du curseur : elle prenait le clic à sa place.
+- Sur les pages album, artiste et genre, l'en-tête flouté et les sections du
+  bas ne sortent plus de l'écran quand on fait défiler un tableau large.
+- Masquer « Titres likés » et « Récemment joués », séparément pour la barre
+  latérale et pour l'accueil.
+- Masquer les boutons « Ouvrir un fichier » et « Ouvrir un dossier » de la
+  barre latérale. Masqués par défaut : l'accueil propose déjà ces deux actions,
+  nommées en entier.
+
+### Performance
+- Le compte d'artistes d'une bibliothèque passe de 8,5 secondes à 16
+  millisecondes. Il demandait, pour chacun des artistes et pour chaque
+  bibliothèque, jusqu'à trois recherches d'existence ; il rassemble maintenant
+  en un seul passage les artistes qui ont du contenu.
+
+
 ## [0.2.3] - 2026-08-27
 
 La vue tableau devient une vraie table : colonnes redimensionnables, en-tête

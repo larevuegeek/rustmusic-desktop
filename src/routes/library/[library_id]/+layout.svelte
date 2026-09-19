@@ -10,6 +10,8 @@ import { libraryHeader } from "$lib/stores/library/libraryHeader";
 import { t } from "$lib/i18n";
 import LibraryActionBar from "$lib/components/library/common/LibraryActionBar.svelte";
 import LibraryTabBar from "$lib/components/library/common/LibraryTabBar.svelte";
+import { settingsStore } from "$lib/stores/settings/settings.store";
+import { lirePlacement } from "$lib/config/libraryTabs";
 import { invoke } from "@tauri-apps/api/core";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { toasts } from "$lib/stores/ui/toast.store";
@@ -57,6 +59,8 @@ let { children } = $props();
  * bouton de retour.
  */
 let isFocusedView = $derived(page.url.pathname.endsWith("/tags"));
+
+const placementOnglets = $derived(lirePlacement($settingsStore.library_tabs_position));
 
 // Drag & drop : importer des fichiers audio directement dans la bibliothèque
 function handleDragOver(e: DragEvent) {
@@ -173,10 +177,15 @@ async function handleDrop(e: DragEvent) {
   <!-- Séparateur -->
   <div class="h-px mx-6 shrink-0 bg-linear-to-r from-transparent via-neutral-200/80 dark:via-neutral-700/30 to-transparent"></div>
 
-  <!-- Tabs -->
-  <div class="shrink-0">
-    <LibraryTabBar libraryId={library.id as number} />
-  </div>
+  <!-- Rien en mode « en haut » : tout est dans l'en-tête général. -->
+  {#if placementOnglets !== 'top'}
+    <div class="shrink-0">
+      <LibraryTabBar
+        libraryId={library.id as number}
+        avecOnglets={placementOnglets === 'both'}
+      />
+    </div>
+  {/if}
   {/if}
 
   <!-- Contenu (prend tout l'espace restant, scroll interne) -->

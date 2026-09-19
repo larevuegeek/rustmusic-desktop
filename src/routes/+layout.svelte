@@ -25,6 +25,9 @@ import { playerService } from "$lib/services/player/player.service";
 import { importProgressStore } from "$lib/stores/library/importProgress.store";
 import { settingsStore } from "$lib/stores/settings/settings.store";
 import { sidebarStore } from "$lib/stores/ui/sidebar.store";
+import LibraryTabs from "$lib/components/library/common/LibraryTabs.svelte";
+import LibraryViewControls from "$lib/components/library/common/LibraryViewControls.svelte";
+import { lirePlacement } from "$lib/config/libraryTabs";
 import { taskProgressStore } from "$lib/stores/ui/taskProgress.store";
 import { artistImageReadyStore } from "$lib/stores/library/artistImageReady.store";
 import { refreshDlnaStatus } from "$lib/stores/dlna/dlna.store";
@@ -51,6 +54,11 @@ let { children }: { children: Snippet } = $props();
 // recherche pour laisser Paramètres prendre toute la largeur. Le Player en
 // bas reste visible pour continuer à contrôler la lecture.
 let isFullPageRoute = $derived(page.url.pathname.startsWith('/settings'));
+
+const tabsEnHaut = $derived(
+  !isFullPageRoute && lirePlacement($settingsStore.library_tabs_position) === 'top'
+);
+const dansLaBibliotheque = $derived(page.url.pathname.startsWith('/library/'));
 
 onMount(async () => {
   // Sentinelle anti-crash GPU (Linux) : on ne confirme le boot qu'après deux
@@ -287,6 +295,23 @@ function handleKeydown(e: KeyboardEvent) {
           </div>
         </div>
       </header>
+      {/if}
+
+      <!-- Sections de la bibliothèque, en mode « en haut » seulement : la
+           gauche n'en propose alors aucune, et celles de la bibliothèque ne
+           s'affichent qu'une fois dedans. Les commandes de vue ne suivent que
+           dans la bibliothèque. -->
+      {#if tabsEnHaut && $libraryStore.librarySelected}
+        <div class="shrink-0 px-3 md:px-6 py-2
+                    bg-neutral-100/50 dark:bg-white/2
+                    border-y border-neutral-200/60 dark:border-white/6">
+          <div class="flex items-center justify-between gap-2">
+            <LibraryTabs libraryId={$libraryStore.librarySelected.id as number} />
+            {#if dansLaBibliotheque}
+              <LibraryViewControls />
+            {/if}
+          </div>
+        </div>
       {/if}
 
       <!-- Contenu scrollable avec transition -->

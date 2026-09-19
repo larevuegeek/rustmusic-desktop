@@ -30,6 +30,19 @@ export type AppSettings = {
   // Par défaut actif : c'est le comportement historique, et le couper sans
   // le dire priverait les bibliothèques existantes de leurs portraits.
   auto_download_artist_images: string;
+  // 'true' | 'false' — un réglage par emplacement : dans la barre ce sont des
+  // destinations, sur l'accueil des indicateurs. Visibles par défaut.
+  show_liked_in_playlists: string;
+  show_recent_in_playlists: string;
+  show_liked_in_home: string;
+  show_recent_in_home: string;
+  // 'true' | 'false' — boutons « Ouvrir » de la barre latérale. Masqués par
+  // défaut : l'accueil propose déjà les deux actions.
+  show_open_buttons: string;
+  // 'sidebar' | 'top' | 'both' — où proposer les sections. 'both' d'origine.
+  library_tabs_position: string;
+  // Sections retenues, en JSON. Voir `$lib/config/libraryTabs`.
+  library_tabs: string;
   // Colonnes de l'onglet Morceaux, en JSON : un tableau de clés, dans l'ordre
   // d'affichage. Voir `$lib/config/trackColumns`.
   track_columns: string;
@@ -57,6 +70,13 @@ const defaults: AppSettings = {
   window_controls_style: 'auto',
   window_controls_position: 'right',
   auto_download_artist_images: 'true',
+  show_liked_in_playlists: 'true',
+  show_recent_in_playlists: 'true',
+  show_liked_in_home: 'true',
+  show_recent_in_home: 'true',
+  show_open_buttons: 'false',
+  library_tabs_position: 'both',
+  library_tabs: '["tracks","albums","artists","genres","folders"]',
   track_columns: '["artist","album","rating","duration"]',
   track_column_widths: '{}',
 };

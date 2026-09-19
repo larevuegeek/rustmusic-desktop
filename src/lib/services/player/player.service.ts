@@ -395,41 +395,17 @@ class PlayerService {
                 pathFile: track.path,
                 audioFile,
                 trackId: track.queueId,
-                // Figé d'emblée, sans attendre l'événement du backend : celui-ci
-                // part d'un fil qui vient d'être lancé, et les quelques images
-                // qui séparent les deux suffiraient à faire sauter la barre.
-                // Le backend rendra la main avec `playback-preparing: false`
-                // quand le premier échantillon partira vraiment.
                 isPreparing: true,
                 jsPosition: 0,
                 rustPosition: 0,
             });
 
-            // Nouvelle lecture, nouvelle écoute à compter. Rejouer deux fois
-            // le même morceau doit compter deux fois : c'est le garde par
-            // chemin, remis à zéro ici, qui empêche seulement de le compter
-            // plusieurs fois pendant une même lecture.
             playCountedPath = null;
 
             await invoke("play_file", { path: track.path });
 
-            // Si pas de mode Minimal/pre-decode, on considère que la lecture
-            // commence immédiatement (sera écrasé par le preparing listener
-            // pour les profils Low/Minimal).
             playStartedAt = Date.now();
 
-            // Le sondage de position démarre, pas l'animation.
-            //
-            // `play_file` lance un fil et rend la main en quelques
-            // millisecondes ; le son, lui, ne part qu'une à deux secondes plus
-            // tard — ouverture du périphérique, négociation du format,
-            // pré-remplissage. Animer dès maintenant, c'est compter dans le
-            // vide, puis revenir à zéro quand la vraie position arrive.
-            //
-            // C'est donc le backend qui donne le départ, par
-            // `playback-preparing: false`. À défaut, `runPosition` s'en charge
-            // dès qu'il voit la position avancer — un filet, pas le chemin
-            // normal.
             this.runPosition();
 
             // Gestion récents

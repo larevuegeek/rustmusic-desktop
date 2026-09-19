@@ -96,15 +96,24 @@ impl LibraryArtistRepository {
                 GROUP BY artist_id
             ) album_stats ON album_stats.artist_id = a.id
 
-            -- Nombre de tracks + durée totale (via library_track_artists)
+            -- Les deux rattachements : `library_tracks.artist_id` (principal)
+            -- et `library_track_artists` (tous). `UNION` et non `UNION ALL`,
+            -- le principal figure souvent dans les deux.
             LEFT JOIN (
-                SELECT lta.artist_id,
-                       COUNT(DISTINCT lt.id) AS cnt,
-                       COALESCE(SUM(lt.duration), 0.0) AS dur
-                FROM library_track_artists lta
-                INNER JOIN library_tracks lt ON lt.id = lta.library_track_id
-                WHERE lta.library_id = ?1
-                GROUP BY lta.artist_id
+                SELECT artist_id, COUNT(*) AS cnt, COALESCE(SUM(duration), 0.0) AS dur
+                FROM (
+                    SELECT lt.artist_id AS artist_id, lt.id AS track_id, lt.duration AS duration
+                    FROM library_tracks lt
+                    WHERE lt.library_id = ?1 AND lt.artist_id IS NOT NULL
+
+                    UNION
+
+                    SELECT lta.artist_id, lt.id, lt.duration
+                    FROM library_track_artists lta
+                    INNER JOIN library_tracks lt ON lt.id = lta.library_track_id
+                    WHERE lta.library_id = ?1
+                )
+                GROUP BY artist_id
             ) track_stats ON track_stats.artist_id = a.id
 
             -- Première cover trouvée
@@ -117,6 +126,9 @@ impl LibraryArtistRepository {
             ) cover ON cover.artist_id = a.id
 
             WHERE lart.library_id = ?1
+              -- Écarte ceux qui n'ont plus rien ici : une cascade efface les
+              -- pistes mais laisse la ligne `library_artists`.
+              AND (COALESCE(album_stats.cnt, 0) > 0 OR COALESCE(track_stats.cnt, 0) > 0)
             ORDER BY a.name COLLATE NOCASE ASC
             "#
         )
@@ -167,7 +179,7 @@ impl LibraryArtistRepository {
                 WHERE la2.artist_id = ?2 AND la2.library_id = ?1 AND la2.genre IS NOT NULL
               )
             GROUP BY a.id
-            ORDER BY a.name COLLATE NOCASE ASC
+            ORDER BY RANDOM()
             LIMIT ?3
             "#
         )

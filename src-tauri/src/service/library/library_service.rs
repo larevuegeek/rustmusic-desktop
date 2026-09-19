@@ -479,9 +479,15 @@ async fn save_analysed_to_db(
 
     // ─── Liaison artistes ↔ track (tous les artistes splittés) ───
     for aid in &all_artist_ids {
-        let _ = LibraryTrackArtistRepository::insert_library_track_artist(&mut *conn, LibraryTrackArtistCreate {
+        if let Err(e) = LibraryTrackArtistRepository::insert_library_track_artist(&mut *conn, LibraryTrackArtistCreate {
             library_id, artist_id: aid.clone(), library_track_id: library_track.id.clone(),
-        }).await;
+        }).await {
+            // Cette liaison porte les artistes secondaires — les « feat. », les
+            // duos. Sans elle ils ne sont crédités nulle part. L'échec était
+            // avalé : la table pouvait rester vide de bout en bout sans qu'une
+            // seule ligne de journal ne le signale.
+            log::warn!("⚠️ Liaison artiste ↔ piste refusée ({} / {}) : {}", aid, library_track.id, e);
+        }
     }
 
     // Album artist(s) → liaison track + album
@@ -704,9 +710,11 @@ pub async fn save_track_to_library_tx(
 
         // ─── Liaison artistes ↔ track (tous les artistes splittés) ───
         for aid in &all_artist_ids {
-            let _ = LibraryTrackArtistRepository::insert_library_track_artist(&mut *conn, LibraryTrackArtistCreate {
+            if let Err(e) = LibraryTrackArtistRepository::insert_library_track_artist(&mut *conn, LibraryTrackArtistCreate {
                 library_id, artist_id: aid.clone(), library_track_id: library_track.id.clone(),
-            }).await;
+            }).await {
+                log::warn!("⚠️ Liaison artiste ↔ piste refusée ({} / {}) : {}", aid, library_track.id, e);
+            }
         }
 
         if let Some(ref album_art_id) = artist_album_id {

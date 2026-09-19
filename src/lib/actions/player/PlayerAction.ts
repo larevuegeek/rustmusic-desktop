@@ -19,9 +19,6 @@ async function handleTrack(path: string): Promise<QueueTrack> {
             await playerService.stopPlay();
         }
 
-        // La mutation qui suit fait réagir le synchroniseur de file. On lui
-        // signale que l'appelant prendra la décision, sinon il lance une
-        // lecture que `handleSelectTrack` s'empresse d'arrêter.
         playerService.expectExplicitAction();
 
         //On raz la queueState et ajouter ce fichier
@@ -31,28 +28,43 @@ async function handleTrack(path: string): Promise<QueueTrack> {
 }
 
 
-export async function handleSelectTrack(path: string) {
-    try {
+// ─── Une action à la fois, et seule la dernière compte ───
+const DELAI_MAX_MS = 8000;
 
-        const track = await handleTrack(path);
+let lastAction = 0;
+let prevAction: Promise<void> = Promise.resolve();
 
-        playerService.preloadTrack(track);
+function addActionQueue(action: () => Promise<void>): Promise<void> {
+    const numero = ++lastAction;
 
-    } catch (err) {
-      console.error("Erreur play_file", err);
-    }
+    prevAction = prevAction.then(async () => {
+        // Une action plus récente est arrivée : celle-ci est caduque.
+        if (numero !== lastAction) return;
+        try {
+            await Promise.race([
+                action(),
+                new Promise<void>((liberer) => setTimeout(liberer, DELAI_MAX_MS)),
+            ]);
+        } catch (err) {
+            console.error("Erreur play_file", err);
+        }
+    });
+
+    return prevAction;
 }
 
-export async function handlePlayTrack(path: string) {
-    try {
-
+export function handleSelectTrack(path: string): Promise<void> {
+    return addActionQueue(async () => {
         const track = await handleTrack(path);
+        await playerService.preloadTrack(track);
+    });
+}
 
-        playerService.playFile(track);
-
-    } catch (err) {
-      console.error("Erreur play_file", err);
-    }
+export function handlePlayTrack(path: string): Promise<void> {
+    return addActionQueue(async () => {
+        const track = await handleTrack(path);
+        await playerService.playFile(track);
+    });
 }
 
 export async function handleClickOpenFile() {
