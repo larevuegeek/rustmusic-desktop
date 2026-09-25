@@ -102,7 +102,7 @@ $effect(() => {
       <div class="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-800">
 
           {#each $libraryContentStore.tracks as track (track.id)}
-            <TrackListItem libraryId={libraryId} track={track} />
+            <TrackListItem libraryId={libraryId} track={track} tracks={$libraryContentStore.tracks} />
           {/each}
       </div>
   </div>

@@ -50,6 +50,7 @@
 
   // `=== 'true'` : masqué par défaut.
   const boutonsOuvrir = $derived($settingsStore.show_open_buttons === 'true');
+  const favoris = $derived($settingsStore.show_favorites !== 'false');
 
   // ─── Sections de la bibliothèque ───
   const placement = $derived(lirePlacement($settingsStore.library_tabs_position));
@@ -283,6 +284,26 @@
         checked={boutonsOuvrir}
         label={$t('settings.open_buttons')}
         onclick={() => settingsStore.toggle('show_open_buttons')}
+      />
+    </div>
+
+    <div class="mt-2 max-w-2xl flex items-center justify-between gap-4 px-4 py-3
+                rounded-xl border border-neutral-200/60 dark:border-white/8">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <Icon icon="lucide:heart" width="15" class="shrink-0 text-neutral-400" />
+        <div class="min-w-0">
+          <p class="text-sm text-neutral-800 dark:text-neutral-200">
+            {$t('settings.favorites')}
+          </p>
+          <p class="text-[11px] text-neutral-400 dark:text-neutral-500">
+            {$t('settings.favorites_desc')}
+          </p>
+        </div>
+      </div>
+      <ToggleSwitch
+        checked={favoris}
+        label={$t('settings.favorites')}
+        onclick={() => settingsStore.toggle('show_favorites')}
       />
     </div>
   </div>

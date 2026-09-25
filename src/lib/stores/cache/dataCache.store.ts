@@ -1,180 +1,87 @@
 /**
- * ═══════════════════════════════════════════════════════════
- * dataCache — Cache mémoire avec Stale-While-Revalidate
- * ═══════════════════════════════════════════════════════════
+ * Cache mémoire avec stale-while-revalidate, borné.
  *
- * POURQUOI CE STORE ?
- * Quand tu navigues albums → détail album → retour albums,
- * sans cache le navigateur refait un appel SQL à chaque fois.
- * Avec le cache, on stocke les résultats en mémoire (Map JS)
- * et on les réutilise instantanément.
+ * Clés : `tracks:42`, `albums:42`, `artists:42` (listes d'une bibliothèque),
+ * `album:<id>`, `artist:<id>`, `album-tracks:<id>` (fiches).
  *
- * COMMENT ÇA MARCHE ?
- *
- * 1. `get(clé)` — retourne les données du cache + leur âge
- *    Si les données existent et ont < MAX_AGE, on les sert directement.
- *    Si elles sont "stale" (vieilles), on les sert QUAND MÊME
- *    mais on signale qu'un refresh serait utile.
- *
- * 2. `set(clé, données)` — stocke les données avec un timestamp
- *
- * 3. `invalidate(clé)` — supprime une entrée (après un import par ex.)
- *
- * 4. `invalidateAll()` — vide tout le cache
- *
- * La CLÉ est une string libre, par convention on utilise :
- *   - "tracks:42"      → tracks de la library 42
- *   - "albums:42"      → albums de la library 42
- *   - "artists:42"     → artistes de la library 42
- *   - "album:abc-123"  → détail de l'album abc-123
- *   - "artist:def-456" → détail de l'artiste def-456
+ * Les fiches se remplissent au survol d'une vignette. Sur une bibliothèque de
+ * six cents albums, parcourir la grille en cachait des centaines — chacune avec
+ * la liste complète de ses pistes — et rien n'était jamais relâché. D'où le
+ * plafond ci-dessous.
  */
 
-// ─── Types ───
+type CacheEntry<T> = { data: T; timestamp: number };
+type CacheResult<T> = { data: T; fresh: boolean };
 
-/** Une entrée dans le cache : la donnée + quand elle a été stockée */
-type CacheEntry<T> = {
-  data: T;
-  timestamp: number; // Date.now() au moment du set()
-};
-
-/** Ce que retourne get() : la donnée + un booléen "est-ce encore frais ?" */
-type CacheResult<T> = {
-  data: T;
-  fresh: boolean; // true = pas besoin de re-fetch, false = stale, refresh recommandé
-};
-
-// ─── Configuration ───
+/** Au-delà, la donnée est servie mais un rafraîchissement est conseillé. */
+const MAX_AGE = 30_000;
 
 /**
- * MAX_AGE en millisecondes.
- * Les données de moins de 30 secondes sont considérées "fresh"
- * → on ne re-fetch pas du tout.
- *
- * Au-delà, on les affiche mais on signale qu'un refresh serait bien.
- *
- * 30s est un bon compromis :
- * - Navigation rapide (aller-retour) = instantané, pas de fetch
- * - Si l'utilisateur reste 1 min sur une page et revient,
- *   on affiche le cache puis on met à jour silencieusement
+ * Nombre de fiches conservées. Les listes de bibliothèque n'y comptent pas :
+ * elles sont peu nombreuses et coûteuses à refaire.
  */
-const MAX_AGE = 30_000; // 30 secondes
+const MAX_FICHES = 40;
 
-// ─── Le cache lui-même ───
+const PREFIXES_LISTE = ['tracks:', 'albums:', 'artists:'];
 
-/**
- * Map<string, CacheEntry<any>>
- *
- * Pourquoi une Map et pas un objet {} ?
- * - Map est optimisé pour des insertions/suppressions fréquentes
- * - Map.delete() est O(1), contrairement à `delete obj[key]`
- * - Map garde l'ordre d'insertion (utile pour un futur LRU)
- *
- * Le `any` ici est inévitable car le cache stocke des types différents
- * (tracks[], albums[], ArtistDetailView...). La sécurité de type
- * est assurée par le générique <T> dans get() et set().
- */
 const cache = new Map<string, CacheEntry<any>>();
 
-// ─── API publique ───
+const estListe = (key: string) =>
+  PREFIXES_LISTE.some((p) => key.startsWith(p)) && !key.startsWith('album-tracks:');
+
+/** Évince les fiches les plus anciennement utilisées au-delà du plafond. */
+function elaguer() {
+  let fiches = 0;
+  for (const key of cache.keys()) if (!estListe(key)) fiches++;
+  if (fiches <= MAX_FICHES) return;
+
+  // `Map` garde l'ordre d'insertion, et `get` réinsère : les premières clés
+  // sont donc les moins récemment utilisées.
+  for (const key of [...cache.keys()]) {
+    if (fiches <= MAX_FICHES) break;
+    if (estListe(key)) continue;
+    cache.delete(key);
+    fiches--;
+  }
+}
 
 export const dataCache = {
-
-  /**
-   * Récupère une entrée du cache.
-   *
-   * @param key — la clé (ex: "albums:42")
-   * @returns null si rien en cache, sinon { data, fresh }
-   *
-   * Exemple d'utilisation dans un composant :
-   * ```ts
-   * const cached = dataCache.get<AlbumListView[]>(`albums:${libraryId}`);
-   * if (cached) {
-   *   albums = cached.data;          // affichage immédiat
-   *   if (!cached.fresh) refresh();  // refresh en background si stale
-   * } else {
-   *   await fullLoad();              // premier chargement
-   * }
-   * ```
-   */
   get<T>(key: string): CacheResult<T> | null {
     const entry = cache.get(key);
     if (!entry) return null;
 
-    // Calcule l'âge de l'entrée
-    const age = Date.now() - entry.timestamp;
+    // Réinsertion : marque l'entrée comme récemment utilisée pour l'élagage.
+    cache.delete(key);
+    cache.set(key, entry);
 
-    return {
-      data: entry.data as T,
-      fresh: age < MAX_AGE, // < 30s = frais, pas besoin de refresh
-    };
+    return { data: entry.data as T, fresh: Date.now() - entry.timestamp < MAX_AGE };
   },
 
-  /**
-   * Stocke une entrée dans le cache.
-   *
-   * @param key — la clé
-   * @param data — les données à cacher
-   *
-   * Le timestamp est automatiquement mis à Date.now().
-   * Si la clé existe déjà, elle est écrasée (mise à jour).
-   */
   set<T>(key: string, data: T): void {
-    cache.set(key, {
-      data,
-      timestamp: Date.now(),
-    });
+    cache.delete(key);
+    cache.set(key, { data, timestamp: Date.now() });
+    elaguer();
   },
 
-  /**
-   * Invalide (supprime) une entrée spécifique.
-   *
-   * Quand l'appeler ?
-   * - Après un import de fichiers → invalidate("tracks:42")
-   * - Après un rescan → invalidateByPrefix("tracks:"), etc.
-   * - Après une suppression
-   *
-   * L'entrée sera re-fetchée au prochain accès.
-   */
+  /** Vrai si la clé est connue, fraîche ou non. */
+  has(key: string): boolean {
+    return cache.has(key);
+  },
+
   invalidate(key: string): void {
     cache.delete(key);
   },
 
-  /**
-   * Invalide toutes les entrées dont la clé commence par `prefix`.
-   *
-   * Utile après un import ou rescan qui affecte plusieurs types :
-   * ```ts
-   * dataCache.invalidateByPrefix("tracks:");
-   * dataCache.invalidateByPrefix("albums:");
-   * dataCache.invalidateByPrefix("artists:");
-   * ```
-   *
-   * Ou plus radical : invalidateAll()
-   */
   invalidateByPrefix(prefix: string): void {
-    // On itère sur les clés de la Map
-    // et on supprime celles qui matchent le prefix
     for (const key of cache.keys()) {
-      if (key.startsWith(prefix)) {
-        cache.delete(key);
-      }
+      if (key.startsWith(prefix)) cache.delete(key);
     }
   },
 
-  /**
-   * Vide tout le cache.
-   *
-   * Quand l'appeler ?
-   * - Changement de profil
-   * - Changement de bibliothèque
-   * - Reset de l'app
-   */
   invalidateAll(): void {
     cache.clear();
   },
 
-  /** Retourne le nombre d'entrées en cache (debug) */
   size(): number {
     return cache.size;
   },

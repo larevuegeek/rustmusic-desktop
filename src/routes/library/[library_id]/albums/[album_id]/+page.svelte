@@ -478,7 +478,7 @@ async function loadAlbumTracks(
     {:else}
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-1">
         {#each sortedTracks as track }
-          <AlbumListTrackItem libraryId={libraryId} track={track} />
+          <AlbumListTrackItem libraryId={libraryId} track={track} tracks={sortedTracks} />
         {/each}
       </div>
     {/if}

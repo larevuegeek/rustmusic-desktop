@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
+  import { oublierLocalisations } from "$lib/helper/library/trackLocation";
   import { invoke } from "@tauri-apps/api/core";
   import { handleAddDirectory } from "$lib/actions/library/LibraryAction";
   import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
@@ -43,6 +44,7 @@
     rescanningId = dir.id;
     try {
       await invoke('rescan_library_dir', { libraryId, dirId: dir.id });
+      oublierLocalisations();
       await loadDirs();
       libraryContentStore.load(libraryId);
     } catch (e) {

@@ -97,12 +97,11 @@ let availableLetters = $derived(
 function scrollToLetter(letter: string) {
   if (!scrollContainer) return;
   const el = scrollContainer.querySelector(`[data-letter="${letter}"]`) as HTMLElement | null;
-  if (el) {
-    const containerRect = scrollContainer.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    const top = elRect.top - containerRect.top + scrollContainer.scrollTop - 24;
-    scrollContainer.scrollTo({ top, behavior: 'smooth' });
-  }
+  // `scrollIntoView` et non un calcul d'offset : les cartes hors écran portent
+  // `content-visibility`, donc leur hauteur n'est que présumée tant qu'elles
+  // n'ont pas été rendues une fois — la somme serait fausse. Le décalage vient
+  // de `scroll-mt-6` sur l'ancre.
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function shouldShowLetter(index: number, album: AlbumListView): boolean {

@@ -59,10 +59,9 @@ export function preload(node: HTMLElement, fetchFn: () => void) {
     let timeout: ReturnType<typeof setTimeout>;
 
     function onEnter() {
-        // Debounce : attendre 100ms avant de lancer le fetch
-        // Si l'utilisateur passe la souris rapidement sans s'arrêter,
-        // le fetch n'est jamais lancé (économie de requêtes)
-        timeout = setTimeout(fetchFn, 100);
+        // 250 ms : en dessous, un simple balayage de la grille déclenche une
+        // requête par vignette survolée.
+        timeout = setTimeout(fetchFn, 250);
     }
 
     function onLeave() {
@@ -98,12 +97,10 @@ export function preload(node: HTMLElement, fetchFn: () => void) {
 export function preloadAlbumData(libraryId: number, albumId: string) {
     const cacheKey = `album:${albumId}`;
 
-    // Déjà en cache et frais → rien à faire
-    const cached = dataCache.get(cacheKey);
-    if (cached?.fresh) return;
-
-    // Déjà en cours de fetch → rien à faire
-    if (inflight.has(cacheKey)) return;
+    // Connu, même périmé : la page s'en sert telle quelle et se rafraîchit
+    // seule. Repartir sur `fresh` relançait deux requêtes par vignette toutes
+    // les trente secondes, à chaque passage de souris.
+    if (dataCache.has(cacheKey) || inflight.has(cacheKey)) return;
     inflight.add(cacheKey);
 
     // Lancer les 2 fetches en parallèle
@@ -126,10 +123,7 @@ export function preloadAlbumData(libraryId: number, albumId: string) {
 export function preloadArtistData(artistId: string) {
     const cacheKey = `artist:${artistId}`;
 
-    const cached = dataCache.get(cacheKey);
-    if (cached?.fresh) return;
-
-    if (inflight.has(cacheKey)) return;
+    if (dataCache.has(cacheKey) || inflight.has(cacheKey)) return;
     inflight.add(cacheKey);
 
     loadArtist(artistId).then(artist => {

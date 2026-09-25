@@ -1,6 +1,7 @@
 <script lang="ts">
 import { handleRemoveTrackItem } from "$lib/actions/library/LibraryAction";
 import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
+import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
 import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import { liked } from "$lib/stores/playlist/like.store";
 import { selectionStore } from "$lib/stores/ui/selection.store";
@@ -9,7 +10,9 @@ import Icon from "@iconify/svelte";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import { dsdLabel, isDsdFormat } from "$lib/helper/tools/audioFormatTools";
 
-let { libraryId, track, showAlbum = false }: { libraryId: any; track: any; showAlbum?: boolean } = $props();
+// `tracks` : la liste affichée, pour que la lecture enchaîne après ce morceau.
+let { libraryId, track, tracks = [], showAlbum = false }:
+    { libraryId: any; track: any; tracks?: any[]; showAlbum?: boolean } = $props();
 
 let contextMenu = $state<{ x: number; y: number } | null>(null);
 let isLiked = $derived($liked.paths.has(track.path));
@@ -29,15 +32,15 @@ function handleClick(e?: MouseEvent) {
         if (e?.shiftKey) selectionStore.selectRange(track.id);
         else selectionStore.toggle(track.id, track);
     } else if (singleClickPlay) {
-        handlePlayTrack(track.path);
+        handlePlayTrack(track.path, versFileDAttente(tracks));
     } else {
-        handleSelectTrack(track.path);
+        handleSelectTrack(track.path, versFileDAttente(tracks));
     }
 }
 
 function handleDblClick() {
     if (!selection.active) {
-        handlePlayTrack(track.path);
+        handlePlayTrack(track.path, versFileDAttente(tracks));
     }
 }
 </script>
@@ -125,7 +128,7 @@ function handleDblClick() {
           <button
               onclick={(e) => { e.stopPropagation(); liked.toggle(track.path); }}
         ondblclick={(e) => e.stopPropagation()}
-              class="p-1 rounded-md cursor-pointer transition-colors
+              class="favori p-1 rounded-md cursor-pointer transition-colors
                      {isLiked
                        ? 'text-pink-500 hover:text-pink-400'
                        : 'text-neutral-300 dark:text-neutral-600 hover:text-pink-400 dark:hover:text-pink-400'}"

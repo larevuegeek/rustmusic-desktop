@@ -257,7 +257,7 @@
 </div>
 
 {#each tracks as track (track.id)}
-  <TrackListCompact {libraryId} {track} {columns} {largeurs} />
+  <TrackListCompact {libraryId} {track} {tracks} {columns} {largeurs} />
 {/each}
 
 {#if showColumns}

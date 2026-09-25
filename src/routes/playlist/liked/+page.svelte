@@ -6,6 +6,7 @@ import Icon from "@iconify/svelte";
 import PageHeader from "$lib/components/ui/header/PageHeader.svelte";
 import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
+import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
 import { invoke } from "@tauri-apps/api/core";
   import ViewModeToggle from "$lib/components/ui/input/ViewModeToggle.svelte";
 import TrackTable from "$lib/components/library/track/TrackTable.svelte";
@@ -148,7 +149,7 @@ onMount(async () => {
     <div class="flex items-center justify-between py-3 px-3 rounded-md
                 hover:bg-neutral-100 dark:hover:bg-neutral-900
                 transition-colors duration-150"
-         ondblclick={() => handlePlayTrack(track.path)}
+         ondblclick={() => handlePlayTrack(track.path, versFileDAttente(tracks))}
          oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, track }; }}>
       <!-- LEFT -->
       <div class="flex items-center gap-4 min-w-0">
@@ -156,7 +157,7 @@ onMount(async () => {
           {String(index + 1).padStart(2, "0")}
         </div>
 
-        <button onclick={() => handleSelectTrack(track.path)} class="cursor-pointer">
+        <button onclick={() => handleSelectTrack(track.path, versFileDAttente(tracks))} class="cursor-pointer">
           <div class="w-22 h-22 rounded-md overflow-hidden
                       bg-neutral-200 dark:bg-neutral-700
                       flex items-center justify-center shrink-0">
@@ -170,7 +171,7 @@ onMount(async () => {
         </button>
 
         <div class="flex flex-col items-stretch min-w-0">
-          <button onclick={() => handleSelectTrack(track.path)} class="text-left cursor-pointer min-w-0 w-full">
+          <button onclick={() => handleSelectTrack(track.path, versFileDAttente(tracks))} class="text-left cursor-pointer min-w-0 w-full">
             <span class="block font-medium text-neutral-800 dark:text-neutral-200 truncate"
                   title={track.title ?? "Titre inconnu"}>
               {track.title ?? "Titre inconnu"}

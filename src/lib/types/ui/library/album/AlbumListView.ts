@@ -13,6 +13,8 @@ export interface AlbumListView {
   total_tracks: number;
   total_duration: number;
   notes: string | null;
+  /** L'artiste n'est qu'invité sur cet album. */
+  participation: boolean;
   created_at: string;
   updated_at: string; 
 }

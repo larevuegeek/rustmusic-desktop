@@ -18,6 +18,9 @@ pub struct AlbumListView {
     pub total_tracks: i64,
     pub total_duration: f64,
     pub notes: Option<String>,
+    /// L'artiste n'est qu'invité sur cet album (compilation, BO, featuring).
+    #[sqlx(default)]
+    pub participation: bool,
 
     // ===== Timestamps =====
     pub created_at: DateTime<Utc>,

@@ -1,5 +1,6 @@
 <script lang="ts">
 import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
+import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
 import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import { liked } from "$lib/stores/playlist/like.store";
 import { selectionStore } from "$lib/stores/ui/selection.store";
@@ -10,10 +11,12 @@ import StarRating from "$lib/components/ui/rating/StarRating.svelte";
 import { largeurDe, estFlexible, styleCellule, type TrackColumn } from "$lib/config/trackColumns";
 
 // Les colonnes viennent de la page : la ligne n'a pas à relire les réglages.
-let { libraryId, track, columns = [], largeurs = {} }:
+let { libraryId, track, tracks = [], columns = [], largeurs = {} }:
     {
         libraryId: any;
         track: any;
+        /** La liste affichée, pour que la lecture enchaîne après ce morceau. */
+        tracks?: any[];
         columns?: TrackColumn[];
         /** Largeurs réglées, par clé de colonne. Voir `TrackTable`. */
         largeurs?: Record<string, number>;
@@ -32,9 +35,9 @@ function handleClick(e?: MouseEvent) {
         if (e?.shiftKey) selectionStore.selectRange(track.id);
         else selectionStore.toggle(track.id, track);
     } else if (singleClickPlay) {
-        handlePlayTrack(track.path);
+        handlePlayTrack(track.path, versFileDAttente(tracks));
     } else {
-        handleSelectTrack(track.path);
+        handleSelectTrack(track.path, versFileDAttente(tracks));
     }
 }
 </script>
@@ -46,7 +49,7 @@ function handleClick(e?: MouseEvent) {
            transition-colors duration-100
            {isSelected ? 'bg-emerald-500/10 dark:bg-emerald-500/10' : 'hover:bg-neutral-100 dark:hover:bg-neutral-900'}
            {selection.active ? 'cursor-pointer' : ''}"
-    ondblclick={() => { if (!selection.active) handlePlayTrack(track.path); }}
+    ondblclick={() => { if (!selection.active) handlePlayTrack(track.path, versFileDAttente(tracks)); }}
     onclick={handleClick}
     oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY }; }}
 >
@@ -140,7 +143,7 @@ function handleClick(e?: MouseEvent) {
     <button
         onclick={(e) => { e.stopPropagation(); liked.toggle(track.path); }}
         ondblclick={(e) => e.stopPropagation()}
-        class="p-1 rounded cursor-pointer shrink-0 transition-colors
+        class="favori p-1 rounded cursor-pointer shrink-0 transition-colors
                {isLiked ? 'text-pink-500' : 'text-transparent group-hover:text-neutral-300 dark:group-hover:text-neutral-600 hover:!text-pink-400'}"
         aria-label="Liker"
     >

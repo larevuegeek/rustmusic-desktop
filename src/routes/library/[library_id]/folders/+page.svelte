@@ -7,6 +7,7 @@
   import { libraryStore } from "$lib/stores/library/library.store";
   import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
   import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
+  import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
   import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
   import { goto } from "$app/navigation";
   import { t } from "$lib/i18n";
@@ -420,7 +421,7 @@
                      border border-neutral-200/50 dark:border-white/5
                      hover:bg-green-500/5 hover:border-green-500/20
                      active:scale-[0.97] transition-all duration-200"
-              onclick={() => entry.is_dir ? navigateTo(entry.path, entry.name) : handlePlayTrack(entry.path)}
+              onclick={() => entry.is_dir ? navigateTo(entry.path, entry.name) : handlePlayTrack(entry.path, versFileDAttente(entries.filter((e) => !e.is_dir)))}
               oncontextmenu={(e) => !entry.is_dir && handleContextMenu(e, entry)}
             >
               <div class="w-14 h-14 rounded-xl flex items-center justify-center transition-colors
@@ -454,7 +455,7 @@
                  hover:bg-neutral-50 dark:hover:bg-white/4
                  active:bg-neutral-100 dark:active:bg-white/6
                  transition-colors duration-100 w-full text-left"
-          onclick={() => entry.is_dir ? navigateTo(entry.path, entry.name) : handlePlayTrack(entry.path)}
+          onclick={() => entry.is_dir ? navigateTo(entry.path, entry.name) : handlePlayTrack(entry.path, versFileDAttente(entries.filter((e) => !e.is_dir)))}
           oncontextmenu={(e) => !entry.is_dir && handleContextMenu(e, entry)}
         >
           <!-- Icône -->

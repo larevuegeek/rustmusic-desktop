@@ -69,6 +69,13 @@ html.dark[data-contrast="high"] select option {
   color: #ffffff;
 }
 
+/* Favoris coupés dans les réglages : le cœur disparaît de partout d'un coup,
+   plutôt qu'une condition dans chacun des sept composants qui le portent.
+   `display:none` le retire aussi du parcours clavier. */
+html[data-favoris="off"] .favori {
+  display: none !important;
+}
+
 /* Fenêtre applicative : jamais de scroll au niveau du document (le scroll se
    fait dans des conteneurs internes). Évite les scrollbars natives parasites,
    notamment en mode mini-player où la fenêtre est très petite. */
@@ -489,4 +496,21 @@ html, body {
 .row-album-track {
   content-visibility: auto;
   contain-intrinsic-size: auto 64px;
+}
+
+/* Mêmes raisons pour les vignettes des grilles : six cents albums et neuf cents
+   artistes restaient tous peints, avec leurs images décodées en mémoire. La
+   hauteur ci-dessous ne sert qu'au premier passage — `auto` fait mémoriser la
+   vraie au navigateur.
+
+   Posées sur la racine de la carte ; son menu contextuel est un frère, donc le
+   confinement ne l'atteint pas. */
+.card-album {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 280px;
+}
+
+.card-artist {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 232px;
 }

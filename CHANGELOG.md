@@ -1,5 +1,97 @@
 # Changelog
 
+## [0.2.5] - 2026-09-25
+
+Les albums et les artistes retrouvent leur identité : une compilation redevient
+un album au lieu de cinquante-deux, un invité n'a plus « Various Artists » pour
+nom, et un artiste présent sur une bande originale ne compte plus zéro album.
+La lecture, elle, enchaîne enfin avec la suite de la liste.
+
+### Albums
+- **Une compilation ne forme plus un album par artiste.** L'identité d'un album
+  incluait son artiste : sans tag « artiste de l'album », chaque piste fondait
+  donc le sien. « NRJ Hit Music Only 2019 » comptait 52 fiches d'un titre
+  chacune, « NRJ Music Awards 2012 » 44, « Taxi 4 » 22 — en tout 333 fiches en
+  trop sur 1 236. Un album se reconnaît maintenant à son titre et à son
+  dossier, les `CD1`, `Disc 2`, `Disque 3` étant rattachés au coffret auquel ils
+  appartiennent. Les homonymes légitimes restent séparés : le « Best Of » d'AC/DC
+  n'est pas celui de Suprême NTM.
+- Le rassemblement se fait tout seul au premier démarrage. L'album fusionné
+  appartient au tag « artiste de l'album » majoritaire — un featuring isolé ne
+  transforme pas une pochette en compilation — et sinon à « Various Artists »,
+  marqué comme compilation.
+
+### Artistes
+- **« Various Artists » ne remplace plus le vrai artiste d'un morceau.** Une
+  seule variable servait à deux choses, l'artiste de la piste et le
+  propriétaire de l'album, et la seconde écrasait la première. 309 morceaux
+  portaient un nom qui n'était pas le leur : PJ Harvey, The White Stripes,
+  Arctic Monkeys, Nick Cave… Les nouveaux fichiers sont justes d'emblée ; pour
+  les anciens, Réglages → Stockage → « Réparer les liaisons d'artistes » les
+  corrige, et annonce combien.
+- **Un artiste n'affiche plus zéro album.** La page ne montrait que les albums
+  qu'il possède ; un invité, un artiste de compilation ou de bande originale
+  n'en possède aucun. 504 artistes sur 1 512 affichaient des titres et pas un
+  album. Une section « Apparaît dans » réunit désormais les disques où ils ne
+  font que figurer, sous leurs albums à eux.
+
+### Lecture
+- **La musique enchaîne avec la suivante.** Cliquer un morceau réduisait la
+  file d'attente à ce seul morceau : rien à jouer ensuite, et l'option « en
+  boucle » ne faisait que le rejouer. La liste d'où vient le clic devient la
+  file — bibliothèque, album, artiste, playlists, recherche, dossiers, accueil.
+  En aléatoire, le morceau cliqué ouvre le bal et le reste est tiré au sort.
+- La file s'écrit en base en arrière-plan. Mettre une bibliothèque entière en
+  attente représente près de 6 Mo : l'attendre repoussait le son à chaque clic.
+- En mode « double-clic pour lire », un simple clic ne coupe plus le morceau
+  en cours : il désigne, il ne commande pas le lecteur.
+
+### Navigation
+- **Le lecteur mène quelque part.** Son titre, son artiste et son album
+  n'étaient que du texte : pour ouvrir la fiche de ce qu'on écoutait, il
+  fallait le retrouver soi-même dans la bibliothèque. Les trois sont
+  maintenant cliquables, sans rien changer à leur apparence — seul un
+  soulignement apparaît au survol. Un fichier ouvert à la volée, absent de la
+  bibliothèque, reste du texte simple.
+- Dans « Récemment joués », l'artiste et l'album d'un morceau de la
+  bibliothèque ouvrent leur fiche. Le titre continue de lancer la lecture.
+
+### Menus
+- Un bouton « … » sur les zones **Playlists**, **Bibliothèque** et **Ouvrir**.
+  Il réunit ce qui n'avait sa place nulle part : réafficher les playlists
+  masquées, déplacer les sections de la bibliothèque à gauche, en haut ou aux
+  deux, choisir celles qui s'affichent, masquer la section « Ouvrir ».
+- Clic droit sur une ligne de playlist : lire, modifier, supprimer.
+- Option pour masquer « Ajouter aux favoris » partout où il apparaît, menu
+  contextuel compris.
+
+### Mémoire et processeur
+- **La pochette ne traverse plus deux fois le pont vers l'interface.** Ses
+  octets bruts voyageaient en clair dans chaque lecture de fichier, et une
+  lecture part deux fois par clic. Sur une pochette ordinaire cela faisait plus
+  d'un mégaoctet à sérialiser pour des octets utilisés une seule fois ; un test
+  vérifie désormais que la charge utile reste sous 4 Ko.
+- Le cache de données est borné à quarante fiches, les listes principales
+  protégées, les plus anciennes évincées. Il grossissait sans limite.
+- Survoler une grille ne déclenche plus une rafale de requêtes : le délai passe
+  à 250 ms et le cache est consulté avant de repartir en base.
+- Les lignes hors écran des grilles ne sont plus mises en page ni gardées en
+  mémoire tant qu'on ne les atteint pas.
+
+### Affichage
+- Les playlists masquées n'apparaissent plus deux secondes au démarrage avant
+  de disparaître : les réglages sont lus avant le premier rendu.
+
+### Sécurité des données
+- **Revenir à une version antérieure ne casse plus l'ajout de fichiers.** La
+  nouvelle identité d'album supprimait la contrainte que l'ancien code vise
+  pour ranger un morceau : réinstaller une 0.2.4 par-dessus laissait une
+  bibliothèque lisible mais impossible à enrichir. L'ancienne contrainte est
+  conservée à côté de la nouvelle.
+- **Une sauvegarde est prise avant toute migration de la base**, par instantané
+  cohérent plutôt que copie de fichier — le journal d'écriture en fait partie.
+  Une seule copie est conservée, à côté de la base.
+
 ## [0.2.4] - 2026-09-19
 
 Lancer un morceau d'un clic redevient fiable. Les artistes invités des tags

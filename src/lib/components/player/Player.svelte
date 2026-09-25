@@ -18,6 +18,8 @@ import StatusBar from "$lib/components/ui/statusbar/StatusBar.svelte";
 import { resolveCoverSrc } from "$lib/helper/tools/coverHelper";
 import { dsdLabel, formatBitrate, formatDsdRate, isDsdFormat } from "$lib/helper/tools/audioFormatTools";
 import { dlnaStatusStore } from "$lib/stores/dlna/dlna.store";
+import { get } from "svelte/store";
+import { localiserUn, lienTitre, lienArtiste, lienAlbum, type TrackLocation } from "$lib/helper/library/trackLocation";
 import { playbackPipelineStore, pipelineMode } from "$lib/stores/player/playbackPipeline.store";
 import PipelineInfoPopover from "$lib/components/player/PipelineInfoPopover.svelte";
 import { goto } from "$app/navigation";
@@ -39,6 +41,36 @@ let showPipelinePopover = $state(false);
 // Titre affiché : tag title si présent, sinon nom de fichier (utile pour
 // les DSF/DFF sans DITI/ID3 où le tag title manque).
 let trackTitle = $derived(displayTitle(audioTags?.title, $player?.pathFile, $t('common.unknown_title')));
+
+// Le lecteur ne connaît que le fichier : il faut retrouver sa fiche pour que
+// le titre, l'artiste et l'album mènent quelque part. Rien si le morceau est
+// joué hors bibliothèque.
+let lieu = $state<TrackLocation | null>(null);
+
+// Le chemin, et lui seul. Lire `$player` dans l'effet le relançait à chaque
+// image de la boucle de progression : le lien était détruit et reconstruit
+// sous le curseur — il clignotait et le clic ne prenait jamais.
+let cheminLu = $derived($player?.pathFile ?? null);
+
+// Garde explicite plutôt que de s'en remettre à l'égalité du framework : tant
+// que le morceau ne change pas, l'effet ne touche à rien.
+let cheminResolu: string | null = null;
+
+$effect(() => {
+  const chemin = cheminLu;
+  if (chemin === cheminResolu) return;
+  cheminResolu = chemin;
+
+  if (!chemin) {
+    lieu = null;
+    return;
+  }
+  lieu = null;
+  localiserUn(chemin).then((trouve) => {
+    // Un autre morceau a pu prendre la main entre-temps.
+    if (get(player)?.pathFile === chemin) lieu = trouve;
+  });
+});
 
 let isPlaying = $derived($player?.status === "playing");
 let duration = $derived($player?.duration ?? 0);
@@ -110,7 +142,7 @@ function handleForward() {
 {#snippet actionButtons(_inColumn: boolean)}
   {#if $player?.pathFile}
     <button
-      class="{btnSmall}
+      class="favori {btnSmall}
              {$liked.paths.has($player.pathFile)
                ? 'text-emerald-500 hover:text-emerald-400'
                : 'text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}"
@@ -150,6 +182,19 @@ function handleForward() {
   </div>
 {/snippet}
 
+<!-- Une info du lecteur, cliquable quand elle mène à une fiche. Les classes
+     restent les mêmes : seul le soulignement au survol change. -->
+{#snippet info(texte: string, classes: string, cible: string | null)}
+  {#if cible}
+    <button type="button" class="{classes} text-left cursor-pointer hover:underline"
+            title={texte} onclick={() => goto(cible)}>
+      {texte}
+    </button>
+  {:else}
+    <div class={classes} title={texte}>{texte}</div>
+  {/if}
+{/snippet}
+
 <!-- Snippet partagé : cover + titre/artist/album. -->
 {#snippet coverAndTitle()}
   {#if hasTrack}
@@ -166,18 +211,14 @@ function handleForward() {
     </div>
 
     <div class="min-w-0 flex flex-col gap-0.5">
-      <div class="truncate text-[13px] font-semibold text-neutral-900 dark:text-neutral-100"
-           title={trackTitle}>
-        {trackTitle}
-      </div>
-      <div class="truncate text-xs text-emerald-600 dark:text-emerald-400"
-           title={audioTags?.artist ?? ""}>
-        {audioTags?.artist ?? ""}
-      </div>
+      {@render info(trackTitle,
+        "truncate text-[13px] font-semibold text-neutral-900 dark:text-neutral-100",
+        lienTitre(lieu))}
+      {@render info(audioTags?.artist ?? "",
+        "truncate text-xs text-emerald-600 dark:text-emerald-400",
+        lienArtiste(lieu))}
       <div class="hidden md:flex items-center gap-1 min-w-0 text-[11px] text-neutral-400 dark:text-neutral-500">
-        <span class="truncate" title={audioTags?.album ?? ""}>
-          {audioTags?.album ?? ""}
-        </span>
+        {@render info(audioTags?.album ?? "", "truncate", lienAlbum(lieu))}
         {#if audioTags?.year}
           <span class="shrink-0">• {dateToYear(audioTags.year)}</span>
         {/if}
@@ -346,21 +387,19 @@ function handleForward() {
             <img src={coverSrc} alt="" class="w-full h-full object-cover" />
           </div>
 
-          <div class="flex-1 min-w-0">
-            <div class="truncate text-xs font-semibold text-neutral-900 dark:text-neutral-100"
-                 title={trackTitle}>
-              {trackTitle}
-            </div>
-            <div class="truncate text-[10px] text-emerald-600 dark:text-emerald-400"
-                 title={audioTags?.artist ?? ""}>
-              {audioTags?.artist ?? ""}
-            </div>
+          <div class="flex-1 min-w-0 flex flex-col">
+            {@render info(trackTitle,
+              "truncate text-xs font-semibold text-neutral-900 dark:text-neutral-100",
+              lienTitre(lieu))}
+            {@render info(audioTags?.artist ?? "",
+              "truncate text-[10px] text-emerald-600 dark:text-emerald-400",
+              lienArtiste(lieu))}
           </div>
 
           <!-- Actions secondaires en compact (visible uniquement si une piste joue) -->
           <div class="flex items-center gap-0.5 shrink-0">
             <button
-              class="{btnSmall}
+              class="favori {btnSmall}
                      {$liked.paths.has($player?.pathFile ?? '')
                        ? 'text-emerald-500'
                        : 'text-neutral-500 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}"

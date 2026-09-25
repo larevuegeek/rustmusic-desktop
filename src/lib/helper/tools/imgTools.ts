@@ -16,16 +16,8 @@ export default async function getCoverUrl(relativePath: string): Promise<string>
   return native;
 }
 
-export async function thumbnail_getter(selectedPath: string, audioFile: AudioFile): Promise<string| undefined | null> {
-  
-  let thumbnailPath: string| undefined | null = null;
-  if (audioFile.tags?.attached_images && audioFile.tags.attached_images.length > 0) {
-      const cover = audioFile.tags.attached_images[0];
-
-      thumbnailPath = await invoke("save_thumbnail", {
-          imageData: cover.image_data,
-      });
-  }
-
-  return thumbnailPath;
+/** Rust relit le fichier et ecrit la vignette : les octets ne transitent pas. */
+export async function thumbnail_getter(selectedPath: string, audioFile: AudioFile): Promise<string | undefined | null> {
+  if (!audioFile.tags?.attached_images?.length) return null;
+  return await invoke<string | null>("save_thumbnail_from_file", { path: selectedPath });
 }

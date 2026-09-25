@@ -115,7 +115,9 @@
     "artist_label": "Artista",
     "loading_artist": "Cargando artista…",
     "total_duration": "Duración total",
-    "back_genres": "Géneros"
+    "back_genres": "Géneros",
+    "appears_on": "Aparece en",
+    "appears_on_desc": "Recopilatorios, bandas sonoras y colaboraciones que incluyen sus canciones."
   },
   "playlist_page": {
     "collection": "Colección",
@@ -296,8 +298,10 @@
     "builtin_playlists": "Canciones favoritas y Reproducidos recientemente",
     "builtin_playlists_desc": "Dónde aparecen estas dos listas integradas en la aplicación",
     "builtin_playlists_hidden_note": "Oculta en ambos lados, una lista solo puede recuperarse desde este ajuste. Sus canciones permanecen intactas.",
-    "open_buttons": "Botones «Abrir» en la barra lateral",
-    "open_buttons_desc": "La página de inicio ya ofrece ambas acciones, con su nombre completo",
+    "open_buttons": "Sección «Abrir» de la barra lateral",
+    "open_buttons_desc": "Sus dos botones, «Archivo» y «Carpeta», reproducen una canción o una carpeta sin pasar por una biblioteca. La página de inicio ya ofrece los mismos, con su nombre completo.",
+    "favorites": "Favoritos",
+    "favorites_desc": "El corazón en las canciones, en el reproductor y al clic derecho",
     "library_tabs": "Secciones de la biblioteca",
     "library_tabs_desc": "Dónde ofrecer Canciones, Álbumes, Artistas, Géneros y Carpetas",
     "library_tabs_sidebar": "A la izquierda",
@@ -330,7 +334,7 @@
     "repair_links": "Enlaces de artistas",
     "repair_links_desc": "Rehace los enlaces a los artistas invitados de las etiquetas «X;Y» y «X Feat. Y»",
     "repair_links_btn": "Reparar",
-    "repair_links_done": "{links} enlace(s) creado(s) en {multi} canción(es) con varios artistas, {artists} ficha(s) de artista añadida(s)",
+    "repair_links_done": "{links} enlace(s) en {multi} canción(es) con varios artistas, {artists} ficha(s) añadida(s), {fixed} artista(s) corregido(s)",
     "repair_links_none": "Todo estaba ya en su sitio, nada que rehacer",
     "album_covers_desc": "Obtener carátulas faltantes desde Deezer",
     "wasapi_exclusive": "WASAPI exclusivo (bit-perfect)",
@@ -712,5 +716,22 @@
       "spaces": "Espacios sobrantes",
       "title_case": "Mayúsculas (inglés)"
     }
+  },
+  "playlist": {
+    "new": "Nueva playlist",
+    "new_smart": "Playlist inteligente",
+    "play": "Reproducir playlist",
+    "edit": "Modificar",
+    "edit_rules": "Modificar las reglas",
+    "delete": "Eliminar",
+    "deleted": "Playlist eliminada",
+    "empty": "Esta playlist está vacía",
+    "options": "Opciones de visualización",
+    "builtin": "Accesos directos",
+    "display_settings": "Ajustes de visualización…"
+  },
+  "sidebar": {
+    "hide_section": "Ocultar esta sección",
+    "hide_section_note": "Se vuelve a mostrar desde Ajustes → Apariencia."
   }
 }

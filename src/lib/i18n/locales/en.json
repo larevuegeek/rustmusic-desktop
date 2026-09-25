@@ -115,7 +115,9 @@
     "artist_label": "Artist",
     "loading_artist": "Loading artist…",
     "total_duration": "Total duration",
-    "back_genres": "Genres"
+    "back_genres": "Genres",
+    "appears_on": "Appears on",
+    "appears_on_desc": "Compilations, soundtracks and features that include their tracks."
   },
   "playlist_page": {
     "collection": "Collection",
@@ -296,8 +298,10 @@
     "builtin_playlists": "Liked tracks and Recently played",
     "builtin_playlists_desc": "Where these two built-in lists appear",
     "builtin_playlists_hidden_note": "Hidden from both, a list can only be found again through this setting. Its tracks remain untouched.",
-    "open_buttons": "“Open” buttons in the sidebar",
-    "open_buttons_desc": "The home page already offers both actions, fully spelled out",
+    "open_buttons": "“Open” section in the sidebar",
+    "open_buttons_desc": "Its two buttons, “File” and “Folder”, play a track or a folder without going through a library. The home page already offers the same two, fully spelled out.",
+    "favorites": "Favorites",
+    "favorites_desc": "The heart on tracks, in the player and in the right-click menu",
     "library_tabs": "Library sections",
     "library_tabs_desc": "Where to offer Tracks, Albums, Artists, Genres and Folders",
     "library_tabs_sidebar": "On the left",
@@ -330,7 +334,7 @@
     "repair_links": "Artist links",
     "repair_links_desc": "Rebuilds the links to guest artists from “X;Y” and “X Feat. Y” tags",
     "repair_links_btn": "Repair",
-    "repair_links_done": "{links} link(s) created across {multi} multi-artist track(s), {artists} artist entr(ies) added",
+    "repair_links_done": "{links} link(s) across {multi} multi-artist track(s), {artists} entr(ies) added, {fixed} artist(s) corrected",
     "repair_links_none": "Everything was already in place, nothing to rebuild",
     "album_covers_desc": "Fetch missing covers from Deezer",
     "wasapi_exclusive": "WASAPI exclusive (bit-perfect)",
@@ -712,5 +716,22 @@
       "spaces": "Extra spaces",
       "title_case": "Title Case (English)"
     }
+  },
+  "playlist": {
+    "new": "New playlist",
+    "new_smart": "Smart playlist",
+    "play": "Play playlist",
+    "edit": "Edit",
+    "edit_rules": "Edit rules",
+    "delete": "Delete",
+    "deleted": "Playlist deleted",
+    "empty": "This playlist is empty",
+    "options": "Display options",
+    "builtin": "Shortcuts",
+    "display_settings": "Display settings…"
+  },
+  "sidebar": {
+    "hide_section": "Hide this section",
+    "hide_section_note": "Bring it back from Settings → Appearance."
   }
 }

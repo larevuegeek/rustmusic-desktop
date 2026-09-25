@@ -115,7 +115,9 @@
     "artist_label": "Künstler",
     "loading_artist": "Künstler wird geladen…",
     "total_duration": "Gesamtdauer",
-    "back_genres": "Genres"
+    "back_genres": "Genres",
+    "appears_on": "Ist zu hören auf",
+    "appears_on_desc": "Kompilationen, Soundtracks und Gastbeiträge mit ihren Titeln."
   },
   "playlist_page": {
     "collection": "Sammlung",
@@ -296,8 +298,10 @@
     "builtin_playlists": "Favorisierte Titel und Kürzlich gespielt",
     "builtin_playlists_desc": "Wo diese beiden in der App angelegten Listen erscheinen",
     "builtin_playlists_hidden_note": "Auf beiden Seiten ausgeblendet, lässt sich eine Liste nur über diese Einstellung wiederfinden. Ihre Titel bleiben unberührt.",
-    "open_buttons": "„Öffnen“-Schaltflächen in der Seitenleiste",
-    "open_buttons_desc": "Die Startseite bietet beide Aktionen bereits an, vollständig benannt",
+    "open_buttons": "Bereich „Öffnen“ in der Seitenleiste",
+    "open_buttons_desc": "Seine beiden Schaltflächen, „Datei“ und „Ordner“, spielen einen Titel oder einen Ordner ab, ohne den Umweg über eine Mediathek. Die Startseite bietet dieselben bereits ausgeschrieben an.",
+    "favorites": "Favoriten",
+    "favorites_desc": "Das Herz bei Titeln, im Player und im Rechtsklickmenü",
     "library_tabs": "Bereiche der Mediathek",
     "library_tabs_desc": "Wo Titel, Alben, Künstler, Genres und Ordner angeboten werden",
     "library_tabs_sidebar": "Links",
@@ -330,7 +334,7 @@
     "repair_links": "Künstlerverknüpfungen",
     "repair_links_desc": "Stellt die Verknüpfungen zu Gastkünstlern aus „X;Y“- und „X Feat. Y“-Tags wieder her",
     "repair_links_btn": "Reparieren",
-    "repair_links_done": "{links} Verknüpfung(en) für {multi} Titel mit mehreren Künstlern erstellt, {artists} Künstlereintrag/-einträge ergänzt",
+    "repair_links_done": "{links} Verknüpfung(en) für {multi} Titel mit mehreren Künstlern, {artists} Eintrag/Einträge ergänzt, {fixed} Künstler korrigiert",
     "repair_links_none": "Alles war bereits vorhanden, nichts wiederherzustellen",
     "album_covers_desc": "Fehlende Cover von Deezer abrufen",
     "wasapi_exclusive": "WASAPI exklusiv (Bit-perfect)",
@@ -712,5 +716,22 @@
       "spaces": "Überzählige Leerzeichen",
       "title_case": "Großschreibung (Englisch)"
     }
+  },
+  "playlist": {
+    "new": "Neue Playlist",
+    "new_smart": "Intelligente Playlist",
+    "play": "Playlist abspielen",
+    "edit": "Bearbeiten",
+    "edit_rules": "Regeln bearbeiten",
+    "delete": "Löschen",
+    "deleted": "Playlist gelöscht",
+    "empty": "Diese Playlist ist leer",
+    "options": "Anzeigeoptionen",
+    "builtin": "Verknüpfungen",
+    "display_settings": "Anzeigeeinstellungen…"
+  },
+  "sidebar": {
+    "hide_section": "Diesen Bereich ausblenden",
+    "hide_section_note": "Wieder einblenden über Einstellungen → Erscheinungsbild."
   }
 }

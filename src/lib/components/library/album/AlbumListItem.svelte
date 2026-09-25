@@ -61,7 +61,7 @@ async function loadAlbumTracks() {
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <a
-    class="group flex flex-col cursor-pointer relative"
+    class="card-album group flex flex-col cursor-pointer relative"
     href={`/library/${libraryId}/albums/${album.id}`}
     onclick={handleCardClick}
     oncontextmenu={handleContextMenu}

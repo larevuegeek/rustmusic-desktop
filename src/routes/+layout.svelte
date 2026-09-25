@@ -55,8 +55,10 @@ let { children }: { children: Snippet } = $props();
 // bas reste visible pour continuer à contrôler la lecture.
 let isFullPageRoute = $derived(page.url.pathname.startsWith('/settings'));
 
+// « En haut » comme « Les deux » : la rangée suit partout. Seul « À gauche »
+// s'en passe, la barre latérale portant alors les sections.
 const tabsEnHaut = $derived(
-  !isFullPageRoute && lirePlacement($settingsStore.library_tabs_position) === 'top'
+  !isFullPageRoute && lirePlacement($settingsStore.library_tabs_position) !== 'sidebar'
 );
 const dansLaBibliotheque = $derived(page.url.pathname.startsWith('/library/'));
 
@@ -69,6 +71,11 @@ onMount(async () => {
     invoke('notify_ui_ready').catch(() => {});
   }));
 
+  // Les réglages d'abord : ils décident ce que la barre latérale affiche, et
+  // l'écran d'attente ne se lève qu'au profil. Chargés après, les raccourcis
+  // masqués apparaissaient deux secondes avant de disparaître.
+  await settingsStore.init();
+
   await profilSelector.init();
   await libraryStore.init();
   await queueState.init();
@@ -76,7 +83,6 @@ onMount(async () => {
   importProgressStore.init();
   taskProgressStore.init();
   artistImageReadyStore.init();
-  await settingsStore.init();
 
   // Refresh DLNA status (server may have auto-started in Rust setup)
   refreshDlnaStatus();

@@ -12,19 +12,18 @@ import { toasts } from "$lib/stores/ui/toast.store";
 import { playerService } from '$lib/services/player/player.service';
 
 
-async function handleTrack(path: string): Promise<QueueTrack> {
-        const playerStore = get(player);
-
-        if(playerStore?.status == "playing" || playerStore?.status == "paused") {
-            await playerService.stopPlay();
-        }
-
+async function handleTrack(path: string, contexte?: QueueTrack[]): Promise<QueueTrack> {
+        // Pas de `stopPlay` ici : `playFile` et `preloadTrack` le font déjà.
         playerService.expectExplicitAction();
 
-        //On raz la queueState et ajouter ce fichier
-        const track = await queueState.loadTrack(path);
+        // La liste d'où vient le clic devient la file : sinon rien à enchaîner
+        // en fin de morceau.
+        if (contexte && contexte.length > 1) {
+            const track = await queueState.loadContext(contexte, path);
+            if (track) return track;
+        }
 
-        return track;
+        return await queueState.loadTrack(path);
 }
 
 
@@ -53,16 +52,21 @@ function addActionQueue(action: () => Promise<void>): Promise<void> {
     return prevAction;
 }
 
-export function handleSelectTrack(path: string): Promise<void> {
+export function handleSelectTrack(path: string, contexte?: QueueTrack[]): Promise<void> {
     return addActionQueue(async () => {
-        const track = await handleTrack(path);
+        // En mode double-clic, un simple clic désigne — il ne commande pas le
+        // lecteur. Il coupait la lecture et vidait la file au passage.
+        const etat = get(player).status;
+        if (etat === "playing" || etat === "paused") return;
+
+        const track = await handleTrack(path, contexte);
         await playerService.preloadTrack(track);
     });
 }
 
-export function handlePlayTrack(path: string): Promise<void> {
+export function handlePlayTrack(path: string, contexte?: QueueTrack[]): Promise<void> {
     return addActionQueue(async () => {
-        const track = await handleTrack(path);
+        const track = await handleTrack(path, contexte);
         await playerService.playFile(track);
     });
 }

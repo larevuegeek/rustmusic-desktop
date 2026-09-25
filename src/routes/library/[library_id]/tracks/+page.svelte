@@ -222,7 +222,7 @@ function handleFilterChange() {
             />
           {:else}
             {#each tracks as track (track.id)}
-              <TrackListItem {libraryId} {track} />
+              <TrackListItem {libraryId} {track} {tracks} />
             {/each}
           {/if}
 

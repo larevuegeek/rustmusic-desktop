@@ -4,6 +4,7 @@
   import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
   import { goto } from "$app/navigation";
   import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
+  import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
   import { sidebarStore } from "$lib/stores/ui/sidebar.store";
 
   type SearchResult = {
@@ -75,7 +76,10 @@
 
   function handleResultClick(result: SearchResult) {
     if (result.result_type === 'track' && result.path) {
-      handlePlayTrack(result.path);
+      // Seuls les morceaux de la liste entrent dans la file.
+      handlePlayTrack(result.path, versFileDAttente(
+        results.filter((r) => r.result_type === 'track' && r.path) as any[]
+      ));
     } else if (result.result_type === 'album' && result.library_id) {
       goto(`/library/${result.library_id}/albums/${result.id}`);
     } else if (result.result_type === 'artist' && result.library_id) {

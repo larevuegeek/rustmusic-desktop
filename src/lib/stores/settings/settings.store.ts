@@ -4,6 +4,7 @@ import { enable as enableAutostart, disable as disableAutostart, isEnabled as is
 import {
   applyThemeMode,
   applyContrastMode,
+  applyFavoritesMode,
   type ThemeMode,
   type ContrastMode,
 } from "$lib/helper/theme/theme";
@@ -39,6 +40,8 @@ export type AppSettings = {
   // 'true' | 'false' — boutons « Ouvrir » de la barre latérale. Masqués par
   // défaut : l'accueil propose déjà les deux actions.
   show_open_buttons: string;
+  // 'true' | 'false' — le cœur des favoris et son entrée de menu.
+  show_favorites: string;
   // 'sidebar' | 'top' | 'both' — où proposer les sections. 'both' d'origine.
   library_tabs_position: string;
   // Sections retenues, en JSON. Voir `$lib/config/libraryTabs`.
@@ -75,6 +78,7 @@ const defaults: AppSettings = {
   show_liked_in_home: 'true',
   show_recent_in_home: 'true',
   show_open_buttons: 'false',
+  show_favorites: 'true',
   library_tabs_position: 'both',
   library_tabs: '["tracks","albums","artists","genres","folders"]',
   track_columns: '["artist","album","rating","duration"]',
@@ -110,6 +114,10 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
   // Contraste : pose `data-contrast` sur <html>, les règles CSS font le reste.
   contrast: async (value: string) => {
     applyContrastMode((value as ContrastMode) ?? 'normal');
+  },
+
+  show_favorites: async (value: string) => {
+    applyFavoritesMode(value !== 'false');
   },
 
   // SMTC / MPRIS / Now Playing : on appelle le service qui parle au backend
@@ -178,17 +186,17 @@ export const settingsStore = {
       const finalTheme = get(settingsWriter).theme;
       applyThemeMode((finalTheme as ThemeMode) ?? 'auto');
       applyContrastMode((get(settingsWriter).contrast as ContrastMode) ?? 'normal');
+      applyFavoritesMode(get(settingsWriter).show_favorites !== 'false');
 
-      // L'autostart ensuite : personne ne le regarde pendant le démarrage.
-      try {
-        const realAutostart = await isAutostartEnabled();
-        settingsWriter.update(state => ({
+      // L'autostart en fond, sans retenir `init` : il interroge le registre et
+      // peut prendre des secondes, pendant lesquelles l'interface attendrait
+      // ses réglages. Personne ne le regarde au démarrage.
+      isAutostartEnabled()
+        .then(reel => settingsWriter.update(state => ({
           ...state,
-          auto_start: realAutostart ? 'true' : 'false',
-        }));
-      } catch (e) {
-        console.warn('[settings] Impossible de vérifier autostart:', e);
-      }
+          auto_start: reel ? 'true' : 'false',
+        })))
+        .catch(e => console.warn('[settings] Impossible de vérifier autostart:', e));
     } catch (e) {
       console.error('[settingsStore] Failed to load settings', e);
     }

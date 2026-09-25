@@ -86,6 +86,54 @@ pub async fn get_track_artists(
         .map_err(|e| format!("Failed to get track artists: {}", e))
 }
 
+
+/// Où trouver, en bibliothèque, le morceau joué depuis ce chemin.
+///
+/// Le lecteur ne connaît que le fichier : sans ce pont, son titre, son artiste
+/// et son album ne mènent nulle part. Un chemin absent de la bibliothèque —
+/// fichier ouvert à la volée — ne rend simplement rien.
+#[derive(Debug, Clone, serde::Serialize, sqlx::FromRow)]
+pub struct TrackLocation {
+    pub path: String,
+    pub library_id: i64,
+    pub library_track_id: String,
+    pub artist_id: Option<String>,
+    pub library_album_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_track_locations(
+    state: State<'_, AppState>,
+    paths: Vec<String>,
+) -> Result<Vec<TrackLocation>, String> {
+    if paths.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Les `?` sont générés, jamais les valeurs : elles restent liées.
+    let trous = vec!["?"; paths.len()].join(",");
+    let sql = format!(
+        "SELECT f.path AS path,
+                t.library_id AS library_id,
+                t.id AS library_track_id,
+                t.artist_id AS artist_id,
+                t.library_album_id AS library_album_id
+         FROM library_tracks t
+         JOIN library_files f ON f.id = t.file_id
+         WHERE f.path IN ({trous})"
+    );
+
+    let mut requete = sqlx::query_as::<_, TrackLocation>(&sql);
+    for p in &paths {
+        requete = requete.bind(p);
+    }
+
+    requete
+        .fetch_all(&state.pool)
+        .await
+        .map_err(|e| format!("Failed to locate tracks: {e}"))
+}
+
 #[tauri::command]
 pub async fn repair_artist_links(
     state: State<'_, AppState>,
@@ -320,6 +368,33 @@ pub fn save_thumbnail(
         .map_err(|e| e.to_string())?;
 
     thumbnail_saver(&covers_dir, &image_data, false)
+}
+
+/// Ecrit la vignette de la pochette embarquee d'un fichier.
+///
+/// Remplace l'aller-retour par `save_thumbnail`, ou les octets faisaient
+/// Rust -> JSON -> JS -> JSON -> Rust pour finir dans un fichier.
+#[tauri::command]
+pub fn save_thumbnail_from_file(
+    app: tauri::AppHandle,
+    path: String,
+) -> Result<Option<String>, String> {
+    let audio = crate::core::audio_analyser::audio_analyser::AudioAnalyser::analyse_audio_file(&PathBuf::from(&path))
+        .map_err(|e| format!("Analyse de {path} : {e}"))?;
+
+    let Some(image) = audio.tags.attached_images.first() else {
+        return Ok(None);
+    };
+    if image.image_data.is_empty() {
+        return Ok(None);
+    }
+
+    let covers_dir: PathBuf = app
+        .path()
+        .resolve("covers", BaseDirectory::AppData)
+        .map_err(|e| e.to_string())?;
+
+    thumbnail_saver(&covers_dir, &image.image_data, false).map(Some)
 }
 
 #[tauri::command]
@@ -746,7 +821,7 @@ pub async fn get_albums_by_artist(
     library_id: i64,
     artist_id: String,
 ) -> Result<Vec<AlbumListView>, String> {
-    LibraryAlbumRepository::find_albums_by_artist_id(&state.pool, library_id, &artist_id)
+    LibraryAlbumRepository::find_albums_by_artist_id(&state.pool, library_id, &artist_id, true)
         .await
         .map_err(|e| format!("Failed to get artist albums: {}", e))
 }

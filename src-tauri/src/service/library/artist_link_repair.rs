@@ -23,12 +23,15 @@ pub struct ArtistLinkReport {
     pub tracks_multi: i64,
     pub links_created: i64,
     pub artists_created: i64,
+    /// Pistes dont l'artiste principal ne correspondait pas à leur tag.
+    pub main_artist_fixed: i64,
 }
 
 #[derive(sqlx::FromRow)]
 struct PisteATraiter {
     id: String,
     library_id: i64,
+    artist_id: Option<String>,
     artist: Option<String>,
 }
 
@@ -40,7 +43,8 @@ pub async fn repair(
 ) -> Result<ArtistLinkReport, String> {
     let pistes: Vec<PisteATraiter> = sqlx::query_as::<_, PisteATraiter>(
         r#"
-        SELECT lt.id AS id, lt.library_id AS library_id, lc.artist AS artist
+        SELECT lt.id AS id, lt.library_id AS library_id,
+               lt.artist_id AS artist_id, lc.artist AS artist
         FROM library_tracks lt
         LEFT JOIN library_cache lc ON lc.id = lt.cache_id
         WHERE (?1 IS NULL OR lt.library_id = ?1)
@@ -85,6 +89,8 @@ pub async fn repair(
         if noms.len() > 1 {
             rapport.tracks_multi += 1;
         }
+
+        let mut premier: Option<String> = None;
 
         for nom in &noms {
             let cle = normalize_name(nom);
@@ -149,6 +155,24 @@ pub async fn repair(
             if avant == 0 {
                 rapport.links_created += 1;
             }
+            if premier.is_none() {
+                premier = Some(artist_id.clone());
+            }
+        }
+
+        // L'artiste d'album écrasait celui de la piste : une compilation taguée
+        // « Various Artists » donnait ce nom à chacun de ses morceaux. Le tag
+        // fait foi.
+        if let Some(attendu) = premier {
+            if piste.artist_id.as_deref() != Some(attendu.as_str()) {
+                sqlx::query("UPDATE library_tracks SET artist_id = ? WHERE id = ?")
+                    .bind(&attendu)
+                    .bind(&piste.id)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|e| format!("Correction de l'artiste : {e}"))?;
+                rapport.main_artist_fixed += 1;
+            }
         }
     }
 
@@ -158,11 +182,12 @@ pub async fn repair(
 
     log::info!(
         "🔗 Liaisons d'artistes reprises : {} pistes, dont {} multi-artistes — \
-         {} liaison(s) et {} fiche(s) d'artiste créées",
+         {} liaison(s), {} fiche(s) d'artiste, {} artiste(s) principal(aux) corrigé(s)",
         rapport.tracks_seen,
         rapport.tracks_multi,
         rapport.links_created,
-        rapport.artists_created
+        rapport.artists_created,
+        rapport.main_artist_fixed
     );
 
     Ok(rapport)
@@ -189,6 +214,11 @@ mod tests {
 
     /// Une piste avec son tag brut, sans aucune liaison — l'état d'avant.
     async fn poser_piste(pool: &SqlitePool, id: &str, tag: &str) {
+        poser_piste_avec(pool, id, tag, None).await;
+    }
+
+    /// Variante qui fixe l'artiste déjà enregistré sur la piste.
+    async fn poser_piste_avec(pool: &SqlitePool, id: &str, tag: &str, artist_id: Option<&str>) {
         sqlx::query("INSERT INTO library_cache (path, artist) VALUES (?, ?)")
             .bind(format!("/{id}.flac"))
             .bind(tag)
@@ -200,10 +230,11 @@ mod tests {
             .bind(format!("f-{id}"))
             .bind(format!("/{id}.flac"))
             .execute(pool).await.expect("fichier");
-        sqlx::query("INSERT INTO library_tracks (id, library_id, file_id, cache_id, title, title_normalized) VALUES (?, 1, ?, ?, 'T', 't')")
+        sqlx::query("INSERT INTO library_tracks (id, library_id, file_id, cache_id, artist_id, title, title_normalized) VALUES (?, 1, ?, ?, ?, 'T', 't')")
             .bind(id)
             .bind(format!("f-{id}"))
             .bind(cache_id)
+            .bind(artist_id)
             .execute(pool).await.expect("piste");
     }
 
@@ -290,5 +321,40 @@ mod tests {
         assert_eq!(r.tracks_seen, 1);
         assert_eq!(r.links_created, 0);
         assert_eq!(r.artists_created, 0);
+    }
+
+    /// L'artiste d'album écrasait celui de la piste : une compilation taguée
+    /// « Various Artists » donnait ce nom à chacun de ses morceaux.
+    #[tokio::test]
+    async fn l_artiste_de_la_piste_l_emporte_sur_celui_de_l_album() {
+        let pool = base().await;
+        sqlx::query("INSERT INTO artists (id, name, name_normalized, sort_name) VALUES ('va', 'Various Artists', 'various artists', 'Various Artists')")
+            .execute(&pool).await.expect("artiste d'album");
+
+        // Le tag nomme PJ Harvey, mais la piste porte « Various Artists ».
+        poser_piste_avec(&pool, "t6", "PJ Harvey", Some("va")).await;
+
+        let r = repair(&pool, Some(1)).await.expect("reprise");
+        assert_eq!(r.main_artist_fixed, 1);
+
+        let nom: String = sqlx::query_scalar(
+            "SELECT a.name FROM library_tracks lt JOIN artists a ON a.id = lt.artist_id
+             WHERE lt.id = 't6'",
+        )
+        .fetch_one(&pool).await.expect("nom");
+        assert_eq!(nom, "PJ Harvey");
+    }
+
+    /// Une piste déjà juste ne doit pas être comptée comme corrigée.
+    #[tokio::test]
+    async fn une_piste_juste_n_est_pas_touchee() {
+        let pool = base().await;
+        poser_piste(&pool, "t7", "Radiohead").await;
+
+        let premier = repair(&pool, Some(1)).await.expect("première");
+        let second = repair(&pool, Some(1)).await.expect("seconde");
+
+        assert_eq!(premier.main_artist_fixed, 1, "l'artiste était absent, il se pose");
+        assert_eq!(second.main_artist_fixed, 0, "rien à corriger la seconde fois");
     }
 }

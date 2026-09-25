@@ -1,6 +1,6 @@
 {
   "name": "rustmusic",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Audiophile-grade desktop music player with native DSD (DSF/DFF) playback, multichannel SACD support, high-precision resampling, integrated DLNA server, synced lyrics, and OS media controls (Windows SMTC / macOS Now Playing / Linux MPRIS).",
   "type": "module",
   "homepage": "https://rustmusic.dev",

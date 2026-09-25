@@ -11,6 +11,7 @@
   import type { Playlist } from "$lib/types/db/playlist/Playlist";
   import { t } from "$lib/i18n";
   import { popinStore } from "$lib/stores/ui/popin.store";
+  import AddPlaylistPopin from "$lib/components/playlist/popin/AddPlaylistPopin.svelte";
   import { canWriteTags } from "$lib/services/tags/tagEditor.service";
   import EditTagsPopin from "$lib/components/library/common/popin/EditTagsPopin.svelte";
 
@@ -111,6 +112,14 @@
     onclose();
   }
 
+  /** Crée une playlist puis y verse le morceau, sans quitter le menu. */
+  function handleCreatePlaylist() {
+    onclose();
+    popinStore.open($t('playlist.new'), AddPlaylistPopin, {
+      apresCreation: (pl: Playlist) => handleAddToPlaylist(pl),
+    });
+  }
+
   async function handleAddToPlaylist(pl: Playlist) {
     try {
       // Construire les params selon ce qu'on a :
@@ -170,10 +179,21 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- Backdrop invisible pour fermer -->
-<button type="button" class="fixed inset-0 z-9998 cursor-default" onclick={onclose} aria-label="Fermer le menu"></button>
+<!-- Le clic droit est avalé ici aussi : sans ça, un second clic droit pendant
+     que le menu est ouvert laissait passer celui du navigateur. -->
+<button
+  type="button"
+  class="fixed inset-0 z-9998 cursor-default"
+  onclick={onclose}
+  oncontextmenu={(e) => { e.preventDefault(); onclose(); }}
+  aria-label="Fermer le menu"
+></button>
 
 <!-- Menu contextuel -->
 <div
+  role="menu"
+  tabindex="-1"
+  oncontextmenu={(e) => e.preventDefault()}
   class="fixed z-[9999] w-55 py-1.5
          bg-neutral-950/95 backdrop-blur-xl
          border border-white/10
@@ -213,7 +233,7 @@
 
   <!-- Liker -->
   <button
-    class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
+    class="favori w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
            {isLiked
              ? 'text-pink-400 hover:bg-pink-500/15'
              : 'text-neutral-200 hover:bg-pink-500/15 hover:text-pink-400'}
@@ -240,11 +260,23 @@
 
   {#if showPlaylistSub}
     <div class="border-t border-white/5 bg-white/2">
+      <button
+        type="button"
+        class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-left text-[13px] cursor-pointer
+               text-neutral-600 dark:text-neutral-300
+               hover:bg-neutral-100 dark:hover:bg-white/5"
+        onclick={handleCreatePlaylist}
+      >
+        <Icon icon="lucide:plus" width="13" class="opacity-60" />
+        <span class="flex-1 truncate">{$t('playlist.new')}</span>
+      </button>
+
+      {#if playlists.length > 0}
+        <div class="h-px mx-2 bg-white/4"></div>
+      {/if}
+
       {#if playlists.length === 0}
-        <div class="flex flex-col items-center py-4 px-3">
-          <Icon icon="lucide:list-music" width="16" class="text-neutral-600 mb-1.5" />
-          <p class="text-[11px] text-neutral-500">Aucune playlist</p>
-        </div>
+        <div></div>
       {:else}
         {#each playlists as pl, i (pl.id)}
           {#if i > 0}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { oublierLocalisations } from "$lib/helper/library/trackLocation";
   import { invoke } from "@tauri-apps/api/core";
   import { openPath } from "@tauri-apps/plugin-opener";
   import { save, open } from "@tauri-apps/plugin-dialog";
@@ -145,6 +146,7 @@
       const libraries = $libraryStore.libraries;
       for (const lib of libraries) {
         await invoke('rescan_library', { libraryId: lib.id });
+        oublierLocalisations();
       }
     } catch (e) {
       console.error('Rescan failed:', e);
@@ -187,6 +189,7 @@
         tracks_multi: number;
         links_created: number;
         artists_created: number;
+        main_artist_fixed: number;
       }>('repair_artist_links', { libraryId: null });
 
       await libraryStore.refresh();
@@ -194,12 +197,13 @@
       toasts.push({
         type: 'success',
         title: $t('settings.repair_links'),
-        message: bilan.links_created === 0
+        message: bilan.links_created === 0 && bilan.main_artist_fixed === 0
           ? $t('settings.repair_links_none')
           : $t('settings.repair_links_done')
               .replace('{links}', String(bilan.links_created))
               .replace('{multi}', String(bilan.tracks_multi))
-              .replace('{artists}', String(bilan.artists_created)),
+              .replace('{artists}', String(bilan.artists_created))
+              .replace('{fixed}', String(bilan.main_artist_fixed)),
       });
     } catch (e) {
       console.error('Repair artist links failed:', e);

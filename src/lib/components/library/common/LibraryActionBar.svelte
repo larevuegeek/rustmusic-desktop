@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
+import { oublierLocalisations } from "$lib/helper/library/trackLocation";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { popinStore } from "$lib/stores/ui/popin.store";
 import type { Library } from "$lib/types/db/library/Library";
@@ -41,6 +42,8 @@ async function handleRescan() {
     rescanning = true;
     try {
         await invoke('rescan_library', { libraryId: library.id });
+        // Un scan renumérote : les fiches mises en cache peuvent ne plus exister.
+        oublierLocalisations();
         libraryContentStore.refresh();
     } catch (e) {
         console.error('Rescan failed:', e);

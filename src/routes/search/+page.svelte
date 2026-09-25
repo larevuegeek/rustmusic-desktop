@@ -6,6 +6,7 @@
   import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
   import { goto } from "$app/navigation";
   import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
+  import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
   import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
 
   type SearchResult = {
@@ -41,7 +42,7 @@
 
   function handleClick(result: SearchResult) {
     if (result.result_type === 'track' && result.path) {
-      handlePlayTrack(result.path);
+      handlePlayTrack(result.path, versFileDAttente(tracks));
     } else if (result.result_type === 'album' && result.library_id) {
       goto(`/library/${result.library_id}/albums/${result.id}`);
     } else if (result.result_type === 'artist' && result.library_id) {
@@ -166,7 +167,7 @@
               class="group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer
                      hover:bg-neutral-50 dark:hover:bg-white/4
                      transition-colors duration-100"
-              ondblclick={() => result.path && handlePlayTrack(result.path)}
+              ondblclick={() => result.path && handlePlayTrack(result.path, versFileDAttente(tracks))}
               oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, result }; }}
             >
               <div class="w-6 text-xs text-neutral-400 text-right shrink-0">
@@ -193,7 +194,7 @@
               <button
                 class="p-1.5 rounded-lg shrink-0 cursor-pointer opacity-0 group-hover:opacity-100
                        text-green-500 hover:bg-green-500/15 transition-all"
-                onclick={() => result.path && handlePlayTrack(result.path)}
+                onclick={() => result.path && handlePlayTrack(result.path, versFileDAttente(tracks))}
               >
                 <Icon icon="lucide:play" width="14" />
               </button>

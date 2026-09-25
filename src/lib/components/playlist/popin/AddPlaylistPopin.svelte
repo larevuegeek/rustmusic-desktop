@@ -4,6 +4,10 @@
   import { profilSelector } from "$lib/stores/profil/profil.store";
   import { PLAYLIST_COLORS, PLAYLIST_ICONS } from "../playlistConfig";
   import Icon from "@iconify/svelte";
+  import type { Playlist } from "$lib/types/db/playlist/Playlist";
+
+  /** Appelé avec la playlist créée — sert à y verser aussitôt un morceau. */
+  let { apresCreation }: { apresCreation?: (pl: Playlist) => void } = $props();
 
   let name = $state("");
   let description = $state("");
@@ -30,8 +34,9 @@
       const profilId = $profilSelector.profilSelected?.id;
       if (!profilId) throw new Error("NO_PROFIL");
 
-      await playlistStore.addPlaylist(profilId, name, description || null, selectedColor, selectedIcon.id);
+      const creee = await playlistStore.addPlaylist(profilId, name, description || null, selectedColor, selectedIcon.id);
       close();
+      apresCreation?.(creee);
     } catch (error: any) {
       const message = String(error?.message ?? error ?? "");
       if (message.includes("UNIQUE") || message.includes("duplicate")) {

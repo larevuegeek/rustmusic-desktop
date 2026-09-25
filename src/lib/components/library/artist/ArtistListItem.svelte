@@ -36,7 +36,7 @@ function handleCardClick(e: MouseEvent) {
 </script>
 
 <a href={`/library/${libraryId}/artists/${artist.id}`}
-    class="flex flex-col items-center group text-center transition-all cursor-pointer duration-200 relative"
+    class="card-artist flex flex-col items-center group text-center transition-all cursor-pointer duration-200 relative"
     use:preload={() => preloadArtistData(artist.id)}
         onclick={handleCardClick}
 >

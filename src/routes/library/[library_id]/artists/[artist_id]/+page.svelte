@@ -130,20 +130,24 @@ type AlbumSortField = 'year' | 'title';
 let albumsSort = $state<AlbumSortField>('year');
 let albumsSortDir = $state<SortDir>('desc');
 
-let sortedAlbums = $derived.by(() => {
-  const sorted = [...artistAlbums];
-  sorted.sort((a, b) => {
-    if (albumsSort === 'year') {
-      const ya = a.year ?? 0;
-      const yb = b.year ?? 0;
-      return albumsSortDir === 'desc' ? yb - ya : ya - yb;
-    }
-    const ta = a.title?.toLowerCase() ?? '';
-    const tb = b.title?.toLowerCase() ?? '';
-    return albumsSortDir === 'desc' ? tb.localeCompare(ta) : ta.localeCompare(tb);
-  });
-  return sorted;
-});
+function comparerAlbums(a: AlbumListView, b: AlbumListView) {
+  if (albumsSort === 'year') {
+    const ya = a.year ?? 0;
+    const yb = b.year ?? 0;
+    return albumsSortDir === 'desc' ? yb - ya : ya - yb;
+  }
+  const ta = a.title?.toLowerCase() ?? '';
+  const tb = b.title?.toLowerCase() ?? '';
+  return albumsSortDir === 'desc' ? tb.localeCompare(ta) : ta.localeCompare(tb);
+}
+
+// Ses albums d'un côté, ceux où il n'est qu'invité de l'autre.
+let sortedAlbums = $derived(
+  artistAlbums.filter(a => !a.participation).sort(comparerAlbums)
+);
+let albumsInvite = $derived(
+  artistAlbums.filter(a => a.participation).sort(comparerAlbums)
+);
 
 function toggleAlbumsSort(field: AlbumSortField) {
   if (albumsSort === field) {
@@ -455,7 +459,7 @@ async function loadData(
         {:else}
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-1">
             {#each visibleTracks as track (track.id)}
-              <AlbumListTrackItem libraryId={libraryId} {track} showAlbum={true} />
+              <AlbumListTrackItem libraryId={libraryId} {track} tracks={visibleTracks} showAlbum={true} />
             {/each}
           </div>
         {/if}
@@ -487,14 +491,14 @@ async function loadData(
           {$t('library.albums')}
         </h2>
         <LibraryAlbumSkeleton />
-      {:else if artistAlbums.length > 0}
+      {:else if sortedAlbums.length > 0}
         <div class="flex items-end justify-between mb-5">
           <div>
             <h2 class="text-xl font-semibold mb-1 text-neutral-800 dark:text-neutral-200">
               {$t('library.albums')}
             </h2>
             <p class="text-xs text-neutral-400 dark:text-neutral-500">
-              {artistAlbums.length} album{artistAlbums.length !== 1 ? 's' : ''}
+              {sortedAlbums.length} album{sortedAlbums.length !== 1 ? 's' : ''}
             </p>
           </div>
 
@@ -544,10 +548,37 @@ async function loadData(
           {/each}
         </div>
         {/if}
-      {:else}
+      {:else if albumsInvite.length === 0}
         <p class="text-sm text-neutral-400 dark:text-neutral-500 mt-2">{$t('library.no_album_artist')}</p>
       {/if}
     </div>
+
+    <!-- APPARAÎT DANS : compilations, bandes originales, featurings -->
+    {#if !loadingAlbums && albumsInvite.length > 0}
+      <div class="sticky left-0">
+        <h2 class="text-xl font-semibold mb-1 text-neutral-800 dark:text-neutral-200">
+          {$t('library.appears_on')}
+        </h2>
+        <p class="text-xs text-neutral-400 dark:text-neutral-500 mb-5">
+          {$t('library.appears_on_desc')}
+        </p>
+
+        {#if $viewMode === 'list'}
+        <!-- La sous-section suit le mode d'affichage de la liste principale. -->
+          <div class="flex flex-col">
+            {#each albumsInvite as album (album.id)}
+              <AlbumListRow {libraryId} album={album} />
+            {/each}
+          </div>
+        {:else}
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-6">
+            {#each albumsInvite as album (album.id)}
+              <AlbumListItem album={album} libraryId={libraryId} />
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <!-- ARTISTES SIMILAIRES -->
     {#if loadingSimilar}

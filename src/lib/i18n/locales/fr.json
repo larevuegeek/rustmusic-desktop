@@ -115,7 +115,9 @@
     "artist_label": "Artiste",
     "loading_artist": "Chargement de l'artiste…",
     "total_duration": "Durée totale",
-    "back_genres": "Genres"
+    "back_genres": "Genres",
+    "appears_on": "Apparaît dans",
+    "appears_on_desc": "Compilations, bandes originales et featurings où figurent ses titres."
   },
   "playlist_page": {
     "collection": "Collection",
@@ -296,8 +298,10 @@
     "builtin_playlists": "Titres likés et Récemment joués",
     "builtin_playlists_desc": "Où faire apparaître ces deux listes bâties dans l'application",
     "builtin_playlists_hidden_note": "Masquée des deux côtés, une liste ne se retrouve plus que par ce réglage. Ses titres restent intacts.",
-    "open_buttons": "Boutons « Ouvrir » dans la barre latérale",
-    "open_buttons_desc": "L'accueil propose déjà ces deux actions, nommées en entier",
+    "open_buttons": "Section « Ouvrir » de la barre latérale",
+    "open_buttons_desc": "Ses deux boutons, « Fichier » et « Dossier », lisent un morceau ou un dossier sans passer par une bibliothèque. L'accueil propose déjà les mêmes, écrits en toutes lettres.",
+    "favorites": "Favoris",
+    "favorites_desc": "Le cœur sur les morceaux, dans le lecteur et au clic droit",
     "library_tabs": "Sections de la bibliothèque",
     "library_tabs_desc": "Où proposer Morceaux, Albums, Artistes, Genres et Dossiers",
     "library_tabs_sidebar": "À gauche",
@@ -330,7 +334,7 @@
     "repair_links": "Liaisons d'artistes",
     "repair_links_desc": "Recrée les liens vers les artistes invités des tags « X;Y » et « X Feat. Y »",
     "repair_links_btn": "Réparer",
-    "repair_links_done": "{links} liaison(s) créée(s) sur {multi} morceau(x) multi-artistes, {artists} fiche(s) d'artiste ajoutée(s)",
+    "repair_links_done": "{links} liaison(s) sur {multi} morceau(x) multi-artistes, {artists} fiche(s) ajoutée(s), {fixed} artiste(s) corrigé(s)",
     "repair_links_none": "Tout était déjà en place, rien à reprendre",
     "album_covers_desc": "Récupérer les pochettes manquantes depuis Deezer",
     "wasapi_exclusive": "WASAPI exclusif (bit-perfect)",
@@ -712,5 +716,22 @@
       "spaces": "Espaces en trop",
       "title_case": "Capitales (anglais)"
     }
+  },
+  "playlist": {
+    "new": "Nouvelle playlist",
+    "new_smart": "Playlist intelligente",
+    "play": "Lire la playlist",
+    "edit": "Modifier",
+    "edit_rules": "Modifier les règles",
+    "delete": "Supprimer",
+    "deleted": "Playlist supprimée",
+    "empty": "Cette playlist est vide",
+    "options": "Options d'affichage",
+    "builtin": "Raccourcis",
+    "display_settings": "Réglages d'affichage…"
+  },
+  "sidebar": {
+    "hide_section": "Masquer cette section",
+    "hide_section_note": "Elle se réaffiche depuis Réglages → Apparence."
   }
 }

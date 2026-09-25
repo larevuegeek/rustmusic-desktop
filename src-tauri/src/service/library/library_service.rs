@@ -32,6 +32,7 @@ use crate::{core::audio_analyser::audio_analyser::AudioAnalyser, entity::audio::
 use crate::entity::audio::audio_tags::AudioTags;
 use crate::entity::library::library_files::{LibraryFile, LibraryFileCreate};
 use crate::mapper::library::track::track_list_item_view::TrackListView;
+use crate::service::library::album_folder::racine_album;
 
 // ============================================================================
 // RÉSULTAT D'ANALYSE D'UN FICHIER (phase CPU, sync, rayon-compatible)
@@ -410,7 +411,7 @@ async fn save_analysed_to_db(
 
     let artist = first_artist.ok_or("Aucun artiste créé")?;
     let artist_id: Option<String> = Some(artist.id.clone());
-    let mut main_artist_id: Option<String> = artist_id.clone();
+    let main_artist_id: Option<String> = artist_id.clone();
     let library_artist: Option<LibraryArtist> = first_library_artist;
 
     // Album artist (si différent du premier track artist)
@@ -428,10 +429,12 @@ async fn save_analysed_to_db(
                 let _ = LibraryArtistRepository::insert_library_artist(&mut *conn, LibraryArtistCreate {
                     library_id, artist_id: album_artist.id.clone(),
                 }).await;
-                // Le premier album_artist différent devient le main pour l'album
+                // Le premier album_artist différent porte l'album — et lui
+                // seul. L'écrire aussi dans `main_artist_id` donnait
+                // « Various Artists » comme artiste de chaque piste d'une
+                // compilation, alors que leur tag nomme un vrai artiste.
                 if artist_album_id.is_none() {
                     artist_album_id = Some(album_artist.id.clone());
-                    main_artist_id = artist_album_id.clone();
                 }
             }
         }
@@ -445,12 +448,19 @@ async fn save_analysed_to_db(
     let mut library_album_id: Option<String> = None;
     let mut library_album: Option<LibraryAlbum> = None;
 
-    if let Some(main_artist_id_ok) = main_artist_id.clone() {
+    // L'album appartient à son artiste d'album quand le tag en donne un.
+    let proprietaire_album = artist_album_id.clone().or_else(|| main_artist_id.clone());
+    let album_dir = racine_album(&library_file.path);
+
+    if let Some(proprietaire) = proprietaire_album {
         let album = LibraryAlbumRepository::insert_library_album(&mut *conn, LibraryAlbumCreate {
-            library_id, artist_id: main_artist_id_ok,
+            library_id, artist_id: proprietaire.clone(), album_dir,
             title: album_title.clone(), title_normalized: album_title_normalized,
             year, genre, cover_url: analysis.thumbnail_url.clone(), album_type: Some("album".to_string()),
         }).await.map_err(|e| format!("Failed to insert album: {}", e))?;
+        let album = basculer_en_compilation(
+            &mut *conn, album, &proprietaire, artist_album_id.is_some(), library_id,
+        ).await?;
         library_album_id = Some(album.id.clone());
         library_album = Some(album);
     }
@@ -644,7 +654,7 @@ pub async fn save_track_to_library_tx(
 
         let artist = first_artist.ok_or("Aucun artiste créé")?;
         let artist_id: Option<String> = Some(artist.id.clone());
-        let mut main_artist_id: Option<String> = artist_id.clone();
+        let main_artist_id: Option<String> = artist_id.clone();
         let library_artist: Option<LibraryArtist> = first_library_artist;
 
         let mut artist_album_id: Option<String> = None;
@@ -661,9 +671,9 @@ pub async fn save_track_to_library_tx(
                     let _ = LibraryArtistRepository::insert_library_artist(&mut *conn, LibraryArtistCreate {
                         library_id, artist_id: album_artist.id.clone(),
                     }).await;
+                    // Porte l'album, et lui seul — voir `save_analysed_to_db`.
                     if artist_album_id.is_none() {
                         artist_album_id = Some(album_artist.id.clone());
-                        main_artist_id = artist_album_id.clone();
                     }
                 }
             }
@@ -677,12 +687,18 @@ pub async fn save_track_to_library_tx(
         let mut library_album_id: Option<String> = None;
         let mut library_album: Option<LibraryAlbum> = None;
 
-        if let Some(main_artist_id_ok) = main_artist_id.clone() {
+        let proprietaire_album = artist_album_id.clone().or_else(|| main_artist_id.clone());
+        let album_dir = racine_album(&library_file.path);
+
+        if let Some(proprietaire) = proprietaire_album {
             let album: LibraryAlbum = LibraryAlbumRepository::insert_library_album(&mut *conn, LibraryAlbumCreate {
-                library_id, artist_id: main_artist_id_ok,
+                library_id, artist_id: proprietaire.clone(), album_dir,
                 title: album_title.clone(), title_normalized: album_title_normalized,
                 year, genre, cover_url: thumbnail_url.clone(), album_type: Some("album".to_string()),
             }).await.map_err(|e| format!("Failed to insert album: {}", e))?;
+            let album = basculer_en_compilation(
+                &mut *conn, album, &proprietaire, artist_album_id.is_some(), library_id,
+            ).await?;
             library_album_id = Some(album.id.clone());
             library_album = Some(album);
         }
@@ -742,3 +758,32 @@ pub async fn save_track_to_library_tx(
         Ok(to_track_list_view(&library_track, &library_file, &library_cache, &artist, library_artist.as_ref(), library_album.as_ref()))
 }
 
+/// Deux artistes sous le même toit et aucun tag « artiste de l'album » pour
+/// trancher : c'est une compilation, pas l'album du premier indexé.
+async fn basculer_en_compilation(
+    conn: &mut sqlx::SqliteConnection,
+    album: LibraryAlbum,
+    proprietaire_voulu: &str,
+    tag_present: bool,
+    library_id: i64,
+) -> Result<LibraryAlbum, String> {
+    if tag_present || album.artist_id == proprietaire_voulu || album.album_type == "compilation" {
+        return Ok(album);
+    }
+
+    let divers = ArtistRepository::insert_artist(&mut *conn, ArtistCreate {
+        name: "Various Artists".to_string(),
+        name_normalized: normalize_name("Various Artists"),
+        sort_name: normalize_sort_name("Various Artists"),
+    }).await.map_err(|e| format!("Artiste « Various Artists » : {e}"))?;
+    let _ = LibraryArtistRepository::insert_library_artist(&mut *conn, LibraryArtistCreate {
+        library_id, artist_id: divers.id.clone(),
+    }).await;
+
+    sqlx::query("UPDATE library_albums SET artist_id = ?, album_type = 'compilation' WHERE id = ?")
+        .bind(&divers.id).bind(&album.id)
+        .execute(&mut *conn).await
+        .map_err(|e| format!("Passage en compilation : {e}"))?;
+
+    Ok(LibraryAlbum { artist_id: divers.id, album_type: "compilation".to_string(), ..album })
+}

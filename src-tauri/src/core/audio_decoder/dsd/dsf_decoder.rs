@@ -10,9 +10,11 @@
 //! the audio is organised in *interleaved channel blocks*, each block
 //! `block_size_per_channel` bytes long. The order is:
 //!
-//!     ch0_block0, ch1_block0, ..., chN_block0,
-//!     ch0_block1, ch1_block1, ..., chN_block1,
-//!     ...
+//! ```text
+//! ch0_block0, ch1_block0, ..., chN_block0,
+//! ch0_block1, ch1_block1, ..., chN_block1,
+//! ...
+//! ```
 //!
 //! `read_next_blocks()` returns one such super-block at a time
 //! (i.e. one block per channel for the current super-block index).

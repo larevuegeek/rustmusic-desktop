@@ -91,6 +91,8 @@ export const playlistStore = {
         playlists
       };
     });
+
+    return newPlaylist;
   },
   updatePlaylist: async (id: number, name: string, description: string | null, color: string, icon: string) => {
     const updated: Playlist = await invoke<Playlist>('update_playlist', {

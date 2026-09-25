@@ -5,8 +5,11 @@
   import { popinStore } from "$lib/stores/ui/popin.store";
   import EditPlaylistPopin from "$lib/components/playlist/popin/EditPlaylistPopin.svelte";
   import SmartPlaylistPopin from "$lib/components/playlist/smart/SmartPlaylistPopin.svelte";
+  import PlaylistContextMenu from "$lib/components/ui/contextmenu/PlaylistContextMenu.svelte";
 
   let { playlist }: { playlist: Playlist } = $props();
+
+  let menu = $state<{ x: number; y: number } | null>(null);
 
   /**
    * Le crayon n'ouvre pas la même chose selon la playlist.
@@ -32,7 +35,11 @@
   }
 </script>
 
-<div class="group relative">
+<div
+  class="group relative"
+  oncontextmenu={(e) => { e.preventDefault(); menu = { x: e.clientX, y: e.clientY }; }}
+  role="presentation"
+>
   <button
     class="flex w-full items-center gap-3 px-2 py-1.5 rounded-lg text-left cursor-pointer
            transition-all duration-150
@@ -102,3 +109,7 @@
     <Icon icon="lucide:pen-line" class="w-3.5 h-3.5" />
   </button>
 </div>
+
+{#if menu}
+  <PlaylistContextMenu {playlist} x={menu.x} y={menu.y} onclose={() => menu = null} />
+{/if}

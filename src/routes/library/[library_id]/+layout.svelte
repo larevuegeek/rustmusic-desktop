@@ -177,13 +177,11 @@ async function handleDrop(e: DragEvent) {
   <!-- Séparateur -->
   <div class="h-px mx-6 shrink-0 bg-linear-to-r from-transparent via-neutral-200/80 dark:via-neutral-700/30 to-transparent"></div>
 
-  <!-- Rien en mode « en haut » : tout est dans l'en-tête général. -->
-  {#if placementOnglets !== 'top'}
+  <!-- Seulement en mode « à gauche » : ailleurs l'en-tête général porte déjà
+       les sections et les commandes. -->
+  {#if placementOnglets === 'sidebar'}
     <div class="shrink-0">
-      <LibraryTabBar
-        libraryId={library.id as number}
-        avecOnglets={placementOnglets === 'both'}
-      />
+      <LibraryTabBar />
     </div>
   {/if}
   {/if}

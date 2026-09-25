@@ -115,7 +115,9 @@
     "artist_label": "Artista",
     "loading_artist": "Caricamento artista…",
     "total_duration": "Durata totale",
-    "back_genres": "Generi"
+    "back_genres": "Generi",
+    "appears_on": "Compare in",
+    "appears_on_desc": "Raccolte, colonne sonore e collaborazioni che contengono i suoi brani."
   },
   "playlist_page": {
     "collection": "Collezione",
@@ -296,8 +298,10 @@
     "builtin_playlists": "Brani preferiti e Riprodotti di recente",
     "builtin_playlists_desc": "Dove far apparire queste due liste integrate nell'applicazione",
     "builtin_playlists_hidden_note": "Nascosta da entrambe le parti, una lista si ritrova solo da questa impostazione. I suoi brani restano intatti.",
-    "open_buttons": "Pulsanti «Apri» nella barra laterale",
-    "open_buttons_desc": "La pagina iniziale offre già entrambe le azioni, con il nome per esteso",
+    "open_buttons": "Sezione «Apri» nella barra laterale",
+    "open_buttons_desc": "I suoi due pulsanti, «File» e «Cartella», riproducono un brano o una cartella senza passare da una libreria. La pagina iniziale offre già gli stessi, con il nome per esteso.",
+    "favorites": "Preferiti",
+    "favorites_desc": "Il cuore sui brani, nel lettore e nel menu contestuale",
     "library_tabs": "Sezioni della libreria",
     "library_tabs_desc": "Dove proporre Brani, Album, Artisti, Generi e Cartelle",
     "library_tabs_sidebar": "A sinistra",
@@ -330,7 +334,7 @@
     "repair_links": "Collegamenti degli artisti",
     "repair_links_desc": "Ricrea i collegamenti agli artisti ospiti dei tag «X;Y» e «X Feat. Y»",
     "repair_links_btn": "Ripara",
-    "repair_links_done": "{links} collegamento/i creato/i su {multi} brano/i con più artisti, {artists} scheda/e artista aggiunta/e",
+    "repair_links_done": "{links} collegamento/i su {multi} brano/i con più artisti, {artists} scheda/e aggiunta/e, {fixed} artista/i corretto/i",
     "repair_links_none": "Era già tutto a posto, niente da ricreare",
     "album_covers_desc": "Recupera le copertine mancanti da Deezer",
     "wasapi_exclusive": "WASAPI esclusivo (bit-perfect)",
@@ -712,5 +716,22 @@
       "spaces": "Spazi in eccesso",
       "title_case": "Maiuscole (inglese)"
     }
+  },
+  "playlist": {
+    "new": "Nuova playlist",
+    "new_smart": "Playlist intelligente",
+    "play": "Riproduci la playlist",
+    "edit": "Modifica",
+    "edit_rules": "Modifica le regole",
+    "delete": "Elimina",
+    "deleted": "Playlist eliminata",
+    "empty": "Questa playlist è vuota",
+    "options": "Opzioni di visualizzazione",
+    "builtin": "Scorciatoie",
+    "display_settings": "Impostazioni di visualizzazione…"
+  },
+  "sidebar": {
+    "hide_section": "Nascondi questa sezione",
+    "hide_section_note": "Si rimostra da Impostazioni → Aspetto."
   }
 }

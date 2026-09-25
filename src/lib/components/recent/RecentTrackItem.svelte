@@ -6,6 +6,9 @@ import { formatTime } from "$lib/helper/tools/dateTools";
 import { liked } from "$lib/stores/playlist/like.store";
 import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
+import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
+import { goto } from "$app/navigation";
+import { localiser, lienArtiste, lienAlbum, type TrackLocation } from "$lib/helper/library/trackLocation";
 import { handleRemoveRecentItem } from "$lib/actions/recent/RecentAction";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import { mapRecentFile } from "$lib/mapper/recent/mapRecentFile";
@@ -24,6 +27,25 @@ function openMenu(event: MouseEvent, track: RecentFileListView) {
   contextMenu = { x: event.clientX, y: event.clientY, track };
 }
 
+// La section entière devient la file : sinon la lecture s'arrête au bout
+// du morceau cliqué.
+let fileRecente = $derived(versFileDAttente($recent.map(mapRecentFile) as any[]));
+
+// Un morceau récent peut venir d'un fichier ouvert à la volée : il n'a alors
+// pas de fiche, et ni l'artiste ni l'album ne mènent quelque part.
+let lieux = $state(new Map<string, TrackLocation | null>());
+
+$effect(() => {
+  const chemins = $recent.map((r) => r.path).filter(Boolean);
+  if (chemins.length === 0) return;
+  localiser(chemins).then((trouves) => { lieux = trouves; });
+});
+
+// Le double-clic de la ligne lance la lecture : un lien ne doit pas l'attraper.
+function ouvrir(cible: string) {
+  return (e: MouseEvent) => { e.stopPropagation(); goto(cible); };
+}
+
 onMount(() => {
   recent.refreshRecent();
 });
@@ -33,15 +55,16 @@ onMount(() => {
 {#each $recent as recentFileView, index (recentFileView.id ?? index)}
   {@const recentFile = mapRecentFile(recentFileView)}
   {@const coverPath = recentFile.library?.thumbnail_path}
+  {@const lieu = lieux.get(recentFile.path) ?? null}
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div ondblclick={() => handlePlayTrack(recentFile.path)}
+  <div ondblclick={() => handlePlayTrack(recentFile.path, fileRecente)}
        oncontextmenu={(e) => openMenu(e, recentFileView)}
        class="group w-full hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-xl transition-colors duration-150"
        role="listitem">
     <div class="flex gap-3 px-3 py-2.5 items-center">
       <!-- Cover -->
-      <button onclick={() => handleSelectTrack(recentFile.path)}
+      <button onclick={() => handleSelectTrack(recentFile.path, fileRecente)}
               class="shrink-0 cursor-pointer">
         <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden
                     bg-neutral-200 dark:bg-neutral-800 shadow-sm">
@@ -55,16 +78,31 @@ onMount(() => {
 
       <!-- Infos -->
       <div class="flex-1 min-w-0">
-        <button onclick={() => handleSelectTrack(recentFile.path)} class="cursor-pointer text-left w-full">
+        <button onclick={() => handleSelectTrack(recentFile.path, fileRecente)} class="cursor-pointer text-left w-full">
           <div class="text-sm font-semibold text-neutral-800 dark:text-neutral-200 truncate">
             {recentFile.library?.title ?? "Titre inconnu"}
           </div>
         </button>
-        <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-          {recentFile.library?.artist ?? "Artiste inconnu"}
-        </div>
+        {#if lienArtiste(lieu)}
+          <button type="button" onclick={ouvrir(lienArtiste(lieu)!)} ondblclick={(e) => e.stopPropagation()}
+                  class="text-xs text-neutral-500 dark:text-neutral-400 truncate max-w-full
+                         text-left cursor-pointer hover:underline">
+            {recentFile.library?.artist ?? "Artiste inconnu"}
+          </button>
+        {:else}
+          <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate">
+            {recentFile.library?.artist ?? "Artiste inconnu"}
+          </div>
+        {/if}
         <div class="hidden sm:flex items-center gap-1 text-[10px] text-neutral-400 dark:text-neutral-500 mt-1">
-          <span class="truncate">{recentFile.library?.album ?? ""}</span>
+          {#if lienAlbum(lieu)}
+            <button type="button" onclick={ouvrir(lienAlbum(lieu)!)} ondblclick={(e) => e.stopPropagation()}
+                    class="truncate min-w-0 text-left cursor-pointer hover:underline">
+              {recentFile.library?.album ?? ""}
+            </button>
+          {:else}
+            <span class="truncate">{recentFile.library?.album ?? ""}</span>
+          {/if}
           {#if recentFile.library?.audio_format}
             <span>• {recentFile.library.audio_format}</span>
           {/if}
@@ -75,7 +113,7 @@ onMount(() => {
       <!-- Actions -->
       <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          class="p-1.5 rounded-md cursor-pointer transition-colors
+          class="favori p-1.5 rounded-md cursor-pointer transition-colors
                  {$liked.paths.has(recentFile.path)
                    ? 'text-pink-500'
                    : 'text-neutral-400 hover:text-pink-400'}"

@@ -212,7 +212,7 @@ function handleContextMenu(e: MouseEvent) {
 
         <button
           onclick={() => track && liked.toggle(track.path)}
-          class="p-2.5 rounded-full cursor-pointer transition-all duration-150
+          class="favori p-2.5 rounded-full cursor-pointer transition-all duration-150
                  {isLiked
                    ? 'text-pink-500 bg-pink-500/10 hover:bg-pink-500/20'
                    : 'text-neutral-400 hover:text-pink-400 hover:bg-pink-500/10'}

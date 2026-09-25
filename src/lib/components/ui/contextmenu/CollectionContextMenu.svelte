@@ -178,9 +178,20 @@
 </script>
 
 {#if !showDeezerSearch}
-<button type="button" class="fixed inset-0 z-9998 cursor-default" onclick={onclose} aria-label="Fermer le menu"></button>
+<!-- Le clic droit est avalé ici aussi : sans ça, un second clic droit pendant
+     que le menu est ouvert laissait passer celui du navigateur. -->
+<button
+  type="button"
+  class="fixed inset-0 z-9998 cursor-default"
+  onclick={onclose}
+  oncontextmenu={(e) => { e.preventDefault(); onclose(); }}
+  aria-label="Fermer le menu"
+></button>
 
 <div
+  role="menu"
+  tabindex="-1"
+  oncontextmenu={(e) => e.preventDefault()}
   class="fixed z-[9999] w-55 py-1.5
          bg-neutral-950/95 backdrop-blur-xl
          border border-white/10

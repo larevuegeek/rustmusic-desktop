@@ -90,7 +90,7 @@ impl LibraryProvider for SqliteLibraryProvider {
         artist_id: &str,
     ) -> Result<Vec<DlnaAlbum>, DlnaError> {
         let albums =
-            LibraryAlbumRepository::find_albums_by_artist_id(&*self.pool, library_id, artist_id)
+            LibraryAlbumRepository::find_albums_by_artist_id(&*self.pool, library_id, artist_id, false)
                 .await
                 .map_err(|e| DlnaError::Library(format!("list_albums_by_artist: {e}")))?;
 

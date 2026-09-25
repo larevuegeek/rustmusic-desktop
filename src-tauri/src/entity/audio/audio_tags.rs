@@ -73,7 +73,11 @@ pub struct AttachedImage {
     pub image_type: Option<ImageType>,
     pub mime_type: String, // MIME type of the image, e.g., "image/jpeg"
     pub description: Option<String>, // Optional description of the image
-    pub image_data: Vec<u8>, // Binary data of the image
+    // Jamais serialise : ~4 caracteres de JSON par octet, pour une donnee que
+    // l'interface ne lit pas. Elle passe par `image_src` (base64) ou par la
+    // vignette sur disque.
+    #[serde(skip_serializing, default)]
+    pub image_data: Vec<u8>,
     pub image_src: String,
 }
 
@@ -152,5 +156,46 @@ impl AudioTags {
             custom_tags: Vec::new(),
             attached_images: Vec::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Les octets de la pochette ne doivent pas franchir l'IPC.
+    ///
+    /// `serde` les rendait en tableau JSON — « 255,216,255,… » — soit environ
+    /// quatre caractères par octet, à chaque ouverture de morceau, pour une
+    /// donnée que l'interface ne lit jamais.
+    #[test]
+    fn les_octets_de_pochette_ne_sont_pas_serialises() {
+        let mut tags = AudioTags::new();
+        tags.attached_images.push(AttachedImage {
+            image_type: None,
+            mime_type: "image/jpeg".to_string(),
+            description: None,
+            image_data: vec![0xFF; 253 * 1024], // la moyenne mesurée sur la bibliothèque
+            image_src: "data:image/jpeg;base64,/9j/4AAQ".to_string(),
+        });
+
+        let json = serde_json::to_string(&tags).expect("sérialisation");
+
+        assert!(!json.contains("image_data"), "les octets sont encore envoyés");
+        assert!(json.contains("image_src"), "la base64 doit rester, elle sert à l'affichage");
+        assert!(
+            json.len() < 4096,
+            "charge utile inattendue : {} octets — les octets bruts sont probablement revenus",
+            json.len()
+        );
+    }
+
+    /// Le champ reste lisible quand il est absent : `default` le remplit.
+    #[test]
+    fn un_json_sans_octets_se_relit() {
+        let json = r#"{"image_type":null,"mime_type":"image/png","description":null,"image_src":"x"}"#;
+        let image: AttachedImage = serde_json::from_str(json).expect("désérialisation");
+        assert!(image.image_data.is_empty());
+        assert_eq!(image.image_src, "x");
     }
 }

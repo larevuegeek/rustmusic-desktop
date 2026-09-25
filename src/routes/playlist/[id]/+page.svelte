@@ -7,6 +7,7 @@
   import type { PlaylistTrackView } from "$lib/types/ui/playlist/playlistTrackView";
   import { formatTime } from "$lib/helper/tools/dateTools";
   import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
+  import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
   import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
   import Icon from "@iconify/svelte";
   import { popinStore } from "$lib/stores/ui/popin.store";
@@ -295,7 +296,7 @@
         <div class="flex items-center justify-between py-3 px-3 rounded-md
                     hover:bg-neutral-100 dark:hover:bg-neutral-900
                     transition-colors duration-150"
-             ondblclick={() => track.path && handlePlayTrack(track.path)}
+             ondblclick={() => track.path && handlePlayTrack(track.path, versFileDAttente(tracks))}
              oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, track }; }}>
           <!-- LEFT -->
           <div class="flex items-center gap-4 min-w-0">
@@ -303,7 +304,7 @@
               {String(index + 1).padStart(2, "0")}
             </div>
 
-            <button onclick={() => track.path && handleSelectTrack(track.path)} class="cursor-pointer">
+            <button onclick={() => track.path && handleSelectTrack(track.path, versFileDAttente(tracks))} class="cursor-pointer">
               <div class="w-12 h-12 rounded-md overflow-hidden
                           bg-neutral-200 dark:bg-neutral-700
                           flex items-center justify-center shrink-0">
@@ -317,7 +318,7 @@
             </button>
 
             <div class="flex flex-col items-stretch min-w-0">
-              <button onclick={() => track.path && handleSelectTrack(track.path)} class="text-left cursor-pointer min-w-0 w-full">
+              <button onclick={() => track.path && handleSelectTrack(track.path, versFileDAttente(tracks))} class="text-left cursor-pointer min-w-0 w-full">
                 <span class="block font-medium text-neutral-800 dark:text-neutral-200 truncate"
                       title={track.title ?? "Titre inconnu"}>
                   {track.title ?? "Titre inconnu"}

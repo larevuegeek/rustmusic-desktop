@@ -39,6 +39,16 @@ export function applyContrastMode(mode: ContrastMode) {
     }
 }
 
+/** Masque les favoris partout : sept boutons cœur et une entrée de menu. */
+export function applyFavoritesMode(actif: boolean) {
+    const root = document.documentElement;
+    if (actif) {
+        root.removeAttribute('data-favoris');
+    } else {
+        root.setAttribute('data-favoris', 'off');
+    }
+}
+
 let mediaQueryListener: ((e: MediaQueryListEvent) => void) | null = null;
 
 /**

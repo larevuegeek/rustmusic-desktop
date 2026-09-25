@@ -5,6 +5,7 @@ import type { QueueState } from "$lib/types/db/queue/QueueState";
 import { profilSelector } from "../profil/profil.store";
 import { player } from "../player/player.store";
 import type { AudioFile } from "$lib/types/db/audioFile/AudioFile";
+import { ordonnerPourLecture } from "$lib/mapper/queue/mapQueueTrack";
 
 // L'ID du profil par défaut (tu pourras le rendre dynamique plus tard)
 let currentProfilId = 1;
@@ -33,6 +34,29 @@ const queueStateWritable = writable<QueueState>(defaultState);
 
 // Ordre original des pistes avant shuffle (null = pas de shuffle actif)
 let originalTracks: QueueTrack[] | null = null;
+
+// ─── Écriture de la file en base, en retrait du chemin de lecture ───
+//
+// La file vit d'abord en mémoire ; SQLite ne sert qu'à la retrouver au
+// prochain démarrage. Toute une bibliothèque, c'est 5,8 Mo à transférer et
+// 77 ms d'écriture : l'attendre retarderait le son à chaque clic. Les
+// écritures se suivent donc à la queue leu leu, et seule la dernière compte.
+let numeroEcriture = 0;
+let ecritures: Promise<void> = Promise.resolve();
+
+function enregistrerFile(liste: QueueTrack[], currentIndex: number) {
+    const numero = ++numeroEcriture;
+
+    ecritures = ecritures.then(async () => {
+        if (numero !== numeroEcriture) return;
+        try {
+            await invoke('replace_queue_tracks', { profilId: currentProfilId, payload: liste });
+            await invoke('update_queue_state_index', { profilId: currentProfilId, currentIndex });
+        } catch (err) {
+            console.error("❌ Erreur SQLite lors du chargement de la file :", err);
+        }
+    });
+}
 
 // Fisher-Yates shuffle — mélange en place, O(n)
 function shuffleArray<T>(arr: T[]): T[] {
@@ -377,6 +401,31 @@ export const queueState = {
         player.update({ pathFile: newTrack.path, audioFile: audioFile, trackId: newTrack.queueId });
 
         return newTrack;
+    },
+    /**
+     * Charge une liste entière en se plaçant sur `path`. Sans elle, cliquer un
+     * morceau réduisait la file à ce seul morceau : la lecture s'arrêtait à sa
+     * fin, et « en boucle » ne faisait que le rejouer.
+     */
+    loadContext: async (tracks: QueueTrack[], path: string): Promise<QueueTrack | undefined> => {
+
+        if (tracks.length === 0) return undefined;
+
+        const qs = get(queueStateWritable);
+
+        // Mémorisé avant tout mélange : c'est l'ordre rendu en quittant l'aléatoire.
+        if (qs.isShuffled) originalTracks = tracks.map((t, i) => ({ ...t, position: i }));
+
+        const { liste, index: currentIndex } = ordonnerPourLecture(tracks, path, qs.isShuffled);
+
+        queueStateWritable.set({ ...qs, tracks: liste, currentIndex });
+        enregistrerFile(liste, currentIndex);
+
+        const track = liste[currentIndex];
+        // Pas d'`open_file` ici : `playFile` et `preloadTrack` le font déjà.
+        player.update({ pathFile: track.path, trackId: track.queueId });
+
+        return track;
     },
     loadTracks: async (tracks: QueueTrack[]) => {
 

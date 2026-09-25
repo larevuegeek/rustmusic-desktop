@@ -34,6 +34,9 @@ pub fn to_album_list_view(
         // ===== Notes =====
         notes: album.notes.clone(),
 
+        // Ce mappeur part de l'album, donc de son propriétaire.
+        participation: false,
+
         // ===== Timestamps =====
         created_at: album.created_at,
         updated_at: album.updated_at,

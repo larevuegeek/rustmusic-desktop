@@ -10,6 +10,9 @@ import AddLibraryPopin from "$lib/components/library/common/popin/AddLibraryPopi
 import AddPlaylistPopin from "$lib/components/playlist/popin/AddPlaylistPopin.svelte";
 import SmartPlaylistPopin from "$lib/components/playlist/smart/SmartPlaylistPopin.svelte";
 import PlaylistItem from "./PlaylistItem.svelte";
+import PlaylistZoneMenu from "$lib/components/ui/contextmenu/PlaylistZoneMenu.svelte";
+import LibraryZoneMenu from "$lib/components/ui/contextmenu/LibraryZoneMenu.svelte";
+import OpenZoneMenu from "$lib/components/ui/contextmenu/OpenZoneMenu.svelte";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { playlistStore } from "$lib/stores/playlist/playlist.store";
 import { profilSelector } from "$lib/stores/profil/profil.store";
@@ -38,6 +41,18 @@ const montrerRecents = $derived($settingsStore.show_recent_in_playlists !== 'fal
 
 // `=== 'true'` : masqué par défaut, l'absence de réglage vaut « caché ».
 const montrerBoutonsOuvrir = $derived($settingsStore.show_open_buttons === 'true');
+
+let menuZone = $state<{ x: number; y: number } | null>(null);
+let menuBibliotheque = $state<{ x: number; y: number } | null>(null);
+let menuOuvrir = $state<{ x: number; y: number } | null>(null);
+
+// Une pastille sur le « … » quand un raccourci est masqué : sans elle, rien ne
+// dit où le retrouver.
+const raccourcisMasques = $derived(
+  ($settingsStore.show_liked_in_playlists === 'false' ? 1 : 0) +
+  ($settingsStore.show_recent_in_playlists === 'false' ? 1 : 0)
+);
+
 
 // ─── Sections de la bibliothèque ───
 const ongletOuvert = $derived(ongletCourant(pathname));
@@ -128,9 +143,23 @@ onMount(() => {
     <!-- Séparateur -->
     <div class="h-px mx-3 mb-3 bg-linear-to-r from-transparent via-neutral-200/80 dark:via-neutral-700/30 to-transparent"></div>
 
-    <h3 class="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-500 px-2 mb-2">
-      {$t('nav.open')}
-    </h3>
+    <div class="flex justify-between items-center px-2 mb-2">
+      <h3 class="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-500">
+        {$t('nav.open')}
+      </h3>
+      <button
+        class="w-5 h-5 flex items-center justify-center rounded-full
+               border border-neutral-300/70 dark:border-white/15
+               text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200
+               hover:border-neutral-400 dark:hover:border-white/30
+               cursor-pointer transition-colors"
+        onclick={(e) => menuOuvrir = { x: e.clientX, y: e.clientY }}
+        aria-label={$t('playlist.options')}
+        title={$t('playlist.options')}
+      >
+        <Icon icon="lucide:more-horizontal" width="12" height="12" />
+      </button>
+    </div>
     <div class="flex gap-1.5 px-1 mb-3">
       <button
         class="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg cursor-pointer
@@ -176,15 +205,29 @@ onMount(() => {
         <h3 class="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-500">
           {$t('nav.library')}
         </h3>
-        <button
-          class="w-5 h-5 flex items-center justify-center rounded
-                 text-neutral-400 hover:text-green-500 cursor-pointer
-                 transition-colors"
-          onclick={() => popinStore.open($t('library.create_library'), AddLibraryPopin, {})}
-          aria-label="Ajouter une bibliothèque"
-        >
-          <Icon icon="lucide:plus" width="13" height="13" />
-        </button>
+        <div class="flex items-center gap-0.5">
+          <button
+            class="w-5 h-5 flex items-center justify-center rounded
+                   text-neutral-400 hover:text-green-500 cursor-pointer
+                   transition-colors"
+            onclick={() => popinStore.open($t('library.create_library'), AddLibraryPopin, {})}
+            aria-label="Ajouter une bibliothèque"
+          >
+            <Icon icon="lucide:plus" width="13" height="13" />
+          </button>
+          <button
+            class="w-5 h-5 flex items-center justify-center rounded-full
+                   border border-neutral-300/70 dark:border-white/15
+                   text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200
+                   hover:border-neutral-400 dark:hover:border-white/30
+                   cursor-pointer transition-colors"
+            onclick={(e) => menuBibliotheque = { x: e.clientX, y: e.clientY }}
+            aria-label={$t('settings.library_tabs')}
+            title={$t('settings.library_tabs')}
+          >
+            <Icon icon="lucide:more-horizontal" width="12" height="12" />
+          </button>
+        </div>
       </div>
 
       {#if $libraryStore.isLoading}
@@ -281,6 +324,21 @@ onMount(() => {
           >
             <Icon icon="lucide:plus" width="13" height="13" />
           </button>
+          <button
+            class="relative w-5 h-5 flex items-center justify-center rounded-full
+                   border border-neutral-300/70 dark:border-white/15
+                   text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200
+                   hover:border-neutral-400 dark:hover:border-white/30
+                   cursor-pointer transition-colors"
+            onclick={(e) => menuZone = { x: e.clientX, y: e.clientY }}
+            aria-label={$t('playlist.options')}
+            title={$t('playlist.options')}
+          >
+            <Icon icon="lucide:more-horizontal" width="12" height="12" />
+            {#if raccourcisMasques > 0}
+              <span class="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            {/if}
+          </button>
         </div>
       </div>
 
@@ -342,3 +400,15 @@ onMount(() => {
   </div>
 
 </aside>
+
+{#if menuZone}
+  <PlaylistZoneMenu x={menuZone.x} y={menuZone.y} onclose={() => menuZone = null} />
+{/if}
+
+{#if menuBibliotheque}
+  <LibraryZoneMenu x={menuBibliotheque.x} y={menuBibliotheque.y} onclose={() => menuBibliotheque = null} />
+{/if}
+
+{#if menuOuvrir}
+  <OpenZoneMenu x={menuOuvrir.x} y={menuOuvrir.y} onclose={() => menuOuvrir = null} />
+{/if}

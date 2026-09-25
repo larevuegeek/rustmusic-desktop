@@ -30,6 +30,8 @@ pub struct LibraryAlbum {
 pub struct LibraryAlbumCreate {
     pub library_id: i64,
     pub artist_id: String,
+    /// Le dossier qui identifie l'album, disques multiples rassemblés.
+    pub album_dir: String,
     
     pub title: String,
     pub title_normalized: String,
