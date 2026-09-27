@@ -172,9 +172,11 @@ impl AudioPlayer {
         // Reset seek position pour le nouveau fichier
         self.seek_position.store(u64::MAX, Ordering::Relaxed);
 
-        // Copie pour le garde-fou : `app_handle` part dans le fil, et il faut
-        // pouvoir débloquer l'interface si celui-ci échoue.
+        // Copies pour le garde-fou : ces trois-là partent dans le fil, et il
+        // faut pouvoir rattraper son échec depuis l'extérieur.
         let app_handle_guard = app_handle.clone();
+        let is_stream_alive_guard = self.is_stream_alive.clone();
+        let is_playing_guard = self.is_playing.clone();
 
         std::thread::spawn(move || {
             if let Err(e) = Self::play_file_thread(
@@ -191,6 +193,17 @@ impl AudioPlayer {
                 seek_position_clone,
             ) {
                 log::error!("❌ Erreur lecture fichier: {}", e);
+
+                // Les deux drapeaux sont levés avant le fil, et `play_file_thread`
+                // ne les rabaisse qu'à sa fin normale — il a huit sorties
+                // d'erreur avant. Sans ça, un fichier illisible ou un
+                // périphérique qui refuse la négociation laissait `is_playing`
+                // à vrai, donc toute lecture suivante refusée, et
+                // `is_stream_alive` à vrai, donc chaque `stop()` bloqué trois
+                // secondes.
+                is_playing_guard.store(false, Ordering::SeqCst);
+                is_stream_alive_guard.store(false, Ordering::SeqCst);
+
                 // Sans ça, un échec de démarrage laisse la barre figée à zéro
                 // pour toujours : l'interface attendrait un `false` que plus
                 // personne n'émettra.

@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.2.6] - 2026-09-27
+
+Deux correctifs de lecture. Le lecteur ne se contredit plus, et un fichier
+illisible ne le condamne plus au silence.
+
+### Lecture
+- **Un double-clic ne lance plus deux fois le même morceau.** En mode
+  « simple clic = lecture », le navigateur envoie `click, click, dblclick` :
+  trois demandes de lecture pour un seul geste. La première était déjà partie
+  quand les suivantes arrivaient, et deux lectures se marchaient dessus — le
+  son partait, mais l'état du lecteur restait celui de l'autre : bouton sur
+  « lecture », barre figée à 00:00. Une demande identique qui suit de près
+  est ignorée, et le double-clic ne relance plus ce que le clic a déjà lancé.
+- **Le lecteur ne se croit plus à l'arrêt pendant qu'il joue.** Couper le son
+  peut prendre plusieurs secondes selon le périphérique ; la lecture suivante
+  démarrait entre-temps, et l'arrêt retardataire écrasait alors son état.
+  Bouton sur « lecture », barre figée à 00:00, plus aucune progression — alors
+  que la musique tournait. Un arrêt dépassé par une lecture plus récente
+  renonce désormais à écrire.
+- **Un fichier illisible ne bloque plus le lecteur.** Lorsque l'ouverture
+  échouait — fichier corrompu, piste audio absente, périphérique qui refuse la
+  négociation — deux drapeaux internes restaient levés : toute lecture suivante
+  était refusée, et chaque arrêt attendait trois secondes dans le vide avant
+  d'abandonner. Ils sont maintenant rabaissés en cas d'échec.
+
 ## [0.2.5] - 2026-09-25
 
 Les albums et les artistes retrouvent leur identité : une compilation redevient

@@ -50,7 +50,7 @@ function handleClick(e?: MouseEvent) {
           transition-colors duration-150
           {isSelected ? 'bg-emerald-500/10 dark:bg-emerald-500/10' : 'hover:bg-neutral-100 dark:hover:bg-neutral-900'}
           {selection.active ? 'cursor-pointer' : ''}"
-  ondblclick={() => { if (!selection.active) handlePlayTrack(track.path, versFileDAttente(tracks)); }}
+  ondblclick={() => { if (!selection.active && !singleClickPlay) handlePlayTrack(track.path, versFileDAttente(tracks)); }}
   onclick={handleClick}
   oncontextmenu={handleContextMenu}
 >

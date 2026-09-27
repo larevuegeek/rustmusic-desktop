@@ -478,8 +478,17 @@ class PlayerService {
     // ⏹ STOP
     // ==========================================
     async stopPlay() {
+        // L'arrêt côté Rust peut durer : le journal montre des « Timeout stop()
+        // — le stream ne s'est pas arrêté en 3s ». Pendant ces secondes, une
+        // lecture plus récente a le temps de partir. Sans ce garde, l'arrêt
+        // retardataire écrasait son état : bouton sur « lecture », position à
+        // 00:00 et animation figée, alors que le son tournait.
+        const idAuDepart = playRequestId;
+
         try {
             await invoke("stop_play");
+
+            if (idAuDepart !== playRequestId) return;
 
             player.update({
                 status: "idle",

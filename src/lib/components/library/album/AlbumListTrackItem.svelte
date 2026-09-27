@@ -39,7 +39,8 @@ function handleClick(e?: MouseEvent) {
 }
 
 function handleDblClick() {
-    if (!selection.active) {
+    // En simple clic, le clic a déjà lancé : le double-clic n'a rien à faire.
+    if (!selection.active && !singleClickPlay) {
         handlePlayTrack(track.path, versFileDAttente(tracks));
     }
 }

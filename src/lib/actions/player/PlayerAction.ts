@@ -64,7 +64,38 @@ export function handleSelectTrack(path: string, contexte?: QueueTrack[]): Promis
     });
 }
 
+// ─── Un geste, une lecture ───
+//
+// En mode « simple clic = lecture », un double-clic envoie `click, click,
+// dblclick` : trois demandes de lecture pour un seul geste. La première est
+// déjà partie quand les suivantes arrivent — la file d'actions n'annule que
+// ce qui n'a pas commencé — et deux lectures finissaient par se marcher
+// dessus : le son partait, l'état du lecteur restait celui de l'autre.
+//
+// Seule la lecture est concernée. La sélection doit rester libre, sinon le
+// double-clic ne lancerait plus rien : son premier clic sélectionne.
+export const DELAI_REPETITION_MS = 700;
+let dernierePisteLue = "";
+let dernierLancement = 0;
+
+/** Vrai si cette demande n'est que l'écho de la précédente. */
+export function estUneRepetition(
+    path: string,
+    pistePrecedente: string,
+    instantPrecedent: number,
+    maintenant: number,
+): boolean {
+    return path === pistePrecedente && maintenant - instantPrecedent < DELAI_REPETITION_MS;
+}
+
 export function handlePlayTrack(path: string, contexte?: QueueTrack[]): Promise<void> {
+    const maintenant = Date.now();
+    if (estUneRepetition(path, dernierePisteLue, dernierLancement, maintenant)) {
+        return Promise.resolve();
+    }
+    dernierePisteLue = path;
+    dernierLancement = maintenant;
+
     return addActionQueue(async () => {
         const track = await handleTrack(path, contexte);
         await playerService.playFile(track);
