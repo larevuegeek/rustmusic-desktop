@@ -1,6 +1,6 @@
 [package]
 name = "rustmusic"
-version = "0.2.6"
+version = "0.2.7"
 description = "Audiophile-grade desktop music player with native DSD playback, multichannel SACD support, DLNA server, synced lyrics, and OS media controls."
 authors = ["LaRevueGeeK <contact@rustmusic.dev>"]
 edition = "2021"
@@ -27,7 +27,6 @@ tauri-build = { version = "2.6.3", features = [] }
 tauri = { version = "2.11.5", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-dialog = "2.7.1"
-tauri-plugin-sql = { version = "2.4.0", features = ["sqlite"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-process = "2"
@@ -85,6 +84,8 @@ tauri-plugin-window-state = "2.4.1"
 # autres OS ce crate n'est pas compilé.
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.23"
+# Même version que celle de `wasapi` : bus de l'adaptateur d'une sortie (USB, HDMI…).
+windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties"] }
 
 # CoreAudio direct pour le DoP bit-perfect sur macOS. On ne réimplémente PAS
 # le stream (CPAL suffit : son unité HAL règle déjà le rate nominal du device et

@@ -1,197 +1,121 @@
 <script lang="ts">
+  // Détail de la chaîne audio, du fichier au DAC, dans le style du menu Sortie.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import type { PlaybackPipelineInfo } from "$lib/stores/player/playbackPipeline.store";
+  import { t, currentLocale } from "$lib/i18n";
+  import { pipelineMode, type PlaybackPipelineInfo } from "$lib/stores/player/playbackPipeline.store";
+  import { CHAINE } from "$lib/helper/audio/chaineAudio";
+  import { decrireSortie } from "$lib/helper/audio/deviceLabel";
 
   let { info }: { info: PlaybackPipelineInfo } = $props();
 
-  // Helpers d'affichage des fréquences.
-  function formatRate(hz: number): string {
-    if (hz >= 1_000_000) return `${(hz / 1_000_000).toFixed(2)} MHz`;
-    if (hz >= 1_000) return `${(hz / 1_000).toFixed(hz % 1000 === 0 ? 0 : 1)} kHz`;
-    return `${hz} Hz`;
+  const nombre = $derived(new Intl.NumberFormat($currentLocale, { maximumFractionDigits: 2 }));
+  function frequence(hz: number): string {
+    if (hz >= 1_000_000) return `${nombre.format(hz / 1_000_000)} MHz`;
+    return hz >= 1_000 ? `${nombre.format(hz / 1_000)} kHz` : `${hz} Hz`;
   }
 
-  function channelsLabel(n: number): string {
+  const CANAUX: Record<number, string> = { 3: "3.0", 4: "4.0", 5: "5.0", 6: "5.1", 7: "6.1", 8: "7.1" };
+  function canaux(n: number): string {
     if (n === 1) return $t("pipeline.channels_mono");
     if (n === 2) return $t("pipeline.channels_stereo");
-    if (n === 3) return "3.0";
-    if (n === 4) return "4.0";
-    if (n === 5) return "5.0";
-    if (n === 6) return "5.1";
-    if (n === 7) return "6.1";
-    if (n === 8) return "7.1";
-    return `${n} ch`;
+    return CANAUX[n] ?? `${n} ch`;
   }
 
-  let qualityLabel = $derived(
-    info.quality_profile === "high"
-      ? $t("settings.audio_quality_high")
-      : info.quality_profile === "medium"
-      ? $t("settings.audio_quality_medium")
-      : info.quality_profile === "low"
-      ? $t("settings.audio_quality_low")
-      : info.quality_profile === "minimal"
-      ? $t("settings.audio_quality_minimal")
-      : info.quality_profile,
+  const profil = $derived(
+    ["high", "medium", "low", "minimal"].includes(info.quality_profile) ? $t(`settings.audio_quality_${info.quality_profile}`) : info.quality_profile,
   );
 
-  let isDsd = $derived(info.intermediate_pcm_rate != null);
-  let backendLabel = $derived(info.backend ?? "CPAL shared");
-  let isWasapiExclusive = $derived(backendLabel.startsWith("WASAPI"));
-  // DoP : DSD envoyé natif au DAC. Un backend par OS ("WASAPI DoP",
-  // "ALSA DoP", "CoreAudio DoP") — on teste le suffixe, pas la valeur exacte.
-  let isDop = $derived(backendLabel.endsWith("DoP"));
-  // Bit-perfect « classique » (PCM) : on garde le badge vert, mais pas en DoP
-  // (le DoP a sa propre bannière violette « DSD natif »).
-  let isBitPerfect = $derived(info.bit_perfect === true && !isDop);
+  const etat = $derived.by(() => {
+    const m = pipelineMode(info);
+    return m ? CHAINE[m] : null;
+  });
+  const dsd = $derived(info.intermediate_pcm_rate != null);
+  const dop = $derived((info.backend ?? "").endsWith("DoP"));
+  const moteur = $derived(dop ? $t("pipeline.dop_backend") : info.backend ?? "CPAL shared");
+
+  type Etape = { icone: string; titre: string; valeur: string; detail?: string; mono?: boolean; ton?: string };
+  const AMBRE = "bg-amber-500/14 text-amber-700 dark:text-amber-300";
+  const VIOLET = "bg-violet-500/14 text-violet-700 dark:text-violet-300";
+
+  const etapes = $derived.by(() => {
+    const e: Etape[] = [{
+      icone: "material-symbols-light:audio-file-outline-rounded",
+      titre: $t("pipeline.source"),
+      valeur: [info.source_format, frequence(info.source_sample_rate), dsd || dop ? "1 bit" : info.source_bits > 0 ? `${info.source_bits} bit` : null].filter(Boolean).join(" · "),
+      detail: canaux(info.source_channels),
+      mono: true,
+    }];
+    if (dsd && info.intermediate_pcm_rate) {
+      e.push({
+        icone: "material-symbols-light:tune-rounded",
+        titre: $t("pipeline.decoding"),
+        valeur: `DSD → PCM ${frequence(info.intermediate_pcm_rate)}`,
+        detail: [info.dsd_filter_taps ? $t("pipeline.dsd_filter").replace("{taps}", String(info.dsd_filter_taps)) : null, info.dsd_decimation ? `×${info.dsd_decimation}` : null].filter(Boolean).join(" · ") || undefined,
+        mono: true,
+        ton: AMBRE,
+      });
+    }
+    if (dop) {
+      e.push({
+        icone: "material-symbols-light:swap-horiz-rounded",
+        titre: $t("pipeline.transport"),
+        valeur: `DoP ${frequence(info.output_sample_rate)}`,
+        detail: $t("pipeline.dop_transport_hint"),
+        mono: true,
+        ton: VIOLET,
+      });
+    }
+    if (info.resampler_active) {
+      e.push({
+        icone: "material-symbols-light:graphic-eq-rounded",
+        titre: $t("pipeline.resampling"),
+        valeur: `${frequence(info.intermediate_pcm_rate ?? info.source_sample_rate)} → ${frequence(info.output_sample_rate)}`,
+        mono: true,
+        ton: AMBRE,
+      });
+    }
+    e.push({
+      icone: "material-symbols-light:speaker-outline-rounded",
+      titre: $t("pipeline.output"),
+      valeur: decrireSortie({ name: info.device_name }).nom,
+      detail: [frequence(info.output_sample_rate), canaux(info.output_channels), moteur].join(" · "),
+    });
+    return e;
+  });
 </script>
 
-<!-- Popover : positionné par le parent en absolute -->
-<div
-  class="rounded-xl shadow-2xl border text-left text-[11px]
-         bg-white dark:bg-neutral-900
-         border-neutral-200 dark:border-white/8
-         text-neutral-700 dark:text-neutral-300
-         p-4 w-72"
->
-  <!-- ── Bannière DSD natif (DoP) : le flux DSD sort tel quel au DAC ── -->
-  {#if isDop}
-    <div class="mb-3 -mt-1 px-2.5 py-2 rounded-md
-                bg-purple-50 border border-purple-200
-                dark:bg-purple-500/10 dark:border-purple-400/25">
-      <div class="flex items-center gap-1.5">
-        <Icon icon="lucide:badge-check" width={13} class="text-purple-600 dark:text-purple-400" />
-        <span class="text-[11px] font-semibold text-purple-700 dark:text-purple-300">
-          {$t("pipeline.dop_title")}
+<div class="w-80 p-1.5 rounded-[14px] border text-left bg-(--lc-menu) border-(--lc-menu-bd) shadow-[0_18px_40px_rgba(0,0,0,0.35)] text-(--lc-tx)">
+  <div class="flex items-center justify-between gap-2 px-2.5 pt-1.5 pb-1.5">
+    <p class="text-[11px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">{$t("player.audio_chain")}</p>
+    {#if etat}
+      <span class="h-5.5 px-2 flex items-center gap-1.5 rounded-full border text-[10.5px] font-semibold whitespace-nowrap {etat.teinte}">
+        <span class="w-1.5 h-1.5 rounded-full bg-current"></span>{$t(etat.cle)}
+      </span>
+    {/if}
+  </div>
+  {#if etat}<p class="px-2.5 pb-2.5 text-[11.5px] leading-snug text-(--lc-mu)">{$t(etat.desc)}</p>{/if}
+
+  <!-- Étapes reliées, du fichier au DAC. -->
+  <ol class="px-2.5 pt-1">
+    {#each etapes as e, i (e.titre)}
+      <li class="relative flex gap-3 pb-3">
+        {#if i < etapes.length - 1}<span class="absolute left-3.25 top-7.5 -bottom-0.5 w-px bg-(--lc-menu-bd)"></span>{/if}
+        <span class="shrink-0 w-6.5 h-6.5 rounded-lg flex items-center justify-center {e.ton ?? 'bg-(--lc-survol) text-(--lc-tx2)'}">
+          <Icon icon={e.icone} width="17" />
         </span>
-      </div>
-      <p class="mt-1 text-[10px] leading-snug text-purple-600/90 dark:text-purple-300/80">
-        {$t("pipeline.dop_desc")}
-      </p>
+        <span class="min-w-0 flex-1 leading-[1.3]">
+          <span class="block text-[10px] font-bold uppercase tracking-[0.07em] text-(--lc-mu)">{e.titre}</span>
+          <span class="block truncate text-[12.5px] font-semibold {e.mono ? 'font-mono font-medium text-[12px]' : ''}" title={e.valeur}>{e.valeur}</span>
+          {#if e.detail}<span class="block text-[11px] text-(--lc-mu)">{e.detail}</span>{/if}
+        </span>
+      </li>
+    {/each}
+  </ol>
+
+  {#if profil}
+    <div class="flex items-center justify-between px-2.5 pt-2 pb-1.5 border-t border-(--lc-menu-bd) text-[11.5px]">
+      <span class="text-(--lc-mu)">{$t("pipeline.profile")}</span>
+      <span class="font-semibold text-(--lc-tx2)">{profil}</span>
     </div>
   {/if}
-
-  <!-- ── Badge Bit-perfect (WASAPI exclusive PCM + pas de resampling) ── -->
-  {#if isBitPerfect}
-    <div class="mb-3 -mt-1 flex items-center gap-1.5 px-2 py-1.5 rounded-md
-                bg-emerald-50 border border-emerald-200
-                dark:bg-emerald-500/10 dark:border-emerald-400/20">
-      <Icon icon="lucide:shield-check" width={13} class="text-emerald-600 dark:text-emerald-400" />
-      <span class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-        {$t("pipeline.badge_bit_perfect")}
-      </span>
-    </div>
-  {/if}
-
-  <!-- ── Source ── -->
-  <div class="mb-3">
-    <p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-1.5 flex items-center gap-1">
-      <Icon icon="lucide:file-audio" width={11} />
-      {$t("pipeline.source")}
-    </p>
-    <p class="font-mono text-neutral-800 dark:text-neutral-200">
-      {info.source_format} · {formatRate(info.source_sample_rate)}
-      {#if !isDsd && info.source_bits > 0}
-        · {info.source_bits}-bit
-      {:else if isDsd}
-        · 1-bit
-      {/if}
-    </p>
-    <p class="text-neutral-500 dark:text-neutral-400 mt-0.5">
-      {channelsLabel(info.source_channels)}
-    </p>
-  </div>
-
-  <!-- ── Décodage (uniquement DSD) ── -->
-  {#if isDsd && info.intermediate_pcm_rate}
-    <div class="mb-3 pt-3 border-t border-neutral-100 dark:border-white/5">
-      <p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-1.5 flex items-center gap-1">
-        <Icon icon="lucide:settings-2" width={11} />
-        {$t("pipeline.decoding")}
-      </p>
-      <p class="font-mono text-neutral-800 dark:text-neutral-200">
-        DSD2PCM → {formatRate(info.intermediate_pcm_rate)}
-      </p>
-      <p class="text-neutral-500 dark:text-neutral-400 mt-0.5">
-        {#if info.dsd_filter_taps}
-          {$t("pipeline.dsd_filter").replace("{taps}", String(info.dsd_filter_taps))}
-        {/if}
-        {#if info.dsd_decimation}
-          · ×{info.dsd_decimation}
-        {/if}
-      </p>
-    </div>
-  {/if}
-
-  <!-- ── Chemin DoP (DSD natif, aucune conversion) ── -->
-  {#if isDop}
-    <div class="mb-3 pt-3 border-t border-neutral-100 dark:border-white/5">
-      <p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-1.5 flex items-center gap-1">
-        <Icon icon="lucide:arrow-right-left" width={11} />
-        {$t("pipeline.transport")}
-      </p>
-      <p class="font-mono text-neutral-800 dark:text-neutral-200">
-        {info.source_format} → DoP {formatRate(info.output_sample_rate)}
-      </p>
-      <p class="text-neutral-500 dark:text-neutral-400 mt-0.5">
-        {$t("pipeline.dop_transport_hint")}
-      </p>
-    </div>
-  {/if}
-
-  <!-- ── Resampling ── -->
-  {#if info.resampler_active}
-    <div class="mb-3 pt-3 border-t border-neutral-100 dark:border-white/5">
-      <p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-1.5 flex items-center gap-1">
-        <Icon icon="lucide:waveform" width={11} />
-        {$t("pipeline.resampling")}
-      </p>
-      <p class="font-mono text-neutral-800 dark:text-neutral-200">
-        {formatRate(info.intermediate_pcm_rate ?? info.source_sample_rate)} → {formatRate(info.output_sample_rate)}
-      </p>
-    </div>
-  {/if}
-
-  <!-- ── Sortie ── -->
-  <div class="mb-3 pt-3 border-t border-neutral-100 dark:border-white/5">
-    <p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-1.5 flex items-center gap-1">
-      <Icon icon="lucide:speaker" width={11} />
-      {$t("pipeline.output")}
-    </p>
-    <p class="font-mono text-neutral-800 dark:text-neutral-200 truncate" title={info.device_name}>
-      {info.device_name}
-    </p>
-    <p class="text-neutral-500 dark:text-neutral-400 mt-0.5">
-      {formatRate(info.output_sample_rate)} · {channelsLabel(info.output_channels)}
-    </p>
-    <p class="mt-1 flex items-center gap-1">
-      <Icon
-        icon={isDop ? "lucide:badge-check" : isWasapiExclusive ? "lucide:audio-lines" : "lucide:volume-2"}
-        width={11}
-        class={isDop
-          ? "text-purple-500 dark:text-purple-400"
-          : isWasapiExclusive
-          ? "text-amber-500 dark:text-amber-400"
-          : "text-neutral-400 dark:text-neutral-500"}
-      />
-      <span class={isDop
-        ? "text-purple-600 dark:text-purple-300 font-medium"
-        : isWasapiExclusive
-        ? "text-amber-600 dark:text-amber-300 font-medium"
-        : "text-neutral-500 dark:text-neutral-400"}>
-        {isDop ? $t("pipeline.dop_backend") : backendLabel}
-      </span>
-    </p>
-  </div>
-
-  <!-- ── Profil actif ── -->
-  <div class="pt-3 border-t border-neutral-100 dark:border-white/5 flex items-center justify-between">
-    <span class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-      {$t("pipeline.profile")}
-    </span>
-    <span class="text-emerald-600 dark:text-emerald-400 font-medium">
-      {qualityLabel}
-    </span>
-  </div>
 </div>

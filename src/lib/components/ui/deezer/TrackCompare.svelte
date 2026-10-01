@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { messageErreur } from "$lib/helper/tools/errorTools";
   // Ce que le fichier contient, ce que la source propose, et ce qu'on retient.
   //
   // # Deux colonnes, et le choix au milieu
@@ -118,7 +119,7 @@
           // a déjà une, l'écraser est une décision, pas un défaut.
           takeCover = currentCover === null;
         })
-        .catch((e) => (coverError = String((e as any)?.message ?? e ?? "")))
+        .catch((e) => (coverError = messageErreur(e)))
         .finally(() => (coverLoading = false));
     });
   });

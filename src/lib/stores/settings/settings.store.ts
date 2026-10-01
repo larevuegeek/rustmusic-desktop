@@ -23,6 +23,7 @@ export type AppSettings = {
   wasapi_exclusive: string;          // 'true' | 'false' — Windows uniquement, bit-perfect
   dsd_dop: string;                   // 'true' | 'false' — DSD natif (DoP) via WASAPI exclusive
   gapless: string;                   // 'true' | 'false' — enchaînement sans blanc entre pistes
+  resume_playback: string;           // 'true' | 'false' — Lecture reprend à la position enregistrée
   theme: string;                     // 'auto' | 'light' | 'dark'
   contrast: string;                  // 'normal' | 'high' — lisibilité renforcée
   window_controls_style: string;     // 'auto' | 'macos' | 'windows'
@@ -52,9 +53,16 @@ export type AppSettings = {
   // Largeurs réglées à la main, en JSON : clé de colonne → pixels. Les colonnes
   // absentes gardent leur largeur d'origine.
   track_column_widths: string;
+  // 'true' | 'false' — barre latérale repliée sur ses icônes.
+  sidebar_collapsed: string;
+  // 'true' | 'false' — sections d'épinglés de la barre latérale. Visibles par défaut.
+  show_pinned_albums: string;
+  show_pinned_artists: string;
+  // 'true' | 'false' — pied de la barre réduit à une ligne, par sa languette.
+  sidebar_footer_collapsed: string;
 };
 
-const defaults: AppSettings = {
+export const settingsDefaults: AppSettings = {
   language: 'fr',
   auto_start: 'false',
   minimize_to_tray: 'true',
@@ -68,6 +76,7 @@ const defaults: AppSettings = {
   wasapi_exclusive: 'false',
   dsd_dop: 'false',
   gapless: 'true',
+  resume_playback: 'true',
   theme: 'dark',
   contrast: 'normal',
   window_controls_style: 'auto',
@@ -83,6 +92,10 @@ const defaults: AppSettings = {
   library_tabs: '["tracks","albums","artists","genres","folders"]',
   track_columns: '["artist","album","rating","duration"]',
   track_column_widths: '{}',
+  sidebar_collapsed: 'false',
+  show_pinned_albums: 'true',
+  show_pinned_artists: 'true',
+  sidebar_footer_collapsed: 'false',
 };
 
 // Actions spéciales par clé — exécutées APRÈS la sauvegarde en BDD
@@ -95,10 +108,8 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
     try {
       if (value === 'true') {
         await enableAutostart();
-        console.log('[settings] Autostart activé');
       } else {
         await disableAutostart();
-        console.log('[settings] Autostart désactivé');
       }
     } catch (e) {
       console.error('[settings] Erreur autostart:', e);
@@ -144,6 +155,14 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
     }
   },
 
+  gapless: async (value: string) => {
+    try {
+      await invoke('set_gapless', { enabled: value !== 'false' });
+    } catch (e) {
+      console.warn('[settings] Erreur sync gapless:', e);
+    }
+  },
+
   // DSD natif (DoP) : pousse la préférence vers l'atomique global Rust, lu au
   // prochain morceau DSD. Effet réel seulement si le DAC accepte le rate
   // porteur (et, sur Windows uniquement, si WASAPI exclusive est actif) —
@@ -158,7 +177,7 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
   },
 };
 
-const settingsWriter = writable<AppSettings>({ ...defaults });
+const settingsWriter = writable<AppSettings>({ ...settingsDefaults });
 
 export const settingsStore = {
   subscribe: settingsWriter.subscribe,
@@ -172,7 +191,7 @@ export const settingsStore = {
       settingsWriter.update(state => ({
         ...state,
         ...Object.fromEntries(
-          Object.entries(all).filter(([key]) => key in defaults)
+          Object.entries(all).filter(([key]) => key in settingsDefaults)
         ),
       }));
 

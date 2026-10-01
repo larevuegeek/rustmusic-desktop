@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { toasts } from "$lib/stores/ui/toast.store";
   import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
   import { fade, scale } from "svelte/transition";
+  import { t } from "$lib/i18n";
 
   type DeezerCoverResult = {
     title: string;
@@ -24,28 +26,31 @@
     oncover?: () => void;
   } = $props();
 
-  let query = $state('');
-
-  $effect(() => { query = initialQuery; });
+  // svelte-ignore state_referenced_locally
+  let query = $state(initialQuery);
   let results = $state<DeezerCoverResult[]>([]);
   let loading = $state(false);
   let applying = $state<string | null>(null);
   let selected = $state<DeezerCoverResult | null>(null);
 
+  // Seule la dernière recherche lancée s'affiche.
+  let demande = 0;
   async function search() {
     if (!query.trim()) return;
+    const n = ++demande;
     loading = true;
     results = [];
     selected = null;
     try {
-      results = await invoke<DeezerCoverResult[]>('search_deezer_covers', {
+      const r = await invoke<DeezerCoverResult[]>('search_deezer_covers', {
         query: query.trim(),
         limit: 12,
       });
+      if (n === demande) results = r;
     } catch (e) {
-      toasts.push({ type: "error", title: "Erreur", message: String(e) });
+      if (n === demande) toasts.push({ type: "error", title: $t("popins.error_title"), message: String(e) });
     } finally {
-      loading = false;
+      if (n === demande) loading = false;
     }
   }
 
@@ -59,10 +64,10 @@
       });
       await libraryContentStore.refresh();
       oncover?.();
-      toasts.push({ type: "success", title: "Pochette", message: `Pochette de "${selected.title}" appliquée` });
+      toasts.push({ type: "success", title: $t("tags.cover"), message: $t("popins.cover_applied").replace("{title}", selected.title) });
       onclose();
     } catch (e) {
-      toasts.push({ type: "error", title: "Erreur", message: String(e) });
+      toasts.push({ type: "error", title: $t("popins.error_title"), message: String(e) });
     } finally {
       applying = null;
     }
@@ -73,8 +78,8 @@
     if (e.key === 'Enter' && !selected) search();
   }
 
-  // Auto-search on mount
-  $effect(() => {
+  // Une recherche à l'ouverture ; ensuite, Entrée ou le bouton (pas une requête par frappe).
+  onMount(() => {
     if (query.trim()) search();
   });
 </script>
@@ -86,7 +91,7 @@
   type="button"
   class="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-xl cursor-default"
   onclick={onclose}
-  aria-label="Fermer"
+  aria-label={$t("common.close")}
   transition:fade={{ duration: 150 }}
 ></button>
 
@@ -115,8 +120,8 @@
             <Icon icon="lucide:disc-album" width={14} class="text-green-400" />
           </div>
           <div>
-            <h2 class="text-sm font-bold text-white">Chercher une pochette</h2>
-            <p class="text-[10px] text-neutral-500">Résultats depuis Deezer</p>
+            <h2 class="text-sm font-bold text-white">{$t("popins.cover_search_title")}</h2>
+            <p class="text-[10px] text-neutral-500">{$t("popins.cover_search_source")}</p>
           </div>
         </div>
 
@@ -127,6 +132,8 @@
                  text-neutral-400 hover:text-white hover:bg-white/10
                  transition-all duration-200"
           onclick={onclose}
+          aria-label={$t("common.close")}
+          title={$t("common.close")}
         >
           <Icon icon="lucide:x" width={14} />
         </button>
@@ -140,7 +147,7 @@
           <input
             type="text"
             bind:value={query}
-            placeholder="Artiste, album..."
+            placeholder={$t("popins.cover_search_placeholder")}
             class="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl
                    bg-white/4 border border-white/8
                    text-white placeholder-neutral-500
@@ -160,7 +167,7 @@
           {#if loading}
             <Icon icon="lucide:loader-2" width={13} class="animate-spin" />
           {:else}
-            Rechercher
+            {$t("settings.shortcut_search")}
           {/if}
         </button>
       </div>
@@ -175,7 +182,7 @@
         <div class="flex items-center justify-center h-full">
           <div class="flex flex-col items-center gap-3">
             <Icon icon="lucide:loader-2" width={24} class="animate-spin text-green-500/60" />
-            <p class="text-xs text-neutral-500">Recherche en cours...</p>
+            <p class="text-xs text-neutral-500">{$t("popins.searching")}</p>
           </div>
         </div>
       {:else if results.length === 0}
@@ -185,10 +192,10 @@
             <Icon icon="lucide:disc-album" width={28} class="text-neutral-600" />
           </div>
           <p class="text-sm text-neutral-400 mb-1">
-            {query.trim() ? 'Aucun résultat' : 'Recherchez un album'}
+            {query.trim() ? $t("search.no_result") : $t("popins.cover_search_empty")}
           </p>
           <p class="text-[11px] text-neutral-600">
-            {query.trim() ? 'Essayez avec d\'autres mots-clés' : 'Tapez le nom d\'un artiste ou d\'un album'}
+            {query.trim() ? $t("search.no_result_desc") : $t("popins.cover_search_empty_hint")}
           </p>
         </div>
       {:else}
@@ -270,10 +277,10 @@
           >
             {#if applying}
               <Icon icon="lucide:loader-2" width={14} class="animate-spin" />
-              Application...
+              {$t("popins.applying")}
             {:else}
               <Icon icon="lucide:check" width={14} />
-              Appliquer cette pochette
+              {$t("popins.cover_apply")}
             {/if}
           </button>
         </div>

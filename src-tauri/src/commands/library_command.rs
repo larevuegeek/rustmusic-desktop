@@ -25,11 +25,12 @@ use crate::repository::library::library_dirs_repository::LibraryDirRepository;
 use crate::repository::library::library_genre_repository::LibraryGenreRepository;
 use crate::repository::library::library_repository::LibraryRepository;
 use crate::repository::library::library_stats_repository::LibraryStatsRepository;
-use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::repository::library::library_track_repository::{LibraryTrackRepository, TrackFilters};
 use crate::mapper::library::artist::track_artist_view::TrackArtistView;
 use crate::repository::library::library_track_artist_repository::LibraryTrackArtistRepository;
 use crate::service::library::artist_link_repair::ArtistLinkReport;
-use crate::service::library::library_service::{LibrarySaveContext, create_context, save_dir_to_library, save_track_to_library};
+use crate::service::library::library_service::{LibrarySaveContext, RescanProgress, create_context, save_dir_to_library, save_files_to_library, save_track_to_library};
+use crate::helper::files::reader::read_dir_deep;
 use crate::{state::AppState};
 use crate::mapper::library::track::track_list_item_view::TrackListView;
 
@@ -157,17 +158,56 @@ pub async fn rescan_library(
         return Err("Aucun dossier enregistré dans cette bibliothèque".to_string());
     }
 
+    let library_name = LibraryRepository::find_library_by_id(&state.pool, library_id)
+        .await
+        .map(|library| library.name)
+        .unwrap_or_default();
+
+    let _ = app.emit("rescan-start", serde_json::json!({
+        "library_id": library_id,
+        "library_name": library_name,
+    }));
+
+    // Tout est listé d'abord : la progression porte sur la bibliothèque entière.
+    let lots: Vec<_> = dirs.into_iter().map(|dir| {
+        let mut files: Vec<PathBuf> = Vec::new();
+        read_dir_deep(&dir.path, &mut files);
+        (dir, files)
+    }).collect();
+
+    let total: usize = lots.iter().map(|(_, files)| files.len()).sum();
+    let mut progression = RescanProgress::new(library_id, total);
+    progression.emettre(&app);
+
     let mut all_tracks: Vec<TrackListView> = Vec::new();
 
-    // Re-scanner chaque dossier (save_dir_to_library skip les fichiers déjà importés via le cache)
-    for dir in dirs {
-        match save_dir_to_library(app.clone(), &state.pool, library_id, dir.path).await {
+    // Re-scanner chaque dossier (les fichiers inchangés sont sautés via le cache)
+    for (dir, files) in lots {
+        match save_files_to_library(app.clone(), &state.pool, library_id, dir.path, files, Some(&mut progression)).await {
             Ok(tracks) => all_tracks.extend(tracks),
             Err(e) => log::error!("Erreur rescan dossier {}: {}", dir.name, e),
         }
     }
 
+    let _ = app.emit("rescan-complete", serde_json::json!({
+        "library_id": library_id,
+        "library_name": library_name,
+    }));
+
     Ok(all_tracks)
+}
+
+/// Date du dernier scan, rendue comme serde rend nos `DateTime<Utc>` : `2026-09-30T12:34:56Z`.
+#[tauri::command]
+pub async fn get_library_last_scan(
+    state: State<'_, AppState>,
+    library_id: i64,
+) -> Result<Option<String>, String> {
+    let last_scan = LibraryDirRepository::find_last_scan_at(&state.pool, library_id)
+        .await
+        .map_err(|e| format!("Failed to get last scan: {}", e))?;
+
+    Ok(last_scan.map(|d| d.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)))
 }
 
 #[tauri::command]
@@ -215,17 +255,24 @@ pub async fn list_directory(
     let canonical_path = std::fs::canonicalize(&path)
         .map_err(|e| format!("Invalid path: {}", e))?;
 
-    let is_allowed = dirs.iter().any(|d| {
-        if let Ok(canonical_dir) = std::fs::canonicalize(&d.path) {
-            canonical_path.starts_with(&canonical_dir)
-        } else {
-            false
+    // Les chemins rendus gardent la forme du dossier importé : canonicalize change
+    // un lecteur réseau (S:\) en \\?\UNC\…, que la bibliothèque ne reconnaît pas.
+    let mut base: Option<PathBuf> = None;
+    let mut profondeur = 0usize;
+    for d in &dirs {
+        let Ok(canonical_dir) = std::fs::canonicalize(&d.path) else { continue };
+        if let Ok(reste) = canonical_path.strip_prefix(&canonical_dir) {
+            let n = canonical_dir.as_os_str().len();
+            if base.is_none() || n > profondeur {
+                profondeur = n;
+                base = Some(if reste.as_os_str().is_empty() { PathBuf::from(&d.path) } else { PathBuf::from(&d.path).join(reste) });
+            }
         }
-    });
-
-    if !is_allowed {
-        return Err("Accès refusé : ce dossier n'est pas dans la bibliothèque".to_string());
     }
+
+    let Some(base) = base else {
+        return Err("Accès refusé : ce dossier n'est pas dans la bibliothèque".to_string());
+    };
 
     let path = canonical_path.to_string_lossy().to_string();
 
@@ -247,7 +294,7 @@ pub async fn list_directory(
         if name.starts_with('.') { continue; }
 
         let entry_path = entry.path();
-        let path_string = entry_path.to_string_lossy().to_string();
+        let path_string = base.join(&name).to_string_lossy().to_string();
 
         if file_type.is_dir() {
             entries.push(DirEntry {
@@ -256,6 +303,10 @@ pub async fn list_directory(
                 is_dir: true,
                 size: 0,
                 extension: None,
+                title: None,
+                artist: None,
+                duration: None,
+                thumbnail_path: None,
             });
         } else if file_type.is_file() {
             let ext = entry_path.extension()
@@ -272,6 +323,10 @@ pub async fn list_directory(
                         is_dir: false,
                         size,
                         extension: ext,
+                        title: None,
+                        artist: None,
+                        duration: None,
+                        thumbnail_path: None,
                     });
                 }
             }
@@ -286,6 +341,18 @@ pub async fn list_directory(
             _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
         }
     });
+
+    // Titre, artiste, durée et pochette connus de la bibliothèque : la file d'attente en hérite.
+    let chemins: Vec<String> = entries.iter().filter(|e| !e.is_dir).map(|e| e.path.clone()).collect();
+    let mut fiches = LibraryTrackRepository::find_fiches_by_paths(&state.pool, Some(library_id), &chemins).await;
+    for e in entries.iter_mut().filter(|e| !e.is_dir) {
+        if let Some(f) = fiches.remove(&e.path) {
+            e.title = f.title;
+            e.artist = f.artist;
+            e.duration = f.duration;
+            e.thumbnail_path = f.thumbnail_path;
+        }
+    }
 
     Ok(entries)
 }
@@ -710,6 +777,8 @@ fn resolve_sort(sort_by: Option<&str>) -> (String, Option<String>) {
         // `IS NULL` d'abord : les pistes jamais notées se rangent en bas quel
         // que soit le sens, comme partout ailleurs dans l'application.
         Some("rating") => "lt.rating IS NULL, lt.rating",
+        // Colonne « Qualité » : la profondeur d'abord, la fréquence départage.
+        Some("quality") => "(COALESCE(lc.bits_per_sample, 0) * 1000000 + COALESCE(lt.sample_rate, lc.sample_rate, 0))",
         _ => "a.name COLLATE NOCASE, la.title COLLATE NOCASE, lt.disc_number, lt.track_number",
     };
 
@@ -726,9 +795,13 @@ pub async fn get_tracks_paginated(
     sort_dir: Option<String>,
     filter: Option<String>,
     missing_cover: Option<bool>,
+    quality: Option<String>,
+    favorites: Option<bool>,
+    genre: Option<String>,
 ) -> Result<PaginatedTracks, String> {
 
     let (sort_col, sort_bind) = resolve_sort(sort_by.as_deref());
+    let extra = TrackFilters { quality: quality.as_deref(), favorites: favorites.unwrap_or(false), genre: genre.as_deref() };
 
     let dir = match sort_dir.as_deref() {
         Some("desc") => "DESC",
@@ -737,10 +810,35 @@ pub async fn get_tracks_paginated(
 
     let (tracks, total) = LibraryTrackRepository::find_tracks_paginated(
         &state.pool, library_id, offset, limit, &sort_col, sort_bind.as_deref(), dir,
-        filter.as_deref(), missing_cover.unwrap_or(false),
+        filter.as_deref(), missing_cover.unwrap_or(false), &extra,
     ).await.map_err(|e| format!("Failed to get tracks: {}", e))?;
 
     Ok(PaginatedTracks { tracks, total })
+}
+
+/// Position de la première piste de chaque lettre, pour la navigation A–Z de l'onglet Morceaux.
+#[derive(Serialize)]
+pub struct LetterOffset {
+    pub letter: String,
+    pub offset: i64,
+}
+
+#[tauri::command]
+pub async fn get_track_letter_offsets(
+    state: State<'_, AppState>,
+    library_id: i64,
+    sort_dir: Option<String>,
+    filter: Option<String>,
+    missing_cover: Option<bool>,
+    quality: Option<String>,
+    favorites: Option<bool>,
+    genre: Option<String>,
+) -> Result<Vec<LetterOffset>, String> {
+    let extra = TrackFilters { quality: quality.as_deref(), favorites: favorites.unwrap_or(false), genre: genre.as_deref() };
+    let lettres = LibraryTrackRepository::find_title_letter_offsets(
+        &state.pool, library_id, sort_dir.as_deref() == Some("desc"), filter.as_deref(), missing_cover.unwrap_or(false), &extra,
+    ).await.map_err(|e| format!("Failed to get letter offsets: {}", e))?;
+    Ok(lettres.into_iter().map(|(letter, offset)| LetterOffset { letter, offset }).collect())
 }
 
 #[tauri::command]
@@ -1453,6 +1551,22 @@ fn est_renseigne(val: &serde_json::Value) -> bool {
     }
 }
 
+/// Les mixes de l'accueil, tirés au hasard : `oublies`, `hires`, `hasard`, ou
+/// `genre` avec le genre voulu.
+#[tauri::command]
+pub async fn get_mix_tracks(
+    state: State<'_, AppState>,
+    library_id: i64,
+    kind: String,
+    genre: Option<String>,
+    decennie: Option<i64>,
+    limit: i64,
+) -> Result<Vec<TrackListView>, String> {
+    LibraryTrackRepository::find_mix_tracks(&state.pool, library_id, &kind, genre.as_deref(), decennie, limit.clamp(1, 200))
+        .await
+        .map_err(|e| format!("get_mix_tracks: {}", e))
+}
+
 #[tauri::command]
 pub async fn get_tracks_by_genre(
     state: State<'_, AppState>,
@@ -1473,10 +1587,21 @@ pub async fn get_genres(
         .await
         .map_err(|e| format!("Failed to get genres: {}", e))?;
 
+    // Pochettes et artistes phares en deux requêtes pour tous les genres, plutôt qu'une par genre.
+    let mut covers: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for (genre, cover) in LibraryGenreRepository::find_all_covers(&state.pool, library_id).await {
+        covers.entry(genre).or_default().push(cover);
+    }
+    let mut artistes: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
+    for (genre, nom) in LibraryGenreRepository::find_top_artists(&state.pool, library_id).await {
+        artistes.entry(genre).or_default().push(nom);
+    }
+
     let mut genres = Vec::with_capacity(rows.len());
-    for (name, total_albums, total_tracks) in rows {
-        let covers = LibraryGenreRepository::find_genre_covers(&state.pool, &name, library_id).await;
-        genres.push(GenreView { name, total_albums, total_tracks, covers });
+    for (name, total_albums, total_tracks, last_played_at) in rows {
+        let covers = covers.remove(&name).unwrap_or_default();
+        let top_artists = artistes.remove(&name).unwrap_or_default();
+        genres.push(GenreView { name, total_albums, total_tracks, covers, top_artists, last_played_at });
     }
 
     Ok(genres)

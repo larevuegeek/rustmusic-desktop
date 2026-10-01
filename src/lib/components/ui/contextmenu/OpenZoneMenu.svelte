@@ -4,15 +4,16 @@
   import { t } from "$lib/i18n";
   import { portal } from "$lib/helper/portal";
   import { settingsStore } from "$lib/stores/settings/settings.store";
+  import LibraryTabsOptions from "./LibraryTabsOptions.svelte";
 
-  /** Les options de la section « Ouvrir », sous son bouton « … ». */
+  /** Sous le « … » de la rangée Fichier / Dossier : sections de la bibliothèque, puis la rangée elle-même. */
   let { x, y, onclose }: { x: number; y: number; onclose: () => void } = $props();
 
   let menuStyle = $derived.by(() => {
     const largeur = 264;
-    const hauteur = 132;
+    const hauteur = 480;
     const posX = Math.max(8, Math.min(x - largeur + 16, window.innerWidth - largeur - 8));
-    const posY = y + hauteur > window.innerHeight ? Math.max(8, y - hauteur) : y;
+    const posY = y + hauteur > window.innerHeight ? Math.max(8, window.innerHeight - hauteur - 8) : y;
     return `left: ${posX}px; top: ${posY}px;`;
   });
 
@@ -26,7 +27,7 @@
   class="fixed inset-0 z-9998 cursor-default"
   onclick={onclose}
   oncontextmenu={(e) => { e.preventDefault(); onclose(); }}
-  aria-label="Fermer le menu"
+  aria-label={$t("menu.close_menu")}
 ></button>
 
 <div
@@ -40,6 +41,10 @@
          shadow-xl shadow-black/10 dark:shadow-2xl dark:shadow-black/50"
   style={menuStyle}
 >
+  <LibraryTabsOptions />
+
+  <div class="h-px mx-2 my-1.5 bg-neutral-200/80 dark:bg-white/8"></div>
+
   <button
     class={ligne}
     onclick={() => { settingsStore.set('show_open_buttons', 'false'); onclose(); }}
@@ -49,14 +54,14 @@
       <Icon icon="lucide:eye-off" width="13" class="text-neutral-500 dark:text-neutral-400" />
     </span>
     <span class="flex-1 text-[13px] text-neutral-700 dark:text-neutral-200">
-      {$t('sidebar.hide_section')}
+      {$t('sidebar.hide_open_buttons')}
     </span>
   </button>
 
   <!-- Masquée, la section emporte son propre menu : on dit donc où la
        retrouver avant qu'elle ne disparaisse. -->
   <p class="px-2.5 pt-1 pb-2 text-[11px] leading-snug text-neutral-400 dark:text-neutral-500">
-    {$t('sidebar.hide_section_note')}
+    {$t('sidebar.hide_open_buttons_note')}
   </p>
 
   <div class="h-px mx-2 mb-1.5 bg-neutral-200/80 dark:bg-white/8"></div>

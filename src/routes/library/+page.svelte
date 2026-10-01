@@ -5,11 +5,12 @@ import Icon from "@iconify/svelte";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { popinStore } from "$lib/stores/ui/popin.store";
 import AddLibraryPopin from "$lib/components/library/common/popin/AddLibraryPopin.svelte";
+import { t, currentLocale } from "$lib/i18n";
 </script>
 
 <div class="p-10 flex flex-col gap-8">
 
-  <Title title="Mes Bibliothèques" />
+  <Title title={$t("home.my_libraries")} />
 
   {#if $libraryStore.libraries.length === 0}
 
@@ -24,11 +25,11 @@ import AddLibraryPopin from "$lib/components/library/common/popin/AddLibraryPopi
       </div>
 
       <p class="text-lg font-medium text-neutral-700 dark:text-neutral-300">
-        Aucune bibliothèque
+        {$t("library.no_library")}
       </p>
 
       <p class="mt-2 text-sm text-neutral-500 dark:text-neutral-400 max-w-md">
-        Crée ta première bibliothèque pour commencer à organiser ta musique.
+        {$t("home.no_library_desc")}
       </p>
 
         <button
@@ -44,14 +45,14 @@ import AddLibraryPopin from "$lib/components/library/common/popin/AddLibraryPopi
                 cursor-pointer"
         onclick={() =>
             popinStore.open(
-            "Créer une Bibliothèque",
+            $t("library.create_library"),
             AddLibraryPopin,
             {}
             )
         }
         >
             <Icon icon="lucide:plus" width={16} />
-            Nouvelle bibliothèque
+            {$t("home.new_library")}
         </button>
     </div>
   {:else}
@@ -94,8 +95,8 @@ import AddLibraryPopin from "$lib/components/library/common/popin/AddLibraryPopi
 
         <!-- META -->
         <span class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-        {library.total_tracks} 
-        {library.total_tracks > 1 ? "titres" : "titre"}
+        {library.total_tracks.toLocaleString($currentLocale)}
+        {library.total_tracks > 1 ? $t("library_head.tracks_n") : $t("library_head.tracks_one")}
         </span>
 
         {#if library.description}

@@ -17,12 +17,13 @@ use simplelog::{CombinedLogger, ColorChoice, TermLogger, TerminalMode, WriteLogg
 use crate::commands::smart_playlist_command::{count_smart_playlist, create_smart_playlist, get_rule_vocabulary, get_smart_playlist_rules, preview_smart_playlist, update_smart_playlist};
 use crate::commands::playlist_view_command::{get_playlist_tracks_view, get_tracks_view_by_paths};
 use crate::commands::export_command::{export_settings_and_playlists, import_settings_and_playlists, preview_import};
-use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_library_tag_keys, get_track, mark_track_played, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_by_genre, list_directory, remove_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, repair_artist_links, get_track_artists, get_track_locations, save_thumbnail, save_thumbnail_from_file, read_cover_as_base64};
+use crate::commands::pin_command::{get_library_pins, pin_album, pin_artist, unpin_album, unpin_artist};
+use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_library_tag_keys, get_track, mark_track_played, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_by_genre, get_mix_tracks, get_track_letter_offsets, list_directory, remove_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, repair_artist_links, get_track_artists, get_track_locations, save_thumbnail, save_thumbnail_from_file, read_cover_as_base64};
 use crate::commands::player_command::{AUDIO_PLAYER, get_progress, open_file, open_files, pause_play, play_file, seek_to, stop_play};
 use crate::commands::playlist_command::{add_track_liked, get_tracks_liked, remove_track_liked, get_playlists, get_playlist, create_playlist, update_playlist, delete_playlist, get_playlist_tracks, add_track_to_playlist, remove_track_from_playlist};
 use crate::commands::profil_command::{get_profil, get_all_profils, create_profil, update_profil, delete_profil};
 use crate::commands::queue_command::{add_queue_track, clear_queue, get_queue, remove_queue_track, replace_queue_tracks, update_queue_state_index, update_queue_state_repeat_mode, update_queue_state_shuffled};
-use crate::commands::recent_command::{clear_recent_files, get_recent_files, insert_recent_file, remove_recent_file};
+use crate::commands::recent_command::{clear_recent_files, get_recent_files, insert_recent_file, remove_recent_file, save_playback_position};
 use crate::commands::volume_command::{get_devices, get_volume, set_volume, set_device, mute};
 use crate::commands::settings_command::{get_setting, set_setting, get_all_settings, reset_application};
 use crate::commands::search_command::search;
@@ -127,12 +128,15 @@ fn init_logger() {
         }
 
         let log_config = builder.build();
+        // Symphonia décrit chaque MP3 ouvert en Info (« xing header… ») : des
+        // milliers de lignes par scan. Le fichier, en Warn, garde ses alertes.
+        let term_config = builder.add_filter_ignore_str("symphonia").build();
 
         CombinedLogger::init(vec![
             // Terminal : tout à partir de Info (visible dans `npm run tauri dev`)
             TermLogger::new(
                 LevelFilter::Info,
-                log_config.clone(),
+                term_config,
                 TerminalMode::Mixed,
                 ColorChoice::Auto,
             ),
@@ -610,6 +614,8 @@ pub async fn run() {
             get_library_dirs,
             get_tracks_by_dir,
             get_tracks_by_genre,
+            get_mix_tracks,
+            get_track_letter_offsets,
             get_tracks_by_artist,
             get_tracks_by_artist_paginated,
             get_albums_by_artist,
@@ -630,6 +636,7 @@ pub async fn run() {
             update_profil,
             delete_profil,
             get_recent_files,
+            save_playback_position,
             insert_recent_file,
             remove_recent_file,
             clear_recent_files,
@@ -683,6 +690,13 @@ pub async fn run() {
             get_artists,
             get_genres,
             get_library_stats,
+            crate::commands::library_command::get_library_last_scan,
+            get_library_pins,
+            crate::commands::sidebar_command::get_sidebar_covers,
+            pin_album,
+            unpin_album,
+            pin_artist,
+            unpin_artist,
             get_setting,
             set_setting,
             get_all_settings,

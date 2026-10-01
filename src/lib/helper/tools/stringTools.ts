@@ -1,37 +1,5 @@
 
 
-function truncateMiddle(string: String, maxLength = 40): String {
-
-    if(string.length <= maxLength) {
-        return string;
-    }
-
-    //Longeur max (- les ...)
-    const keep = Math.floor((maxLength - 3) / 2);
-
-    const start = string.slice(0, keep);
-    const end = string.slice(-keep);
-
-
-    return `${start}...${end}`;
-}  
-
-function getFolderPath(path: string): string {
-  if (!path) return path;
-
-  // Normalise: \ -> / et supprime les / finaux
-  const p = path.replace(/\\/g, "/").replace(/\/+$/, "");
-  if (!p) return "/";
-
-  const idx = p.lastIndexOf("/");
-  if (idx === -1) return "/";
-
-  // Racine unix
-  if (idx === 0) return "/";
-
-  return p.slice(0, idx);
-}
-
 /**
  * Filename (basename) of a path, without the extension.
  *   /a/b/A5.Remedy.dff  →  "A5.Remedy"
@@ -66,4 +34,10 @@ function displayTitle(
   return unknownLabel;
 }
 
-export { truncateMiddle, getFolderPath, fileStem, displayTitle };
+/** « Dido; Dido » → « Dido » : les tags multiples, dédoublonnés et joints. */
+function artistesLisibles(valeur: string | null | undefined): string | null {
+  const noms = [...new Set((valeur ?? "").split(";").map((n) => n.trim()).filter(Boolean))];
+  return noms.length > 0 ? noms.join(", ") : null;
+}
+
+export { fileStem, displayTitle, artistesLisibles };

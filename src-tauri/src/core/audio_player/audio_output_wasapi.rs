@@ -172,6 +172,40 @@ pub fn list_output_devices() -> Result<Vec<WasapiDevice>, String> {
     })
 }
 
+/// Bus de l'adaptateur derrière une sortie : « USB », « HDAUDIO », « BTHENUM »…
+pub fn endpoint_bus(device_id: &str) -> Option<String> {
+    use windows::Win32::Devices::DeviceAndDriverInstallation::{
+        CM_Get_DevNode_PropertyW, CM_Get_Parent, CM_Locate_DevNodeW, CM_LOCATE_DEVNODE_NORMAL, CR_SUCCESS,
+    };
+    use windows::Win32::Devices::Properties::{DEVPKEY_Device_EnumeratorName, DEVPROPTYPE};
+    use windows::core::PCWSTR;
+
+    let instance: Vec<u16> = format!(r"SWD\MMDEVAPI\{device_id}").encode_utf16().chain([0]).collect();
+    let mut noeud = 0u32;
+    let mut parent = 0u32;
+    let mut genre = DEVPROPTYPE::default();
+    let mut tampon = [0u16; 64];
+    let mut taille = std::mem::size_of_val(&tampon) as u32;
+    // SAFETY : tampons locaux dimensionnés, pointeurs valides le temps des appels.
+    unsafe {
+        if CM_Locate_DevNodeW(&mut noeud, PCWSTR(instance.as_ptr()), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS
+            || CM_Get_Parent(&mut parent, noeud, 0) != CR_SUCCESS
+            || CM_Get_DevNode_PropertyW(
+                parent,
+                &DEVPKEY_Device_EnumeratorName,
+                &mut genre,
+                Some(tampon.as_mut_ptr().cast()),
+                &mut taille,
+                0,
+            ) != CR_SUCCESS
+        {
+            return None;
+        }
+    }
+    let fin = tampon.iter().position(|&c| c == 0).unwrap_or(tampon.len());
+    Some(String::from_utf16_lossy(&tampon[..fin])).filter(|s| !s.is_empty())
+}
+
 pub fn default_output_device_name() -> Result<String, String> {
     run_on_mta_thread(|| {
         let enumerator = DeviceEnumerator::new()

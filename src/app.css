@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
+@import "@fontsource-variable/figtree";
+@import "@fontsource-variable/jetbrains-mono";
 
 @theme {
   --font-sans: 'Inter Variable', system-ui, sans-serif;
@@ -485,7 +487,12 @@ html, body {
    une infobulle qui dépasse de la ligne. */
 .row-track {
   content-visibility: auto;
-  contain-intrinsic-size: auto 112px;
+  contain-intrinsic-size: auto 58px;
+}
+
+.row-track-detail {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 92px;
 }
 
 .row-track-compact {
@@ -514,3 +521,349 @@ html, body {
   content-visibility: auto;
   contain-intrinsic-size: auto 232px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SURFACES TEINTÉES — une teinte `--h` par album ou par genre (home)
+   ═══════════════════════════════════════════════════════════════════════ */
+.surface-teintee {
+  background: linear-gradient(120deg, oklch(0.93 0.05 var(--h)) 0%, oklch(0.965 0.02 var(--h)) 55%, oklch(0.99 0 0) 100%);
+  border: 1px solid oklch(0.87 0.04 var(--h));
+}
+.dark .surface-teintee {
+  background: linear-gradient(120deg, oklch(0.32 0.09 var(--h)) 0%, oklch(0.2 0.04 var(--h)) 55%, #121614 100%);
+  border-color: oklch(0.35 0.06 var(--h));
+}
+.accent-teinte { color: oklch(0.45 0.11 var(--h)); }
+.dark .accent-teinte { color: oklch(0.86 0.06 var(--h)); }
+
+/* Bandes des mixes et des genres : texte blanc dans les deux thèmes. */
+.bande-teintee { background: linear-gradient(160deg, oklch(0.56 0.13 var(--h)), oklch(0.42 0.1 var(--h))); }
+.dark .bande-teintee { background: linear-gradient(160deg, oklch(0.45 0.12 var(--h)), oklch(0.28 0.07 var(--h))); }
+
+/* Contraste élevé : plus de dégradé, une surface franche et un trait net. */
+/* Contraste élevé clair : bordures inchangées (maquette), seul le texte est renforcé. */
+:root[data-contrast="high"].dark .surface-teintee { background: #000; border-color: oklch(0.8 0 0); }
+:root[data-contrast="high"] .accent-teinte { color: oklch(0.3 0 0); }
+:root[data-contrast="high"].dark .accent-teinte { color: oklch(0.92 0 0); }
+:root[data-contrast="high"] .bande-teintee { background: oklch(0.22 0 0); }
+
+/* Voile des pochettes de mix : la teinte du mix monte depuis le bas. */
+.mix-voile {
+  background: linear-gradient(to top,
+    oklch(0.2 0.07 var(--h) / 0.96) 0%, oklch(0.22 0.07 var(--h) / 0.72) 34%, oklch(0.25 0.06 var(--h) / 0) 70%);
+}
+.mix-accent { color: oklch(0.87 0.1 var(--h)); }
+:root[data-contrast="high"] .mix-voile {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.72) 40%, transparent 74%);
+}
+:root[data-contrast="high"] .mix-accent { color: #fff; }
+
+/* Tuiles de genre : fond à peine teinté, lueur d'ambiance au coin de l'icône. */
+.genre-tuile {
+  --lueur: 0.42;
+  background:
+    radial-gradient(85% 110% at 100% 100%, oklch(0.8 0.13 var(--h) / var(--lueur)), transparent 62%),
+    radial-gradient(110% 80% at 0% 0%, oklch(1 0 0 / 0.7), transparent 55%),
+    linear-gradient(160deg, oklch(0.975 0.012 var(--h)), oklch(0.935 0.025 var(--h)));
+  box-shadow: inset 0 0 0 1px oklch(0.55 0.08 var(--h) / 0.18), 0 10px 26px oklch(0.4 0.05 var(--h) / 0.14);
+  transition: --lueur 0.3s, box-shadow 0.3s;
+}
+.genre-tuile:hover { --lueur: 0.62; }
+.genre-titre { color: oklch(0.2 0.02 var(--h)); }
+.genre-compte { color: oklch(0.45 0.07 var(--h)); }
+.genre-icone { color: oklch(0.5 0.15 var(--h)); filter: drop-shadow(0 6px 14px oklch(0.6 0.15 var(--h) / 0.35)); }
+
+.dark .genre-tuile {
+  --lueur: 0.5;
+  background:
+    radial-gradient(85% 110% at 100% 100%, oklch(0.55 0.17 var(--h) / var(--lueur)), transparent 62%),
+    radial-gradient(110% 80% at 0% 0%, oklch(1 0 0 / 0.06), transparent 55%),
+    linear-gradient(160deg, oklch(0.25 0.03 var(--h)), oklch(0.17 0.018 var(--h)));
+  box-shadow: inset 0 0 0 1px oklch(0.7 0.1 var(--h) / 0.16), 0 14px 32px rgba(0, 0, 0, 0.35);
+}
+.dark .genre-tuile:hover { --lueur: 0.75; }
+.dark .genre-titre { color: #fff; }
+.dark .genre-compte { color: oklch(0.8 0.06 var(--h)); }
+.dark .genre-icone { color: oklch(0.88 0.1 var(--h)); filter: drop-shadow(0 0 16px oklch(0.7 0.18 var(--h) / 0.6)); }
+
+/* Contraste élevé : le même rendu, avec un liseré et un texte renforcés. */
+:root[data-contrast="high"].dark .genre-tuile { box-shadow: inset 0 0 0 1.5px oklch(0.82 0.1 var(--h) / 0.7); }
+:root[data-contrast="high"] .genre-titre { color: #000; }
+:root[data-contrast="high"].dark .genre-titre { color: #fff; }
+:root[data-contrast="high"] .genre-compte { color: oklch(0.3 0.06 var(--h)); }
+:root[data-contrast="high"].dark .genre-compte { color: oklch(0.9 0.05 var(--h)); }
+
+/* `--lueur` s'anime seulement si le navigateur la connaît comme nombre. */
+@property --lueur { syntax: "<number>"; inherits: false; initial-value: 0.42; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HOME — typographie de la maquette, en attendant la refonte générale
+   ═══════════════════════════════════════════════════════════════════════ */
+.home-maquette { font-family: 'Figtree Variable', 'Inter Variable', system-ui, sans-serif; }
+/* Bibliothèque refaite (en-tête, albums) : même police que les maquettes. */
+.biblio-maquette { font-family: 'Figtree Variable', 'Inter Variable', system-ui, sans-serif; }
+.biblio-maquette .font-mono { font-family: 'JetBrains Mono Variable', ui-monospace, monospace; }
+/* Page d'album : lueur teintée par la pochette (--ah teinte, --as intensité 0–1). */
+.album-lueur {
+  background:
+    radial-gradient(60% 90% at 18% 20%, oklch(0.9 calc(0.02 + 0.07 * var(--as)) var(--ah) / 0.85), transparent 70%),
+    radial-gradient(40% 70% at 60% 0%, oklch(0.9 calc(0.06 * var(--as)) calc(var(--ah) - 60) / 0.5), transparent 70%);
+  mask-image: linear-gradient(#000 40%, transparent);
+}
+.dark .album-lueur {
+  background:
+    radial-gradient(60% 90% at 18% 20%, oklch(0.4 calc(0.02 + 0.1 * var(--as)) var(--ah) / 0.45), transparent 70%),
+    radial-gradient(40% 70% at 60% 0%, oklch(0.4 calc(0.08 * var(--as)) calc(var(--ah) - 60) / 0.25), transparent 70%);
+}
+.home-maquette .font-mono { font-family: 'JetBrains Mono Variable', ui-monospace, monospace; }
+
+/* Hero de reprise : toujours sombre, pochette floutée en fond ou vert discret. */
+.hero-reprise { background: #121614; border: 1px solid rgba(255, 255, 255, 0.06); }
+.hero-vert {
+  background: linear-gradient(120deg, oklch(0.36 0.08 155) 0%, oklch(0.22 0.04 155) 55%, #121614 100%);
+}
+.hero-voile {
+  background: linear-gradient(110deg, rgba(10, 12, 11, 0.30) 0%, rgba(10, 12, 11, 0.62) 50%, rgba(10, 12, 11, 0.88) 100%);
+}
+/* Contraste élevé : le fond reste, le voile s'épaissit pour garder le texte net. */
+:root[data-contrast="high"].dark .hero-reprise { border-color: rgba(255, 255, 255, 0.1); }
+.ensuite-panneau {
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07), 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+:root[data-contrast="high"] .ensuite-panneau {
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+/* Carte « Récemment joués » : voile sur la pochette floutée ; en contraste élevé, plus épais et liseré franc. */
+.vedette-voile { background: linear-gradient(115deg, rgba(10, 12, 11, 0.2) 0%, rgba(10, 12, 11, 0.5) 55%, rgba(10, 12, 11, 0.72) 100%); }
+:root[data-contrast="high"] .vedette-voile { background: linear-gradient(115deg, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.62) 55%, rgba(0, 0, 0, 0.8) 100%); }
+:root[data-contrast="high"].dark .recent-vedette { border-color: rgba(255, 255, 255, 0.3); }
+:root[data-contrast="high"] .hero-voile {
+  background: linear-gradient(110deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.72) 50%, rgba(0, 0, 0, 0.9) 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BARRE LATÉRALE — palette de la maquette, une seule source par thème
+   ═══════════════════════════════════════════════════════════════════════ */
+/* Palette claire de la maquette : tons chauds, partagée par tout l'habillage. */
+:root {
+  --c-barre: #efece5; --c-fond: #f6f4ef; --c-bord: #e2ddd3; --c-bord2: #cfc9bd; --c-kbd: #f1eee8;
+}
+.sidebar {
+  --sb-bg: #efece5; --sb-s1: #f8f6f1; --sb-s2: #ebe7df; --sb-hover: #e8e4dc;
+  --sb-bd: #e2ddd3; --sb-bd2: #cfc9bd; --sb-sep: #e2ddd3;
+  --sb-tx: #1a1c1a; --sb-tx2: #3d403c; --sb-mu: #5e625d; --sb-mu2: #6f736d; --sb-hd: #5e625d;
+  --sb-g: #166534; --sb-gbg: #dcefe1; --sb-gbd: #dcefe1; --sb-point: #16a34a;
+  --sb-pied: #f8f6f1; --sb-piedbd: #e2ddd3;
+  font-family: 'Figtree Variable', 'Inter Variable', system-ui, sans-serif;
+}
+.dark .sidebar {
+  --sb-bg: #0b0d0c; --sb-s1: #131715; --sb-s2: #1b211e; --sb-hover: #131715;
+  --sb-bd: #1f2522; --sb-bd2: #2e3632; --sb-sep: #1a1f1c;
+  --sb-tx: #f2f5f3; --sb-tx2: #b7c0bb; --sb-mu: #8b948f; --sb-mu2: #6b746f; --sb-hd: #9aa39e;
+  --sb-g: #22c55e; --sb-gbg: #12301d; --sb-gbd: #1c4a2c; --sb-point: #22c55e;
+  --sb-pied: #111412; --sb-piedbd: #1c211e;
+}
+.sidebar .font-mono { font-family: 'JetBrains Mono Variable', ui-monospace, monospace; }
+
+/* Contraste élevé : le texte monte d'un cran ; blocs et bordures restent ceux de la maquette. */
+:root[data-contrast="high"] .sidebar {
+  --sb-tx: #000000; --sb-tx2: #262d29; --sb-mu: #4a534e; --sb-mu2: #4a534e; --sb-hd: #3a433e;
+}
+:root[data-contrast="high"].dark .sidebar {
+  --sb-tx: #ffffff; --sb-tx2: #c8d0cc; --sb-mu: #a3aca7; --sb-mu2: #8f9893; --sb-hd: #b0b9b4;
+}
+/* Icônes Material un cran plus épaisses, comme la police de la maquette. */
+.sb-icone path { stroke: currentColor; stroke-width: 0.55; stroke-linejoin: round; }
+
+/* Vignette sans pochette : un carré plein de sa couleur `--c`, comme la maquette. */
+.sb-vignette {
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+  background: color-mix(in oklch, var(--c) 34%, #ffffff);
+  color: color-mix(in oklch, var(--c) 70%, #000000 30%);
+}
+.dark .sb-vignette {
+  background: color-mix(in oklch, var(--c) 30%, #0b0d0c);
+  color: color-mix(in oklch, var(--c) 45%, #0b0d0c);
+}
+
+/* Pied de la barre : halo de la couleur du profil `--profil`, avatar en relief. */
+.sb-pied-carte {
+  background:
+    radial-gradient(80% 170% at 0% 50%, color-mix(in oklch, var(--profil) 13%, transparent), transparent 72%),
+    var(--sb-pied);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+.sb-avatar {
+  background: linear-gradient(150deg, color-mix(in oklch, var(--profil), #ffffff 16%), color-mix(in oklch, var(--profil), #000000 20%));
+  box-shadow: 0 0 0 2px var(--sb-pied), 0 0 0 3px color-mix(in oklch, var(--profil) 45%, transparent),
+              0 6px 14px -6px color-mix(in oklch, var(--profil) 70%, transparent);
+}
+.sb-point { background: currentColor; box-shadow: 0 0 0 3px color-mix(in oklch, currentColor 22%, transparent); }
+
+/* Bas de la liste en fondu : la languette du pied la chevauche. */
+.sb-liste-fondu { mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); }
+
+/* Hero en clair : pastel. La pochette floutée donne la teinte, un voile chaud l'éclaircit. */
+:root:not(.dark) .hero-reprise { background: #ffffff; border-color: rgba(0, 0, 0, 0.06); }
+:root:not(.dark) .hero-voile {
+  background: linear-gradient(110deg, rgba(255, 251, 248, 0.5) 0%, rgba(255, 251, 248, 0.74) 55%, rgba(255, 251, 248, 0.88) 100%);
+}
+:root:not(.dark) .hero-vert { background: linear-gradient(120deg, #dcefe1 0%, #eef6f0 55%, #f8f6f1 100%); }
+:root:not(.dark) .ensuite-panneau {
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+:root[data-contrast="high"]:not(.dark) .hero-voile {
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.86) 55%, rgba(255, 255, 255, 0.94) 100%);
+}
+:root[data-contrast="high"]:not(.dark) .ensuite-panneau { background: rgba(255, 255, 255, 0.85); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PARAMÈTRES — palette de la maquette ; globale, les composants ui/input s'en servent
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --rg-bg: #f6f4ef; --rg-aside: #efece5; --rg-aside-bd: #e2ddd3;
+  --rg-champ: #f8f6f1; --rg-carte: #ffffff; --rg-s2: #f1eee8; --rg-hover: #faf8f4;
+  --rg-bd: #e2ddd3; --rg-bd2: #cfc9bd; --rg-line: #eeeae3;
+  --rg-tx: #1a1c1a; --rg-tx2: #3d403c; --rg-nav: #262925; --rg-sous: #5e625d;
+  --rg-mu: #5e625d; --rg-mu2: #6f736d; --rg-ph: #8a8e88;
+  --rg-g: #16a34a; --rg-gtx: #166534; --rg-gbg: #dcefe1; --rg-off: #d3cdc1;
+  --rg-ver: #f8f6f1; --rg-verbd: #e2ddd3;
+  --rg-creux: #f8f6f1; --rg-creux-on: #eef6f0; --rg-gbd: #bcdcc6;
+  /* Texte posé sur le vert d'accent (lecture, cases cochées). */
+  --rg-on-g: #04140a;
+  --rg-am: #b86e00; --rg-ambg: #fdf3e2; --rg-ambd: #f0d7a8; --rg-amtx: #6b4204;
+}
+.dark {
+  --rg-bg: #0b0d0c; --rg-aside: #0b0d0c; --rg-aside-bd: #161a18;
+  --rg-champ: #131715; --rg-carte: #131715; --rg-s2: #1b211e; --rg-hover: #161b18;
+  --rg-bd: #1f2522; --rg-bd2: #2e3632; --rg-line: #1a1f1c;
+  --rg-tx: #f2f5f3; --rg-tx2: #cfd6d2; --rg-nav: #e3e8e5; --rg-sous: #9aa39e;
+  --rg-mu: #8b948f; --rg-mu2: #6b746f; --rg-ph: #7d8681;
+  --rg-g: #22c55e; --rg-gtx: #22c55e; --rg-gbg: #12301d; --rg-off: #2a312d;
+  --rg-ver: #111412; --rg-verbd: #1c211e;
+  --rg-creux: #0f1211; --rg-creux-on: #0f1a14; --rg-gbd: #1c4a2c;
+  --rg-am: #f0b35a; --rg-ambg: #2a2113; --rg-ambd: #4a3a1c; --rg-amtx: #f3d6a6;
+}
+/* Contraste élevé : seul le texte monte, blocs et bordures restent ceux de la maquette. */
+:root[data-contrast="high"] {
+  --rg-tx: #000000; --rg-tx2: #1f2421; --rg-nav: #000000; --rg-sous: #262d29;
+  --rg-mu: #3a433e; --rg-mu2: #4a534e; --rg-ph: #4a534e;
+}
+:root[data-contrast="high"].dark {
+  --rg-tx: #ffffff; --rg-tx2: #dde3e0; --rg-nav: #ffffff; --rg-sous: #c8d0cc;
+  --rg-mu: #b0b9b4; --rg-mu2: #9aa39e; --rg-ph: #a3aca7;
+}
+.reglages .font-mono { font-family: 'JetBrains Mono Variable', ui-monospace, monospace; }
+.reglages {
+  background: var(--rg-bg);
+  color: var(--rg-tx);
+  font-family: 'Figtree Variable', 'Inter Variable', system-ui, sans-serif;
+}
+/* Séparateur entre deux lignes visibles seulement : la recherche en masque. */
+:where(.rg-carte, .rg-lignes) > [data-reglage]:not([hidden]) ~ [data-reglage]:not([hidden]) { border-top: 1px solid var(--rg-line); }
+/* Un groupe dont la recherche a tout masqué disparaît avec son titre. */
+.rg-groupe:has([data-reglage]):not(:has([data-reglage]:not([hidden]))) { display: none; }
+.rg-aucun { display: none; }
+.rg-contenu:has([data-reglage]):not(:has([data-reglage]:not([hidden]))) .rg-aucun { display: flex; }
+@media (max-height: 640px) { .rg-nav-sous { display: none; } }
+/* Aperçus et pastilles des réglages : `--h` donne la teinte, le thème la clarté. */
+.rg-teinte { background: oklch(0.86 0.06 var(--h)); }
+.dark .rg-teinte { background: oklch(0.3 0.08 var(--h)); }
+.rg-teinte-vive { background: oklch(0.8 0.09 var(--h)); }
+.dark .rg-teinte-vive { background: oklch(0.42 0.1 var(--h)); }
+.rg-icone-teinte { background: oklch(0.93 0.04 var(--h)); color: oklch(0.55 0.16 var(--h)); }
+.dark .rg-icone-teinte { background: oklch(0.3 0.08 var(--h)); color: oklch(0.8 0.14 var(--h)); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LECTEUR — dock flottant teinté par la pochette : `--lh` teinte, `--ls` intensité (0 gris → 1 franc)
+   ═══════════════════════════════════════════════════════════════════════ */
+@property --lh { syntax: "<number>"; inherits: true; initial-value: 150; }
+@property --ls { syntax: "<number>"; inherits: true; initial-value: 0; }
+.lecteur {
+  --lc-acc: oklch(0.5 calc(0.14 * var(--ls)) var(--lh));
+  --lc-play: oklch(0.55 calc(0.15 * var(--ls)) var(--lh)); --lc-play-tx: #ffffff;
+  --lc-tx: #1a1c1a; --lc-tx2: #3d403c; --lc-mu: #5e625d; --lc-mu2: #8a8e88;
+  --lc-ic: rgb(0 0 0 / 0.55); --lc-ic-fort: rgb(0 0 0 / 0.85); --lc-survol: rgb(0 0 0 / 0.05);
+  --lc-rail: rgb(0 0 0 / 0.12); --lc-vol: rgb(0 0 0 / 0.7); --lc-trait: rgb(0 0 0 / 0.08);
+  --lc-fmt-bg: oklch(0.87 calc(0.06 * var(--ls)) var(--lh)); --lc-fmt-tx: oklch(0.36 calc(0.1 * var(--ls)) var(--lh));
+  --lc-statut: oklch(0.93 calc(0.03 * var(--ls)) var(--lh) / 0.7); --lc-statut-bd: oklch(0.8 calc(0.04 * var(--ls)) var(--lh) / 0.5);
+  --lc-menu: #ffffff; --lc-menu-bd: #e2ddd3;
+  background: linear-gradient(100deg,
+    oklch(0.9 calc(0.06 * var(--ls)) var(--lh)),
+    oklch(0.95 calc(0.03 * var(--ls)) var(--lh)) 45%,
+    oklch(0.975 calc(0.012 * var(--ls)) var(--lh)));
+  box-shadow: 0 16px 40px oklch(0.45 calc(0.06 * var(--ls)) var(--lh) / 0.16),
+              inset 0 1px 0 rgb(255 255 255 / 0.7), 0 0 0 1px oklch(0.78 calc(0.05 * var(--ls)) var(--lh) / 0.6);
+  color: var(--lc-tx);
+  font-family: 'Figtree Variable', 'Inter Variable', system-ui, sans-serif;
+  transition: --lh 0.6s ease, --ls 0.6s ease;
+}
+.dark .lecteur {
+  --lc-acc: oklch(0.8 calc(0.12 * var(--ls)) var(--lh));
+  --lc-play: oklch(0.8 calc(0.12 * var(--ls)) var(--lh)); --lc-play-tx: oklch(0.18 calc(0.04 * var(--ls)) var(--lh));
+  --lc-tx: #f4f6f5; --lc-tx2: #c9d0cc; --lc-mu: #848d88; --lc-mu2: #5f6863;
+  --lc-ic: rgb(255 255 255 / 0.6); --lc-ic-fort: rgb(255 255 255 / 0.92); --lc-survol: rgb(255 255 255 / 0.06);
+  --lc-rail: rgb(255 255 255 / 0.1); --lc-vol: rgb(255 255 255 / 0.85); --lc-trait: rgb(255 255 255 / 0.08);
+  --lc-fmt-bg: oklch(0.32 calc(0.07 * var(--ls)) var(--lh)); --lc-fmt-tx: oklch(0.92 calc(0.07 * var(--ls)) var(--lh));
+  --lc-statut: oklch(0.1 calc(0.015 * var(--ls)) var(--lh) / 0.45); --lc-statut-bd: oklch(0.4 calc(0.05 * var(--ls)) var(--lh) / 0.25);
+  --lc-menu: #131715; --lc-menu-bd: #262d29;
+  background: linear-gradient(100deg,
+    oklch(0.3 calc(0.07 * var(--ls)) var(--lh) / 0.95),
+    oklch(0.18 calc(0.03 * var(--ls)) var(--lh) / 0.96) 45%,
+    oklch(0.13 calc(0.012 * var(--ls)) var(--lh) / 0.97));
+  box-shadow: 0 20px 50px oklch(0.2 calc(0.06 * var(--ls)) var(--lh) / 0.6),
+              inset 0 1px 0 oklch(0.7 calc(0.08 * var(--ls)) var(--lh) / 0.18),
+              0 0 0 1px oklch(0.4 calc(0.06 * var(--ls)) var(--lh) / 0.35);
+}
+/* Contraste élevé : texte et icônes montent, la carte et ses teintes restent. */
+:root[data-contrast="high"] .lecteur {
+  --lc-tx: #000000; --lc-tx2: #1f2421; --lc-mu: #3a433e; --lc-mu2: #4a534e; --lc-ic: rgb(0 0 0 / 0.8);
+}
+:root[data-contrast="high"].dark .lecteur {
+  --lc-tx: #ffffff; --lc-tx2: #e4e9e6; --lc-mu: #b0b9b4; --lc-mu2: #8f9893; --lc-ic: rgb(255 255 255 / 0.82);
+}
+.lecteur .font-mono { font-family: 'JetBrains Mono Variable', ui-monospace, monospace; }
+.lecteur-pochette {
+  box-shadow: 0 10px 26px oklch(0.25 calc(0.08 * var(--ls)) var(--lh) / 0.55), 0 0 0 1px oklch(0.6 calc(0.08 * var(--ls)) var(--lh) / 0.25);
+}
+.lecteur-lecture { box-shadow: 0 8px 22px oklch(0.55 calc(0.13 * var(--ls)) var(--lh) / 0.4); }
+/* Chemin : tronqué par la gauche, la fin (dossier de l'album) reste lisible. */
+.lecteur-dossier { direction: rtl; text-align: left; }
+
+/* Mini-lecteur : même palette que le dock, dégradé vertical, sélecteur d'onglets et paroles. */
+.mini-lecteur {
+  --lc-seg: rgb(0 0 0 / 0.05); --lc-seg-bd: rgb(0 0 0 / 0.06); --lc-seg-on: #ffffff;
+  --lc-panneau: rgb(255 255 255 / 0.35); --lc-encours: oklch(0.86 calc(0.06 * var(--ls)) var(--lh) / 0.6);
+  --lc-ly: rgb(0 0 0 / 0.3); --lc-ly-passe: rgb(0 0 0 / 0.5);
+  background: linear-gradient(160deg,
+    oklch(0.88 calc(0.07 * var(--ls)) var(--lh)),
+    oklch(0.95 calc(0.03 * var(--ls)) var(--lh)) 55%,
+    oklch(0.975 calc(0.012 * var(--ls)) var(--lh)));
+  box-shadow: none;
+}
+.dark .mini-lecteur {
+  --lc-seg: rgb(0 0 0 / 0.25); --lc-seg-bd: rgb(255 255 255 / 0.05); --lc-seg-on: rgb(255 255 255 / 0.1);
+  --lc-panneau: rgb(0 0 0 / 0.18); --lc-encours: oklch(0.35 calc(0.07 * var(--ls)) var(--lh) / 0.35);
+  --lc-ly: rgb(255 255 255 / 0.28); --lc-ly-passe: rgb(255 255 255 / 0.45);
+  background: linear-gradient(160deg,
+    oklch(0.3 calc(0.07 * var(--ls)) var(--lh) / 0.97),
+    oklch(0.17 calc(0.03 * var(--ls)) var(--lh) / 0.98) 55%,
+    oklch(0.12 calc(0.012 * var(--ls)) var(--lh)));
+  /* Pas de liseré haut : la fenêtre a déjà le cadre du système. */
+  box-shadow: none;
+}
+:root[data-contrast="high"] .mini-lecteur { --lc-ly: rgb(0 0 0 / 0.55); --lc-ly-passe: rgb(0 0 0 / 0.72); }
+:root[data-contrast="high"].dark .mini-lecteur { --lc-ly: rgb(255 255 255 / 0.55); --lc-ly-passe: rgb(255 255 255 / 0.72); }
+/* Paroles : fondu en haut et en bas de la zone qui défile. */
+.mini-paroles { mask-image: linear-gradient(180deg, transparent, #000 18%, #000 78%, transparent); }
+/* Égaliseur du titre en cours (transform : aucun recalcul de mise en page) ; figé en pause. */
+.mini-eq i { width: 2px; height: 100%; border-radius: 1px; background: var(--eq, var(--lc-acc)); transform-origin: bottom;
+  animation: mini-eq 1s ease-in-out infinite; }
+.mini-eq i:nth-child(2) { animation-delay: -0.3s; }
+.mini-eq i:nth-child(3) { animation-delay: -0.6s; }
+.mini-eq[data-pause] i { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .mini-eq i { animation: none; transform: scaleY(0.6); } }
+@keyframes mini-eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }

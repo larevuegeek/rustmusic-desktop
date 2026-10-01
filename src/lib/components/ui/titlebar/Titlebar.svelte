@@ -5,6 +5,16 @@
   import { toggleMiniPlayer } from "$lib/stores/ui/miniPlayer.store";
   import { t } from "$lib/i18n";
   import { detectOS } from "$lib/helper/tools/osDetection";
+  import LogoRustMusic from "$lib/components/ui/logo/LogoRustMusic.svelte";
+  import SidebarBouton from "$lib/components/sidebar/SidebarBouton.svelte";
+  import type { Snippet } from "svelte";
+
+  /**
+   * Barre unique : marque, puis ce que fournit la page (navigation, recherche,
+   * actions), puis les contrôles de fenêtre. `avecSidebar` : le bouton pour
+   * replier la barre latérale suit le logo.
+   */
+  let { avecSidebar = false, children }: { avecSidebar?: boolean; children?: Snippet } = $props();
 
   const appWindow = getCurrentWindow();
 
@@ -12,6 +22,7 @@
   let osDetected = detectOS();
 
   let minimizeToTray = $derived($settingsStore.minimize_to_tray === 'true');
+  let replie = $derived($settingsStore.sidebar_collapsed === 'true');
 
   // Style résolu : 'auto' → en fonction de l'OS, sinon valeur explicite
   let effectiveStyle = $derived.by<'macos' | 'windows' | 'linux'>(() => {
@@ -28,12 +39,23 @@
     $settingsStore.window_controls_position === 'left' ? 'left' : 'right'
   );
 
+  // Suit l'état réel : bouton, Win+↑, double clic ou fenêtre tirée vers le haut.
   $effect(() => {
-    appWindow.isMaximized().then(v => { isMaximized = v; }).catch(() => {});
+    const lire = () => { appWindow.isMaximized().then((v) => { isMaximized = v; }).catch(() => {}); };
+    lire();
+    let arreter: (() => void) | null = null;
+    let fini = false;
+    appWindow.onResized(lire).then((u) => { if (fini) u(); else arreter = u; }).catch(() => {});
+    return () => { fini = true; arreter?.(); };
   });
 
   function minimize() { appWindow.minimize(); }
   function toggleMaximize() { appWindow.toggleMaximize(); }
+
+  // Seulement sur le vide : un double clic dans la recherche n'agrandit pas la fenêtre.
+  function doubleClic(e: MouseEvent) {
+    if ((e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) toggleMaximize();
+  }
   function close() {
     if (minimizeToTray) appWindow.hide();
     else appWindow.close();
@@ -66,19 +88,41 @@
   data-tauri-drag-region
   role="toolbar"
   tabindex="-1"
-  class="relative flex items-center h-10 select-none shrink-0
-         bg-neutral-50/80 dark:bg-zinc-950/50 backdrop-blur-md
-         border-b border-neutral-200/80 dark:border-white/6"
-  ondblclick={toggleMaximize}
+  class="relative z-30 flex items-center h-15 select-none shrink-0
+         bg-(--c-barre) dark:bg-zinc-950/50 backdrop-blur-md
+         border-b border-(--c-bord) dark:border-white/6"
+  ondblclick={doubleClic}
 >
-  <!-- Titre centré -->
-  <span
-    data-tauri-drag-region
-    class="absolute left-1/2 -translate-x-1/2 text-[11px] font-medium
-           text-neutral-400 dark:text-white/20 pointer-events-none tracking-wide"
-  >
-    {$t('app.name')}
-  </span>
+  {#snippet separateur()}
+    <span class="w-px h-6 shrink-0 bg-(--c-bord) dark:bg-white/10"></span>
+  {/snippet}
+
+  <!-- Marque. `sidebar` pour les couleurs du bouton, pas pour le fond. Le bouton
+       de repli suit le logo, presque collé ; caché sur mobile, où le menu s'ouvre autrement. -->
+  <div data-tauri-drag-region class="sidebar flex items-center gap-1 h-full pl-5 pr-3 shrink-0">
+    <span class="flex pointer-events-none"><LogoRustMusic width={140} /></span>
+    {#if avecSidebar}
+      <span class="hidden md:flex">
+        <SidebarBouton
+          icon={replie ? 'material-symbols:left-panel-open-outline-rounded' : 'material-symbols:left-panel-close-outline-rounded'}
+          label={replie ? $t('sidebar.expand') : $t('sidebar.collapse')}
+          taille={18}
+          onclick={() => settingsStore.set('sidebar_collapsed', replie ? 'false' : 'true')}
+        />
+      </span>
+    {/if}
+  </div>
+
+  {#if children}
+    {@render separateur()}
+    <div data-tauri-drag-region class="flex-1 min-w-0 h-full flex items-center gap-2 md:gap-3 px-3 md:px-4">
+      {@render children()}
+    </div>
+  {:else}
+    <div data-tauri-drag-region class="flex-1 h-full"></div>
+  {/if}
+
+  {#if effectivePosition === 'right'}{@render separateur()}{/if}
 
   <!-- ─── Contrôles : style macOS (traffic lights) ─── -->
   {#if effectiveStyle === 'macos'}
@@ -92,19 +136,19 @@
         class="w-3 h-3 rounded-full bg-[#febc2e] opacity-70 hover:opacity-100
                transition-opacity cursor-pointer"
         onclick={minimize}
-        aria-label="Minimiser"
+        aria-label={$t("window.minimize")}
       ></button>
       <button
         class="w-3 h-3 rounded-full bg-[#28c840] opacity-70 hover:opacity-100
                transition-opacity cursor-pointer"
         onclick={toggleMaximize}
-        aria-label="Maximiser"
+        aria-label={$t("window.maximize")}
       ></button>
       <button
         class="w-3 h-3 rounded-full bg-[#ff5f57] opacity-70 hover:opacity-100
                transition-opacity cursor-pointer"
         onclick={close}
-        aria-label="Fermer"
+        aria-label={$t("common.close")}
       ></button>
     </div>
 
@@ -124,7 +168,7 @@
                hover:bg-neutral-300 dark:hover:bg-white/20
                transition-colors"
         onclick={minimize}
-        aria-label="Minimiser"
+        aria-label={$t("window.minimize")}
       >
         <svg viewBox="0 0 12 12" width="9" height="9" fill="currentColor">
           <rect x="2" y="5.5" width="8" height="1" />
@@ -139,7 +183,7 @@
                hover:bg-neutral-300 dark:hover:bg-white/20
                transition-colors"
         onclick={toggleMaximize}
-        aria-label="Maximiser"
+        aria-label={$t("window.maximize")}
       >
         {#if isMaximized}
           <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.2">
@@ -157,11 +201,11 @@
       <button
         class="flex items-center justify-center w-6 h-6 rounded-full cursor-pointer
                bg-neutral-200 dark:bg-white/10
-               text-neutral-700 dark:text-neutral-300
+               text-[#5e625d] dark:text-neutral-300
                hover:bg-red-500 hover:text-white
                transition-colors"
         onclick={close}
-        aria-label="Fermer"
+        aria-label={$t("common.close")}
       >
         <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.2">
           <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
@@ -180,11 +224,11 @@
       <!-- Minimize -->
       <button
         class="flex items-center justify-center w-11 h-full cursor-pointer
-               text-neutral-700 dark:text-neutral-300
-               hover:bg-neutral-200/60 dark:hover:bg-white/8
+               text-[#5e625d] dark:text-neutral-300
+               hover:bg-[#e5e1d8] dark:hover:bg-white/8
                transition-colors"
         onclick={minimize}
-        aria-label="Minimiser"
+        aria-label={$t("window.minimize")}
       >
         <svg viewBox="0 0 12 12" width="12" height="12" fill="currentColor">
           <rect x="2" y="5.5" width="8" height="1" />
@@ -194,11 +238,11 @@
       <!-- Maximize / Restore -->
       <button
         class="flex items-center justify-center w-11 h-full cursor-pointer
-               text-neutral-700 dark:text-neutral-300
-               hover:bg-neutral-200/60 dark:hover:bg-white/8
+               text-[#5e625d] dark:text-neutral-300
+               hover:bg-[#e5e1d8] dark:hover:bg-white/8
                transition-colors"
         onclick={toggleMaximize}
-        aria-label="Maximiser"
+        aria-label={$t("window.maximize")}
       >
         {#if isMaximized}
           <!-- Restore icon (2 squares) -->
@@ -217,11 +261,11 @@
       <!-- Close (hover rouge spécifique Windows) -->
       <button
         class="flex items-center justify-center w-11 h-full cursor-pointer
-               text-neutral-700 dark:text-neutral-300
+               text-[#5e625d] dark:text-neutral-300
                hover:bg-red-500 hover:text-white
                transition-colors"
         onclick={close}
-        aria-label="Fermer"
+        aria-label={$t("common.close")}
       >
         <svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.1">
           <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" />
@@ -229,4 +273,6 @@
       </button>
     </div>
   {/if}
+
+  {#if effectivePosition === 'left'}<span class="order-first flex">{@render separateur()}</span>{/if}
 </div>

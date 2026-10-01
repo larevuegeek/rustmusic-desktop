@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { messageErreur } from "$lib/helper/tools/errorTools";
   // Recherche d'une piste sur Deezer, pour un seul fichier.
   //
   // # Ce que ce composant ne fait pas
@@ -71,7 +72,7 @@
       hits = await searchTracks(query, 12);
       searched = true;
     } catch (e) {
-      error = String((e as any)?.message ?? e ?? "");
+      error = messageErreur(e);
     } finally {
       searching = false;
     }
@@ -83,7 +84,7 @@
     try {
       onpick(await trackValues(hit.id), hit);
     } catch (e) {
-      error = String((e as any)?.message ?? e ?? "");
+      error = messageErreur(e);
     } finally {
       loadingId = null;
     }

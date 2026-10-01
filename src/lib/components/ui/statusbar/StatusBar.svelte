@@ -3,6 +3,7 @@
   import { activeTasks, taskProgressStore } from "$lib/stores/ui/taskProgress.store";
   import { slide, fade } from "svelte/transition";
   import { invoke } from "@tauri-apps/api/core";
+  import { t } from "$lib/i18n";
 
   async function cancelTask(taskId: string) {
     try {
@@ -81,7 +82,7 @@
             class="opacity-0 group-hover/task:opacity-100 transition-opacity duration-200
                    p-0.5 rounded hover:bg-red-500/15 text-neutral-400 hover:text-red-500
                    dark:text-neutral-500 dark:hover:text-red-400"
-            title="Annuler"
+            title={$t("common.cancel")}
           >
             <Icon icon="lucide:x" width={10} />
           </button>

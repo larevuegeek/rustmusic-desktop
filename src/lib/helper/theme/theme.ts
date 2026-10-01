@@ -90,6 +90,3 @@ export function toogleTheme(isDarkTheme: boolean): boolean {
     return next;
 }
 
-export function applyTheme(isDark: boolean) {
-    applyDarkClass(isDark);
-}

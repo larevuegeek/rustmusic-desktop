@@ -29,10 +29,3 @@ addCollection(tabler as IconifyJSON);
 addCollection(mynaui as IconifyJSON);
 addCollection(radixIcons as IconifyJSON);
 addCollection(uit as IconifyJSON);
-
-// Debug : confirme que ce module s'exécute bien au boot. À retirer ensuite.
-console.info(
-    `[icons/preload] ${Object.keys((lucide as IconifyJSON).icons).length} lucide + ${
-        Object.keys((mynaui as IconifyJSON).icons).length
-    } mynaui + 5 others loaded offline`,
-);

@@ -1,10 +1,12 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { t } from "$lib/i18n";
   import {
     COLONNES_FIXES,
     COLONNES_PAR_DEFAUT,
     intituleDeTag,
+    libelleColonne,
     tagProposable,
     type TrackColumn,
   } from "$lib/config/trackColumns";
@@ -54,7 +56,7 @@
         return;
       }
       const trouves = await invoke<TagCandidate[]>("get_library_tag_keys", { libraryId });
-      tags = trouves.filter((t) => tagProposable(t.key));
+      tags = trouves.filter((tg) => tagProposable(tg.key));
     } catch (e) {
       console.error("Failed to load tag keys:", e);
       tags = [];
@@ -83,20 +85,21 @@
 
   /** Intitulé d'une clé, qu'elle vienne des colonnes bâties ou d'un tag. */
   function intitule(cle: string): string {
-    if (cle.startsWith("tag:")) return intituleDeTag(cle.slice("tag:".length));
-    return COLONNES_FIXES.find((c) => c.key === cle)?.label ?? cle;
+    if (cle.startsWith("tag:")) return intituleDeTag(cle.slice("tag:".length), $t);
+    const col = COLONNES_FIXES.find((c) => c.key === cle);
+    return col ? libelleColonne(col, $t) : cle;
   }
 
   const filtre = $derived(recherche.trim().toLowerCase());
 
   const fixesVisibles = $derived(
     COLONNES_FIXES.filter((c: TrackColumn) =>
-      !filtre || c.label.toLowerCase().includes(filtre)
+      !filtre || libelleColonne(c, $t).toLowerCase().includes(filtre)
     )
   );
 
   const tagsVisibles = $derived(
-    tags.filter((t) => !filtre || intituleDeTag(t.key).toLowerCase().includes(filtre))
+    tags.filter((tg) => !filtre || intituleDeTag(tg.key, $t).toLowerCase().includes(filtre))
   );
 
   function valider() {
@@ -118,7 +121,7 @@
     type="button"
     class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default"
     onclick={() => open = false}
-    aria-label="Fermer"
+    aria-label={$t("common.close")}
   ></button>
 
   <div class="relative w-full max-w-3xl mx-4 max-h-[80vh] flex flex-col
@@ -137,10 +140,10 @@
         </div>
         <div>
           <h2 class="text-base font-semibold text-neutral-800 dark:text-neutral-100">
-            Colonnes affichées
+            {$t("columns.popin_title")}
           </h2>
           <p class="text-[11px] text-neutral-400 dark:text-neutral-500">
-            Les tags proposés sont ceux que porte réellement cette bibliothèque
+            {$t("columns.popin_hint")}
           </p>
         </div>
       </div>
@@ -149,7 +152,7 @@
         onclick={() => open = false}
         class="p-1.5 rounded-lg cursor-pointer text-neutral-400
                hover:bg-neutral-200/60 dark:hover:bg-white/5"
-        aria-label="Fermer"
+        aria-label={$t("common.close")}
       >
         <Icon icon="lucide:x" width="16" />
       </button>
@@ -169,7 +172,7 @@
             <input
               type="text"
               bind:value={recherche}
-              placeholder="Filtrer les colonnes et les tags…"
+              placeholder={$t("columns.filter")}
               class="w-full text-sm pl-9 pr-3 py-2 rounded-lg
                      bg-white dark:bg-white/5
                      border border-neutral-200 dark:border-white/10
@@ -183,7 +186,7 @@
 
           <section>
             <h3 class="text-[10px] uppercase tracking-wider text-neutral-400 mb-2">
-              Champs de la bibliothèque
+              {$t("columns.library_fields")}
             </h3>
             <div class="grid grid-cols-2 gap-1">
               {#each fixesVisibles as col (col.key)}
@@ -196,7 +199,7 @@
                     class="accent-emerald-500 cursor-pointer"
                   />
                   <span class="text-xs text-neutral-700 dark:text-neutral-300 truncate">
-                    {col.label}
+                    {libelleColonne(col, $t)}
                   </span>
                 </label>
               {/each}
@@ -205,17 +208,17 @@
 
           <section>
             <h3 class="text-[10px] uppercase tracking-wider text-neutral-400 mb-2">
-              Tags des fichiers
+              {$t("columns.file_tags")}
             </h3>
 
             {#if chargement}
               <div class="flex items-center gap-2 py-4 text-xs text-neutral-400">
                 <Icon icon="lucide:loader-2" width="14" class="animate-spin" />
-                Recensement des tags…
+                {$t("columns.scanning_tags")}
               </div>
             {:else if tagsVisibles.length === 0}
               <p class="text-xs text-neutral-400 py-3">
-                {filtre ? "Aucun tag ne correspond." : "Aucun tag supplémentaire dans cette bibliothèque."}
+                {filtre ? $t("columns.no_tag_match") : $t("columns.no_extra_tags")}
               </p>
             {:else}
               <div class="grid grid-cols-2 gap-1">
@@ -229,7 +232,7 @@
                       class="accent-emerald-500 cursor-pointer"
                     />
                     <span class="text-xs text-neutral-700 dark:text-neutral-300 truncate flex-1">
-                      {intituleDeTag(tag.key)}
+                      {intituleDeTag(tag.key, $t)}
                     </span>
                     <!-- L'effectif dit d'un coup d'œil si la colonne sera
                          majoritairement vide. -->
@@ -247,13 +250,13 @@
       <!-- ─── Ce qui est affiché, dans l'ordre ─── -->
       <div class="min-h-0 flex flex-col">
         <h3 class="text-[10px] uppercase tracking-wider text-neutral-400 px-5 pt-6 pb-2">
-          Affichées ({choix.length})
+          {$t("columns.shown").replace("{n}", String(choix.length))}
         </h3>
 
         <div class="flex-1 overflow-y-auto scrollbar-app px-3 pb-3">
           {#if choix.length === 0}
             <p class="text-xs text-neutral-400 px-2 py-3">
-              Aucune colonne : seuls le titre et la pochette resteront.
+              {$t("columns.none_shown")}
             </p>
           {/if}
 
@@ -270,7 +273,7 @@
                 class="p-0.5 rounded cursor-pointer text-neutral-400
                        hover:text-neutral-700 dark:hover:text-neutral-200
                        disabled:opacity-20 disabled:cursor-default"
-                aria-label="Monter"
+                aria-label={$t("tags.move_up")}
               >
                 <Icon icon="lucide:chevron-up" width="13" />
               </button>
@@ -281,7 +284,7 @@
                 class="p-0.5 rounded cursor-pointer text-neutral-400
                        hover:text-neutral-700 dark:hover:text-neutral-200
                        disabled:opacity-20 disabled:cursor-default"
-                aria-label="Descendre"
+                aria-label={$t("tags.move_down")}
               >
                 <Icon icon="lucide:chevron-down" width="13" />
               </button>
@@ -289,7 +292,7 @@
                 type="button"
                 onclick={() => basculer(cle)}
                 class="p-0.5 rounded cursor-pointer text-neutral-400 hover:text-red-500"
-                aria-label="Retirer"
+                aria-label={$t("mini.remove")}
               >
                 <Icon icon="lucide:x" width="13" />
               </button>
@@ -309,7 +312,7 @@
           class="text-xs cursor-pointer text-neutral-500 dark:text-neutral-400
                  hover:text-neutral-800 dark:hover:text-neutral-200"
         >
-          Rétablir les colonnes d'origine
+          {$t("columns.reset_columns")}
         </button>
         {#if onresetwidths}
           <!-- Une largeur mal tirée n'a aucun autre moyen de revenir : le geste
@@ -320,7 +323,7 @@
             class="text-xs cursor-pointer text-neutral-500 dark:text-neutral-400
                    hover:text-neutral-800 dark:hover:text-neutral-200"
           >
-            Rétablir les largeurs
+            {$t("columns.reset_widths")}
           </button>
         {/if}
       </div>
@@ -332,7 +335,7 @@
                  text-neutral-600 dark:text-neutral-300
                  hover:bg-neutral-200/60 dark:hover:bg-white/5"
         >
-          Annuler
+          {$t("common.cancel")}
         </button>
         <button
           type="button"
@@ -340,7 +343,7 @@
           class="text-xs px-3 py-1.5 rounded-lg cursor-pointer
                  bg-emerald-500 hover:bg-emerald-400 text-white font-medium"
         >
-          Appliquer
+          {$t("source.apply")}
         </button>
       </div>
     </div>

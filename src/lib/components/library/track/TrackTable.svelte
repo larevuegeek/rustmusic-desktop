@@ -3,7 +3,9 @@
   import TrackListCompact from "$lib/components/library/track/TrackListCompact.svelte";
   import TrackColumnsPopin from "$lib/components/library/common/popin/TrackColumnsPopin.svelte";
   import { settingsStore } from "$lib/stores/settings/settings.store";
+  import { t } from "$lib/i18n";
   import {
+    libelleColonne,
     lireColonnes,
     resoudreColonnes,
     lireLargeurs,
@@ -62,7 +64,7 @@
   // connaît : le tri, le filtre et la pagination ne laissent pas deux listes du
   // même contenu dans le même ordre.
   $effect(() => {
-    selectionStore.setOrder(tracks.map((t) => ({ id: t.id, track: t })));
+    selectionStore.setOrder(tracks.map((x) => ({ id: x.id, track: x })));
   });
 
   const columnKeys = $derived(lireColonnes($settingsStore.track_columns));
@@ -204,9 +206,9 @@
           class="w-full flex items-center gap-1 uppercase cursor-pointer
                  hover:text-neutral-700 dark:hover:text-neutral-200
                  {col.align === 'right' ? 'justify-end' : ''}"
-          title={col.label}
+          title={libelleColonne(col, $t)}
         >
-          <span class="truncate">{col.label}</span>
+          <span class="truncate">{libelleColonne(col, $t)}</span>
           {#if fleche(col.key)}
             <Icon icon={fleche(col.key)!} width="11" class="shrink-0 text-emerald-500" />
           {/if}
@@ -224,7 +226,7 @@
                flex items-center justify-center"
         onpointerdown={(e) => commencerTirage(e, col)}
         ondblclick={(e) => { e.stopPropagation(); ajusterAuContenu(col); }}
-        title="Tirer pour redimensionner · double-clic pour ajuster au contenu"
+        title={$t("tracks_view.resize")}
       >
         <div class="w-px h-3 rounded-full transition-colors
                     {tirage?.cle === col.key
@@ -249,8 +251,8 @@
     onclick={() => showColumns = true}
     class="w-[22px] shrink-0 flex items-center justify-center cursor-pointer
            text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
-    aria-label="Choisir les colonnes"
-    title="Choisir les colonnes"
+    aria-label={$t("columns.choose")}
+    title={$t("columns.choose")}
   >
     <Icon icon="lucide:columns-3" width="13" />
   </button>

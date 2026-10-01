@@ -31,7 +31,7 @@
       teinte: 'text-sky-400',
       visible: $settingsStore.show_recent_in_playlists !== 'false',
     },
-  ]);
+  ].filter((r) => r.cle !== 'show_liked_in_playlists' || $settingsStore.show_favorites !== 'false'));
 
   // Aligné à droite sur le bouton : le menu est plus large que lui, et la barre
   // latérale est contre le bord gauche.
@@ -57,7 +57,7 @@
   class="fixed inset-0 z-9998 cursor-default"
   onclick={onclose}
   oncontextmenu={(e) => { e.preventDefault(); onclose(); }}
-  aria-label="Fermer le menu"
+  aria-label={$t("menu.close_menu")}
 ></button>
 
 <div

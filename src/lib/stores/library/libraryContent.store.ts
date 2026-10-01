@@ -3,9 +3,9 @@
  * libraryContent.store — Store du contenu d'une bibliothèque
  * ═══════════════════════════════════════════════════════════
  *
- * Ce store gère les listes de tracks, albums et artistes
+ * Ce store gère les listes d'albums et d'artistes
  * d'une bibliothèque. C'est lui qui alimente les pages
- * /library/[id]/tracks, /albums, /artists.
+ * /library/[id]/albums, /artists. Les titres, eux, se chargent page par page (onglet Morceaux).
  *
  * AVANT : chaque appel à load() faisait 3 requêtes SQL.
  * APRÈS : on utilise dataCache pour servir les données
@@ -17,10 +17,9 @@
  *   3. Si pas de cache → on charge normalement (avec loader)
  */
 
-import { loadAlbums, loadArtists, loadTracks } from "$lib/services/library/library.service";
+import { loadAlbums, loadArtists } from "$lib/services/library/library.service";
 import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
 import type { ArtistListView } from "$lib/types/ui/library/artist/ArtistListView";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import { get, writable } from "svelte/store";
 import { libraryStore } from "./library.store";
 import { dataCache } from "$lib/stores/cache/dataCache.store";
@@ -28,7 +27,6 @@ import { dataCache } from "$lib/stores/cache/dataCache.store";
 // ─── Types ───
 
 export type LibraryContentState = {
-    tracks: TrackListView[];
     albums: AlbumListView[];
     artists: ArtistListView[];
     isLoading: boolean;
@@ -38,7 +36,6 @@ export type LibraryContentState = {
 // ─── État initial ───
 
 const initialState: LibraryContentState = {
-    tracks: [],
     albums: [],
     artists: [],
     isLoading: false,
@@ -60,34 +57,38 @@ async function fetchFromBackend(libraryId: number) {
     const state = get(libraryContentWritable);
     // Promise.all lance les 3 requêtes EN PARALLÈLE
     // → 3x plus rapide que les faire séquentiellement
-    const [tracks, albums, artists] = await Promise.all([
-        loadTracks(libraryId),
+    const [albums, artists] = await Promise.all([
         loadAlbums(libraryId, state.missingAlbumCover),
         loadArtists(libraryId)
     ]);
-    return { tracks, albums, artists };
+    return { albums, artists };
 }
 
 /**
  * Met à jour le cache ET le store Svelte avec les nouvelles données.
  * Appelé après chaque fetch réussi.
  */
-function updateStoreAndCache(libraryId: number, tracks: TrackListView[], albums: AlbumListView[], artists: ArtistListView[]) {
+function updateStoreAndCache(libraryId: number, albums: AlbumListView[], artists: ArtistListView[], n: number) {
     // 1. Stocker dans le cache mémoire
     //    Chaque type a sa propre clé pour pouvoir être invalidé indépendamment
-    dataCache.set(`tracks:${libraryId}`, tracks);
     dataCache.set(`albums:${libraryId}`, albums);
     dataCache.set(`artists:${libraryId}`, artists);
+
+    // Une réponse dépassée (autre bibliothèque ouverte entre-temps) reste en cache sans s'afficher.
+    if (n !== jeton || libraryId !== courante) return;
 
     // 2. Mettre à jour le store Svelte → les composants se re-rendent
     libraryContentWritable.update(s => ({
         ...s,
-        tracks,
         albums,
         artists,
         isLoading: false
     }));
 }
+
+// Bibliothèque affichée et numéro de la dernière demande : seule la plus récente s'affiche.
+let courante: number | null = null;
+let jeton = 0;
 
 // ─── API publique (le store exporté) ───
 
@@ -113,34 +114,33 @@ export const libraryContentStore = {
      * └──────────────────────────────────────────┘
      */
     load: async (libraryId: number) => {
+        courante = libraryId;
+        const n = ++jeton;
 
-        // Essayer de lire les 3 caches
-        const cachedTracks  = dataCache.get<TrackListView[]>(`tracks:${libraryId}`);
+        // Essayer de lire les 2 caches
         const cachedAlbums  = dataCache.get<AlbumListView[]>(`albums:${libraryId}`);
         const cachedArtists = dataCache.get<ArtistListView[]>(`artists:${libraryId}`);
 
-        // Vérifie si les 3 sont en cache
-        const allCached = cachedTracks && cachedAlbums && cachedArtists;
+        const allCached = cachedAlbums && cachedArtists;
 
         if (allCached) {
             // ✅ Cache disponible → affichage INSTANTANÉ (0ms)
             libraryContentWritable.update(s => ({
                 ...s,
-                tracks:  cachedTracks.data,
                 albums:  cachedAlbums.data,
                 artists: cachedArtists.data,
                 isLoading: false
             }));
 
             // Vérifie si tout est encore frais
-            const allFresh = cachedTracks.fresh && cachedAlbums.fresh && cachedArtists.fresh;
+            const allFresh = cachedAlbums.fresh && cachedArtists.fresh;
 
             if (!allFresh) {
                 // 🔄 Stale → refresh silencieux en background
                 // Le .then() signifie : "lance ça, mais n'attend pas"
                 // L'utilisateur ne voit aucun loader
-                fetchFromBackend(libraryId).then(({ tracks, albums, artists }) => {
-                    updateStoreAndCache(libraryId, tracks, albums, artists);
+                fetchFromBackend(libraryId).then(({ albums, artists }) => {
+                    updateStoreAndCache(libraryId, albums, artists, n);
                 }).catch(err => {
                     console.warn('[cache] Background refresh failed:', err);
                     // Pas grave, les données stale sont toujours affichées
@@ -154,11 +154,11 @@ export const libraryContentStore = {
         libraryContentWritable.update(s => ({ ...s, isLoading: true }));
 
         try {
-            const { tracks, albums, artists } = await fetchFromBackend(libraryId);
-            updateStoreAndCache(libraryId, tracks, albums, artists);
+            const { albums, artists } = await fetchFromBackend(libraryId);
+            updateStoreAndCache(libraryId, albums, artists, n);
         } catch(error) {
             console.error("Failed to load library content", error);
-            libraryContentWritable.update(s => ({ ...s, isLoading: false }));
+            if (n === jeton) libraryContentWritable.update(s => ({ ...s, isLoading: false }));
         }
     },
 
@@ -166,19 +166,26 @@ export const libraryContentStore = {
      * Force un refresh (ignore le cache).
      * Utilisé après un import, un rescan, ou un changement de données.
      */
-    refresh: async () => {
-        const state = get(libraryStore);
-        const libraryId = state.librarySelected?.id;
-        if (!libraryId) return;
+    // La bibliothèque affichée, pas la sélectionnée : un lien peut ouvrir une autre bibliothèque.
+    refresh: async (libraryId?: number) => {
+        dataCache.invalidateFiches();
+        const cible = libraryId ?? courante ?? get(libraryStore).librarySelected?.id;
+        if (!cible) return;
+        if (cible !== courante) {
+            // Pas affichée : son cache est périmé, elle se rechargera à l'ouverture.
+            for (const k of ["albums", "artists"]) dataCache.invalidate(`${k}:${cible}`);
+            return;
+        }
+        const n = ++jeton;
 
         libraryContentWritable.update(s => ({ ...s, isLoading: true }));
 
         try {
-            const { tracks, albums, artists } = await fetchFromBackend(libraryId as number);
-            updateStoreAndCache(libraryId as number, tracks, albums, artists);
+            const { albums, artists } = await fetchFromBackend(cible as number);
+            updateStoreAndCache(cible as number, albums, artists, n);
         } catch(error) {
             console.error("Failed to refresh library content", error);
-            libraryContentWritable.update(s => ({ ...s, isLoading: false }));
+            if (n === jeton) libraryContentWritable.update(s => ({ ...s, isLoading: false }));
         }
     },
 
@@ -188,14 +195,13 @@ export const libraryContentStore = {
     setMissingAlbumCover: async (value: boolean) => {
         libraryContentWritable.update(s => ({ ...s, missingAlbumCover: value }));
 
-        const state = get(libraryStore);
-        const libraryId = state.librarySelected?.id;
+        const libraryId = courante ?? get(libraryStore).librarySelected?.id;
         if (!libraryId) return;
 
         try {
             const albums = await loadAlbums(libraryId as number, value);
             dataCache.set(`albums:${libraryId}`, albums);
-            libraryContentWritable.update(s => ({ ...s, albums }));
+            if (libraryId === courante) libraryContentWritable.update(s => ({ ...s, albums }));
         } catch (e) {
             console.error('Failed to reload albums with filter:', e);
         }
@@ -206,6 +212,8 @@ export const libraryContentStore = {
      * Appelé au changement de profil ou de bibliothèque.
      */
     clear: () => {
+        courante = null;
+        jeton++;
         libraryContentWritable.set(initialState);
         // On ne vide pas tout le cache ici, juste le store Svelte.
         // Le cache sera naturellement invalidé par invalidateAll()

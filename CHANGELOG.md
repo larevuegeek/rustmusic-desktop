@@ -1,5 +1,149 @@
 # Changelog
 
+## [0.2.7] - 2026-10-01
+
+L'application change de visage d'un bout à l'autre : accueil, barre latérale,
+lecteur, bibliothèque, fiches et réglages. Tout est traduit dans les cinq
+langues, et une grande bibliothèque ne la fait plus peiner.
+
+### Accueil
+- **Reprendre là où l'on s'était arrêté.** Le haut de l'accueil montre le
+  morceau en cours ou le dernier écouté, sur sa pochette floutée, avec
+  « Reprendre » à la position enregistrée et un panneau « Ensuite » : la suite
+  de la file, sinon les derniers écoutés. Cette position n'était en fait
+  jamais enregistrée : elle valait toujours zéro.
+- **Mix « Pour vous »** : deux genres du jour, « Oubliés » (pas écoutés depuis
+  plus de six mois) et « Haute résolution », chacun en mosaïque des albums
+  réellement tirés. Un mix du jour reste le même toute la journée ; « Nouveaux
+  mix » en tire d'autres.
+- **« Au fil des décennies »** : une tuile par décennie présente dans la
+  bibliothèque, qui lance un mix de l'époque.
+- « Explorer par genre » en tuiles à icônes thématiques, « Récemment
+  ajoutés », et « Récemment joués » : le dernier morceau en vedette, puis les
+  albums écoutés avant — un clic reprend l'album au dernier morceau joué.
+
+### Barre latérale et barre de titre
+- **Barre latérale refaite** : sections en tuiles, sélecteur de bibliothèque,
+  playlists avec la mosaïque de leurs pochettes, état du scan en direct
+  (« Scan… 12 % ») et profil en pied de colonne. Elle se replie en icônes, et
+  son pied se réduit à une ligne.
+- **Albums et artistes épinglés** : depuis le menu d'un album ou d'un
+  artiste, ils restent à portée de clic dans la barre latérale.
+- Une seule barre de 60 px en haut : logo, navigation, recherche (Ctrl K),
+  minuteur, thème, profil et boutons de fenêtre. L'ancien en-tête disparaît.
+- La fenêtre « Dossiers synchronisés » est refaite, et ne reste plus coincée
+  dans la largeur de la barre latérale.
+- Le mode clair passe à des tons chauds, plus doux qu'un blanc pur.
+- Désactiver les favoris masque aussi « Titres likés » dans la barre latérale.
+
+### Lecteur
+- **Un dock flottant teinté par la pochette.** Sa couleur suit l'album en
+  cours ; une pochette en noir et blanc donne un lecteur neutre. La ligne
+  d'état montre le format, la profondeur, la fréquence, le débit, le chemin du
+  fichier et la chaîne audio en pastilles colorées : bit-perfect, DSD natif,
+  traitement, sortie, DLNA. Le détail de la chaîne est redessiné étape par
+  étape.
+- Menu Sortie : noms de périphériques lisibles, badge de qualité par sortie
+  (Qualité CD, Hi-Res, Ultra Hi-Res), interrupteurs du mode exclusif et du DSD
+  natif (DoP).
+- L'année de l'album est cliquable : elle ouvre les albums de cette année.
+- **Mini-lecteur refait**, teinté lui aussi, avec la file et les paroles
+  synchronisées en onglets. Revenir au lecteur complet ne laisse plus une
+  fenêtre minuscule.
+
+### Bibliothèque
+- **Un en-tête commun à tous les onglets** : nom de la bibliothèque, chiffres
+  (albums, artistes, titres, taille, dernier scan) et menu « Gérer » :
+  rescanner, dossiers, pochettes, images d'artistes, import, suppression.
+- **Albums** : recherche, filtres Hi-Res, Compilations, Sans pochette, Genre et
+  Année, tri par titre sans l'article (« The Doors » à D), artiste, année ou
+  date d'ajout, grille ou liste, badge de qualité sur la pochette.
+- **Artistes** : même barre d'outils, filtre « Sans portrait », tri par nombre
+  d'albums, de titres ou par durée d'écoute.
+- **Morceaux** : densités Compacte et Détaillée, colonne Qualité (Hi-Res,
+  Lossless, Lossy), filtres Hi-Res, Lossless, Favoris, Sans pochette et Genre,
+  colonnes redimensionnables (double-clic sur Titre : largeur automatique).
+  « Tout lire » joue la liste telle qu'affichée, filtres et tri compris.
+- **Genres** : mosaïques de pochettes à la couleur du genre, trois artistes
+  phares, part de la bibliothèque, filtres « Principaux » et « Sans genre »,
+  tri par écoute récente, « Mix aléatoire ».
+- **Dossiers** : cartes ou lignes, fil d'Ariane, état du scan de chaque
+  dossier, « Lire le dossier ».
+- **Navigation A–Z** sur Albums, Artistes, Genres et Morceaux quand le tri est
+  alphabétique. Sur Morceaux, une lettre mène droit à sa place, même au milieu
+  de neuf mille titres qui ne sont pas encore chargés.
+
+### Fiches
+- **Album** : badge de la meilleure qualité, lecture, aléatoire, favori de tout
+  l'album, genres, date de sortie et label lus dans les tags, dossier, titres
+  groupés par disque, autres albums de l'artiste, albums et artistes
+  similaires. Précédent et suivant suivent l'ordre de la vue Albums.
+- **Artiste** : portrait, période d'activité, discographie en carrousel, tous
+  les titres groupés par album (repliables), « Apparaît sur », artistes
+  similaires.
+- **Morceau** : fiche complète — audio, tags, fichier, écoutes, note, « Lire
+  ensuite », et les autres pistes du même album.
+- Le haut de chaque fiche s'éclaire de la couleur de sa pochette.
+
+### Réglages
+- **Nouvelle présentation** : colonne de sections, recherche dans les
+  réglages, compteur « n modifiés · Rétablir » sur chaque page.
+- Apparence : aperçus vivants du thème, de la barre latérale et de la
+  navigation ; style des boutons de fenêtre en cartes illustrées.
+- Audio : liste des sorties avec leur type de connexion et leur palier réel,
+  **« Tester le DAC »** sur la sortie choisie (et non plus sur celle par défaut
+  de Windows), qualité de décodage et Replay Gain en sélecteurs illustrés.
+- **Reprise de lecture** (activée par défaut) : la première lecture de la
+  session repart de là où l'on s'était arrêté. Le réglage « Gapless » passe
+  dans Général.
+- Nouvelle section **Raccourcis** ; Réseau, Stockage et À propos refaits.
+
+### Corrections
+- **File d'attente sans pochettes ni titres depuis la vue Dossiers.** Sur un
+  lecteur réseau, les chemins prenaient leur forme réseau (`\\?\UNC\…`), que
+  la bibliothèque ne reconnaît pas. Ils gardent maintenant celle du dossier
+  importé, et une file déjà enregistrée est réparée à l'ouverture. Les écoutes
+  et les « j'aime » de ces morceaux comptent de nouveau.
+- « Ajouter de la musique » puis Annuler figeait l'interface : la bibliothèque
+  se chargeait derrière une boîte qu'on pouvait encore annuler.
+- Le glisser-déposer de fichiers dans une bibliothèque fonctionne : les
+  chemins des fichiers déposés n'arrivaient jamais.
+- Un genre comme « 100% Hits » s'ouvre de nouveau.
+- Le bouton agrandir / restaurer suit l'état réel de la fenêtre.
+- Une réponse tardive n'affiche plus le contenu d'avant : paroles, dossiers,
+  autocomplétion, pochettes, bibliothèque, lettres A–Z.
+- L'accueil ne redemande plus un mix en boucle quand le tirage revient vide.
+- « Léa » ou « The-Dream » gardent leur initiale dans le tri.
+- Une colonne Titre élargie au-delà de 600 px n'est plus oubliée.
+- Un rescan annonce son début, sa progression et sa fin.
+- Maj+clic sélectionne de nouveau une plage après être sorti puis revenu en
+  mode sélection.
+
+### Traductions
+- Environ 400 textes restés en français sont traduits en anglais, espagnol,
+  allemand et italien : menus, notifications, formulaires, fenêtres, colonnes,
+  playlists intelligentes. Les pluriels sont justes (« 1 titre »,
+  « 2 titres »), et nombres, tailles, durées et dates suivent la langue.
+
+### Performances
+- Ouvrir une bibliothèque ne charge plus tous ses titres, seulement les albums
+  et les artistes. Les statistiques des genres viennent de la base, pochettes
+  comprises, en une requête au lieu d'une par genre.
+- L'onglet Morceaux garde au plus 500 lignes en défilant, sans à-coup, et ne
+  dessine que celles qui approchent de l'écran.
+- Les listes ne se redessinent plus à chaque mise à jour de la position de
+  lecture, soit une dizaine de fois par seconde.
+- Fermée, la file d'attente ne dessine rien ; ouverte, elle montre ses titres
+  par lots de 150.
+- La recherche des Albums et des Artistes ne retrie plus à chaque frappe.
+- Les miniatures de pochettes ne sont plus redemandées à chaque affichage.
+
+### Sous le capot
+- Composants d'interface communs (boutons, menus, champs, carrousels,
+  charpente des fiches) ; les grandes fenêtres d'édition de tags et de
+  renommage sont découpées en morceaux lisibles.
+- L'extension SQL inutilisée est retirée, et le code mort supprimé.
+
 ## [0.2.6] - 2026-09-27
 
 Deux correctifs de lecture. Le lecteur ne se contredit plus, et un fichier

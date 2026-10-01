@@ -5,7 +5,6 @@ import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import { libraryHeader } from "$lib/stores/library/libraryHeader";
 import AlbumListItem from "$lib/components/library/album/AlbumListItem.svelte";
 import TrackTable from "$lib/components/library/track/TrackTable.svelte";
 import { trierPistes, resetTagCache } from "$lib/config/trackColumns";
@@ -17,7 +16,8 @@ import { queueState } from "$lib/stores/queue/queueState.store";
 import { playerService } from "$lib/services/player/player.service";
 
 const libraryId = $derived(Number(page.params.library_id));
-const genreName = $derived(decodeURIComponent(String((page.params as Record<string, string>).genre ?? '')));
+// Déjà décodé par SvelteKit : un second décodage plantait sur « 100% Hits ».
+const genreName = $derived(String((page.params as Record<string, string>).genre ?? ''));
 
 // Filtrer albums par genre (données déjà en mémoire)
 let genreAlbums = $derived(
@@ -44,13 +44,6 @@ function genreColor(name: string): string {
 
 const color = $derived(genreColor(genreName));
 
-$effect(() => {
-  libraryHeader.update(() => ({
-    subtitle: genreName,
-    icon: 'lucide:tag',
-    total: genreAlbums.length
-  }));
-});
 
 async function playAll() {
   const allTracks = await invoke<TrackListView[]>('get_tracks_by_genre', { libraryId, genre: genreName });
@@ -91,9 +84,13 @@ $effect(() => {
 
 async function loadTracks() {
   loadingTracks = true;
+  const cible = `${libraryId}:${genreName}`;
   try {
     resetTagCache();
-    genreTracks = await invoke<TrackListView[]>('get_tracks_by_genre', { libraryId, genre: genreName });
+    const r = await invoke<TrackListView[]>('get_tracks_by_genre', { libraryId, genre: genreName });
+    // Un autre genre a pu être ouvert pendant le chargement.
+    if (loadedFor !== cible) return;
+    genreTracks = r;
   } catch (e) {
     console.error('Failed to load genre tracks:', e);
     genreTracks = [];

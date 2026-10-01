@@ -1,5 +1,7 @@
-import { writable, derived } from "svelte/store";
+import { writable, derived, get } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { t, currentLocale } from "$lib/i18n";
+import { tailleLisible } from "$lib/helper/tools/sizeTools";
 
 // ============================================================================
 // STORE GLOBAL DE TÂCHES EN COURS
@@ -66,7 +68,7 @@ export const taskProgressStore = {
     const u1 = await listen<{ current: number; total: number; percent: number; file_name: string }>(
       'import-progress', (e) => {
         upsertTask('import', {
-          label: "Import en cours",
+          label: get(t)("system.task_importing"),
           icon: "lucide:hard-drive-download",
           current: e.payload.current,
           total: e.payload.total,
@@ -79,7 +81,7 @@ export const taskProgressStore = {
     const u2 = await listen<{ total: number; duration_ms: number }>(
       'import-complete', (e) => {
         upsertTask('import', {
-          label: `Import terminé — ${e.payload.total} piste${e.payload.total !== 1 ? 's' : ''}`,
+          label: get(t)(e.payload.total === 1 ? "system.task_import_done_one" : "system.task_import_done_n").replace("{n}", String(e.payload.total)),
           percent: 100,
           current: e.payload.total,
           total: e.payload.total,
@@ -94,7 +96,7 @@ export const taskProgressStore = {
       'artist-image-progress', (e) => {
         const pct = e.payload.total > 0 ? Math.round((e.payload.current * 100) / e.payload.total) : 0;
         upsertTask('artist-images', {
-          label: "Images artistes",
+          label: get(t)("common.artist_images"),
           icon: "lucide:image-down",
           current: e.payload.current,
           total: e.payload.total,
@@ -113,7 +115,7 @@ export const taskProgressStore = {
     const u4 = await listen<{ library_name: string }>(
       'rescan-start', (e) => {
         upsertTask('rescan', {
-          label: `Rescan : ${e.payload.library_name}`,
+          label: get(t)("system.task_rescan").replace("{name}", e.payload.library_name),
           icon: "lucide:refresh-cw",
           percent: 0,
           detail: "",
@@ -127,11 +129,18 @@ export const taskProgressStore = {
       }
     );
 
+    const u5b = await listen<{ library_id: number; current: number; total: number }>(
+      'rescan-progress', (e) => {
+        const { current, total } = e.payload;
+        upsertTask('rescan', { current, total, percent: total > 0 ? Math.round(current * 100 / total) : 0 });
+      }
+    );
+
     // ─── Migration miniatures (covers + artistes, même event) ───
     const u6 = await listen<{ current: number; total: number; percent: number; file_name: string }>(
       'migration-progress', (e) => {
         upsertTask('migration', {
-          label: "Migration des miniatures",
+          label: get(t)("system.task_thumbnails"),
           icon: "lucide:folder-sync",
           current: e.payload.current,
           total: e.payload.total,
@@ -149,7 +158,7 @@ export const taskProgressStore = {
     const u7 = await listen<boolean>('playback-preparing', (e) => {
       if (e.payload) {
         upsertTask('playback-preparing', {
-          label: "Préparation du morceau",
+          label: get(t)("player.preparing"),
           icon: "lucide:loader-circle",
           percent: 0,
           total: 0,
@@ -167,26 +176,26 @@ export const taskProgressStore = {
       'playback-preparing-progress',
       (e) => {
         const { decoded_bytes, total_bytes } = e.payload;
-        const mbDecoded = decoded_bytes / (1024 * 1024);
-        const mbTotal = total_bytes / (1024 * 1024);
+        const locale = get(currentLocale);
+        const lu = tailleLisible(decoded_bytes, locale) || "0";
         const percent = total_bytes > 0
           ? Math.min(99, Math.round((decoded_bytes * 100) / total_bytes))
           : 0;
         upsertTask('playback-preparing', {
-          label: "Préparation du morceau",
+          label: get(t)("player.preparing"),
           icon: "lucide:loader-circle",
           current: decoded_bytes,
           total: total_bytes,
           percent,
-          detail: mbTotal > 0
-            ? `${mbDecoded.toFixed(1)} / ${mbTotal.toFixed(1)} Mo`
-            : `${mbDecoded.toFixed(1)} Mo`,
+          detail: total_bytes > 0
+            ? `${lu} / ${tailleLisible(total_bytes, locale)}`
+            : lu,
           active: true,
         });
       },
     );
 
-    unlisteners = [u1, u2, u3, u4, u5, u6, u7, u8];
+    unlisteners = [u1, u2, u3, u4, u5, u5b, u6, u7, u8];
   },
 
   cancel: (id: string) => {

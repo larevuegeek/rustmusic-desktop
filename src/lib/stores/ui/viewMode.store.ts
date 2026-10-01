@@ -1,16 +1,11 @@
 import { writable } from "svelte/store";
+import { lireLocal, ecrireLocal } from "$lib/helper/tools/stockage";
 
 export type ViewMode = "grid" | "list";
 
-const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('viewMode') : null;
+const viewModeWriter = writable<ViewMode>(lireLocal("viewMode", "grid") === "list" ? "list" : "grid");
 
-const viewModeWriter = writable<ViewMode>((stored as ViewMode) ?? "grid");
-
-viewModeWriter.subscribe(value => {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('viewMode', value);
-  }
-});
+viewModeWriter.subscribe((value) => ecrireLocal("viewMode", value));
 
 export const viewMode = {
   subscribe: viewModeWriter.subscribe,

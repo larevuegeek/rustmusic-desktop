@@ -25,13 +25,6 @@ type SelectionState = {
   tracks: Map<string, TrackLike>;
   /** Groupes cochés → identifiants des pistes qu'ils ont apportées. */
   groupes: Map<string, string[]>;
-  /**
-   * Ordre de la liste affichée, pour la sélection par plage.
-   *
-   * Renseigné par la vue courante : le magasin ne peut pas le deviner, et deux
-   * vues du même contenu ne le rangent pas pareil.
-   */
-  ordre: string[];
   /** Dernier élément cliqué, point de départ d'une plage. */
   ancre: string | null;
 };
@@ -40,10 +33,12 @@ const state = writable<SelectionState>({
   active: false,
   tracks: new Map(),
   groupes: new Map(),
-  ordre: [],
   ancre: null,
 });
 
+// Ordre de la liste affichée, déclaré par la vue. Hors de l'état : le redéclarer à chaque
+// lot chargé ne doit pas réveiller toutes les lignes abonnées.
+let ordre: string[] = [];
 /** Les pistes de `ordre`, telles que la vue les a déclarées. */
 let catalogue: Map<string, TrackLike> = new Map();
 
@@ -64,7 +59,7 @@ export const selectionStore = {
 
   /** Sort du mode sélection et vide tout. */
   stop() {
-    state.set({ active: false, tracks: new Map(), groupes: new Map(), ordre: [], ancre: null });
+    state.set({ active: false, tracks: new Map(), groupes: new Map(), ancre: null });
   },
 
   /**
@@ -76,7 +71,7 @@ export const selectionStore = {
    */
   setOrder(items: { id: string; track: TrackLike }[]) {
     catalogue = new Map(items.map((i) => [i.id, i.track]));
-    state.update((s) => ({ ...s, ordre: items.map((i) => i.id) }));
+    ordre = items.map((i) => i.id);
   },
 
   /** Coche ou décoche une piste, et en fait l'ancre d'une future plage. */
@@ -98,21 +93,21 @@ export const selectionStore = {
    */
   selectRange(id: string) {
     const s = get(state);
-    if (!s.ancre || s.ordre.length === 0) {
+    if (!s.ancre || ordre.length === 0) {
       const track = catalogue.get(id);
       if (track) selectionStore.toggle(id, track);
       return;
     }
 
-    const depart = s.ordre.indexOf(s.ancre);
-    const arrivee = s.ordre.indexOf(id);
+    const depart = ordre.indexOf(s.ancre);
+    const arrivee = ordre.indexOf(id);
     if (depart < 0 || arrivee < 0) return;
 
     const [bas, haut] = depart <= arrivee ? [depart, arrivee] : [arrivee, depart];
 
     state.update((st) => {
       const next = new Map(st.tracks);
-      for (const cle of st.ordre.slice(bas, haut + 1)) {
+      for (const cle of ordre.slice(bas, haut + 1)) {
         const track = catalogue.get(cle);
         if (track) next.set(cle, track);
       }
@@ -169,7 +164,7 @@ export const selectionStore = {
   selectAllVisible() {
     state.update((s) => {
       const next = new Map(s.tracks);
-      for (const id of s.ordre) {
+      for (const id of ordre) {
         const track = catalogue.get(id);
         if (track) next.set(id, track);
       }

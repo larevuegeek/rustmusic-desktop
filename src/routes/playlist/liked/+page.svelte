@@ -16,7 +16,7 @@ import TrackTable from "$lib/components/library/track/TrackTable.svelte";
   import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import { profilSelector } from "$lib/stores/profil/profil.store";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import { t } from "$lib/i18n";
 
 let tracks: TrackLikedView[] = $state([]);
@@ -51,6 +51,14 @@ function handleTableSort(key: string, dir: SortDir) {
 $effect(() => {
   const chemins = tracks.map(t => t.path).filter((p): p is string => !!p);
   if ($viewMode !== 'list' || chemins.length === 0) return;
+  // Titres seulement retirés : on les ôte du tableau sans tout recharger.
+  const deja = untrack(() => tableTracks);
+  const connus = new Set(deja.map(x => x.path));
+  if (deja.length && chemins.every(p => connus.has(p))) {
+    const voulus = new Set(chemins);
+    tableTracks = deja.filter(x => voulus.has(x.path));
+    return;
+  }
   chargerTableau(chemins);
 });
 
@@ -74,8 +82,14 @@ let profil = $derived($profilSelector);
 
 async function loadTrackLiked() {
     if (loading || !profil.profilSelected) return;
-    tracks = await invoke<TrackLikedView[]>('get_tracks_liked', { profilId: profil.profilSelected.id });
-    loading = false;
+    loading = true;
+    try {
+        tracks = await invoke<TrackLikedView[]>('get_tracks_liked', { profilId: profil.profilSelected.id });
+    } catch (e) {
+        console.error('Titres likés :', e);
+    } finally {
+        loading = false;
+    }
 }
 
 function handleRemoveLiked(path: string) {
@@ -95,12 +109,11 @@ onMount(async () => {
 <div class="h-full overflow-y-auto scrollbar-app py-5 px-4 md:px-10">
 
   <PageHeader
-    title="Titres likés"
-    subtitle="Collection"
+    title={$t("playlist_page.liked_title")}
+    subtitle={$t("playlist_page.collection")}
     icon="mynaui:heart-solid"
     iconColor="#f43f5e"
     count={tracks.length}
-    countLabel="titre"
   >
     {#snippet actions()}
       <!-- La bascule grille/liste vit dans la barre d'onglets de la bibliothèque,
@@ -162,7 +175,7 @@ onMount(async () => {
                       bg-neutral-200 dark:bg-neutral-700
                       flex items-center justify-center shrink-0">
             {#if track.thumbnail_path}
-              <CoverImg path={track.thumbnail_path} alt="Cover"
+              <CoverImg path={track.thumbnail_path} alt={$t("tags.cover")}
                    class="w-full h-full object-cover" />
             {:else}
               <Icon icon="lucide:music" width={18} class="text-neutral-400" />
@@ -173,17 +186,17 @@ onMount(async () => {
         <div class="flex flex-col items-stretch min-w-0">
           <button onclick={() => handleSelectTrack(track.path, versFileDAttente(tracks))} class="text-left cursor-pointer min-w-0 w-full">
             <span class="block font-medium text-neutral-800 dark:text-neutral-200 truncate"
-                  title={track.title ?? "Titre inconnu"}>
-              {track.title ?? "Titre inconnu"}
+                  title={track.title ?? $t("common.unknown_title")}>
+              {track.title ?? $t("common.unknown_title")}
             </span>
           </button>
 
           <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-            {track.artist ?? "Artiste inconnu"}
+            {track.artist ?? $t("common.unknown_artist")}
           </div>
 
           <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate my-1">
-            <span class="font-semibold">{track.album ?? "Album inconnu"}</span>
+            <span class="font-semibold">{track.album ?? $t("common.unknown_album")}</span>
           </div>
 
           <span class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate tracking-wide">
@@ -210,7 +223,7 @@ onMount(async () => {
           onclick={(e) => { contextMenu = { x: e.clientX, y: e.clientY, track }; }}
           class="p-2 rounded-md cursor-pointer text-neutral-500 dark:text-neutral-400
                  hover:bg-black/5 dark:hover:bg-white/10"
-          aria-label="Actions"
+          aria-label={$t("albums_view.more")}
         >
           <Icon icon="uit:ellipsis-v" width={24} height={24} />
         </button>

@@ -1,48 +1,24 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
 import { goto } from "$app/navigation";
-import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import LibraryTrackSkeleton from "$lib/components/library/common/skeleton/LibraryTrackSkeleton.svelte";
 import { libraryStore } from "$lib/stores/library/library.store";
-import { libraryHeader } from "$lib/stores/library/libraryHeader";
 import { page } from "$app/state";
 import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
-import TrackListItem from "$lib/components/library/track/TrackListItem.svelte";
 import { handleAddFiles, handleAddDirectory } from "$lib/actions/library/LibraryAction";
 import { onMount } from "svelte";
+import { t } from "$lib/i18n";
 
 const libraryId = $derived(Number(page.params.library_id));
 
-// Rediriger vers le dernier onglet visité
+// Simple étape : on file vers le dernier onglet visité.
 onMount(() => {
-  try {
-    const lastTab = localStorage.getItem(`lib-tab-${libraryId}`);
-    if (lastTab && lastTab !== 'tracks') {
-      goto(`/library/${libraryId}/${lastTab}`, { replaceState: true });
-    }
-  } catch {}
+  let lastTab: string | null = null;
+  try { lastTab = localStorage.getItem(`lib-tab-${libraryId}`); } catch {}
+  goto(`/library/${libraryId}/${lastTab || 'tracks'}`, { replaceState: true });
 });
 const currentLibrary = $derived(
   $libraryStore.libraries.find(l => l.id === libraryId)
 );
-const totalTracks = $derived($libraryContentStore.tracks.length);
-
-$effect(() => {
-  const total = totalTracks;
-
-  libraryHeader.update(current => {
-    if (current.total === total && current.subtitle === 'Morceaux') {
-      return current; // rien ne change
-    }
-
-    return {
-      subtitle: 'Morceaux',
-      icon: 'lucide:music',
-      total
-    };
-  });
-});
-
 </script>
 
 {#if $libraryStore.isImporting}
@@ -62,11 +38,11 @@ $effect(() => {
     </div>
 
     <h3 class="text-base font-semibold text-neutral-700 dark:text-neutral-200 mb-1.5">
-      Bibliothèque vide
+      {$t("library.empty_title")}
     </h3>
 
     <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-6">
-      Importez des fichiers audio ou un dossier pour remplir votre bibliothèque.
+      {$t("library.empty_desc")}
     </p>
 
     <div class="flex items-center gap-2">
@@ -78,7 +54,7 @@ $effect(() => {
         onclick={() => libraryId && handleAddFiles(libraryId)}
       >
         <Icon icon="lucide:file-audio" width="14" />
-        Importer des fichiers
+        {$t("library.import_files")}
       </button>
       <button
         class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
@@ -89,21 +65,8 @@ $effect(() => {
         onclick={() => libraryId && handleAddDirectory(libraryId)}
       >
         <Icon icon="lucide:folder-plus" width="14" />
-        Importer un dossier
+        {$t("library.import_folder")}
       </button>
     </div>
-  </div>
-{:else if $libraryContentStore.isLoading}
-  <LibraryTrackSkeleton />
-{:else}
-
-  <div class="flex-1 px-6 py-6">
-      <!-- LISTE DES TRACKS -->
-      <div class="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-800">
-
-          {#each $libraryContentStore.tracks as track (track.id)}
-            <TrackListItem libraryId={libraryId} track={track} tracks={$libraryContentStore.tracks} />
-          {/each}
-      </div>
   </div>
 {/if}

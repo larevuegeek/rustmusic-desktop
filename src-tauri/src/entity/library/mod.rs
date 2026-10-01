@@ -10,3 +10,4 @@ pub mod library;
 pub mod dir_entry;
 pub mod library_stats;
 pub mod genre_view;
+pub mod library_pin;

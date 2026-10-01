@@ -1,12 +1,13 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
-import { player } from "$lib/stores/player/player.store";
+import { lecture } from "$lib/stores/player/lecture.store";
 import { queueState } from "$lib/stores/queue/queueState.store";
 import { queuePanelOpened, closeQueuePanel } from "$lib/stores/queue/queueUi.store";
 import { formatTime } from "$lib/helper/tools/dateTools";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import { playerService } from "$lib/services/player/player.service";
 import NowPlayingCard from "$lib/components/player/NowPlayingCard.svelte";
+import { t, currentLocale } from "$lib/i18n";
 
 function onKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") closeQueuePanel();
@@ -14,27 +15,28 @@ function onKeyDown(e: KeyboardEvent) {
 
 type PlayerStatus = "ready" | "playing" | "paused" | "ended" | "idle";
 
-let status = $derived($player?.status ?? "idle");
+let status = $derived($lecture.status);
 
+// `label` : clé de traduction, résolue à l'affichage.
 const statusMap: Record<PlayerStatus, { label: string; class: string }> = {
   playing: {
-    label: "En lecture",
+    label: "queue_panel.status_playing",
     class: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
   },
   paused: {
-    label: "En pause",
+    label: "home.paused",
     class: "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400"
   },
   ended: {
-    label: "Terminé",
+    label: "queue_panel.status_ended",
     class: "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400"
   },
   idle: {
-    label: "Inactif",
+    label: "player.inactive",
     class: "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400"
   },
   ready: {
-    label: "Prêt",
+    label: "queue_panel.status_ready",
     class: "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400"
   }
 };
@@ -52,6 +54,19 @@ let upcomingTracks = $derived(
 );
 
 let totalTracks = $derived(queueTrackList.length);
+
+// Contenu rendu seulement panneau ouvert (et le temps de la fermeture) : la carte en cours suit la position.
+let monte = $state(false);
+$effect(() => {
+  if ($queuePanelOpened) { monte = true; return; }
+  const id = setTimeout(() => { monte = false; affiches = LOT; }, 450);
+  return () => clearTimeout(id);
+});
+
+// Une file de milliers de titres : on en montre un lot, la suite à la demande.
+const LOT = 150;
+let affiches = $state(LOT);
+const visibles = $derived(upcomingTracks.slice(0, affiches));
 
 // --- Drag & Drop (pointer events) ---
 let dragFrom = $state<number | null>(null);
@@ -94,7 +109,7 @@ function handleRelease() {
 <!-- ==================== BACKDROP ==================== -->
 <button
   type="button"
-  aria-label="fermer la file d'attente"
+  aria-label={$t("queue_panel.close")}
   class="fixed inset-0 z-40
          bg-black/30 dark:bg-black/50
          backdrop-blur-md
@@ -120,6 +135,7 @@ function handleRelease() {
   class:translate-x-0={$queuePanelOpened}
   class:translate-x-full={!$queuePanelOpened}
   aria-hidden={!$queuePanelOpened}
+  inert={!$queuePanelOpened}
 >
 
   <!-- Ambient glow (visible only when playing) -->
@@ -135,18 +151,20 @@ function handleRelease() {
               border-b border-black/4 dark:border-white/6">
 
     <!-- Shimmer accent line -->
-    <div class="absolute bottom-0 left-0 right-0 h-px
-                bg-linear-to-r from-transparent via-emerald-500/30 to-transparent
-                animate-[shimmer_4s_ease-in-out_infinite]"
-         style="background-size: 200% 100%;"></div>
+    {#if monte}
+      <div class="absolute bottom-0 left-0 right-0 h-px
+                  bg-linear-to-r from-transparent via-emerald-500/30 to-transparent
+                  animate-[shimmer_4s_ease-in-out_infinite]"
+           style="background-size: 200% 100%;"></div>
+    {/if}
 
     <div class="flex flex-col gap-1">
       <h2 class="text-[15px] font-bold tracking-tight text-neutral-900 dark:text-white">
-        File de lecture
+        {$t("queue_panel.title")}
       </h2>
       <div class="flex items-center gap-2">
         <span class="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 tabular-nums">
-          {totalTracks} morceau{totalTracks > 1 ? 'x' : ''}
+          {$t(totalTracks > 1 ? "queue_panel.tracks_n" : "queue_panel.tracks_one").replace("{n}", totalTracks.toLocaleString($currentLocale))}
         </span>
         <!-- Status pill -->
         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider {statusClass}">
@@ -156,7 +174,7 @@ function handleRelease() {
               <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
             </span>
           {/if}
-          {statusLabel}
+          {$t(statusLabel)}
         </span>
       </div>
     </div>
@@ -172,8 +190,8 @@ function handleRelease() {
                  hover:bg-emerald-500/20 dark:hover:bg-emerald-500/20
                  border border-emerald-500/20 hover:border-emerald-500/30
                  transition-all duration-200 cursor-pointer"
-          aria-label={status === 'playing' ? 'Pause' : 'Lecture'}
-          title={status === 'playing' ? 'Pause' : 'Lecture'}
+          aria-label={status === 'playing' ? $t("home.pause_short") : $t("home.play")}
+          title={status === 'playing' ? $t("home.pause_short") : $t("home.play")}
         >
           <Icon icon={status === 'playing' ? 'lucide:pause' : 'lucide:play'}
             width="15" height="15"
@@ -190,8 +208,8 @@ function handleRelease() {
                  hover:bg-red-50 dark:hover:bg-red-500/15
                  border border-transparent hover:border-red-200/50 dark:hover:border-red-500/20
                  transition-all duration-200"
-          aria-label="Vider la file"
-          title="Vider la file"
+          aria-label={$t("queue_panel.clear")}
+          title={$t("queue_panel.clear")}
         >
           <Icon icon="mynaui:trash" width="16" height="16"
             class="text-neutral-400 group-hover:text-red-500 dark:group-hover:text-red-400
@@ -200,6 +218,8 @@ function handleRelease() {
       {/if}
       <button
         onclick={closeQueuePanel}
+        aria-label={$t("common.close")}
+        title={$t("common.close")}
         class="group flex items-center justify-center h-9 w-9
                rounded-xl
                bg-neutral-100 dark:bg-white/5
@@ -220,14 +240,14 @@ function handleRelease() {
   <div class="scrollbar-app relative w-full h-[calc(100dvh-85px)] overflow-y-auto px-4 pb-16">
 
     <!-- ===== CURRENT TRACK ===== -->
-    {#if currentTrack}
+    {#if monte && currentTrack}
       <div class="mt-6 mb-8 px-2">
         <NowPlayingCard variant="default" />
       </div>
     {/if}
 
     <!-- ===== UPCOMING TRACKS ===== -->
-    {#if upcomingTracks.length > 0}
+    {#if monte && upcomingTracks.length > 0}
       <div class="sticky top-0 z-10 mb-1
                   flex items-center justify-between
                   bg-white/90 dark:bg-[#0c0c0e]/90 backdrop-blur-xl
@@ -238,11 +258,11 @@ function handleRelease() {
             <Icon icon="mynaui:list" width="14" height="14" class="text-neutral-400 dark:text-neutral-500" />
           </div>
           <h3 class="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500 dark:text-neutral-400">
-            À suivre
+            {$t("queue_panel.up_next")}
           </h3>
         </div>
         <span class="text-[11px] font-semibold tabular-nums text-neutral-300 dark:text-neutral-600">
-          {upcomingTracks.length} piste{upcomingTracks.length > 1 ? 's' : ''}
+          {$t(upcomingTracks.length > 1 ? "queue_panel.upcoming_n" : "queue_panel.upcoming_one").replace("{n}", upcomingTracks.length.toLocaleString($currentLocale))}
         </span>
       </div>
 
@@ -252,7 +272,7 @@ function handleRelease() {
         onpointermove={handleMove}
         onpointerup={handleRelease}
       >
-        {#each upcomingTracks as queueTrack, i (queueTrack.queueId)}
+        {#each visibles as queueTrack, i (queueTrack.queueId)}
           <div
             data-qi={i}
             class="group relative flex items-center gap-3
@@ -319,7 +339,7 @@ function handleRelease() {
                 {queueTrack.title}
               </span>
               <span class="truncate text-[11px] font-medium text-neutral-400 dark:text-neutral-500">
-                {queueTrack.artist ?? "Artiste inconnu"}
+                {queueTrack.artist ?? $t("common.unknown_artist")}
               </span>
             </div>
 
@@ -340,7 +360,7 @@ function handleRelease() {
                        hover:bg-red-50 hover:text-red-500
                        dark:hover:bg-red-500/15 dark:hover:text-red-400
                        transition-all duration-200 cursor-pointer"
-                title="Retirer de la file"
+                title={$t("queue_panel.remove")}
               >
                 <Icon icon="mynaui:trash" width="13" height="13" />
               </button>
@@ -348,6 +368,13 @@ function handleRelease() {
           </div>
         {/each}
       </div>
+      {#if upcomingTracks.length > affiches}
+        <button type="button" class="mt-2 w-full rounded-xl py-2.5 text-[12px] font-semibold cursor-pointer
+                                     text-neutral-500 dark:text-neutral-400 hover:bg-black/3 dark:hover:bg-white/4 transition-colors"
+                onclick={() => (affiches += LOT)}>
+          {$t("queue_panel.show_more").replace("{n}", Math.min(LOT, upcomingTracks.length - affiches).toLocaleString($currentLocale))}
+        </button>
+      {/if}
     {/if}
 
     <!-- ===== EMPTY STATES ===== -->
@@ -369,10 +396,10 @@ function handleRelease() {
             <div class="absolute -inset-6 rounded-4xl border border-neutral-100/30 dark:border-white/2"></div>
           </div>
           <h3 class="text-[15px] font-bold text-neutral-800 dark:text-neutral-200">
-            Rien à écouter
+            {$t("queue_panel.empty_title")}
           </h3>
           <p class="mt-2.5 text-[13px] leading-relaxed text-neutral-400 dark:text-neutral-500 max-w-55">
-            Lancez une musique depuis votre bibliothèque pour remplir la file.
+            {$t("queue_panel.empty_desc")}
           </p>
         </div>
       {:else}
@@ -384,10 +411,10 @@ function handleRelease() {
             <Icon icon="mynaui:music" width="24" height="24" class="text-neutral-300 dark:text-neutral-400" />
           </div>
           <h3 class="text-[13px] font-bold text-neutral-600 dark:text-neutral-300">
-            File d'attente vide
+            {$t("queue_panel.no_next_title")}
           </h3>
           <p class="mt-1.5 text-[12px] text-neutral-400 dark:text-neutral-500">
-            Ajoutez des pistes pour continuer l'écoute.
+            {$t("queue_panel.no_next_desc")}
           </p>
         </div>
       {/if}

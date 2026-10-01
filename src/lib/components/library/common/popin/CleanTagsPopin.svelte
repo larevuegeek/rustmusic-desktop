@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { messageErreur } from "$lib/helper/tools/errorTools";
   // Règles de nettoyage.
   //
   // # Rien ne s'applique d'office
@@ -73,7 +74,7 @@
         return { path, field, from: before.get(key) ?? "", to };
       });
     } catch (e) {
-      error = String((e as any)?.message ?? e ?? "");
+      error = messageErreur(e);
     } finally {
       computing = false;
     }

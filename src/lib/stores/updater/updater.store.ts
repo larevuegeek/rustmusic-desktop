@@ -15,3 +15,6 @@ export type UpdateState =
   | { kind: "error"; message: string };
 
 export const updaterState = writable<UpdateState>({ kind: "idle" });
+
+/** Issue de la dernière vérification, même silencieuse : « À jour » ne se dit qu'après un succès. */
+export const derniereVerification = writable<"jamais" | "a-jour" | "maj" | "echec">("jamais");

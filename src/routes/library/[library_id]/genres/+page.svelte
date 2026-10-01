@@ -1,238 +1,224 @@
 <script lang="ts">
+import { lireLocal, ecrireLocal } from "$lib/helper/tools/stockage";
+import EmptyResult from "$lib/components/ui/feedback/EmptyResult.svelte";
+import SearchField from "$lib/components/ui/input/SearchField.svelte";
+import TextButton from "$lib/components/ui/button/TextButton.svelte";
+import MenuSelect from "$lib/components/ui/menu/MenuSelect.svelte";
+import ViewModeSwitch from "$lib/components/ui/input/ViewModeSwitch.svelte";
+import SelectionToggle from "$lib/components/ui/selection/SelectionToggle.svelte";
 import { page } from "$app/state";
-import { goto } from "$app/navigation";
+import { onDestroy } from "svelte";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+import { t, currentLocale } from "$lib/i18n";
 import { libraryHeader } from "$lib/stores/library/libraryHeader";
-import { t } from "$lib/i18n";
 import { libraryStore } from "$lib/stores/library/library.store";
-import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
-import FilterBar from "$lib/components/library/common/FilterBar.svelte";
-import type { GenreView } from "$lib/types/ui/library/genre/GenreView";
-import { selectionStore } from "$lib/stores/ui/selection.store";
+import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
 import { viewMode } from "$lib/stores/ui/viewMode.store";
+import { handleRandomMix } from "$lib/actions/queue/QueueAction";
+import { cleTri, lettreTri } from "$lib/helper/library/cleTri";
+import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
+import GenreCard from "$lib/components/library/genre/GenreCard.svelte";
 import GenreListRow from "$lib/components/library/genre/GenreListRow.svelte";
-import { cleGroupe, toggleGroupSelection } from "$lib/helper/tools/selectionGroups";
+import AlphabetNav from "$lib/components/ui/alphabet/AlphabetNav.svelte";
+import FilterChip from "$lib/components/ui/input/FilterChip.svelte";
+import Menu from "$lib/components/ui/menu/Menu.svelte";
+import MenuItem from "$lib/components/ui/menu/MenuItem.svelte";
+import type { GenreView } from "$lib/types/ui/library/genre/GenreView";
 
 const libraryId = $derived(Number(page.params.library_id));
+const currentLibrary = $derived($libraryStore.libraries.find((l) => l.id === libraryId));
 
-let genres: GenreView[] = $state([]);
-let isLoading = $state(true);
-const SORT_KEY = 'filterbar:genres';
-const savedSort = (() => {
-  try { return JSON.parse(localStorage.getItem(SORT_KEY) || '{}'); }
-  catch { return {}; }
-})();
-
-let filterQuery = $state('');
-let sortBy = $state<string>(savedSort.sortBy ?? 'default');
-let sortDir = $state<string>(savedSort.sortDir ?? 'asc');
-
+// ─── Genres de la bibliothèque ───
+let genres = $state<GenreView[]>([]);
+let chargement = $state(true);
 $effect(() => {
-  try { localStorage.setItem(SORT_KEY, JSON.stringify({ sortBy, sortDir })); }
-  catch {}
+  const id = libraryId;
+  chargement = true;
+  invoke<GenreView[]>("get_genres", { libraryId: id })
+    .then((g) => { if (id === libraryId) genres = g; })
+    .catch(() => (genres = []))
+    .finally(() => (chargement = false));
 });
 
-const sortOptions = [
-  { key: 'default', label: 'Par défaut', icon: 'lucide:list' },
-  { key: 'name', label: 'Nom', icon: 'lucide:type' },
-  { key: 'albums', label: 'Albums', icon: 'lucide:disc-album' },
-  { key: 'tracks', label: 'Titres', icon: 'lucide:music' },
+// Artistes phares et dernière écoute : calculés par la base (plus besoin de charger tous les titres).
+const artistesDe = (g: GenreView) => (g.top_artists ?? []).join(", ");
+
+// Albums sans genre : un pseudo-genre qui mène à la vue Albums filtrée.
+const sansGenre = $derived.by((): GenreView => {
+  const albums = $libraryContentStore.albums.filter((a) => !a.genre);
+  return {
+    name: "",
+    total_albums: albums.length,
+    total_tracks: albums.reduce((s, a) => s + (a.total_tracks ?? 0), 0),
+    covers: albums.map((a) => a.cover_url).filter((c): c is string => !!c).slice(0, 4),
+  };
+});
+
+// ─── Tri (retenu d'une visite à l'autre) ───
+type Tri = "tracks" | "albums" | "name" | "recent";
+const TRIS: { cle: Tri; libelle: string; icone: string }[] = [
+  { cle: "tracks", libelle: "genres_view.sort_tracks", icone: "material-symbols:library-music-outline-rounded" },
+  { cle: "albums", libelle: "genres_view.sort_albums", icone: "material-symbols:album-outline-rounded" },
+  { cle: "name", libelle: "genres_view.sort_name", icone: "material-symbols:sort-by-alpha-rounded" },
+  { cle: "recent", libelle: "genres_view.sort_recent", icone: "material-symbols:history-rounded" },
 ];
+const CLE_TRI = "genres:tri";
+const triLu = lireLocal(CLE_TRI, "tracks");
+let tri = $state<Tri>(TRIS.some((x) => x.cle === triLu) ? (triLu as Tri) : "tracks");
+$effect(() => ecrireLocal(CLE_TRI, tri));
 
+// ─── Filtres ───
+let recherche = $state("");
+let principaux = $state(false);
+let voirSansGenre = $state(false);
+const filtresActifs = $derived(!!recherche.trim() || principaux || voirSansGenre);
+function effacerFiltres() {
+  recherche = "";
+  principaux = voirSansGenre = false;
+}
+
+const totalTitres = $derived(currentLibrary?.total_tracks || genres.reduce((s, g) => s + g.total_tracks, 0));
+// « Principaux » : au moins 3 % des titres (et 50 au minimum).
+const seuil = $derived(Math.max(50, totalTitres * 0.03));
+const maxTitres = $derived(Math.max(1, ...genres.map((g) => g.total_tracks)));
+
+const comparer = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const parNom = (x: GenreView, y: GenreView) => comparer.compare(cleTri(x.name), cleTri(y.name));
+const TRI_FN: Record<Tri, (x: GenreView, y: GenreView) => number> = {
+  tracks: (x, y) => y.total_tracks - x.total_tracks || parNom(x, y),
+  albums: (x, y) => y.total_albums - x.total_albums || parNom(x, y),
+  name: parNom,
+  recent: (x, y) => (y.last_played_at ?? "").localeCompare(x.last_played_at ?? "") || parNom(x, y),
+};
+
+const visibles = $derived.by(() => {
+  if (voirSansGenre) return [];
+  const q = recherche.trim().toLowerCase();
+  return genres
+    .filter((g) => (!q || `${g.name} ${artistesDe(g)}`.toLowerCase().includes(q)) && (!principaux || g.total_tracks >= seuil))
+    .sort(TRI_FN[tri]);
+});
+
+// ─── En-tête : chiffres des genres, et « Mix aléatoire » ───
 $effect(() => {
-  const _id = libraryId;
-  loadGenres();
+  const n = genres.length;
+  const albums = currentLibrary?.total_albums ?? 0;
+  const sans = sansGenre.total_albums;
+  libraryHeader.update(() => ({
+    action: { cle: "genres_view.random_mix", icone: "material-symbols:shuffle-rounded", lancer: () => handleRandomMix(libraryId) },
+    chiffres: [
+      { n, un: "library_head.genres_one", plusieurs: "library_head.genres_n" },
+      { n: albums, un: "library_head.albums_one", plusieurs: "library_head.albums_n" },
+      { n: totalTitres, un: "library_head.tracks_one", plusieurs: "library_head.tracks_n" },
+      { n: sans, un: "library_head.untagged_one", plusieurs: "library_head.untagged_n" },
+    ],
+  }));
 });
+onDestroy(() => libraryHeader.update((h) => ({ ...h, action: null, chiffres: null })));
 
-async function loadGenres() {
-  isLoading = true;
-  try {
-    genres = await invoke<GenreView[]>('get_genres', { libraryId });
-  } catch (e) {
-    console.error('Failed to load genres:', e);
-    genres = [];
-  } finally {
-    isLoading = false;
-  }
+// ─── Navigation A–Z (tri par nom seulement) ───
+let defilement = $state<HTMLDivElement | null>(null);
+const lettres = $derived(new Set(visibles.map((g) => lettreTri(g.name))));
+const premiere = (i: number) => tri === "name" && (i === 0 || lettreTri(visibles[i - 1].name) !== lettreTri(visibles[i].name));
+function allerLettre(l: string) {
+  defilement?.querySelector(`[data-letter="${l}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-let filteredGenres = $derived.by(() => {
-  let result = [...genres];
-
-  if (filterQuery.length >= 2) {
-    const q = filterQuery.toLowerCase();
-    result = result.filter(g => g.name.toLowerCase().includes(q));
-  }
-
-  if (sortBy !== 'default') {
-    const dir = sortDir === 'asc' ? 1 : -1;
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'name': return a.name.localeCompare(b.name) * dir;
-        case 'albums': return (a.total_albums - b.total_albums) * dir;
-        case 'tracks': return (a.total_tracks - b.total_tracks) * dir;
-        default: return 0;
-      }
-    });
-  }
-
-  return result;
-});
-
-$effect(() => {
-  libraryHeader.update(current => {
-    const total = filteredGenres.length;
-    if (current.total === total && current.subtitle === 'Genres') return current;
-    return { subtitle: 'Genres', icon: 'lucide:tag', total };
-  });
-});
-
-// ─── Sélection d'un genre ───
-//
-// Un genre n'a pas d'identifiant : son nom en tient lieu, ici comme dans la
-// route et dans la requête.
-const selection = $derived($selectionStore);
-
-function genreSelectionne(nom: string): boolean {
-  return selection.groupes.has(cleGroupe('genre', libraryId, nom));
-}
-
-function handleGenreClick(nom: string) {
-  if (selection.active) {
-    toggleGroupSelection('genre', libraryId, nom);
-    return;
-  }
-  goto(`/library/${libraryId}/genres/${encodeURIComponent(nom)}`);
-}
-
-// Couleurs aléatoires mais déterministes par genre (hash simple)
-function genreColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const colors = [
-    '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
-    '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7',
-    '#ec4899', '#f43f5e', '#10b981', '#0ea5e9', '#d946ef',
-  ];
-  return colors[Math.abs(hash) % colors.length];
-}
+const nombre = (n: number) => n.toLocaleString($currentLocale);
+const lienSansGenre = $derived(`/library/${libraryId}/albums?genre=__sans__`);
 </script>
 
 {#if $libraryStore.isImporting}
   <LibraryImportingLoader />
 
-{:else if isLoading}
-  <div class="flex items-center justify-center py-20">
-    <Icon icon="lucide:loader-2" width="24" class="animate-spin text-neutral-400" />
+{:else if chargement && genres.length === 0}
+  <div class="flex items-center justify-center py-20 text-(--rg-mu)">
+    <Icon icon="material-symbols:progress-activity" width="26" class="animate-spin" />
   </div>
 
 {:else if genres.length === 0}
   <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
-    <div class="relative mb-5">
-      <div class="absolute inset-0 rounded-2xl bg-green-500/25 blur-2xl scale-[2] animate-pulse"></div>
-      <div class="relative w-16 h-16 rounded-2xl
-                  bg-neutral-100 dark:bg-neutral-800
-                  border border-neutral-200/60 dark:border-neutral-700/40
-                  flex items-center justify-center">
-        <Icon icon="lucide:tag" width="24" class="text-green-500/60" />
-      </div>
+    <div class="w-16 h-16 mb-5 rounded-2xl border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+      <Icon icon="material-symbols:sell-outline-rounded" width="30" />
     </div>
-    <h3 class="text-base font-semibold text-neutral-700 dark:text-neutral-200 mb-1.5">
-      {$t('library.no_genre')}
-    </h3>
-    <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">
-      {$t('library.no_genre_desc')}
-    </p>
+    <h3 class="text-base font-semibold text-(--rg-tx) mb-1.5">{$t("library.no_genre")}</h3>
+    <p class="text-sm text-(--rg-mu) max-w-xs leading-relaxed">{$t("library.no_genre_desc")}</p>
   </div>
 
 {:else}
   <div class="flex flex-col h-full">
-    <FilterBar
-      bind:filterQuery bind:sortBy bind:sortDir
-      {sortOptions}
-    />
+    <!-- ─── Outils : une ligne si la place le permet ; sinon recherche + vue en haut, filtres dessous ─── -->
+    <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={$t("genres_view.filter").replace("{n}", nombre(genres.length))} clearLabel={$t("genres_view.clear_filters")} />
 
-    <div class="flex-1 scrollbar-app overflow-y-auto p-6">
-      {#if $viewMode === 'list'}
-        <!-- En-tête de colonnes : mêmes largeurs que les lignes. Sans elle, les
-             deux nombres de droite ne s'expliquent pas. -->
-        <div class="flex items-center gap-4 px-3 py-2 mb-1
-                    text-[10px] uppercase tracking-wider text-neutral-400
-                    border-b border-neutral-200/60 dark:border-white/5">
-          <div class="w-12 shrink-0"></div>
-          <div class="flex-1 min-w-0">Genre</div>
-          <div class="hidden sm:block w-24 text-right shrink-0">Albums</div>
-          <div class="w-24 text-right shrink-0">Titres</div>
+        <div class="order-2 @max-6xl:order-4 @max-6xl:basis-full flex flex-wrap items-center gap-2.5">
+          <FilterChip icon="material-symbols:trending-up-rounded" pressed={principaux} title={$t("genres_view.main")} onclick={() => { principaux = !principaux; voirSansGenre = false; }}>
+            <span class="@max-xl:hidden">{$t("genres_view.main")}</span>
+          </FilterChip>
+          {#if sansGenre.total_albums > 0}
+            <FilterChip icon="material-symbols:label-off-outline-rounded" pressed={voirSansGenre} title={$t("genres_view.untagged_hint")} onclick={() => { voirSansGenre = !voirSansGenre; principaux = false; }}>
+              <span class="@max-xl:hidden">{$t("genres_view.untagged")}</span>
+              <span class="text-[11px] font-medium text-(--rg-mu2)">{nombre(sansGenre.total_albums)}</span>
+            </FilterChip>
+          {/if}
+          {#if filtresActifs}
+            <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("genres_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={effacerFiltres} />
+          {/if}
         </div>
-        {#each filteredGenres as genre (genre.name)}
-          <GenreListRow {libraryId} {genre} color={genreColor(genre.name)} />
-        {/each}
-      {:else}
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-8 gap-4">
-        {#each filteredGenres as genre (genre.name)}
-          {@const color = genreColor(genre.name)}
-          <button
-            type="button"
-            class="group relative aspect-square overflow-hidden rounded-2xl cursor-pointer
-                   transition-all duration-200
-                   hover:shadow-2xl hover:shadow-black/20 active:scale-[0.97] hover:scale-[1.03]"
-            onclick={() => handleGenreClick(genre.name)}
-          >
-            <!-- Case de sélection, posée sur la vignette : une grille n'a pas
-                 de marge où loger une colonne de cases. -->
-            {#if selection.active}
-              <div class="absolute top-2 left-2 z-20 w-5 h-5 rounded flex items-center justify-center
-                          transition-all duration-150
-                          {genreSelectionne(genre.name)
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-black/40 backdrop-blur-sm border border-white/40 text-transparent'}">
-                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="3" stroke-linecap="round">
-                  <path d="m4.5 12.75 6 6 9-13.5"/>
-                </svg>
-              </div>
-            {/if}
-            <!-- Fond -->
-            {#if genre.covers.length >= 4}
-              <div class="absolute inset-0 grid grid-cols-2">
-                {#each genre.covers.slice(0, 4) as cover}
-                  <CoverImg
-                    path={cover}
-                    alt=""
-                    class="w-full h-full object-cover"
-                  />
-                {/each}
-              </div>
-            {:else if genre.covers.length >= 1}
-              <CoverImg
-                path={genre.covers[0]}
-                alt=""
-                class="absolute inset-0 w-full h-full object-cover"
-              />
-            {:else}
-              <div class="absolute inset-0"
-                   style="background: linear-gradient(135deg, {color}30, {color}60);"></div>
-            {/if}
 
-            <!-- Overlay gradient -->
-            <div class="absolute inset-0 bg-linear-to-t from-black via-black/40 to-black/05"></div>
+        <span class="order-3 flex-1 @max-6xl:hidden"></span>
 
-            <!-- Texte en bas -->
-            <div class="absolute inset-x-0 bottom-0 p-4 text-left bg-black/60">
-              <h3 class="text-base font-bold text-white drop-shadow-lg leading-tight flex items-center gap-2 min-w-0">
-                <span class="w-2 h-2 rounded-full shrink-0" style="background: {color};"></span>
-                <span class="truncate">{genre.name}</span>
-              </h3>
-              <p class="text-[11px] text-white/60 mt-1">
-                {genre.total_albums} album{genre.total_albums !== 1 ? 's' : ''}
-                · {genre.total_tracks} titre{genre.total_tracks !== 1 ? 's' : ''}
-              </p>
-            </div>
-          </button>
-        {/each}
+        <div class="order-3 flex items-center gap-2.5">
+          <MenuSelect value={tri} options={TRIS.map((x) => ({ value: x.cle, label: $t(x.libelle), icon: x.icone }))} onchange={(v) => (tri = v as typeof tri)} labelClass="@max-xl:hidden" menuClass="w-55" />
+
+          <ViewModeSwitch />
+
+          <SelectionToggle />
+        </div>
       </div>
+    </div>
+
+    <!-- ─── Genres ─── -->
+    <div class="flex-1 relative min-h-0">
+      <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16" bind:this={defilement}>
+        {#if voirSansGenre}
+          <!-- Le pseudo-genre seul : il mène aux albums sans genre. -->
+          {#if $viewMode === "grid"}
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] max-[900px]:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-x-4.5 gap-y-5.5 pt-3">
+              <GenreCard {libraryId} genre={sansGenre} nom={$t("genres_view.untagged")} lien={lienSansGenre} artistes={$t("genres_view.untagged_hint")} special />
+            </div>
+          {:else}
+            <div class="flex flex-col pt-2">
+              <GenreListRow {libraryId} genre={sansGenre} nom={$t("genres_view.untagged")} lien={lienSansGenre} artistes={$t("genres_view.untagged_hint")}
+                            part={(sansGenre.total_tracks / Math.max(1, totalTitres)) * 100} barre={(sansGenre.total_tracks / maxTitres) * 100} special />
+            </div>
+          {/if}
+        {:else if visibles.length === 0}
+          <EmptyResult message={$t("genres_view.no_match")} effacerLabel={$t("genres_view.clear_filters")} oneffacer={filtresActifs ? effacerFiltres : null} />
+        {:else if $viewMode === "grid"}
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] max-[900px]:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-x-4.5 gap-y-5.5 pt-3">
+            {#each visibles as genre, i (genre.name)}
+              <div class="relative min-w-0">
+                {#if premiere(i)}<span class="absolute -top-3 left-0 h-0 scroll-mt-4" data-letter={lettreTri(genre.name)}></span>{/if}
+                <GenreCard {libraryId} {genre} artistes={artistesDe(genre)} />
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="flex flex-col pt-2">
+            {#each visibles as genre, i (genre.name)}
+              {#if premiere(i)}<span class="h-0 scroll-mt-4" data-letter={lettreTri(genre.name)}></span>{/if}
+              <GenreListRow {libraryId} {genre} artistes={artistesDe(genre)}
+                            part={(genre.total_tracks / Math.max(1, totalTitres)) * 100} barre={(genre.total_tracks / maxTitres) * 100} />
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+      {#if tri === "name" && visibles.length > 0}
+        <AlphabetNav availableLetters={lettres} onletter={allerLettre} toujours />
       {/if}
     </div>
   </div>

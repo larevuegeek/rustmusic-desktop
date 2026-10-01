@@ -3,7 +3,11 @@
  * Miroir de `src-tauri/src/commands/tag_command.rs`.
  */
 
+import { dataCache } from "$lib/stores/cache/dataCache.store";
 import { invoke } from "@tauri-apps/api/core";
+import { get } from "svelte/store";
+import { currentLocale } from "$lib/i18n";
+import { tailleLisible } from "$lib/helper/tools/sizeTools";
 
 /**
  * Ce qu'on envoie au backend.
@@ -257,11 +261,9 @@ export function promoteToCover(slots: MediaSlot[], index: number): MediaSlot[] {
   });
 }
 
-/** Formate un poids en octets. */
+/** Formate un poids en octets, selon la langue. */
 export function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} Ko`;
-  return `${bytes} o`;
+  return tailleLisible(bytes, get(currentLocale)) || "0";
 }
 
 /** Un morceau tel que l'atelier a besoin de le connaître. */
@@ -300,7 +302,9 @@ export async function canWriteTags(path: string): Promise<boolean> {
  * Retourne la vue du morceau mise à jour.
  */
 export async function writeTrackTags(path: string, edit: TagEditPayload): Promise<unknown> {
-  return invoke("write_track_tags", { path, edit });
+  const r = await invoke("write_track_tags", { path, edit });
+  dataCache.invalidateFiches();
+  return r;
 }
 
 /** Marque une valeur qui diffère d'un fichier à l'autre dans une sélection. */

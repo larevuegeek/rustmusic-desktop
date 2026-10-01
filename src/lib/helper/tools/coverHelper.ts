@@ -31,6 +31,32 @@ function lruSet(path: string, val: string) {
     resolved.set(path, val);
 }
 
+// ── Miniatures : une seule question au backend par chemin ──
+const MAX_MINIATURES = 2000;
+const miniatures = new Map<string, Promise<string>>();
+
+function miniature(chemin: string, original: string): Promise<string> {
+    const connue = miniatures.get(chemin);
+    if (connue) {
+        miniatures.delete(chemin);
+        miniatures.set(chemin, connue);
+        return connue;
+    }
+    const p = invoke<string>("resolve_cover_thumbnail", { path: chemin })
+        .then((reel) => {
+            // Miniature encore en génération : le backend rend la grande, on redemandera.
+            if (reel !== chemin) miniatures.delete(chemin);
+            return assetSrc(reel);
+        })
+        .catch(() => {
+            miniatures.delete(chemin);
+            return assetSrc(original);
+        });
+    if (miniatures.size >= MAX_MINIATURES) miniatures.delete(miniatures.keys().next().value!);
+    miniatures.set(chemin, p);
+    return p;
+}
+
 // ── Fonction publique ──
 export async function resolveCoverSrc(path: string | null | undefined, size: CoverSize = 'full'): Promise<string | null> {
     if (!path) return null;
@@ -41,16 +67,8 @@ export async function resolveCoverSrc(path: string | null | undefined, size: Cov
 
     // Mode asset protocol (rapide)
     if (COVER_MODE === 'asset') {
-        // Si c'est une miniature (1x/2x), s'assurer qu'elle existe (génération à la volée)
-        if (size !== 'full') {
-            try {
-                const actualPath = await invoke<string>("resolve_cover_thumbnail", { path: resolvedPath });
-                return assetSrc(actualPath);
-            } catch {
-                // Fallback sur le full si échec
-                return assetSrc(path);
-            }
-        }
+        // Miniature (1x/2x) générée à la volée ; la grande en cas d'échec.
+        if (size !== 'full') return miniature(resolvedPath, path);
         return assetSrc(resolvedPath);
     }
 

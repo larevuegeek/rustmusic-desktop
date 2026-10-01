@@ -1,5 +1,9 @@
 import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-import { formatBitrate, formatChannels } from "$lib/helper/tools/audioFormatTools";
+import { formatBitrate, formatChannels, formatCourt, palierPiste } from "$lib/helper/tools/audioFormatTools";
+import { tailleLisible } from "$lib/helper/tools/sizeTools";
+import { get } from "svelte/store";
+// `t` désigne une piste partout ici : la traduction prend un autre nom.
+import { t as tr, currentLocale } from "$lib/i18n";
 
 /**
  * Les colonnes de la vue liste, définies une seule fois.
@@ -14,7 +18,7 @@ import { formatBitrate, formatChannels } from "$lib/helper/tools/audioFormatTool
 export type TrackColumn = {
   /** Identifiant stable, celui qu'on enregistre dans les réglages. */
   key: string;
-  /** Intitulé affiché dans l'en-tête et dans le sélecteur. */
+  /** Intitulé de repli ; l'affichage passe par `libelleColonne`, traduit au rendu. */
   label: string;
   /**
    * Largeur en pixels.
@@ -54,7 +58,7 @@ export type TrackColumn = {
    * Rendue par un composant plutôt que par du texte. La notation est
    * interactive : elle ne peut pas être une simple chaîne.
    */
-  widget?: "rating" | "index" | "cover" | "title";
+  widget?: "rating" | "index" | "cover" | "title" | "quality";
   /** Texte de la cellule. `null` laisse la cellule vide. */
   value?: (t: TrackListView) => string | null;
   /**
@@ -217,20 +221,20 @@ function duree(secondes: number | null): string | null {
 
 function poids(octets: number | null): string | null {
   if (!octets) return null;
-  const mo = octets / (1024 * 1024);
-  return mo >= 100 ? `${Math.round(mo)} Mo` : `${mo.toFixed(1)} Mo`;
+  return tailleLisible(octets, get(currentLocale));
 }
 
 function date(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString();
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(get(currentLocale));
 }
 
 function frequence(hz: number | null): string | null {
   if (!hz) return null;
-  // Trois décimales pour distinguer 44,1 de 48, sans traîner de zéros.
-  return `${(hz / 1000).toFixed(1).replace(/\.0$/, "")} kHz`;
+  // Une décimale pour distinguer 44,1 de 48, sans traîner de zéros.
+  const khz = (hz / 1000).toLocaleString(get(currentLocale), { maximumFractionDigits: 1, useGrouping: false });
+  return `${khz} kHz`;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -262,6 +266,9 @@ export const COLONNES_FIXES: TrackColumn[] = [
   { key: "play_count", label: "Écoutes", width: 56, align: "right", numeric: true, value: (t) => (t.play_count ? String(t.play_count) : null), sortOn: (t) => t.play_count || null, sortKind: "number" },
   { key: "last_played_at", label: "Dernière écoute", width: 96, numeric: true, value: (t) => date(t.last_played_at), sortOn: (t) => instant(t.last_played_at), sortKind: "number" },
   { key: "created_at", label: "Ajouté le", width: 96, numeric: true, value: (t) => date(t.created_at), sortOn: (t) => instant(t.created_at), sortKind: "number" },
+  { key: "quality", label: "Qualité", width: 140, widget: "quality",
+    value: (t) => `${get(tr)(`tracks_view.${palierPiste(t.audio_format, t.bits_per_sample, t.sample_rate)}`)} · ${formatCourt(t.audio_format, t.bits_per_sample, t.sample_rate)}`,
+    sortOn: (t) => (t.bits_per_sample ?? 0) * 1e6 + (t.sample_rate ?? 0), sortKind: "number" },
   { key: "audio_format", label: "Format", width: 64, value: (t) => t.audio_format },
   { key: "extension", label: "Extension", width: 64, value: (t) => t.extension },
   { key: "bitrate", label: "Débit", width: 80, align: "right", numeric: true, value: (t) => formatBitrate(t.bitrate) || null, sortOn: (t) => t.bitrate, sortKind: "number" },
@@ -319,10 +326,22 @@ const INTITULES: Record<string, string> = {
   total_discs: "Nombre de disques",
 };
 
-/** Rend lisible une clé de tag dont on n'a pas d'intitulé traduit. */
-export function intituleDeTag(cle: string): string {
+/** Rend lisible une clé de tag ; `traduire` fourni, l'intitulé connu est traduit (`columns.tag.<clé>`). */
+export function intituleDeTag(cle: string, traduire?: (k: string) => string): string {
   if (cle.startsWith("custom:")) return cle.slice("custom:".length);
+  if (traduire && INTITULES[cle]) {
+    const traduit = traduire(`columns.tag.${cle}`);
+    if (traduit !== `columns.tag.${cle}`) return traduit;
+  }
   return INTITULES[cle] ?? cle.replace(/_/g, " ");
+}
+
+/** Intitulé affiché d'une colonne, traduit au rendu ; repli sur `label` (tags libres, clés inconnues). */
+export function libelleColonne(col: TrackColumn, traduire: (k: string) => string): string {
+  if (col.key.startsWith("tag:")) return intituleDeTag(col.key.slice("tag:".length), traduire);
+  const cle = `columns.${col.key}`;
+  const traduit = traduire(cle);
+  return traduit === cle ? col.label : traduit;
 }
 
 /** Construit la colonne correspondant à un tag recensé. */
@@ -408,6 +427,13 @@ export function trierPistes(
   return [...tracks].sort(comparateur(col, dir));
 }
 
+/** Tant que la liste n'a jamais été personnalisée : la mise en page de la maquette, la qualité plutôt que l'artiste. */
+export const COLONNES_MAQUETTE = ["index", "cover", "title", "album", "quality", "rating", "duration"];
+export function clesAffichees(brut: string | undefined): string[] {
+  const liste = lireColonnes(brut);
+  return liste.join() === COLONNES_PAR_DEFAUT.join() ? COLONNES_MAQUETTE : liste;
+}
+
 /** Lit la liste enregistrée, en retombant sur la mise en page d'origine. */
 /** Colonnes qui étaient écrites en dur avant d'entrer dans le registre. */
 const STRUCTURELLES = ["index", "cover", "title"];
@@ -450,6 +476,8 @@ export function lireColonnes(brut: string | undefined): string[] {
 /** Bornes d'un redimensionnement, en pixels. */
 export const LARGEUR_MIN = 32;
 export const LARGEUR_MAX = 600;
+/** Le titre peut aller bien plus loin que les autres colonnes. */
+export const LARGEUR_MAX_SOUPLE = 1600;
 
 export function lireLargeurs(brut: string | undefined): Record<string, number> {
   if (!brut) return {};
@@ -460,7 +488,7 @@ export function lireLargeurs(brut: string | undefined): Record<string, number> {
     for (const [cle, val] of Object.entries(v)) {
       // Une valeur aberrante — enregistrement corrompu, version antérieure —
       // est écartée plutôt que de rendre une colonne inatteignable.
-      if (typeof val === "number" && val >= LARGEUR_MIN && val <= LARGEUR_MAX) {
+      if (typeof val === "number" && val >= LARGEUR_MIN && val <= LARGEUR_MAX_SOUPLE) {
         sortie[cle] = val;
       }
     }
@@ -536,7 +564,7 @@ export function largeurAjustee(
 
   // L'intitulé compte : une colonne ajustée à un contenu plus court que son
   // titre afficherait « Dernière éc… » en en-tête.
-  let large = ctx.measureText(col.label).width;
+  let large = ctx.measureText(libelleColonne(col, get(tr))).width;
 
   const lire = col.value ?? ((t: TrackListView) => (col.widget === "title" ? t.title : null));
   for (const t of tracks) {

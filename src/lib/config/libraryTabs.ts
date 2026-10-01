@@ -15,11 +15,11 @@ export type LibraryTab = {
 
 /** `nav.folders` et non `nav.explorer` : c'est le nom de la route et du fil d'ariane. */
 export const ONGLETS_BIBLIOTHEQUE: LibraryTab[] = [
-  { key: "tracks",  labelKey: "library.tracks",  icon: "mynaui:music" },
-  { key: "albums",  labelKey: "library.albums",  icon: "lucide:disc-album" },
-  { key: "artists", labelKey: "library.artists", icon: "lucide:mic-2" },
-  { key: "genres",  labelKey: "library.genres",  icon: "lucide:tag" },
-  { key: "folders", labelKey: "nav.folders",     icon: "lucide:folder-open" },
+  { key: "tracks",  labelKey: "library.tracks",  icon: "material-symbols:music-note-rounded" },
+  { key: "albums",  labelKey: "library.albums",  icon: "material-symbols:album-outline-rounded" },
+  { key: "artists", labelKey: "library.artists", icon: "material-symbols:mic-external-on-outline-rounded" },
+  { key: "genres",  labelKey: "library.genres",  icon: "material-symbols:sell-outline-rounded" },
+  { key: "folders", labelKey: "nav.folders",     icon: "material-symbols:folder-outline-rounded" },
 ];
 
 export const ONGLETS_PAR_DEFAUT: LibraryTabKey[] = ONGLETS_BIBLIOTHEQUE.map((o) => o.key);

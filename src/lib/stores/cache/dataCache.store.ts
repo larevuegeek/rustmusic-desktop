@@ -24,7 +24,10 @@ const MAX_FICHES = 40;
 
 const PREFIXES_LISTE = ['tracks:', 'albums:', 'artists:'];
 
-const cache = new Map<string, CacheEntry<any>>();
+const cache = new Map<string, CacheEntry<unknown>>();
+
+// Une liste vide vient souvent d'une erreur avalée : on ne la met pas en cache.
+const utile = <T>(r: T | null | undefined): r is T => r != null && !(Array.isArray(r) && r.length === 0);
 
 const estListe = (key: string) =>
   PREFIXES_LISTE.some((p) => key.startsWith(p)) && !key.startsWith('album-tracks:');
@@ -80,6 +83,27 @@ export const dataCache = {
 
   invalidateAll(): void {
     cache.clear();
+  },
+
+  /** Après une écriture (tags, renommage, pochette, note) : les fiches se rechargeront. */
+  invalidateFiches(): void {
+    for (const key of [...cache.keys()]) if (!estListe(key)) cache.delete(key);
+  },
+
+  /** Sert la fiche en cache tout de suite ; périmée, la relit et la repasse à `rafraichir`. */
+  async lire<T>(key: string, charger: () => Promise<T | null | undefined>, rafraichir?: (v: T) => void): Promise<T | null> {
+    const c = dataCache.get<T>(key);
+    if (c && !c.fresh) {
+      charger().then((r) => {
+        if (!utile(r)) return;
+        dataCache.set(key, r);
+        rafraichir?.(r);
+      }).catch(() => {});
+    }
+    if (c) return c.data;
+    const r = await charger();
+    if (utile(r)) dataCache.set(key, r);
+    return r ?? null;
   },
 
   size(): number {

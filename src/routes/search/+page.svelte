@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t, currentLocale } from "$lib/i18n";
   import { page } from "$app/state";
   import { invoke } from "@tauri-apps/api/core";
   import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
@@ -70,9 +70,9 @@
   <div class="mb-6">
     <p class="text-xs uppercase tracking-widest text-neutral-400 mb-1">{$t('search.results_for')}</p>
     <h1 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-      « {query} »
+      {$t("search.query_quoted").replace("{query}", query)}
     </h1>
-    <p class="text-sm text-neutral-400 mt-1">{results.length} résultat{results.length !== 1 ? 's' : ''}</p>
+    <p class="text-sm text-neutral-400 mt-1">{$t(results.length === 1 ? "search.results_one" : "search.results_n").replace("{n}", results.length.toLocaleString($currentLocale))}</p>
   </div>
 
   {#if loading}
@@ -93,7 +93,7 @@
     {#if artists.length > 0}
       <div class="mb-8">
         <h2 class="text-xs font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 mb-3">
-          Artistes ({artists.length})
+          {$t("library.artists")} ({artists.length})
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {#each artists as result (result.id)}
@@ -123,7 +123,7 @@
     {#if albums.length > 0}
       <div class="mb-8">
         <h2 class="text-xs font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 mb-3">
-          Albums ({albums.length})
+          {$t("library.albums")} ({albums.length})
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-3">
           {#each albums as result (result.id)}
@@ -158,7 +158,7 @@
     {#if tracks.length > 0}
       <div class="mb-8">
         <h2 class="text-xs font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 mb-3">
-          Morceaux ({tracks.length})
+          {$t("library.tracks")} ({tracks.length})
         </h2>
         <div class="flex flex-col">
           {#each tracks as result, i (result.id)}
@@ -195,6 +195,7 @@
                 class="p-1.5 rounded-lg shrink-0 cursor-pointer opacity-0 group-hover:opacity-100
                        text-green-500 hover:bg-green-500/15 transition-all"
                 onclick={() => result.path && handlePlayTrack(result.path, versFileDAttente(tracks))}
+                aria-label={$t("home.play")}
               >
                 <Icon icon="lucide:play" width="14" />
               </button>

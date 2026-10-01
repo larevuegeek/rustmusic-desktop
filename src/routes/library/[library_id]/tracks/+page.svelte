@@ -1,144 +1,268 @@
 <script lang="ts">
+import EmptyResult from "$lib/components/ui/feedback/EmptyResult.svelte";
+import SearchField from "$lib/components/ui/input/SearchField.svelte";
+import TextButton from "$lib/components/ui/button/TextButton.svelte";
+import MenuSelect from "$lib/components/ui/menu/MenuSelect.svelte";
+import SelectionToggle from "$lib/components/ui/selection/SelectionToggle.svelte";
+import SegmentedControl from "$lib/components/ui/input/SegmentedControl.svelte";
+import TrackColumnsButton from "$lib/components/library/track/TrackColumnsButton.svelte";
 import { page } from "$app/state";
-import { selectionStore } from "$lib/stores/ui/selection.store";
+import { onDestroy, tick } from "svelte";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
+import { t, currentLocale } from "$lib/i18n";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { libraryHeader } from "$lib/stores/library/libraryHeader";
-import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
-import TrackListItem from "$lib/components/library/track/TrackListItem.svelte";
-import TrackListCompact from "$lib/components/library/track/TrackListCompact.svelte";
-import { viewMode } from "$lib/stores/ui/viewMode.store";
+import { settingsStore } from "$lib/stores/settings/settings.store";
 import { handleAddFiles, handleAddDirectory } from "$lib/actions/library/LibraryAction";
-import { t } from "$lib/i18n";
+import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
+import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
+import { clesAffichees, resoudreColonnes, lireLargeurs, resetTagCache, type SortDir } from "$lib/config/trackColumns";
+import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
+import LibraryTrackTable from "$lib/components/library/track/LibraryTrackTable.svelte";
+import FilterChip from "$lib/components/ui/input/FilterChip.svelte";
+import Menu from "$lib/components/ui/menu/Menu.svelte";
+import MenuItem from "$lib/components/ui/menu/MenuItem.svelte";
+import AlphabetNav from "$lib/components/ui/alphabet/AlphabetNav.svelte";
 import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-import FilterBar from "$lib/components/library/common/FilterBar.svelte";
-import TrackTable from "$lib/components/library/track/TrackTable.svelte";
-import { resetTagCache, type SortDir } from "$lib/config/trackColumns";
+import type { GenreView } from "$lib/types/ui/library/genre/GenreView";
 
 const libraryId = $derived(Number(page.params.library_id));
-const currentLibrary = $derived(
-  $libraryStore.libraries.find(l => l.id === libraryId)
-);
+const currentLibrary = $derived($libraryStore.libraries.find((l) => l.id === libraryId));
 
-// Infinite scroll
-const BATCH_SIZE = 100;
-let tracks: TrackListView[] = $state([]);
-let totalTracks = $state(0);
-let isLoading = $state(true);
-let isLoadingMore = $state(false);
-let hasMore = $derived(tracks.length < totalTracks);
-
-// Filtre & tri (tri mémorisé dans localStorage)
-const SORT_KEY = 'filterbar:tracks';
-const savedSort = (() => {
-  try { return JSON.parse(localStorage.getItem(SORT_KEY) || '{}'); }
-  catch { return {}; }
-})();
-
-let filterQuery = $state('');
-let sortBy = $state<string>(savedSort.sortBy ?? 'default');
-let sortDir = $state<string>(savedSort.sortDir ?? 'asc');
-
-$effect(() => {
-  try { localStorage.setItem(SORT_KEY, JSON.stringify({ sortBy, sortDir })); }
-  catch {}
-});
-
-/**
- * Tri demandé depuis un en-tête de colonne.
- *
- * On écrit dans le même état que la barre de filtres : les deux commandes
- * disent la même chose, et l'une doit refléter ce que l'autre a fait. Le
- * rechargement suit, puisque le classement est l'affaire de la base.
- */
-function handleHeaderSort(key: string, dir: SortDir) {
-  sortBy = key;
-  sortDir = dir;
-  fetchTracks(true);
-  scrollEl?.scrollTo({ top: 0 });
-}
-
-// ─── L'ordre affiché, pour la sélection par plage ───
-//
-// Déclaré aussi en vue cartes : Maj + clic doit fonctionner dans les deux modes,
-// et l'ordre n'y est pas le même.
-$effect(() => {
-  selectionStore.setOrder(tracks.map((t) => ({ id: t.id, track: t })));
-});
-
-let scrollEl = $state<HTMLDivElement | null>(null);
-
-const sortOptions = [
-  { key: 'default', label: 'Par défaut', icon: 'lucide:list' },
-  { key: 'title', label: 'Titre', icon: 'lucide:type' },
-  { key: 'artist', label: 'Artiste', icon: 'lucide:mic-2' },
-  { key: 'album', label: 'Album', icon: 'lucide:disc-album' },
-  { key: 'duration', label: 'Durée', icon: 'lucide:clock' },
-  { key: 'rating', label: 'Notation', icon: 'lucide:star' },
-  { key: 'date', label: 'Date d\'ajout', icon: 'lucide:calendar' },
+// ─── Préférences retenues : tri et densité ───
+type Tri = "title" | "artist" | "album" | "rating" | "duration" | "date";
+const TRIS: { cle: Tri; libelle: string; icone: string }[] = [
+  { cle: "title", libelle: "tracks_view.sort_title", icone: "material-symbols:sort-by-alpha-rounded" },
+  { cle: "artist", libelle: "tracks_view.sort_artist", icone: "material-symbols:person-outline-rounded" },
+  { cle: "album", libelle: "tracks_view.sort_album", icone: "material-symbols:album-outline-rounded" },
+  { cle: "rating", libelle: "tracks_view.sort_rating", icone: "material-symbols:star-outline-rounded" },
+  { cle: "duration", libelle: "tracks_view.sort_duration", icone: "material-symbols:schedule-outline-rounded" },
+  { cle: "date", libelle: "tracks_view.sort_added", icone: "material-symbols:calendar-month-outline-rounded" },
 ];
-
+function lire<T>(cle: string, defaut: T): T {
+  try { return (JSON.parse(localStorage.getItem(cle) ?? "null") as T) ?? defaut; } catch { return defaut; }
+}
+const pref = lire<{ tri?: string; sens?: SortDir }>("morceaux:tri", {});
+// Le tri s'applique aussi aux colonnes non listées (tags) : on garde la clé telle quelle.
+let tri = $state<string>(pref.tri ?? "title");
+let sens = $state<SortDir>(pref.sens ?? "asc");
+let detaille = $state(lire<string>("morceaux:densite", "compact") === "detaille");
 $effect(() => {
-  const _libId = libraryId;
-  tracks = [];
-  fetchTracks(true);
-});
-
-$effect(() => {
-  const _missing = $libraryContentStore.missingAlbumCover;
-  fetchTracks(true);
-});
-
-async function fetchTracks(reset = false) {
-  if (reset) {
-    isLoading = true;
-    tracks = [];
-  } else {
-    isLoadingMore = true;
-  }
-
   try {
-    const result = await invoke<{ tracks: TrackListView[]; total: number }>('get_tracks_paginated', {
-      libraryId,
-      offset: reset ? 0 : tracks.length,
-      limit: BATCH_SIZE,
-      sortBy: sortBy === 'default' ? null : sortBy,
-      sortDir,
-      filter: filterQuery.length >= 2 ? filterQuery : null,
-      missingCover: $libraryContentStore.missingAlbumCover,
-    });
-
-    if (reset) resetTagCache();
-    tracks = reset ? result.tracks : [...tracks, ...result.tracks];
-    totalTracks = result.total;
-  } catch (e) {
-    console.error('Failed to load tracks:', e);
-  } finally {
-    isLoading = false;
-    isLoadingMore = false;
-  }
-}
-
-$effect(() => {
-  libraryHeader.update(current => {
-    if (current.total === totalTracks && current.subtitle === 'Morceaux') return current;
-    return { subtitle: 'Morceaux', icon: 'lucide:music', total: totalTracks };
-  });
+    localStorage.setItem("morceaux:tri", JSON.stringify({ tri, sens }));
+    localStorage.setItem("morceaux:densite", JSON.stringify(detaille ? "detaille" : "compact"));
+  } catch {}
 });
 
-function handleScroll(e: Event) {
-  const el = e.target as HTMLDivElement;
-  if (isLoadingMore || !hasMore) return;
-  if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) {
-    fetchTracks(false);
+// ─── Filtres (appliqués par la base : la liste arrive page par page) ───
+let recherche = $state("");
+let rechercheEnvoyee = $state("");
+let minuterie: ReturnType<typeof setTimeout> | null = null;
+$effect(() => {
+  const q = recherche.trim();
+  if (minuterie) clearTimeout(minuterie);
+  minuterie = setTimeout(() => (rechercheEnvoyee = q.length >= 2 ? q : ""), 300);
+});
+let hiRes = $state(false);
+let sansPerte = $state(false);
+let favoris = $state(false);
+let sansPochette = $state(false);
+let genre = $state<string | null>(null);
+
+const filtresActifs = $derived(!!recherche.trim() || hiRes || sansPerte || favoris || sansPochette || !!genre);
+function effacerFiltres() {
+  recherche = "";
+  hiRes = sansPerte = favoris = sansPochette = false;
+  genre = null;
+}
+
+let menuGenre = $state(false);
+
+// Genres de la bibliothèque, chargés à la première ouverture du menu.
+let genres = $state<GenreView[] | null>(null);
+async function ouvrirGenres() {
+  menuGenre = !menuGenre;
+  if (genres === null) {
+    try {
+      genres = (await invoke<GenreView[]>("get_genres", { libraryId })).sort((a, b) => b.total_tracks - a.total_tracks);
+    } catch {
+      genres = [];
+    }
   }
 }
 
-function handleFilterChange() {
-  fetchTracks(true);
+// ─── Colonnes : celles de l'utilisateur, habillées pour la maquette ───
+const cles = $derived(clesAffichees($settingsStore.track_columns));
+// L'artiste passe sous le titre ; en détaillé, album, année et qualité passent sur la ligne d'infos.
+const DANS_LE_DETAIL = new Set(["album", "quality", "year", "audio_format", "bits_per_sample", "sample_rate"]);
+const colonnes = $derived(resoudreColonnes(cles).filter((c) => c.key !== "artist" && !(detaille && DANS_LE_DETAIL.has(c.key))));
+const largeurs = $derived(lireLargeurs($settingsStore.track_column_widths));
+
+// ─── Chargement page par page ───
+const PAGE = 100;
+// La liste chargée est une fenêtre [debut, debut + tracks.length) : la navigation A–Z la déplace.
+let tracks = $state<TrackListView[]>([]);
+let debut = $state(0);
+let total = $state(0);
+let chargement = $state(true);
+let suite = $state(false);
+let defilement = $state<HTMLDivElement | null>(null);
+let jeton = 0;
+
+function filtres() {
+  return {
+    libraryId,
+    sortDir: sens,
+    filter: rechercheEnvoyee || null,
+    missingCover: sansPochette,
+    quality: hiRes ? "hires" : sansPerte ? "lossless" : null,
+    favorites: favoris,
+    genre,
+  };
 }
+function parametres(offset: number, limit: number) {
+  return { ...filtres(), offset, limit, sortBy: tri };
+}
+
+async function lirePage(offset: number, limit: number) {
+  return invoke<{ tracks: TrackListView[]; total: number }>("get_tracks_paginated", parametres(offset, limit));
+}
+
+/** Recharge une fenêtre qui commence à `depart` ; `ancre` = index absolu à amener en haut. */
+async function charger(depart = 0, ancre: number | null = null) {
+  const moi = ++jeton;
+  chargement = true;
+  try {
+    const r = await lirePage(depart, PAGE);
+    if (moi !== jeton) return;
+    resetTagCache();
+    tracks = r.tracks;
+    debut = depart;
+    total = r.total;
+    await tick();
+    if (ancre === null) defilement?.scrollTo({ top: 0 });
+    else montrer(ancre);
+  } catch (e) {
+    console.error("[morceaux] chargement :", e);
+  } finally {
+    if (moi === jeton) chargement = false;
+  }
+}
+
+// Au-delà, on lâche l'autre bout : le document reste léger après des milliers de titres.
+const FENETRE = 500;
+
+/** Applique `maj` sans que la première ligne visible ne bouge à l'écran. */
+async function sansSaut(maj: () => void) {
+  const el = defilement;
+  const haut = el?.getBoundingClientRect().top ?? 0;
+  const repere = el ? [...el.querySelectorAll<HTMLElement>("[data-piste]")].find((r) => r.getBoundingClientRect().bottom > haut) : undefined;
+  const avant = repere?.getBoundingClientRect().top ?? 0;
+  maj();
+  await tick();
+  if (el && repere?.isConnected) el.scrollTop += repere.getBoundingClientRect().top - avant;
+}
+
+async function chargerApres() {
+  const moi = jeton;
+  suite = true;
+  try {
+    const r = await lirePage(debut + tracks.length, PAGE);
+    if (moi !== jeton) return;
+    const tout = [...tracks, ...r.tracks];
+    const trop = Math.max(0, tout.length - FENETRE);
+    await sansSaut(() => { tracks = tout.slice(trop); debut += trop; });
+  } catch (e) {
+    console.error("[morceaux] suite :", e);
+  } finally {
+    suite = false;
+  }
+}
+
+// Au-dessus de la fenêtre : on insère sans faire sauter ce qu'on regarde.
+async function chargerAvant() {
+  const moi = jeton;
+  const depart = Math.max(0, debut - PAGE);
+  suite = true;
+  try {
+    const r = await lirePage(depart, debut - depart);
+    if (moi !== jeton) return;
+    await sansSaut(() => { tracks = [...r.tracks, ...tracks].slice(0, FENETRE); debut = depart; });
+  } catch (e) {
+    console.error("[morceaux] précédents :", e);
+  } finally {
+    suite = false;
+  }
+}
+
+function defiler(e: Event) {
+  const el = e.currentTarget as HTMLDivElement;
+  if (suite || chargement) return;
+  if (debut + tracks.length < total && el.scrollHeight - el.scrollTop - el.clientHeight < 400) chargerApres();
+  else if (debut > 0 && el.scrollTop < 400) chargerAvant();
+}
+
+// ─── Navigation A–Z : la base dit où commence chaque lettre dans le tri en cours ───
+let lettres = $state<Map<string, number>>(new Map());
+let jetonLettres = 0;
+async function chargerLettres() {
+  // Filtres changés pendant la requête : ces positions ne valent plus.
+  const moi = ++jetonLettres;
+  if (tri !== "title") { lettres = new Map(); return; }
+  try {
+    const l = await invoke<{ letter: string; offset: number }[]>("get_track_letter_offsets", filtres());
+    if (moi === jetonLettres) lettres = new Map(l.map((x) => [x.letter, x.offset]));
+  } catch {
+    if (moi === jetonLettres) lettres = new Map();
+  }
+}
+
+/** Amène la ligne d'index absolu `i` en haut de la zone (sous l'en-tête collant). */
+function montrer(i: number) {
+  const piste = tracks[i - debut];
+  if (piste) defilement?.querySelector(`[data-piste="${CSS.escape(piste.id)}"]`)?.scrollIntoView({ block: "start" });
+}
+
+function allerLettre(l: string) {
+  const i = lettres.get(l);
+  if (i === undefined) return;
+  if (i >= debut && i < debut + tracks.length) montrer(i);
+  // Un peu de contexte au-dessus : remonter d'une ligne recharge la suite sans à-coup.
+  else charger(Math.max(0, i - 20), i);
+}
+
+// Tout changement de bibliothèque, de tri ou de filtre repart du début.
+$effect(() => {
+  void [libraryId, tri, sens, rechercheEnvoyee, hiRes, sansPerte, favoris, sansPochette, genre];
+  charger(0);
+  chargerLettres();
+});
+
+function trierPar(cle: string, dir: SortDir) {
+  tri = cle;
+  sens = dir;
+}
+
+// « Tout lire » (en-tête) : la liste telle qu'affichée, filtres et tri compris, plafonnée
+// pour ne pas charger la file et ses panneaux de dizaines de milliers de lignes.
+const PLAFOND_LECTURE = 1000;
+async function toutLire() {
+  try {
+    const r = await invoke<{ tracks: TrackListView[] }>("get_tracks_paginated", parametres(0, PLAFOND_LECTURE));
+    if (r.tracks.length) await handlePlayTrack(r.tracks[0].path, versFileDAttente(r.tracks));
+  } catch (e) {
+    console.error("[morceaux] tout lire :", e);
+  }
+}
+
+// Dans un effet (après le montage) : la page quittée a déjà remis l'en-tête à zéro.
+$effect(() => {
+  libraryHeader.update(() => ({ action: { cle: "library_head.play_all", icone: "material-symbols:play-arrow-rounded", lancer: toutLire } }));
+});
+onDestroy(() => libraryHeader.update((h) => ({ ...h, action: null })));
+
+const nombre = (n: number) => n.toLocaleString($currentLocale);
 </script>
 
 {#if $libraryStore.isImporting}
@@ -146,98 +270,111 @@ function handleFilterChange() {
 
 {:else if currentLibrary?.total_tracks === 0}
   <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
-    <div class="relative mb-5">
-      <div class="absolute inset-0 rounded-2xl bg-green-500/25 blur-2xl scale-[2] animate-pulse"></div>
-      <div class="relative w-16 h-16 rounded-2xl
-                  bg-neutral-100 dark:bg-neutral-800
-                  border border-neutral-200/60 dark:border-neutral-700/40
-                  flex items-center justify-center">
-        <Icon icon="lucide:music" width="24" class="text-green-500/60" />
-      </div>
+    <div class="w-16 h-16 mb-5 rounded-2xl border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+      <Icon icon="material-symbols:music-note-rounded" width="30" />
     </div>
-    <h3 class="text-base font-semibold text-neutral-700 dark:text-neutral-200 mb-1.5">
-      {$t('library.empty_title')}
-    </h3>
-    <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-6">
-      {$t('library.empty_desc')}
-    </p>
+    <h3 class="text-base font-semibold text-(--rg-tx) mb-1.5">{$t("library.empty_title")}</h3>
+    <p class="text-sm text-(--rg-mu) max-w-xs leading-relaxed mb-6">{$t("library.empty_desc")}</p>
     <div class="flex items-center gap-2">
-      <button
-        class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer
-               bg-green-500 text-black hover:bg-green-400
-               active:scale-[0.97] transition-all duration-150"
-        onclick={() => libraryId && handleAddFiles(libraryId)}
-      >
-        <Icon icon="lucide:file-audio" width="14" />
-        {$t('library.import_files')}
+      <button class="h-10 px-4 flex items-center gap-2 rounded-[10px] text-sm font-bold cursor-pointer bg-(--rg-g) text-(--rg-on-g) hover:bg-[#34d673]"
+              onclick={() => libraryId && handleAddFiles(libraryId)}>
+        <Icon icon="material-symbols:upload-file-outline-rounded" width="18" />{$t("library.import_files")}
       </button>
-      <button
-        class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer
-               border border-neutral-200/80 dark:border-neutral-700/60
-               text-neutral-600 dark:text-neutral-300
-               hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60
-               active:scale-[0.97] transition-all duration-150"
-        onclick={() => libraryId && handleAddDirectory(libraryId)}
-      >
-        <Icon icon="lucide:folder-plus" width="14" />
-        {$t('library.import_folder')}
+      <button class="h-10 px-4 flex items-center gap-2 rounded-[10px] text-sm font-semibold cursor-pointer border border-(--rg-bd2) text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-carte)"
+              onclick={() => libraryId && handleAddDirectory(libraryId)}>
+        <Icon icon="material-symbols:create-new-folder-outline-rounded" width="18" />{$t("library.import_folder")}
       </button>
     </div>
   </div>
 
 {:else}
   <div class="flex flex-col h-full">
-    <FilterBar
-      bind:filterQuery bind:sortBy bind:sortDir
-      {sortOptions}
-      onchange={handleFilterChange}
-    />
+    <!-- ─── Outils : une ligne si la place le permet ; sinon recherche + vue en haut, filtres dessous ─── -->
+    <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={$t("tracks_view.search")} clearLabel={$t("tracks_view.clear_filters")} />
 
-    <!-- Liste avec infinite scroll -->
+        <div class="order-2 @max-6xl:order-4 @max-6xl:basis-full flex flex-wrap items-center gap-2.5">
+          <!-- Très étroit : l'icône seule, le libellé reste en info-bulle. -->
+          <FilterChip icon="material-symbols:high-quality-outline-rounded" pressed={hiRes} title={$t("tracks_view.hires")} onclick={() => (hiRes = !hiRes)}><span class="@max-xl:hidden">{$t("tracks_view.hires")}</span></FilterChip>
+          <FilterChip icon="material-symbols:graphic-eq-rounded" pressed={sansPerte} title={$t("tracks_view.lossless")} onclick={() => (sansPerte = !sansPerte)}><span class="@max-xl:hidden">{$t("tracks_view.lossless")}</span></FilterChip>
+          <FilterChip icon="material-symbols:favorite-outline-rounded" pressed={favoris} title={$t("tracks_view.favorites")} onclick={() => (favoris = !favoris)}><span class="@max-xl:hidden">{$t("tracks_view.favorites")}</span></FilterChip>
+          <FilterChip icon="material-symbols:hide-image-outline-rounded" pressed={sansPochette} title={$t("tracks_view.no_cover")} onclick={() => (sansPochette = !sansPochette)}><span class="@max-xl:hidden">{$t("tracks_view.no_cover")}</span></FilterChip>
+          <div class="relative">
+            <FilterChip icon="material-symbols:sell-outline-rounded" pressed={!!genre} menu onclick={ouvrirGenres}>
+              <span class="max-w-40 truncate">{genre ?? $t("tracks_view.genre")}</span>
+            </FilterChip>
+            <Menu bind:open={menuGenre} align="left" class="w-60 max-h-80 overflow-y-auto scrollbar-app">
+              <MenuItem actif={!genre} onclick={() => { genre = null; menuGenre = false; }}>{$t("tracks_view.all_genres")}</MenuItem>
+              {#if genres === null}
+                <p class="px-2.5 py-2 text-xs text-(--rg-mu)">{$t("common.loading")}</p>
+              {:else}
+                {#each genres as g (g.name)}
+                  <MenuItem actif={genre === g.name} onclick={() => { genre = g.name; menuGenre = false; }}>
+                    {g.name}
+                    {#snippet fin()}<span class="font-mono text-[11px] text-(--rg-mu2)">{nombre(g.total_tracks)}</span>{/snippet}
+                  </MenuItem>
+                {/each}
+              {/if}
+            </Menu>
+          </div>
+          {#if filtresActifs}
+            <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("tracks_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={effacerFiltres} />
+          {/if}
+        </div>
+
+        <span class="order-3 flex-1 @max-6xl:hidden"></span>
+
+        <div class="order-3 flex items-center gap-2.5">
+          <MenuSelect value={tri} options={TRIS.map((x) => ({ value: x.cle, label: $t(x.libelle), icon: x.icone }))}
+                      onchange={(v) => { tri = v; sens = "asc"; }} labelClass="@max-xl:hidden" menuClass="w-55"
+                      label={tri.replace(/^tag:(custom:)?/, "")} icon="material-symbols:sort-rounded"
+                      indicator={sens === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded"}>
+            {#snippet fin(fermer)}
+              <MenuItem icon="material-symbols:swap-vert-rounded" onclick={() => { sens = sens === "asc" ? "desc" : "asc"; fermer(); }}>{$t("tracks_view.reverse")}</MenuItem>
+            {/snippet}
+          </MenuSelect>
+
+          <SegmentedControl variant="discret" label={$t("tracks_view.detailed")} value={detaille ? "detaille" : "compact"} onchange={(v) => (detaille = v === "detaille")}
+                            options={[
+                              { value: "compact", label: $t("tracks_view.compact"), icon: "material-symbols:density-small-rounded", iconOnly: true },
+                              { value: "detaille", label: $t("tracks_view.detailed"), icon: "material-symbols:density-medium-rounded", iconOnly: true },
+                            ]} />
+
+          <TrackColumnsButton {libraryId} />
+
+          <SelectionToggle />
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Morceaux, chargés au fil du défilement ─── -->
     <div class="flex-1 relative min-h-0">
-      <div
-        class="absolute inset-0 overflow-y-auto scrollbar-app px-3"
-        bind:this={scrollEl}
-        onscroll={handleScroll}
-      >
-        {#if isLoading}
-          <div class="flex items-center justify-center py-20">
-            <Icon icon="lucide:loader-2" width="24" class="animate-spin text-neutral-400" />
+      <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16" bind:this={defilement} onscroll={defiler}>
+        {#if chargement && tracks.length === 0}
+          <div class="flex items-center justify-center py-20 text-(--rg-mu)">
+            <Icon icon="material-symbols:progress-activity" width="26" class="animate-spin" />
           </div>
         {:else if tracks.length === 0}
-          <div class="flex flex-col items-center justify-center py-20 text-center">
-            <Icon icon="lucide:search-x" width="32" class="text-neutral-300 dark:text-neutral-600 mb-3" />
-            <p class="text-sm text-neutral-400">{$t('search.no_result_for').replace('{query}', filterQuery)}</p>
-          </div>
+          <EmptyResult message={$t("tracks_view.no_match")} effacerLabel={$t("tracks_view.clear_filters")} oneffacer={filtresActifs ? effacerFiltres : null} />
         {:else}
-          {#if $viewMode === 'list'}
-            <!-- Le tri part en base, pas en mémoire : ne ranger que les cent
-                 lignes déjà chargées donnerait un résultat faux à l'air juste. -->
-            <TrackTable
-              {libraryId}
-              {tracks}
-              sortKey={sortBy === 'default' ? null : sortBy}
-              sortDir={sortDir as SortDir}
-              onsort={handleHeaderSort}
-            />
-          {:else}
-            {#each tracks as track (track.id)}
-              <TrackListItem {libraryId} {track} {tracks} />
-            {/each}
+          {#if debut > 0 && suite}
+            <div class="flex justify-center py-3 text-(--rg-mu)"><Icon icon="material-symbols:progress-activity" width="20" class="animate-spin" /></div>
           {/if}
-
-          {#if isLoadingMore}
-            <div class="flex items-center justify-center py-4">
-              <Icon icon="lucide:loader-2" width="18" class="animate-spin text-neutral-400" />
-            </div>
+          <LibraryTrackTable {libraryId} {tracks} columns={colonnes} {largeurs} {detaille} sortKey={tri} sortDir={sens} onsort={trierPar} />
+          {#if suite}
+            <div class="flex justify-center py-4 text-(--rg-mu)"><Icon icon="material-symbols:progress-activity" width="20" class="animate-spin" /></div>
           {/if}
-
-          <div class="text-center py-3 text-[10px] text-neutral-400 tabular-nums">
-            {tracks.length} / {totalTracks} morceaux
-          </div>
+          <p class="py-3 text-center text-[11px] tabular-nums text-(--rg-mu2)">
+            {$t("tracks_view.loaded").replace("{n}", nombre(debut + tracks.length)).replace("{total}", nombre(total))}
+          </p>
         {/if}
       </div>
 
+      {#if tri === "title" && lettres.size > 0}
+        <AlphabetNav availableLetters={new Set(lettres.keys())} onletter={allerLettre} toujours />
+      {/if}
     </div>
   </div>
+
 {/if}

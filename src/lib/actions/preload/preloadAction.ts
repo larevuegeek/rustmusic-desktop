@@ -32,8 +32,6 @@
 
 import { dataCache } from "$lib/stores/cache/dataCache.store";
 import { loadAlbum, loadArtist, loadTracksByAlbum } from "$lib/services/library/library.service";
-import { invoke } from "@tauri-apps/api/core";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 
 /**
  * Set des clés en cours de preload.
@@ -109,7 +107,7 @@ export function preloadAlbumData(libraryId: number, albumId: string) {
         loadTracksByAlbum(libraryId, albumId),
     ]).then(([album, tracks]) => {
         if (album) dataCache.set(cacheKey, album);
-        if (tracks) dataCache.set(`album-tracks:${albumId}`, tracks);
+        if (tracks?.length) dataCache.set(`album-tracks:${albumId}`, tracks);
     }).catch(() => {
         // Silencieux — c'est du preload, pas critique
     }).finally(() => {
@@ -135,25 +133,3 @@ export function preloadArtistData(artistId: string) {
     });
 }
 
-/**
- * Preload les tracks d'un artiste.
- */
-export function preloadArtistTracks(libraryId: number, artistId: string) {
-    const cacheKey = `artist-tracks:${artistId}`;
-
-    const cached = dataCache.get(cacheKey);
-    if (cached?.fresh) return;
-
-    if (inflight.has(cacheKey)) return;
-    inflight.add(cacheKey);
-
-    invoke<TrackListView[]>('get_tracks_by_artist', {
-        libraryId, artistId
-    }).then(tracks => {
-        dataCache.set(cacheKey, tracks);
-    }).catch(() => {
-        // Silencieux
-    }).finally(() => {
-        inflight.delete(cacheKey);
-    });
-}

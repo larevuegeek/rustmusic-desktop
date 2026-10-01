@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "$lib/i18n";
   import { fade, scale } from "svelte/transition";
   import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 
@@ -56,7 +57,7 @@
       type="button"
       class="fixed inset-0 bg-black/85 backdrop-blur-xl cursor-default"
       style="z-index: 9998;"
-      aria-label="Fermer l'image"
+      aria-label={$t("common.close")}
       onclick={closeCover}
       transition:fade={{ duration: 150 }}
     ></button>

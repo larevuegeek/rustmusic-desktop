@@ -180,7 +180,7 @@ export const tagWorkshop = {
     const results: WorkshopFile[] = tracks.map((track) => {
       const original: Record<string, string> = {};
       for (const field of WORKSHOP_FIELDS) {
-        const raw = (track.tags as any)[field];
+        const raw = (track.tags as Record<string, unknown>)[field];
         original[field] = raw === null || raw === undefined ? "" : String(raw);
       }
       return {

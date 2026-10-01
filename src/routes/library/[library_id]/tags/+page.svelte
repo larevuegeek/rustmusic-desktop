@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { messageErreur } from "$lib/helper/tools/errorTools";
   // Atelier de tags.
   //
   // # Pourquoi une page et pas une popin
@@ -235,7 +236,7 @@
       const prepared = await prepareImage(selected);
       tagWorkshop.setCoverOnSelected({ path: selected, src: prepared.src });
     } catch (e) {
-      launchError = String((e as any)?.message ?? e ?? "");
+      launchError = messageErreur(e);
     } finally {
       coverBusy = false;
     }
@@ -284,7 +285,7 @@
       // proposerait de réécrire ce qu'elle vient d'envoyer.
       tagWorkshop.markWritten(written);
     } catch (e) {
-      launchError = String((e as any)?.message ?? e ?? "");
+      launchError = messageErreur(e);
     } finally {
       launching = false;
     }

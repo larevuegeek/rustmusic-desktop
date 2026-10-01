@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { messageErreur } from "$lib/helper/tools/errorTools";
   // Ce qu'il y a à corriger dans la bibliothèque.
   //
   // # Pourquoi c'est l'écran d'accueil de l'atelier
@@ -49,7 +50,7 @@
     try {
       report = await auditLibrary(id);
     } catch (e) {
-      error = String((e as any)?.message ?? e ?? "");
+      error = messageErreur(e);
     } finally {
       loading = false;
     }

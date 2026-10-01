@@ -1,4 +1,5 @@
 <script lang="ts">
+import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
 import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
 import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
@@ -6,6 +7,7 @@ import { liked } from "$lib/stores/playlist/like.store";
 import { selectionStore } from "$lib/stores/ui/selection.store";
 import { settingsStore } from "$lib/stores/settings/settings.store";
 import Icon from "@iconify/svelte";
+import { t } from "$lib/i18n";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import StarRating from "$lib/components/ui/rating/StarRating.svelte";
 import { largeurDe, estFlexible, styleCellule, type TrackColumn } from "$lib/config/trackColumns";
@@ -13,10 +15,10 @@ import { largeurDe, estFlexible, styleCellule, type TrackColumn } from "$lib/con
 // Les colonnes viennent de la page : la ligne n'a pas à relire les réglages.
 let { libraryId, track, tracks = [], columns = [], largeurs = {} }:
     {
-        libraryId: any;
-        track: any;
+        libraryId: number | null;
+        track: TrackListView;
         /** La liste affichée, pour que la lecture enchaîne après ce morceau. */
-        tracks?: any[];
+        tracks?: TrackListView[];
         columns?: TrackColumn[];
         /** Largeurs réglées, par clé de colonne. Voir `TrackTable`. */
         largeurs?: Record<string, number>;
@@ -145,7 +147,7 @@ function handleClick(e?: MouseEvent) {
         ondblclick={(e) => e.stopPropagation()}
         class="favori p-1 rounded cursor-pointer shrink-0 transition-colors
                {isLiked ? 'text-pink-500' : 'text-transparent group-hover:text-neutral-300 dark:group-hover:text-neutral-600 hover:!text-pink-400'}"
-        aria-label="Liker"
+        aria-label={$t("common.like")}
     >
         <Icon icon={isLiked ? "mynaui:heart-solid" : "lucide:heart"} width={13} />
     </button>
@@ -156,7 +158,7 @@ function handleClick(e?: MouseEvent) {
         ondblclick={(e) => e.stopPropagation()}
         class="p-1 rounded cursor-pointer shrink-0 opacity-0 group-hover:opacity-100
                text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-all"
-        aria-label="Actions"
+        aria-label={$t("tracks_view.more")}
     >
         <Icon icon="lucide:more-horizontal" width={14} />
     </button>

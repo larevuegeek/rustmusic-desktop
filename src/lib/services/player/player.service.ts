@@ -5,11 +5,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { get } from "svelte/store";
 import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
 import type { AudioFile } from "$lib/types/db/audioFile/AudioFile";
+import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView";
 import { recent } from "$lib/stores/recent/recent.store";
 import { queueState } from "$lib/stores/queue/queueState.store";
 import { settingsStore } from "$lib/stores/settings/settings.store";
 import { sleepTimer } from "$lib/stores/player/sleepTimer.store";
 import { sendNotification, isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
+import { t } from "$lib/i18n";
 
 let raf: number = 0;
 let basePos = 0;
@@ -17,6 +19,10 @@ let baseTime = 0;
 let playRequestId = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let seekPending = false;
+
+// Dernière position écrite en base, pour n'y revenir que toutes les cinq
+// secondes. Remise à zéro à chaque nouveau morceau.
+let positionEnregistree = 0;
 let trackPlaybackEnded: UnlistenFn | null = null;
 let preparingUnlisten: UnlistenFn | null = null;
 let queueUnsubscribe: (() => void) | null = null;
@@ -69,6 +75,21 @@ let initialized = false;
  * première.
  */
 let actionExplicite = false;
+
+// « Reprendre là où je m'étais arrêté » ne vaut que pour la première lecture de la session.
+let premiereLecture = true;
+
+/** Position enregistrée du morceau, s'il mérite une reprise : ni tout début, ni toute fin. */
+async function positionDeReprise(path: string): Promise<number> {
+    try {
+        const recents = await invoke<RecentFileListView[]>("get_recent_files");
+        const r = recents.find((f) => f.path === path);
+        const pos = r?.last_position ?? 0;
+        return pos > 5 && (!r?.duration || pos < r.duration - 5) ? pos : 0;
+    } catch {
+        return 0;
+    }
+}
 
 class PlayerService {
 
@@ -379,6 +400,7 @@ class PlayerService {
     // ==========================================
     async playFile(track: QueueTrack) {
         actionExplicite = false;
+        premiereLecture = false;
 
 
         const currentRequestId = ++playRequestId;
@@ -401,6 +423,7 @@ class PlayerService {
             });
 
             playCountedPath = null;
+            positionEnregistree = 0;
 
             await invoke("play_file", { path: track.path });
 
@@ -440,8 +463,8 @@ class PlayerService {
             const notifEnabled = settingsStore.get('show_notifications');
             if (notifEnabled !== 'true') return;
 
-            const title = audioFile.tags?.title ?? track.title ?? 'Titre inconnu';
-            const artist = audioFile.tags?.artist ?? track.artist ?? 'Artiste inconnu';
+            const title = audioFile.tags?.title ?? track.title ?? get(t)('common.unknown_title');
+            const artist = audioFile.tags?.artist ?? track.artist ?? get(t)('common.unknown_artist');
             const album = audioFile.tags?.album ?? '';
             const body = album ? `${artist} — ${album}` : artist;
 
@@ -533,8 +556,23 @@ class PlayerService {
         } else if (status === "paused") {
             await this.resumePlay();
         } else {
+            const reprise = premiereLecture && settingsStore.get('resume_playback') !== 'false'
+                ? await positionDeReprise(currentTrack.path)
+                : 0;
             await this.playFile(currentTrack);
+            if (reprise && await this.attendrePret()) await this.seekTo(reprise);
         }
+    }
+
+    /** Attend que le son parte vraiment : un saut pendant le pré-décodage se perdrait. */
+    async attendrePret(delaiMs = 6000): Promise<boolean> {
+        const debut = Date.now();
+        while (Date.now() - debut < delaiMs) {
+            const p = get(player);
+            if (p.status === "playing" && !p.isPreparing) return true;
+            await new Promise((r) => setTimeout(r, 100));
+        }
+        return false;
     }
 
     async resumePlay() {
@@ -626,6 +664,20 @@ class PlayerService {
                 rustPosition: current,
                 duration: total
             });
+
+            // ─── Où l'on en est, pour pouvoir y revenir ───
+            //
+            // Toutes les cinq secondes, pas à chaque tour : c'est une écriture
+            // disque, et cinq secondes d'imprécision ne se sentent pas à la
+            // reprise. Sans `await` — la position ne doit pas retarder le
+            // sondage, et son échec ne regarde pas la lecture.
+            if (get(player).pathFile && current - positionEnregistree >= 5) {
+                positionEnregistree = current;
+                invoke('save_playback_position', {
+                    path: get(player).pathFile,
+                    position: current,
+                }).catch(() => {});
+            }
 
             // ─── L'écoute se compte ici ───
             //

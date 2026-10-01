@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { dataCache } from "$lib/stores/cache/dataCache.store";
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { t } from "$lib/i18n";
 
   /**
    * Notation en demi-étoiles.
@@ -22,12 +24,18 @@
     value = null,
     size = 12,
     readonly = false,
+    ton = "vert",
+    videsAuSurvol = false,
     onchange,
   }: {
     trackId?: string;
     value?: number | null;
     size?: number;
     readonly?: boolean;
+    /** Couleur des étoiles pleines. */
+    ton?: "vert" | "or";
+    /** Étoiles vides cachées tant que la ligne (`group`) n'est pas survolée, sauf si une note existe. */
+    videsAuSurvol?: boolean;
     onchange?: (rating: number | null) => void;
   } = $props();
 
@@ -54,6 +62,7 @@
     internalValue = newRating;
     try {
       await invoke('set_track_rating', { trackId, rating: newRating });
+      dataCache.invalidateFiches();
       onchange?.(newRating);
     } catch (e) {
       internalValue = previous;
@@ -61,11 +70,14 @@
     }
   }
 
+  /** 0,5 · 1 · 1,5 · n · n,5 : chaque forme a sa clé, l'accord diffère selon la langue. */
   function label(stars: number): string {
-    const texte = Number.isInteger(stars)
-      ? String(stars)
-      : `${Math.floor(stars)} et demie`;
-    return `${texte} étoile${stars > 1 ? 's' : ''}`;
+    const n = Math.floor(stars);
+    const demi = !Number.isInteger(stars);
+    const cle = n === 0 ? "actions.stars_half"
+      : n === 1 ? (demi ? "actions.stars_one_half" : "actions.stars_one")
+      : (demi ? "actions.stars_n_half" : "actions.stars_n");
+    return $t(cle).replace("{n}", String(n));
   }
 </script>
 
@@ -85,7 +97,8 @@
       <Icon
         icon="lucide:star"
         width={size}
-        class="absolute inset-0 text-neutral-300 dark:text-neutral-600"
+        class="absolute inset-0 text-neutral-300 dark:text-neutral-600
+               {videsAuSurvol && !internalValue && hoverValue === null ? 'opacity-0 group-hover:opacity-100 transition-opacity' : ''}"
       />
 
       <!-- Remplissage : l'étoile pleine posée par-dessus, rognée à mi-largeur
@@ -100,7 +113,7 @@
           <Icon
             icon="mynaui:star-solid"
             width={size}
-            class="text-green-500 drop-shadow-[0_0_4px_rgba(34,197,94,0.35)]"
+            class={ton === "or" ? "text-amber-500 dark:text-[#e8c46a]" : "text-green-500 drop-shadow-[0_0_4px_rgba(34,197,94,0.35)]"}
           />
         </span>
       {/if}

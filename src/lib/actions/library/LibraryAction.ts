@@ -1,16 +1,27 @@
 import { goto } from "$app/navigation";
-import addLibraryFiles, { addLibraryDirectory } from "$lib/services/library/library.service";
+import { choisirDossier, choisirFichiers, importerDossier, importerFichiers } from "$lib/services/library/library.service";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
 import { toasts } from "$lib/stores/ui/toast.store";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+import { get } from "svelte/store";
+import { t, currentLocale } from "$lib/i18n";
+
+/** « 1 piste ajoutée » / « n pistes ajoutées », nombre au format de la langue. */
+function pistesAjoutees(n: number): string {
+    return get(t)(n === 1 ? "notify.tracks_added_one" : "notify.tracks_added_n").replace("{n}", n.toLocaleString(get(currentLocale)));
+}
 
 export async function handleAddFiles(libraryId: number, redirectToLibrary = false): Promise<void> {
 
     try {
+        // Choisir d'abord. Naviguer avant, c'était charger toute la bibliothèque
+        // derrière une boîte de dialogue qu'on pouvait encore annuler.
+        const fichiers = await choisirFichiers();
+        if (fichiers.length === 0) return;
+
         if (redirectToLibrary) goto(`/library/${libraryId}`);
 
-        const newTracks = await addLibraryFiles(libraryId);
+        const newTracks = await importerFichiers(libraryId, fichiers);
 
         if (newTracks.length === 0) return;
 
@@ -19,15 +30,15 @@ export async function handleAddFiles(libraryId: number, redirectToLibrary = fals
 
         toasts.push({
             type: "success",
-            title: "Fichiers ajoutés",
-            message: `${newTracks.length} piste(s) ajoutée(s)`
+            title: get(t)("notify.files_added"),
+            message: pistesAjoutees(newTracks.length)
         });
 
     } catch (e) {
         toasts.push({
             type: "error",
-            title: "Erreur",
-            message: "Impossible d'ajouter les fichiers"
+            title: get(t)("notify.error"),
+            message: get(t)("notify.add_files_failed")
         });
     } finally {
         libraryStore.setImporting(false);
@@ -37,11 +48,14 @@ export async function handleAddFiles(libraryId: number, redirectToLibrary = fals
 export async function handleAddDirectory(libraryId: number, redirectToLibrary = false) {
 
     try {
+        // Choisir d'abord : annuler doit laisser l'écran tel quel.
+        const dossier = await choisirDossier();
+        if (!dossier) return;
+
         if (redirectToLibrary) goto(`/library/${libraryId}`);
 
-        const newTracks = await addLibraryDirectory(libraryId);
+        const newTracks = await importerDossier(libraryId, dossier);
 
-        // Si annulation ou aucun résultat, on ne fait rien
         if (newTracks.length === 0) return;
 
         await libraryContentStore.load(libraryId);
@@ -49,25 +63,17 @@ export async function handleAddDirectory(libraryId: number, redirectToLibrary = 
 
         toasts.push({
             type: "success",
-            title: "Fichiers ajoutés",
-            message: `${newTracks.length} piste(s) ajoutée(s)`
+            title: get(t)("notify.files_added"),
+            message: pistesAjoutees(newTracks.length)
         });
 
     } catch (e) {
         toasts.push({
             type: "error",
-            title: "Erreur",
-            message: "Impossible d'ajouter le dossier"
+            title: get(t)("notify.error"),
+            message: get(t)("notify.add_folder_failed")
         });
     } finally {
         libraryStore.setImporting(false);
     }
-}
-
-export function handleRemoveTrackItem(track: TrackListView) {
-    toasts.push({
-        type: "info",
-        title: "Bientôt disponible",
-        message: "La suppression de morceaux sera disponible prochainement."
-    });
 }

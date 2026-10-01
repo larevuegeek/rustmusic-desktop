@@ -51,6 +51,8 @@ pub struct AudioDeviceInfo {
     /// Résumé "Hi-Res" : la chaîne peut traiter du 24-bit / >= 88.2 kHz.
     /// Sert au badge du dropdown compact.
     pub is_hires: bool,
+    /// Bus de l'adaptateur (« USB », « HDAUDIO », « BTHENUM »…), Windows uniquement.
+    pub bus: Option<String>,
 }
 
 /// Traduit un `SampleFormat` CPAL en libellé humain court.
@@ -203,6 +205,13 @@ fn describe_device(
     #[cfg(not(target_os = "windows"))]
     let wasapi_id: Option<String> = None;
 
+    #[cfg(target_os = "windows")]
+    let bus = wasapi_id
+        .as_deref()
+        .and_then(crate::core::audio_player::audio_output_wasapi::endpoint_bus);
+    #[cfg(not(target_os = "windows"))]
+    let bus: Option<String> = None;
+
     Some(AudioDeviceInfo {
         name: raw_name,
         display_name,
@@ -216,6 +225,7 @@ fn describe_device(
         max_buffer_frames: max_buf,
         is_hires,
         wasapi_id,
+        bus,
     })
 }
 

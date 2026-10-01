@@ -15,6 +15,9 @@ export interface AlbumListView {
   notes: string | null;
   /** L'artiste n'est qu'invité sur cet album. */
   participation: boolean;
+  /** Meilleure qualité de l'album (bits, Hz) : badge et filtre Hi-Res. */
+  max_bits?: number | null;
+  max_sample_rate?: number | null;
   created_at: string;
   updated_at: string; 
 }

@@ -68,26 +68,26 @@
   <!-- Bouton profil -->
   <button
     type="button"
-    class="group flex items-center gap-2 rounded-full border px-2 py-1.5
+    class="group flex items-center gap-2 rounded-full border py-1 pl-1 pr-2.5
            transition backdrop-blur-md cursor-pointer
-           bg-white/70 border-black/10 hover:bg-white/85 hover:border-black/20
+           bg-white border-(--c-bord) hover:border-(--c-bord2)
            dark:bg-neutral-900/60 dark:border-white/10 dark:hover:bg-neutral-900/75 dark:hover:border-white/20"
-    aria-label="Menu profil"
+    aria-label={$t("profil.menu_aria")}
     onclick={toggleMenu}
   >
     <!-- Avatar -->
-    <span class="relative grid place-items-center w-8 h-8 rounded-full overflow-hidden text-[11px] font-bold text-white"
+    <span class="relative grid place-items-center w-7.5 h-7.5 rounded-full overflow-hidden text-[11px] font-bold text-white"
           style="background: {profilColor};">
       {#if profil?.avatar}
-        <img src={profil.avatar} alt="avatar" class="w-full h-full object-cover" draggable="false" />
+        <img src={profil.avatar} alt={$t("profil.avatar_alt")} class="w-full h-full object-cover" draggable="false" />
       {:else}
         {profil?.name?.charAt(0)?.toUpperCase() ?? "?"}
       {/if}
     </span>
 
     <!-- Nom -->
-    <span class="hidden sm:block text-sm font-medium text-neutral-900 dark:text-neutral-100 max-w-24 truncate">
-      {profil?.name ?? "Profil"}
+    <span class="hidden lg:block text-sm font-medium text-neutral-900 dark:text-neutral-100 max-w-24 truncate">
+      {profil?.name ?? $t("profil.fallback_name")}
     </span>
 
     <!-- Chevron -->
@@ -117,7 +117,7 @@
             </div>
             <div class="min-w-0">
               <p class="text-[13px] font-medium text-neutral-800 dark:text-neutral-200 truncate">
-                {profil?.name ?? "Profil"}
+                {profil?.name ?? $t("profil.fallback_name")}
               </p>
               <p class="text-[10px] text-neutral-400 dark:text-neutral-500">
                 {profil?.role === "admin" ? $t('profil.admin') : $t('profil.user')}

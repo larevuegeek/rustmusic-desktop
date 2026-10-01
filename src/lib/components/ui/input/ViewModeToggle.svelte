@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "$lib/i18n";
   import Icon from "@iconify/svelte";
   import { viewMode } from "$lib/stores/ui/viewMode.store";
   import { alphabetNavVisible } from "$lib/stores/ui/alphabetNav.store";
@@ -15,7 +16,7 @@
                ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-800 dark:text-neutral-200'
                : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'}"
       onclick={() => viewMode.set('grid')}
-      aria-label="Vue grille"
+      aria-label={$t("albums_view.grid")}
     >
       <Icon icon="lucide:layout-grid" width="14" />
     </button>
@@ -25,7 +26,7 @@
                ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-800 dark:text-neutral-200'
                : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'}"
       onclick={() => viewMode.set('list')}
-      aria-label="Vue liste"
+      aria-label={$t("albums_view.list")}
     >
       <Icon icon="lucide:list" width="14" />
     </button>
@@ -40,8 +41,8 @@
                  ? 'bg-white dark:bg-neutral-700 shadow-sm text-emerald-600 dark:text-emerald-400'
                  : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'}"
         onclick={() => alphabetNavVisible.update(v => !v)}
-        aria-label="Navigation alphabétique"
-        title="Navigation alphabétique"
+        aria-label={$t("common.alpha_nav")}
+        title={$t("common.alpha_nav")}
       >
         <Icon icon="lucide:a-arrow-down" width="14" />
       </button>

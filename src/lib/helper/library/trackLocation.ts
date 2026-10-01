@@ -1,4 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
+import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
+import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 
 /** Où mène un morceau : sa fiche, son artiste, son album. */
 export type TrackLocation = {
@@ -52,4 +55,19 @@ export function lienArtiste(lieu: TrackLocation | null): string | null {
 
 export function lienAlbum(lieu: TrackLocation | null): string | null {
   return lieu?.library_album_id ? `/library/${lieu.library_id}/albums/${lieu.library_album_id}` : null;
+}
+
+/** Les albums de la bibliothèque sortis cette année-là. */
+export function lienAnnee(lieu: TrackLocation | null, annee: string | number | null): string | null {
+  return lieu && annee ? `/library/${lieu.library_id}/albums?annee=${annee}` : null;
+}
+
+/** La file de l'album du morceau, ou `null` s'il n'est pas en bibliothèque. */
+export async function fileDeLAlbum(path: string): Promise<QueueTrack[] | null> {
+  const lieu = await localiserUn(path);
+  if (!lieu?.library_album_id) return null;
+  const pistes = await invoke<TrackListView[]>("get_tracks_by_album", {
+    libraryId: lieu.library_id, libraryAlbumId: lieu.library_album_id,
+  });
+  return versFileDAttente(pistes);
 }

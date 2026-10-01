@@ -1,5 +1,12 @@
+use std::path::{Path, PathBuf};
+
+use sqlx::SqlitePool;
 use tauri::State;
 
+use crate::repository::library::{
+    library_dirs_repository::LibraryDirRepository,
+    library_track_repository::LibraryTrackRepository,
+};
 use crate::{
     entity::queue::queue_track::QueueTrack, 
     mapper::queue::queue_state_view::QueueStateView, 
@@ -16,11 +23,70 @@ pub async fn get_queue(
     profil_id: i64
 ) -> Result<QueueStateView, String> {
 
-    let queue_state_view: QueueStateView = QueueStateRepository::get_queue(&state.pool, profil_id)
+    let mut queue_state_view: QueueStateView = QueueStateRepository::get_queue(&state.pool, profil_id)
             .await
             .map_err(|e| format!("Failed to get queue state : {}", e))?;
 
+    // Réparée une fois puis enregistrée : les lectures suivantes ne repassent plus par là.
+    if reparer_pistes(&state.pool, &mut queue_state_view.tracks).await {
+        if let Err(e) = QueueTrackRepository::replace_all(&state.pool, profil_id, queue_state_view.tracks.clone()).await {
+            eprintln!("[file] réparation non enregistrée : {e}");
+        }
+    }
+
     Ok(queue_state_view)
+}
+
+/// Une file lancée depuis la vue Dossiers avant son correctif porte des chemins `\\?\UNC\…`
+/// et des noms de fichier en guise de titres : on revient à la forme des dossiers importés,
+/// puis on complète titre, artiste, durée et pochette. Vrai si quelque chose a changé.
+async fn reparer_pistes(pool: &SqlitePool, pistes: &mut [QueueTrack]) -> bool {
+    const VERBATIM: &str = r"\\?\";
+    let mut change = false;
+
+    if pistes.iter().any(|p| p.path.starts_with(VERBATIM)) {
+        let racines: Vec<(PathBuf, String)> = LibraryDirRepository::all_paths(pool)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|d| std::fs::canonicalize(&d).ok().map(|c| (c, d)))
+            .collect();
+        for p in pistes.iter_mut().filter(|p| p.path.starts_with(VERBATIM)) {
+            let chemin = PathBuf::from(&p.path);
+            // Le dossier le plus profond l'emporte, comme dans la vue Dossiers.
+            let meilleur = racines
+                .iter()
+                .filter_map(|(c, d)| chemin.strip_prefix(c).ok().map(|reste| (c.as_os_str().len(), d, reste)))
+                .max_by_key(|(n, _, _)| *n);
+            if let Some((_, d, reste)) = meilleur {
+                p.path = PathBuf::from(d).join(reste).to_string_lossy().to_string();
+                change = true;
+            }
+        }
+    }
+
+    let incomplets: Vec<String> = pistes
+        .iter()
+        .filter(|p| p.cover.is_none() || p.artist.is_none() || p.duration.is_none())
+        .map(|p| p.path.clone())
+        .collect();
+    if incomplets.is_empty() {
+        return change;
+    }
+    let fiches = LibraryTrackRepository::find_fiches_by_paths(pool, None, &incomplets).await;
+    for p in pistes.iter_mut() {
+        let Some(f) = fiches.get(&p.path) else { continue };
+        // Un titre égal au nom du fichier n'était qu'un repli.
+        let nom_fichier = Path::new(&p.path).file_name().map(|n| n.to_string_lossy().to_string());
+        let repli = p.title.is_empty() || p.title == "Inconnu" || nom_fichier.as_deref() == Some(p.title.as_str());
+        if let (true, Some(t)) = (repli, &f.title) {
+            if *t != p.title { p.title = t.clone(); change = true; }
+        }
+        if p.artist.is_none() && f.artist.is_some() { p.artist = f.artist.clone(); change = true; }
+        if p.duration.is_none() && f.duration.is_some() { p.duration = f.duration; change = true; }
+        if p.cover.is_none() && f.thumbnail_path.is_some() { p.cover = f.thumbnail_path.clone(); change = true; }
+    }
+    change
 }
 
 #[tauri::command]

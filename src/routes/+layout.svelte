@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "$lib/i18n";
 import "../app.css";
 import "$lib/icons/preload";
 import Sidebar from "$lib/components/sidebar/Sidebar.svelte";
@@ -40,7 +41,7 @@ import { onDestroy } from "svelte";
 import { page } from "$app/state";
 import SelectionBar from "$lib/components/ui/selection/SelectionBar.svelte";
 import MiniPlayer from "$lib/components/player/MiniPlayer.svelte";
-import { miniPlayerActive } from "$lib/stores/ui/miniPlayer.store";
+import { miniPlayerActive, assurerTailleNormale } from "$lib/stores/ui/miniPlayer.store";
 import SleepTimerButton from "$lib/components/player/SleepTimerButton.svelte";
 import { fade } from "svelte/transition";
 
@@ -61,8 +62,14 @@ const tabsEnHaut = $derived(
   !isFullPageRoute && lirePlacement($settingsStore.library_tabs_position) !== 'sidebar'
 );
 const dansLaBibliotheque = $derived(page.url.pathname.startsWith('/library/'));
+// Les réglages gèrent eux-mêmes le fondu entre sections : leur navigation reste en place.
+// Dans une bibliothèque, son layout reste monté : le fondu des pages se fait dans ce layout.
+const cleTransition = $derived(isFullPageRoute ? '/settings' : dansLaBibliotheque ? `/library/${page.params.library_id}` : page.url.pathname);
 
 onMount(async () => {
+  // Fermée en mode mini, la fenêtre rouvrirait toute petite : plancher et taille d'origine.
+  void assurerTailleNormale();
+
   // Sentinelle anti-crash GPU (Linux) : on ne confirme le boot qu'après deux
   // frames réellement peintes. Si le compositing WebKit est cassé (fenêtre
   // blanche), requestAnimationFrame ne fire jamais → la sentinelle reste
@@ -202,8 +209,53 @@ function handleKeydown(e: KeyboardEvent) {
   <!-- Mode mini-player : la fenêtre est réduite et always-on-top -->
   <MiniPlayer />
 {:else}
-<main class="w-screen h-screen flex flex-col bg-gray-50/50 dark:bg-zinc-950 text-gray-900 dark:text-gray-100 overflow-hidden">
-  <Titlebar />
+<main class="w-screen h-screen flex flex-col bg-(--c-fond) dark:bg-zinc-950 text-gray-900 dark:text-gray-100 overflow-hidden">
+  <!-- Barre unique : la barre de titre porte la navigation, la recherche et les
+       actions. Les pages plein écran (réglages) n'en gardent que la marque. -->
+  <Titlebar avecSidebar={!isFullPageRoute}>
+    {#if !isFullPageRoute}
+      <!-- Burger (mobile) -->
+      <button
+        onclick={() => sidebarStore.toggle()}
+        class="flex md:hidden items-center justify-center w-9 h-9 rounded-lg cursor-pointer transition-colors
+               text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200/60 dark:hover:bg-white/8"
+        aria-label={$t("common.menu")}
+      >
+        <Icon icon={$sidebarStore.open ? "lucide:x" : "lucide:menu"} class="h-5 w-5" />
+      </button>
+
+      <div class="hidden sm:flex items-center gap-0.5">
+        {#each [
+          { action: goBack, icone: "heroicons:chevron-left", label: "Retour" },
+          { action: goForward, icone: "heroicons:chevron-right", label: "Suivant" },
+        ] as nav (nav.label)}
+          <button
+            onclick={nav.action}
+            class="flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-colors
+                   text-[#1a1c1a] dark:text-neutral-400 hover:text-black dark:hover:text-white
+                   hover:bg-[#e5e1d8] dark:hover:bg-white/8"
+            aria-label={nav.label}
+            title={nav.label}
+          >
+            <Icon icon={nav.icone} class="h-5 w-5" />
+          </button>
+        {/each}
+      </div>
+
+      <!-- La recherche passe avant le reste : nom du profil et « Ctrl K » cèdent d'abord. -->
+      <div class="flex-1 min-w-40 max-w-140">
+        <SearchAutocomplete />
+      </div>
+
+      <div class="ml-auto shrink-0 flex items-center gap-1 md:gap-2">
+        {#if showSleepTimer}
+          <SleepTimerButton />
+        {/if}
+        <SwitchTheme />
+        <ProfilSelectorInput />
+      </div>
+    {/if}
+  </Titlebar>
   <div class="flex grow overflow-hidden relative">
 
     <!-- ═══ SIDEBAR : fixe sur desktop, overlay sur mobile ═══ -->
@@ -215,7 +267,7 @@ function handleKeydown(e: KeyboardEvent) {
         class="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm cursor-default
                md:hidden"
         onclick={() => sidebarStore.close()}
-        aria-label="Fermer le menu"
+        aria-label={$t("menu.close_menu")}
       ></button>
     {/if}
 
@@ -233,75 +285,6 @@ function handleKeydown(e: KeyboardEvent) {
 
     <!-- ═══ CONTENU PRINCIPAL ═══ -->
     <div class="grow overflow-hidden flex flex-col min-w-0">
-      {#if !isFullPageRoute}
-      <header class="p-3 md:p-5 shrink-0">
-        <div class="flex items-center justify-between gap-2 md:gap-4">
-          <div class="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-
-            <!-- Burger menu (mobile) -->
-            <button
-              onclick={() => sidebarStore.toggle()}
-              class="flex md:hidden items-center justify-center h-10 w-10 rounded-full
-                     backdrop-blur-md transition cursor-pointer
-                     dark:bg-neutral-900/60 dark:border dark:border-white/10
-                     bg-white/70 border border-black/10
-                     hover:bg-white/85"
-              aria-label="Menu"
-            >
-              <Icon icon={$sidebarStore.open ? "lucide:x" : "lucide:menu"} class="h-5 w-5 dark:text-white/80 text-black/80" />
-            </button>
-
-            <!-- Boutons navigation -->
-            <div class="hidden sm:flex items-center gap-2">
-              <button
-                onclick={goBack}
-                class="flex items-center justify-center h-10 w-10 rounded-full
-                      backdrop-blur-md transition
-                      shadow-sm shadow-black/8
-                      dark:shadow-[0_10px_30px_-18px_rgba(0,0,0,0.75)]
-                      dark:bg-neutral-900/60 dark:border dark:border-white/10
-                      dark:hover:bg-neutral-900/80 dark:hover:border-white/20
-                      bg-white border border-neutral-200/90
-                      hover:bg-neutral-50 hover:border-neutral-300/90 cursor-pointer"
-                aria-label="Retour"
-              >
-                <Icon icon="heroicons:chevron-left" class="h-5 w-5 dark:text-white/80 text-neutral-700" />
-              </button>
-
-              <button
-                onclick={goForward}
-                class="flex items-center justify-center h-10 w-10 rounded-full
-                      backdrop-blur-md transition
-                      shadow-sm shadow-black/8
-                      dark:shadow-[0_10px_30px_-18px_rgba(0,0,0,0.75)]
-                      dark:bg-neutral-900/60 dark:border dark:border-white/10
-                      dark:hover:bg-neutral-900/80 dark:hover:border-white/20
-                      bg-white border border-neutral-200/90
-                      hover:bg-neutral-50 hover:border-neutral-300/90 cursor-pointer"
-                aria-label="Suivant"
-              >
-                <Icon icon="heroicons:chevron-right" class="h-5 w-5 dark:text-white/80 text-neutral-700" />
-              </button>
-            </div>
-
-            <!-- Search bar + Actions -->
-            <div class="grow flex items-center justify-between gap-2 md:gap-4">
-              <div style="width: min(420px, 100%);">
-                <SearchAutocomplete />
-              </div>
-
-              <div class="shrink-0 flex items-center gap-1 md:gap-2">
-                {#if showSleepTimer}
-                  <SleepTimerButton />
-                {/if}
-                <SwitchTheme />
-                <ProfilSelectorInput />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-      {/if}
 
       <!-- Sections de la bibliothèque, en mode « en haut » seulement : la
            gauche n'en propose alors aucune, et celles de la bibliothèque ne
@@ -322,7 +305,7 @@ function handleKeydown(e: KeyboardEvent) {
 
       <!-- Contenu scrollable avec transition -->
       <div class="flex-1 overflow-hidden">
-        {#key page.url.pathname}
+        {#key cleTransition}
           <div class="h-full" in:fade={{ duration: 120, delay: 60 }}>
             {@render children()}
           </div>

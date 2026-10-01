@@ -208,6 +208,18 @@ export const queueState = {
             console.error("❌ Erreur SQLite lors du drag & drop :", err);
         }
     },
+    // Retirer tout ce qui suit le morceau en cours (il continue de jouer).
+    clearUpcoming: async () => {
+        const qs = get(queueStateWritable);
+        if (qs.currentIndex < 0) return;
+        const gardees = qs.tracks.slice(0, qs.currentIndex + 1);
+        queueStateWritable.update((state) => ({ ...state, tracks: gardees }));
+        try {
+            await invoke('replace_queue_tracks', { profilId: currentProfilId, payload: gardees });
+        } catch (err) {
+            console.error("❌ Erreur SQLite lors du vidage de la suite :", err);
+        }
+    },
     // 4. Vider toute la file
     clear: async () => {
         queueStateWritable.set(defaultState);

@@ -12,7 +12,7 @@
   import { popinStore } from "$lib/stores/ui/popin.store";
   import { batchStore } from "$lib/stores/ui/batch.store";
   import { canWriteTags } from "$lib/services/tags/tagEditor.service";
-  import { t } from "$lib/i18n";
+  import { t, currentLocale } from "$lib/i18n";
   import EditTagsBatchPopin from "$lib/components/library/common/popin/EditTagsBatchPopin.svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
@@ -21,6 +21,11 @@
   let selection = $derived($selectionStore);
   let showPlaylistMenu = $state(false);
   let playlists = $derived($playlistStore.playlists);
+
+  /** « 1 morceau » / « n morceaux », nombre au format de la langue. */
+  function count(n: number, one: string, many: string): string {
+    return $t(n === 1 ? one : many).replace("{n}", n.toLocaleString($currentLocale));
+  }
 
   async function handlePlayAll() {
     const tracks = selectionStore.getSelectedTracks();
@@ -110,7 +115,7 @@
     for (const t of queueTracks) {
       queueState.enqueue(t);
     }
-    toasts.push({ type: "success", title: "Ajouté à la file", message: `${tracks.length} morceau(x) ajoutés` });
+    toasts.push({ type: "success", title: $t("notify.queued"), message: count(tracks.length, "notify.queued_one", "notify.queued_n") });
     selectionStore.stop();
   }
 
@@ -121,9 +126,9 @@
     let added = 0;
     for (const track of tracks) {
       if (!track.path) continue;
-      const params: Record<string, any> = { playlistId: pl.id, path: track.path };
-      if ((track as any).id && typeof (track as any).id === 'string') {
-        params.libraryTrackId = (track as any).id;
+      const params: Record<string, unknown> = { playlistId: pl.id, path: track.path };
+      if (typeof track.id === 'string' && track.id) {
+        params.libraryTrackId = track.id;
       }
       try {
         await invoke('add_track_to_playlist', params);
@@ -132,7 +137,7 @@
     }
 
     await playlistStore.refresh();
-    toasts.push({ type: "success", title: "Ajouté", message: `${added} morceau(x) ajoutés à ${pl.name}` });
+    toasts.push({ type: "success", title: $t("notify.added"), message: count(added, "notify.added_to_one", "notify.added_to_n").replace("{name}", pl.name) });
     showPlaylistMenu = false;
     selectionStore.stop();
   }
@@ -140,7 +145,7 @@
 
 {#if selection.active && selection.count > 0}
   <div
-    class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50"
+    class="fixed bottom-38 left-1/2 -translate-x-1/2 z-50"
     transition:fly={{ y: 20, duration: 200 }}
   >
     <div class="flex items-center gap-2 px-4 py-2.5 rounded-2xl
@@ -150,7 +155,7 @@
 
       <!-- Count -->
       <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums px-2">
-        {selection.count} sélectionné{selection.count > 1 ? 's' : ''}
+        {count(selection.count, "actions.selected_one", "actions.selected_n")}
       </span>
 
       <div class="w-px h-5 bg-neutral-200 dark:bg-white/10"></div>
@@ -164,7 +169,7 @@
         onclick={handlePlayAll}
       >
         <Icon icon="lucide:play" width={13} />
-        Lire
+        {$t("albums_view.play")}
       </button>
 
       <!-- Modifier les tags -->
@@ -204,7 +209,7 @@
         onclick={handleAddToQueue}
       >
         <Icon icon="lucide:list-end" width={13} />
-        File
+        {$t("mini.queue_tab")}
       </button>
 
       <!-- Add to playlist -->
@@ -217,12 +222,12 @@
           onclick={() => showPlaylistMenu = !showPlaylistMenu}
         >
           <Icon icon="lucide:list-music" width={13} />
-          Playlist
+          {$t("sidebar.playlist")}
         </button>
 
         {#if showPlaylistMenu}
           <button type="button" class="fixed inset-0 z-10 cursor-default"
-                  onclick={() => showPlaylistMenu = false} aria-label="Fermer"></button>
+                  onclick={() => showPlaylistMenu = false} aria-label={$t("common.close")}></button>
           <div
             class="absolute bottom-full left-0 mb-2 z-20 w-48 py-1
                    bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl
@@ -232,7 +237,7 @@
             transition:fly={{ y: 8, duration: 150 }}
           >
             {#if playlists.length === 0}
-              <p class="text-xs text-neutral-500 text-center py-3">Aucune playlist</p>
+              <p class="text-xs text-neutral-500 text-center py-3">{$t("menu.no_playlist")}</p>
             {:else}
               {#each playlists as pl (pl.id)}
                 <button
@@ -262,7 +267,7 @@
                transition-colors"
         onclick={() => selectionStore.deselectAll()}
       >
-        Tout désélectionner
+        {$t("actions.deselect_all")}
       </button>
 
       <!-- Close -->
@@ -272,7 +277,7 @@
                text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/8
                transition-colors"
         onclick={() => selectionStore.stop()}
-        aria-label="Quitter la sélection"
+        aria-label={$t("actions.exit_selection")}
       >
         <Icon icon="lucide:x" width={14} />
       </button>

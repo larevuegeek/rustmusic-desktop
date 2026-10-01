@@ -21,3 +21,5 @@ pub mod metadata_command;
 pub mod tag_command;pub mod export_command;
 pub mod smart_playlist_command;
 pub mod playlist_view_command;
+pub mod pin_command;
+pub mod sidebar_command;

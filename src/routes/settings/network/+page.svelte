@@ -1,9 +1,12 @@
 <script lang="ts">
-  import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
   import { t } from "$lib/i18n";
-  import OptionRow from "$lib/components/ui/input/OptionRow.svelte";
+  import OptionGroup from "$lib/components/ui/input/OptionGroup.svelte";
+  import OptionItem from "$lib/components/ui/input/OptionItem.svelte";
+  import OptionBlock from "$lib/components/ui/input/OptionBlock.svelte";
+  import TextField from "$lib/components/ui/input/TextField.svelte";
   import ToggleSwitch from "$lib/components/ui/input/ToggleSwitch.svelte";
+  import GhostButton from "$lib/components/ui/button/GhostButton.svelte";
   import {
     dlnaGetSettings,
     dlnaStart,
@@ -20,11 +23,10 @@
   let dlnaSavingPort = $state(false);
   let dlnaCopied = $state(false);
 
-  // Absent des réglages d'une installation antérieure : on lit donc
-  // « actif » par défaut, pour ne pas changer le comportement d'un coup.
-  let autoArtistImages = $derived(
-    $settingsStore.auto_download_artist_images !== 'false'
-  );
+  const enLigne = $derived($dlnaStatusStore?.running ?? false);
+
+  // Absent des réglages d'une installation antérieure : « actif » par défaut.
+  const autoArtistImages = $derived($settingsStore.auto_download_artist_images !== "false");
 
   onMount(async () => {
     try {
@@ -39,7 +41,7 @@
     if (dlnaToggling) return;
     dlnaToggling = true;
     try {
-      const status = $dlnaStatusStore?.running ? await dlnaStop() : await dlnaStart();
+      const status = enLigne ? await dlnaStop() : await dlnaStart();
       dlnaStatusStore.set(status);
       if (dlnaSettings) dlnaSettings = { ...dlnaSettings, enabled: status.running };
     } catch (e) {
@@ -94,96 +96,72 @@
   }
 </script>
 
-<section class="space-y-1">
-  <!-- Toggle ON/OFF -->
-  <OptionRow icon="lucide:radio-tower" title={$t('settings.dlna_enabled')} desc={$t('settings.dlna_enabled_desc')}>
-    <ToggleSwitch
-      checked={$dlnaStatusStore?.running ?? false}
-      color="emerald"
-      disabled={dlnaToggling}
-      label={$dlnaStatusStore?.running ? 'Désactiver DLNA' : 'Activer DLNA'}
-      onclick={handleDlnaToggle}
-    />
-  </OptionRow>
+<!-- ─── Serveur DLNA ─── -->
+<OptionGroup title={$t("settings.dlna_group")} hint={$t("settings.dlna_group_hint")}>
+  <OptionItem
+    title={$t("settings.dlna_share")}
+    desc={$t("settings.dlna_enabled_desc")}
+    keywords="dlna upnp sonos"
+    onclick={dlnaToggling ? undefined : handleDlnaToggle}
+  >
+    <ToggleSwitch checked={enLigne} disabled={dlnaToggling} label={$t("settings.dlna_share")} onclick={handleDlnaToggle} />
+  </OptionItem>
 
-  <!-- URL active (visible seulement quand le serveur tourne) -->
-  {#if $dlnaStatusStore?.running && $dlnaStatusStore.url}
-    <div class="flex items-center justify-between px-4 py-3 rounded-xl
-                bg-emerald-50 dark:bg-emerald-500/8 border border-emerald-200/60 dark:border-emerald-500/20">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="relative flex h-2.5 w-2.5 items-center justify-center shrink-0">
-          <span class="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50 animate-ping"></span>
-          <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></span>
-        </div>
-        <div class="min-w-0">
-          <p class="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">{$t('settings.dlna_active')}</p>
-          <p class="text-sm font-mono text-neutral-800 dark:text-neutral-200 truncate">{$dlnaStatusStore.url}</p>
-        </div>
+  {#if enLigne && $dlnaStatusStore?.url}
+    <OptionBlock keywords="{$t('settings.dlna_active')} url adresse" class="flex items-center gap-4 px-5 py-4 leading-[1.2]">
+      <span class="relative shrink-0 flex w-2.5 h-2.5">
+        <span class="absolute inset-0 rounded-full bg-(--rg-g) opacity-50 animate-ping"></span>
+        <span class="relative w-2.5 h-2.5 rounded-full bg-(--rg-g)"></span>
+      </span>
+      <div class="flex-1 min-w-0">
+        <p class="text-[15px] font-semibold text-(--rg-gtx)">{$t("settings.dlna_active")}</p>
+        <p class="mt-0.75 font-mono text-[13px] text-(--rg-mu) truncate" title={$dlnaStatusStore.url}>{$dlnaStatusStore.url}</p>
       </div>
-      <button
-        type="button"
-        class="text-[11px] px-3 py-1.5 rounded-md cursor-pointer
-               bg-white dark:bg-white/10 border border-neutral-200 dark:border-white/15
-               hover:bg-neutral-50 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-200
-               transition-colors flex items-center gap-1.5 shrink-0"
+      <GhostButton
+        icon={dlnaCopied ? "material-symbols:check-rounded" : "material-symbols:content-copy-outline-rounded"}
+        label={dlnaCopied ? $t("settings.dlna_copied") : $t("settings.dlna_copy_url")}
         onclick={handleDlnaCopyUrl}
-        aria-label="Copier l'URL"
-      >
-        <Icon icon={dlnaCopied ? 'lucide:check' : 'lucide:copy'} width={12} />
-        {dlnaCopied ? $t('settings.dlna_copied') : $t('settings.dlna_copy_url')}
-      </button>
-    </div>
+      />
+    </OptionBlock>
   {/if}
 
   {#if dlnaSettings}
-    <!-- Friendly name -->
-    <OptionRow icon="lucide:tag" title={$t('settings.dlna_friendly_name')} desc={$t('settings.dlna_friendly_name_desc')}>
-      <input
-        type="text"
+    <OptionItem title={$t("settings.dlna_friendly_name")} desc={$t("settings.dlna_friendly_name_desc")}>
+      <TextField
         value={dlnaSettings.friendly_name}
-        onblur={(e) => handleDlnaNameSave(e.currentTarget.value)}
-        maxlength="64"
-        class="text-sm w-56 px-3 py-1.5 rounded-md
-               bg-white dark:bg-white/5 border border-neutral-200 dark:border-white/10
-               text-neutral-800 dark:text-neutral-200
-               focus:outline-none focus:border-emerald-400 dark:focus:border-emerald-500"
+        label={$t("settings.dlna_friendly_name")}
+        maxlength={64}
+        class="w-56 max-sm:w-40"
+        onchange={handleDlnaNameSave}
       />
-    </OptionRow>
-
-    <!-- Port -->
-    <OptionRow icon="lucide:plug" title={$t('settings.dlna_port')} desc={$t('settings.dlna_port_desc')}>
-      <input
+    </OptionItem>
+    <OptionItem title={$t("settings.dlna_port")} desc={$t("settings.dlna_port_desc")} keywords="http">
+      <TextField
         type="number"
-        min="1"
-        max="65535"
         value={dlnaSettings.port}
-        onblur={(e) => handleDlnaPortSave(parseInt(e.currentTarget.value, 10))}
-        class="text-sm w-24 px-3 py-1.5 rounded-md tabular-nums text-right
-               bg-white dark:bg-white/5 border border-neutral-200 dark:border-white/10
-               text-neutral-800 dark:text-neutral-200
-               focus:outline-none focus:border-emerald-400 dark:focus:border-emerald-500"
+        label={$t("settings.dlna_port")}
+        min={1}
+        max={65535}
+        mono
+        class="w-24"
+        onchange={(v) => handleDlnaPortSave(parseInt(v, 10))}
       />
-    </OptionRow>
+    </OptionItem>
   {/if}
-</section>
+</OptionGroup>
 
-<!-- ───────────────────────────────────────────────────────────────────────
-     Téléchargements automatiques
-
-     L'application ne contacte d'elle-même qu'un seul service : Deezer, pour
-     le portrait d'un artiste dont la fiche s'ouvre sans image. Tout le reste
-     — pochettes, paroles, correction de tags — attend une demande explicite.
-     ─────────────────────────────────────────────────────────────────────── -->
-<section class="space-y-1 mt-8">
-  <OptionRow
-    icon="lucide:user-round-search"
-    title={$t('settings.auto_download_artist_images')}
-    desc={$t('settings.auto_download_artist_images_desc')}
+<!-- ─── Services en ligne : seul Deezer est interrogé sans demande explicite ─── -->
+<OptionGroup title={$t("settings.online_group")} hint={$t("settings.online_group_hint")}>
+  <OptionItem
+    title={$t("settings.auto_download_artist_images")}
+    desc={$t("settings.auto_download_artist_images_desc")}
+    keywords="deezer portrait"
+    onclick={() => settingsStore.toggle("auto_download_artist_images")}
   >
     <ToggleSwitch
       checked={autoArtistImages}
-      label={$t('settings.auto_download_artist_images')}
-      onclick={() => settingsStore.toggle('auto_download_artist_images')}
+      label={$t("settings.auto_download_artist_images")}
+      onclick={() => settingsStore.toggle("auto_download_artist_images")}
     />
-  </OptionRow>
-</section>
+  </OptionItem>
+</OptionGroup>

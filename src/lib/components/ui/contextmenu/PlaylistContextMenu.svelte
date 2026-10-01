@@ -51,7 +51,7 @@
       await queueState.loadTracks(file);
       playerService.playFile(file[0]);
     } catch (e) {
-      toasts.push({ type: 'error', title: 'Erreur', message: String(e) });
+      toasts.push({ type: 'error', title: $t('notify.error'), message: String(e) });
     }
   }
 
@@ -59,10 +59,10 @@
   function modifier() {
     onclose();
     if (playlist.is_smart) {
-      popinStore.open("Playlist intelligente", SmartPlaylistPopin,
+      popinStore.open($t('playlist.new_smart'), SmartPlaylistPopin,
         { playlistId: playlist.id }, { size: 'xl', icon: 'lucide:sparkles', flush: true });
     } else {
-      popinStore.open("Modifier la playlist", EditPlaylistPopin, { playlist });
+      popinStore.open($t('menu.edit_playlist'), EditPlaylistPopin, { playlist });
     }
   }
 
@@ -76,7 +76,7 @@
       if (window.location.pathname === `/playlist/${playlist.id}`) goto('/');
       toasts.push({ type: 'success', title: nom, message: $t('playlist.deleted') });
     } catch (e) {
-      toasts.push({ type: 'error', title: 'Erreur', message: String(e) });
+      toasts.push({ type: 'error', title: $t('notify.error'), message: String(e) });
     }
   }
 
@@ -95,7 +95,7 @@
   class="fixed inset-0 z-9998 cursor-default"
   onclick={onclose}
   oncontextmenu={(e) => { e.preventDefault(); onclose(); }}
-  aria-label="Fermer le menu"
+  aria-label={$t("menu.close_menu")}
 ></button>
 
 <div

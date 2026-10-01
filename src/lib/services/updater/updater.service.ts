@@ -1,8 +1,9 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { get } from "svelte/store";
+import { t } from "$lib/i18n";
 
-import { updaterState } from "$lib/stores/updater/updater.store";
+import { derniereVerification, updaterState } from "$lib/stores/updater/updater.store";
 
 // ============================================================================
 // SERVICE D'AUTO-UPDATE
@@ -36,6 +37,7 @@ export async function checkForUpdate(silent = true): Promise<void> {
   updaterState.set({ kind: "checking" });
   try {
     const update = await check();
+    derniereVerification.set(update ? "maj" : "a-jour");
     if (update) {
       pendingUpdate = update;
       updaterState.set({
@@ -52,7 +54,8 @@ export async function checkForUpdate(silent = true): Promise<void> {
       }
     }
   } catch (e) {
-    const message = String((e as Error)?.message ?? e ?? "Vérification échouée");
+    const message = String((e as Error)?.message ?? e ?? get(t)("updater.check_failed"));
+    derniereVerification.set("echec");
     if (silent) {
       // Échec silencieux : pas de réseau, serveur down, signature invalide…
       // On log mais on n'embête pas l'utilisateur.
@@ -70,7 +73,7 @@ export async function checkForUpdate(silent = true): Promise<void> {
  */
 export async function downloadAndInstall(): Promise<void> {
   if (!pendingUpdate) {
-    updaterState.set({ kind: "error", message: "Aucune mise à jour à installer" });
+    updaterState.set({ kind: "error", message: get(t)("updater.nothing_to_install") });
     return;
   }
 
@@ -108,7 +111,7 @@ export async function downloadAndInstall(): Promise<void> {
       relaunch().catch((e) => console.error("[updater] relaunch failed:", e));
     }, 1500);
   } catch (e) {
-    const message = String((e as Error)?.message ?? e ?? "Installation échouée");
+    const message = String((e as Error)?.message ?? e ?? get(t)("updater.install_failed"));
     updaterState.set({ kind: "error", message });
   }
 }

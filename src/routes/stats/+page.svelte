@@ -1,12 +1,14 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
-import { t } from "$lib/i18n";
+import { t, currentLocale } from "$lib/i18n";
 import { invoke } from "@tauri-apps/api/core";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { profilSelector } from "$lib/stores/profil/profil.store";
 import type { LibraryStats } from "$lib/types/ui/library/stats/LibraryStats";
 import { formatBitrate } from "$lib/helper/tools/audioFormatTools";
+import { tailleLisible } from "$lib/helper/tools/sizeTools";
+import { dureeEcoute } from "$lib/helper/tools/dateTools";
 
 let stats: LibraryStats | null = $state(null);
 let isLoading = $state(true);
@@ -28,19 +30,6 @@ async function loadStats(libraryId: number) {
   } finally {
     isLoading = false;
   }
-}
-
-function formatDuration(sec: number): string {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (h > 0) return `${h}h ${m}min`;
-  return `${m} min`;
-}
-
-function formatSize(bytes: number): string {
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} Go`;
-  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} Mo`;
-  return `${(bytes / 1e3).toFixed(0)} Ko`;
 }
 
 // Couleurs pour les graphiques
@@ -86,7 +75,7 @@ let qualityTotal = $derived.by(() => {
             <Icon icon="lucide:music" width={14} />
             <span class="text-[10px] uppercase tracking-widest font-medium">{$t('stats.tracks')}</span>
           </div>
-          <p class="text-3xl font-bold text-neutral-900 dark:text-white tabular-nums">{stats.total_tracks.toLocaleString()}</p>
+          <p class="text-3xl font-bold text-neutral-900 dark:text-white tabular-nums">{stats.total_tracks.toLocaleString($currentLocale)}</p>
         </div>
 
         <div class="p-5 rounded-2xl bg-neutral-100/60 dark:bg-white/4 border border-neutral-200/50 dark:border-white/6">
@@ -94,7 +83,7 @@ let qualityTotal = $derived.by(() => {
             <Icon icon="lucide:disc-album" width={14} />
             <span class="text-[10px] uppercase tracking-widest font-medium">{$t('stats.albums')}</span>
           </div>
-          <p class="text-3xl font-bold text-neutral-900 dark:text-white tabular-nums">{stats.total_albums.toLocaleString()}</p>
+          <p class="text-3xl font-bold text-neutral-900 dark:text-white tabular-nums">{stats.total_albums.toLocaleString($currentLocale)}</p>
         </div>
 
         <div class="p-5 rounded-2xl bg-neutral-100/60 dark:bg-white/4 border border-neutral-200/50 dark:border-white/6">
@@ -102,7 +91,7 @@ let qualityTotal = $derived.by(() => {
             <Icon icon="lucide:mic-2" width={14} />
             <span class="text-[10px] uppercase tracking-widest font-medium">{$t('stats.artists')}</span>
           </div>
-          <p class="text-3xl font-bold text-neutral-900 dark:text-white tabular-nums">{stats.total_artists.toLocaleString()}</p>
+          <p class="text-3xl font-bold text-neutral-900 dark:text-white tabular-nums">{stats.total_artists.toLocaleString($currentLocale)}</p>
         </div>
 
         <div class="p-5 rounded-2xl bg-neutral-100/60 dark:bg-white/4 border border-neutral-200/50 dark:border-white/6">
@@ -110,7 +99,7 @@ let qualityTotal = $derived.by(() => {
             <Icon icon="lucide:clock" width={14} />
             <span class="text-[10px] uppercase tracking-widest font-medium">{$t('stats.total_duration')}</span>
           </div>
-          <p class="text-3xl font-bold text-neutral-900 dark:text-white">{formatDuration(stats.total_duration_sec)}</p>
+          <p class="text-3xl font-bold text-neutral-900 dark:text-white">{dureeEcoute(stats.total_duration_sec)}</p>
         </div>
       </div>
 
@@ -122,7 +111,7 @@ let qualityTotal = $derived.by(() => {
         </div>
         <div class="p-4 rounded-2xl bg-neutral-100/60 dark:bg-white/4 border border-neutral-200/50 dark:border-white/6">
           <span class="text-[10px] uppercase tracking-widest text-neutral-400 font-medium">{$t('stats.size')}</span>
-          <p class="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{formatSize(stats.total_size_bytes)}</p>
+          <p class="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{tailleLisible(stats.total_size_bytes, $currentLocale)}</p>
         </div>
         <div class="p-4 rounded-2xl bg-neutral-100/60 dark:bg-white/4 border border-neutral-200/50 dark:border-white/6">
           <span class="text-[10px] uppercase tracking-widest text-neutral-400 font-medium">{$t('stats.avg_bitrate')}</span>
@@ -130,7 +119,7 @@ let qualityTotal = $derived.by(() => {
         </div>
         <div class="p-4 rounded-2xl bg-neutral-100/60 dark:bg-white/4 border border-neutral-200/50 dark:border-white/6">
           <span class="text-[10px] uppercase tracking-widest text-neutral-400 font-medium">{$t('stats.plays')}</span>
-          <p class="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{stats.total_play_count.toLocaleString()}</p>
+          <p class="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{stats.total_play_count.toLocaleString($currentLocale)}</p>
         </div>
       </div>
 
@@ -196,17 +185,17 @@ let qualityTotal = $derived.by(() => {
             <div class="flex flex-col gap-3">
               <div class="flex items-center gap-2">
                 <div class="w-2.5 h-2.5 rounded-full" style="background: {qualityColors.hires};"></div>
-                <span class="text-xs text-neutral-700 dark:text-neutral-300">Hi-Res (24bit+)</span>
+                <span class="text-xs text-neutral-700 dark:text-neutral-300">{$t('stats.quality_hires')}</span>
                 <span class="text-[10px] text-neutral-400 ml-2 tabular-nums">{stats.quality_hires}</span>
               </div>
               <div class="flex items-center gap-2">
                 <div class="w-2.5 h-2.5 rounded-full" style="background: {qualityColors.lossless};"></div>
-                <span class="text-xs text-neutral-700 dark:text-neutral-300">Lossless (16bit)</span>
+                <span class="text-xs text-neutral-700 dark:text-neutral-300">{$t('stats.quality_lossless')}</span>
                 <span class="text-[10px] text-neutral-400 ml-2 tabular-nums">{stats.quality_lossless}</span>
               </div>
               <div class="flex items-center gap-2">
                 <div class="w-2.5 h-2.5 rounded-full" style="background: {qualityColors.lossy};"></div>
-                <span class="text-xs text-neutral-700 dark:text-neutral-300">Lossy</span>
+                <span class="text-xs text-neutral-700 dark:text-neutral-300">{$t('stats.quality_lossy')}</span>
                 <span class="text-[10px] text-neutral-400 ml-2 tabular-nums">{stats.quality_lossy}</span>
               </div>
             </div>
@@ -251,7 +240,7 @@ let qualityTotal = $derived.by(() => {
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between mb-1">
                     <span class="text-xs font-medium text-neutral-700 dark:text-neutral-200 truncate">{artist.name}</span>
-                    <span class="text-[10px] text-neutral-400 tabular-nums shrink-0 ml-2">{artist.count} titres</span>
+                    <span class="text-[10px] text-neutral-400 tabular-nums shrink-0 ml-2">{artist.count === 1 ? $t('home.track_one') : $t('home.tracks_n').replace('{n}', String(artist.count))}</span>
                   </div>
                   <div class="h-1.5 rounded-full bg-neutral-200/60 dark:bg-white/8 overflow-hidden">
                     <div class="h-full rounded-full transition-all duration-500"
@@ -292,7 +281,7 @@ let qualityTotal = $derived.by(() => {
                       <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate" title={track.title}>{track.title}</p>
                       <p class="text-[11px] text-neutral-400 truncate">{track.artist}</p>
                     </div>
-                    <span class="text-xs text-neutral-400 tabular-nums shrink-0">{track.play_count} écoute{track.play_count > 1 ? 's' : ''}</span>
+                    <span class="text-xs text-neutral-400 tabular-nums shrink-0">{$t(track.play_count > 1 ? 'stats.plays_n' : 'stats.plays_one').replace('{n}', String(track.play_count))}</span>
                   </div>
                   <div class="h-1 rounded-full bg-neutral-200/60 dark:bg-white/8 overflow-hidden mt-1.5">
                     <div class="h-full rounded-full transition-all duration-500"

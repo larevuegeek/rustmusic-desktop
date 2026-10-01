@@ -5,15 +5,16 @@
   import { toQueueTracks, type TrackLike } from "$lib/helper/tools/queueTools";
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
   import { invoke } from "@tauri-apps/api/core";
-  import { t } from "$lib/i18n";
+  import { t, currentLocale } from "$lib/i18n";
   import { open } from "@tauri-apps/plugin-dialog";
   import type { Playlist } from "$lib/types/db/playlist/Playlist";
   import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
   import DeezerCoverSearchPopin from "$lib/components/library/common/popin/DeezerCoverSearchPopin.svelte";
+  import { pinsStore, isPinned } from "$lib/stores/library/pins.store";
 
   type Props = {
     title: string;
-    type: "album" | "playlist";
+    type: "album" | "playlist" | "genre";
     loadTracks: () => Promise<TrackLike[]>;
     x: number;
     y: number;
@@ -21,6 +22,8 @@
     oncover?: () => void;
     albumId?: string | null;
     artistName?: string | null;
+    /** Requis pour épingler l'album dans la barre latérale. */
+    libraryId?: number | null;
     /**
      * Ouvre l'atelier de tags sur cette collection.
      *
@@ -31,7 +34,22 @@
     onedittags?: () => void;
   };
 
-  let { title, type, loadTracks, x, y, onclose, oncover, albumId = null, artistName = null, onedittags }: Props = $props();
+  let { title, type, loadTracks, x, y, onclose, oncover, albumId = null, artistName = null, libraryId = null, onedittags }: Props = $props();
+
+  const epingle = $derived(isPinned($pinsStore, "album", albumId));
+
+  // Lu avant `onclose()` : un appelant peut tirer ces props d'un état remis à `null`.
+  async function handleTogglePin() {
+    const m = { albumId, libraryId, title, epingle };
+    onclose();
+    if (!m.albumId || m.libraryId == null) return;
+    try {
+      await pinsStore.setPinned("album", m.libraryId, m.albumId, !m.epingle);
+      toasts.push({ type: "success", title: m.title, message: $t(m.epingle ? "sidebar.unpinned" : "sidebar.pinned") });
+    } catch (e) {
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(e) });
+    }
+  }
 
   let loading = $state(false);
   let showPlaylistSub = $state(false);
@@ -46,12 +64,12 @@
       if (result) {
         await libraryContentStore.refresh();
         oncover?.();
-        toasts.push({ type: "success", title: "Pochette", message: "Pochette récupérée depuis Deezer" });
+        toasts.push({ type: "success", title: $t("tags.cover"), message: $t("notify.cover_fetched") });
       } else {
-        toasts.push({ type: "error", title: "Pochette", message: "Pochette de l'album non trouvée sur Deezer" });
+        toasts.push({ type: "error", title: $t("tags.cover"), message: $t("notify.cover_not_found") });
       }
     } catch (e) {
-      toasts.push({ type: "error", title: "Erreur", message: String(e) });
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(e) });
     } finally {
       loading = false;
       onclose();
@@ -62,8 +80,8 @@
     if (!albumId) return;
     const selected = await open({
       multiple: false,
-      title: "Choisir une pochette",
-      filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }],
+      title: $t("actions.dialog_choose_cover"),
+      filters: [{ name: $t("actions.dialog_images"), extensions: ['jpg', 'jpeg', 'png', 'webp'] }],
     });
     if (!selected) return;
     loading = true;
@@ -71,9 +89,9 @@
       await invoke('set_album_cover', { albumId, imagePath: selected });
       await libraryContentStore.refresh();
       oncover?.();
-      toasts.push({ type: "success", title: "Pochette", message: "Pochette mise à jour" });
+      toasts.push({ type: "success", title: $t("tags.cover"), message: $t("notify.cover_updated") });
     } catch (e) {
-      toasts.push({ type: "error", title: "Erreur", message: String(e) });
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(e) });
     } finally {
       loading = false;
       onclose();
@@ -84,7 +102,7 @@
 
   let menuStyle = $derived.by(() => {
     const menuWidth = 220;
-    const menuHeight = 280;
+    const menuHeight = 320;
     let posX = x;
     let posY = y;
 
@@ -94,7 +112,14 @@
     return `left: ${posX}px; top: ${posY}px;`;
   });
 
-  const label = $derived(type === "album" ? "l'album" : "la playlist");
+  const playAllKey = $derived(type === "album" ? "menu.play_all_album" : type === "genre" ? "menu.play_all_genre" : "menu.play_all_playlist");
+
+  /** « 1 morceau » / « n morceaux », nombre au format de la langue. */
+  function count(n: number, one: string, many: string, extra: Record<string, string> = {}): string {
+    let s = $t(n === 1 ? one : many).replace("{n}", n.toLocaleString($currentLocale));
+    for (const [k, v] of Object.entries(extra)) s = s.replace(`{${k}}`, v);
+    return s;
+  }
 
   async function handlePlayAll() {
     loading = true;
@@ -120,7 +145,7 @@
       for (const t of queueTracks) {
         queueState.addTrack(t);
       }
-      toasts.push({ type: "success", title: "Ajouté en priorité", message: `${tracks.length} morceau(x) seront lus ensuite` });
+      toasts.push({ type: "success", title: $t("notify.added_next"), message: count(tracks.length, "notify.next_one", "notify.next_n") });
     } catch (e) {
       console.error('Failed to enqueue collection:', e);
     } finally {
@@ -138,7 +163,7 @@
       for (const t of queueTracks) {
         queueState.enqueue(t);
       }
-      toasts.push({ type: "success", title: "Ajouté à la file", message: `${tracks.length} morceau(x) ajoutés à la suite` });
+      toasts.push({ type: "success", title: $t("notify.queued"), message: count(tracks.length, "notify.queued_one", "notify.queued_n") });
     } catch (e) {
       console.error('Failed to add to queue:', e);
     } finally {
@@ -156,9 +181,9 @@
       let added = 0;
       for (const track of tracks) {
         if (!track.path) continue;
-        const params: Record<string, any> = { playlistId: pl.id, path: track.path };
-        if ((track as any).id && typeof (track as any).id === 'string') {
-          params.libraryTrackId = (track as any).id;
+        const params: Record<string, unknown> = { playlistId: pl.id, path: track.path };
+        if (typeof track.id === 'string' && track.id) {
+          params.libraryTrackId = track.id;
         }
         try {
           await invoke('add_track_to_playlist', params);
@@ -167,9 +192,9 @@
       }
 
       await playlistStore.refresh();
-      toasts.push({ type: "success", title: "Ajouté", message: `${added} morceau(x) ajoutés à ${pl.name}` });
+      toasts.push({ type: "success", title: $t("notify.added"), message: count(added, "notify.added_to_one", "notify.added_to_n", { name: pl.name }) });
     } catch (e) {
-      toasts.push({ type: "error", title: "Erreur", message: String(e) });
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(e) });
     } finally {
       loading = false;
       onclose();
@@ -185,7 +210,7 @@
   class="fixed inset-0 z-9998 cursor-default"
   onclick={onclose}
   oncontextmenu={(e) => { e.preventDefault(); onclose(); }}
-  aria-label="Fermer le menu"
+  aria-label={$t("menu.close_menu")}
 ></button>
 
 <div
@@ -212,7 +237,7 @@
     disabled={loading}
   >
     <Icon icon="lucide:play" width="14" class="opacity-60" />
-    Lire tout {label}
+    {$t(playAllKey)}
   </button>
 
   <button
@@ -223,7 +248,7 @@
     disabled={loading}
   >
     <Icon icon="lucide:list-start" width="14" class="opacity-60" />
-    Lire ensuite
+    {$t("track_view.play_next")}
   </button>
 
   <button
@@ -234,7 +259,7 @@
     disabled={loading}
   >
     <Icon icon="lucide:list-end" width="14" class="opacity-60" />
-    Ajouter tout à la file
+    {$t("menu.enqueue_all")}
   </button>
 
   {#if onedittags}
@@ -260,7 +285,7 @@
   >
     <span class="flex items-center gap-2.5">
       <Icon icon="lucide:list-music" width="14" class="opacity-60" />
-      Ajouter à une playlist
+      {$t("menu.add_to_playlist")}
     </span>
     <Icon icon={showPlaylistSub ? "lucide:chevron-down" : "lucide:chevron-right"} width="12" class="opacity-40" />
   </button>
@@ -270,7 +295,7 @@
       {#if playlists.length === 0}
         <div class="flex flex-col items-center py-4 px-3">
           <Icon icon="lucide:list-music" width="16" class="text-neutral-600 mb-1.5" />
-          <p class="text-[11px] text-neutral-500">Aucune playlist</p>
+          <p class="text-[11px] text-neutral-500">{$t("menu.no_playlist")}</p>
         </div>
       {:else}
         {#each playlists as pl, i (pl.id)}
@@ -298,6 +323,17 @@
     <!-- Séparateur -->
     <div class="h-px mx-3 my-1 bg-white/6"></div>
 
+    {#if libraryId != null}
+      <button
+        class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
+               text-neutral-200 hover:bg-white/10 transition-colors"
+        onclick={handleTogglePin}
+      >
+        <Icon icon={epingle ? "material-symbols:keep-off-outline-rounded" : "material-symbols:keep-outline-rounded"} width="15" class="opacity-60" />
+        {$t(epingle ? "sidebar.unpin" : "sidebar.pin")}
+      </button>
+    {/if}
+
     <button
       class="w-full flex items-center justify-between px-3.5 py-2 text-sm text-left cursor-pointer
              text-neutral-200 hover:bg-white/10 transition-colors"
@@ -305,7 +341,7 @@
     >
       <span class="flex items-center gap-2.5">
         <Icon icon="lucide:image" width="14" class="opacity-60" />
-        Changer de pochette
+        {$t("menu.change_cover")}
       </span>
       <Icon icon={showCoverSub ? "lucide:chevron-down" : "lucide:chevron-right"} width="12" class="opacity-40" />
     </button>
@@ -320,7 +356,7 @@
           disabled={loading}
         >
           <Icon icon="lucide:wand-sparkles" width="13" class="opacity-60" />
-          Importer depuis Deezer
+          {$t("menu.cover_from_deezer")}
         </button>
 
         <div class="h-px mx-2 bg-white/4"></div>
@@ -331,7 +367,7 @@
           onclick={() => { showDeezerSearch = true; }}
         >
           <Icon icon="lucide:search" width="13" class="opacity-60" />
-          Chercher sur Deezer
+          {$t("menu.cover_search_deezer")}
         </button>
 
         <div class="h-px mx-2 bg-white/4"></div>
@@ -344,7 +380,7 @@
           disabled={loading}
         >
           <Icon icon="lucide:folder-open" width="13" class="opacity-60" />
-          Choisir un fichier
+          {$t("menu.cover_pick_file")}
         </button>
       </div>
     {/if}

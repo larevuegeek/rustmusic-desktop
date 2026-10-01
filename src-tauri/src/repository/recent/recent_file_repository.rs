@@ -54,7 +54,8 @@ impl RecentFileRepository {
                 ON lc.path = rf.path
 
             ORDER BY rf.last_played_at DESC
-            LIMIT 10
+            -- Assez pour regrouper les dernières écoutes par album sur l'accueil.
+            LIMIT 50
             "#
         )
         .fetch_all(exec)
@@ -144,4 +145,26 @@ impl RecentFileRepository {
         Ok(())
     }
 
+    /// Où l'on en était dans ce morceau, pour pouvoir y revenir.
+    ///
+    /// L'upsert de `record_play` fixe la position à zéro — c'est juste au
+    /// démarrage d'une écoute, et faux ensuite. Sans cette écriture au fil de
+    /// la lecture, `last_position` ne valait jamais que zéro et aucune reprise
+    /// n'était possible.
+    pub async fn save_position<'e, E>(
+        exec: E,
+        path: &str,
+        position: f64,
+    ) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
+    {
+        sqlx::query("UPDATE recent_files SET last_position = ? WHERE path = ?")
+            .bind(position)
+            .bind(path)
+            .execute(exec)
+            .await?;
+
+        Ok(())
+    }
 }

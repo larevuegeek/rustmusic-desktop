@@ -23,7 +23,7 @@
               shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)]">
 
     <!-- Logo -->
-    <LogoRustMusic width={150} />
+    <LogoRustMusic width={123} />
 
     <!-- Animated loader -->
     <div class="relative w-12 h-12">

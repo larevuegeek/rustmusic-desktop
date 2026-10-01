@@ -10,82 +10,67 @@ import type { Library } from "$lib/types/db/library/Library";
 import { toasts } from "$lib/stores/ui/toast.store";
 import { goto } from "$app/navigation";
 import { libraryStore } from "$lib/stores/library/library.store";
+import { get } from "svelte/store";
+import { t } from "$lib/i18n";
 
-export default async function addLibraryFiles(libraryId: number): Promise<TrackListView[]> {
+/** La boîte de dialogue seule : les fichiers choisis, ou rien si l'on annule. */
+export async function choisirFichiers(): Promise<string[]> {
+    const choix = await open({
+        multiple: true,
+        title: get(t)("actions.dialog_open_files"),
+        filters: [
+            {
+                name: get(t)("actions.dialog_audio_files"),
+                extensions: ['mp3', 'flac', 'ogg', 'm4a', 'dsf', 'dff', 'wav', 'aac']
+            }
+        ]
+    });
+    if (!choix) return [];
+    return Array.isArray(choix) ? choix : [choix];
+}
 
-    let tracks: TrackListView[] = [];
+/** La boîte de dialogue seule : le dossier choisi, ou `null` si l'on annule. */
+export async function choisirDossier(): Promise<string | null> {
+    const choix = await open({
+        directory: true,
+        multiple: false,
+        title: get(t)("actions.dialog_select_folder")
+    });
+    return typeof choix === "string" ? choix : null;
+}
 
+export async function importerFichiers(libraryId: number, files: string[]): Promise<TrackListView[]> {
+    if (files.length === 0) return [];
+    libraryStore.setImporting(true);
     try {
-        const selectedFiles = await open({
-            multiple: true,
-            title: "Ouvrir des fichiers",
-            filters: [
-                { 
-                    name: 'Fichiers audio', 
-                    extensions: ['mp3', 'flac', 'ogg', 'm4a', 'dsf', 'dff', 'wav', 'aac'] 
-                }
-            ]
-        });
-
-        if (!selectedFiles) return tracks;
-
-        libraryStore.setImporting(true);
-
-        // Normaliser en array
-        const files: string[] = Array.isArray(selectedFiles) 
-            ? selectedFiles 
-            : [selectedFiles];
-
-        if(files.length == 0) return tracks;
-
-        // Importer les fichiers
-        const result = await invoke<TrackListView[]>('add_files', {
-            libraryId: libraryId,
-            files: files
-        });
-
-        return result ?? [];
-
-    } catch(err) {
+        return (await invoke<TrackListView[]>('add_files', { libraryId, files })) ?? [];
+    } catch (err) {
         console.error(err);
-        return tracks;
+        return [];
     } finally {
         libraryStore.setImporting(false);
     }
 }
 
-
-export async function addLibraryDirectory(libraryId: number): Promise<TrackListView[]> {
-
-    let tracks: TrackListView[] = [];
-
+export async function importerDossier(libraryId: number, directory: string): Promise<TrackListView[]> {
+    libraryStore.setImporting(true);
     try {
-        const selectedPath = await open({
-            directory: true,  // ← La clé importante !
-            multiple: false,
-            title: "Sélectionner un dossier"
-        });
-
-        if (!selectedPath) {
-            return tracks;
-        }
-
-        libraryStore.setImporting(true);
-
-        // Importer les fichiers
-        const result = await invoke<TrackListView[]>('add_directory', { 
-            libraryId: libraryId,
-            directory: selectedPath 
-        });
-
-        return result ?? [];
-
-    } catch(err) {
+        return (await invoke<TrackListView[]>('add_directory', { libraryId, directory })) ?? [];
+    } catch (err) {
         console.error(err);
-        return tracks;
+        return [];
     } finally {
         libraryStore.setImporting(false);
     }
+}
+
+export default async function addLibraryFiles(libraryId: number): Promise<TrackListView[]> {
+    return importerFichiers(libraryId, await choisirFichiers());
+}
+
+export async function addLibraryDirectory(libraryId: number): Promise<TrackListView[]> {
+    const dossier = await choisirDossier();
+    return dossier ? importerDossier(libraryId, dossier) : [];
 }
 
 export async function loadTrack(
@@ -103,24 +88,6 @@ export async function loadTrack(
     } catch(err) {
         console.error(err);
         return null;
-    }
-}
-
-export async function loadTracks(
-    libraryId: number
-): Promise<TrackListView[]> {
-    
-    try {
-
-        const result = await invoke<TrackListView[]>('get_tracks', { 
-            libraryId: libraryId
-        });
-
-        return result;
-        
-    } catch(err) {
-        console.error(err);
-        return [];
     }
 }
 
@@ -231,8 +198,8 @@ export async function loadLibrary(id: number, profilId: number, tag: number, cur
       if (!result || result.profil_id !== profilId) {
         toasts.push({
           type: "error",
-          title: "Accès refusé",
-          message: "Tu n'as pas accès à cette bibliothèque ou elle n'existe plus.",
+          title: get(t)("notify.access_denied"),
+          message: get(t)("notify.library_forbidden"),
         });
         goto("/");
         return null;
@@ -245,8 +212,8 @@ export async function loadLibrary(id: number, profilId: number, tag: number, cur
       
       toasts.push({
           type: "error",
-          title: "Accès impossible",
-          message: "Impossible de récupérer la bibliothèque",
+          title: get(t)("notify.access_failed"),
+          message: get(t)("common.error_library"),
       });
       
       goto("/");

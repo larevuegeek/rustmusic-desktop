@@ -1,620 +1,502 @@
 <script lang="ts">
+// Page d'un artiste : portrait et chiffres, discographie, tous ses titres regroupés par album, puis ses voisins.
 import { page } from "$app/state";
-import ArtistListRow from "$lib/components/library/artist/ArtistListRow.svelte";
-import AlbumListRow from "$lib/components/library/album/AlbumListRow.svelte";
-import { selectionStore } from "$lib/stores/ui/selection.store";
 import { goto } from "$app/navigation";
+import Icon from "@iconify/svelte";
+import { tick, untrack } from "svelte";
+import { invoke } from "@tauri-apps/api/core";
+import { t, currentLocale } from "$lib/i18n";
 import { profilSelector } from "$lib/stores/profil/profil.store";
+import { selectionStore } from "$lib/stores/ui/selection.store";
+import { viewMode } from "$lib/stores/ui/viewMode.store";
+import { settingsStore } from "$lib/stores/settings/settings.store";
+import { liked } from "$lib/stores/playlist/like.store";
+import { toasts } from "$lib/stores/ui/toast.store";
+import { loadArtist } from "$lib/services/library/library.service";
+import { handleTracksPlay } from "$lib/actions/queue/QueueAction";
+import { clesAffichees, resoudreColonnes, lireLargeurs, resetTagCache, trierPistes, type SortDir } from "$lib/config/trackColumns";
+import { dureeEcoute } from "$lib/helper/tools/dateTools";
+import { meilleureQualite } from "$lib/helper/tools/audioFormatTools";
+import { lireLocal, ecrireLocal } from "$lib/helper/tools/stockage";
+import { cleTri, comparerNaturel, ordreDisque } from "$lib/helper/library/cleTri";
+import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+import ImgZoom from "$lib/components/ui/tools/ImgZoom.svelte";
+import QualityBadge from "$lib/components/ui/text/QualityBadge.svelte";
+import DetailPage from "$lib/components/ui/layout/DetailPage.svelte";
+import PageState from "$lib/components/ui/layout/PageState.svelte";
+import PlayButton from "$lib/components/ui/button/PlayButton.svelte";
+import RoundButton from "$lib/components/ui/button/RoundButton.svelte";
+import ToolbarButton from "$lib/components/ui/button/ToolbarButton.svelte";
+import ChipLink from "$lib/components/ui/link/ChipLink.svelte";
+import SegmentedControl from "$lib/components/ui/input/SegmentedControl.svelte";
+import ViewModeSwitch from "$lib/components/ui/input/ViewModeSwitch.svelte";
+import SelectionToggle from "$lib/components/ui/selection/SelectionToggle.svelte";
+import CarouselSection from "$lib/components/ui/carousel/CarouselSection.svelte";
+import TrackColumnsButton from "$lib/components/library/track/TrackColumnsButton.svelte";
+import LibraryItemMenu from "$lib/components/ui/contextmenu/LibraryItemMenu.svelte";
+import AlbumTrackRow from "$lib/components/library/album/AlbumTrackRow.svelte";
+import LibraryTrackTable from "$lib/components/library/track/LibraryTrackTable.svelte";
+import AlbumListItem from "$lib/components/library/album/AlbumListItem.svelte";
+import AlbumListRow from "$lib/components/library/album/AlbumListRow.svelte";
+import ArtistListItem from "$lib/components/library/artist/ArtistListItem.svelte";
+import ArtistListRow from "$lib/components/library/artist/ArtistListRow.svelte";
 import type { Library } from "$lib/types/db/library/Library";
 import type { ArtistDetailView } from "$lib/types/ui/library/artist/ArtistDetailView";
+import type { ArtistListView } from "$lib/types/ui/library/artist/ArtistListView";
 import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
 import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-import { loadArtist } from "$lib/services/library/library.service";
-import Icon from "@iconify/svelte";
-import { invoke } from "@tauri-apps/api/core";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import AlbumListItem from "$lib/components/library/album/AlbumListItem.svelte";
-import AlbumListTrackItem from "$lib/components/library/album/AlbumListTrackItem.svelte";
-import TrackTable from "$lib/components/library/track/TrackTable.svelte";
-import { trierPistes, resetTagCache } from "$lib/config/trackColumns";
-import { viewMode } from "$lib/stores/ui/viewMode.store";
-import ArtistListItem from "$lib/components/library/artist/ArtistListItem.svelte";
-import type { ArtistListView } from "$lib/types/ui/library/artist/ArtistListView";
-import { t } from "$lib/i18n";
-import { toQueueTracks } from "$lib/helper/tools/queueTools";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { playerService } from "$lib/services/player/player.service";
-import ArtistHeroSkeleton from "$lib/components/library/artist/ArtistHeroSkeleton.svelte";
-import ImgZoom from "$lib/components/ui/tools/ImgZoom.svelte";
-import LibraryTrackSkeleton from "$lib/components/library/common/skeleton/LibraryTrackSkeleton.svelte";
-import LibraryAlbumSkeleton from "$lib/components/library/common/skeleton/LibraryAlbumSkeleton.svelte";
-import LibraryArtistSkeleton from "$lib/components/library/common/skeleton/LibraryArtistSkeleton.svelte";
-
-// --- State ---
-let artist: ArtistDetailView | null = $state(null);
-let artistAlbums: AlbumListView[] = $state([]);
-let artistTracks: TrackListView[] = $state([]);
-let similarArtists: ArtistListView[] = $state([]);
-let artistImageUrl: string | null = $state(null);
-
-// --- Loading states (per section) ---
-let loadingHero = $state(true);
-let loadingTracks = $state(true);
-let loadingAlbums = $state(true);
-let loadingSimilar = $state(true);
-let error: string | null = $state(null);
-
-// --- UI state ---
-let showAllTracks = $state(false);
-const TRACKS_PER_PAGE = 10;
-
-// Tri discographie
-type TrackSortField = 'album' | 'year' | 'title';
-type SortDir = 'asc' | 'desc';
-let tracksSort = $state<TrackSortField>('album');
-let tracksSortDir = $state<SortDir>('asc');
-
-let sortedTracks = $derived.by(() => {
-  const sorted = [...artistTracks];
-  sorted.sort((a, b) => {
-    let cmp = 0;
-    if (tracksSort === 'album') {
-      const aa = a.album?.toLowerCase() ?? '';
-      const ab = b.album?.toLowerCase() ?? '';
-      cmp = aa.localeCompare(ab);
-      if (cmp === 0) cmp = (a.disc_number ?? 1) - (b.disc_number ?? 1);
-      if (cmp === 0) cmp = (a.track_number ?? 0) - (b.track_number ?? 0);
-    } else if (tracksSort === 'year') {
-      cmp = (Number(a.year) || 0) - (Number(b.year) || 0);
-      if (cmp === 0) cmp = (a.album?.toLowerCase() ?? '').localeCompare(b.album?.toLowerCase() ?? '');
-    } else {
-      const ta = a.title?.toLowerCase() ?? '';
-      const tb = b.title?.toLowerCase() ?? '';
-      cmp = ta.localeCompare(tb);
-    }
-    return tracksSortDir === 'desc' ? -cmp : cmp;
-  });
-  return sorted;
-});
-
-let visibleTracks = $derived(
-  showAllTracks ? sortedTracks : sortedTracks.slice(0, TRACKS_PER_PAGE)
-);
-
-// ─── Tri du tableau ───
-//
-// Toutes les pistes de l'artiste sont en mémoire : le classement se fait sur
-// place et porte sur l'ensemble, pas sur la portion affichée. Il s'applique
-// donc avant le découpage — trier puis tronquer donne bien les dix premières
-// du classement, là que tronquer puis trier ne rangerait que la première page.
-let tableSortKey = $state<string | null>(null);
-let tableSortDir = $state<SortDir>('asc');
-
-let tableTracks = $derived(
-  trierPistes(sortedTracks, tableSortKey, tableSortDir)
-    .slice(0, showAllTracks ? undefined : TRACKS_PER_PAGE)
-);
-
-function handleTableSort(key: string, dir: SortDir) {
-  tableSortKey = key;
-  tableSortDir = dir;
-}
-
-// Les tags analysés appartiennent aux pistes chargées : changer d'artiste doit
-// vider ce qui a été mis en cache pour le précédent.
-$effect(() => {
-  const _pistes = artistTracks;
-  resetTagCache();
-});
-
-// ─── L'ordre affiché, pour la sélection par plage ───
-//
-// Déclaré aussi en vue cartes : Maj + clic doit fonctionner dans les deux modes,
-// et l'ordre n'y est pas le même.
-$effect(() => {
-  selectionStore.setOrder(visibleTracks.map((t) => ({ id: t.id, track: t })));
-});
-
-function toggleTracksSort(field: TrackSortField) {
-  if (tracksSort === field) {
-    tracksSortDir = tracksSortDir === 'desc' ? 'asc' : 'desc';
-  } else {
-    tracksSort = field;
-    tracksSortDir = field === 'year' ? 'desc' : 'asc';
-  }
-}
-
-// Tri albums
-type AlbumSortField = 'year' | 'title';
-let albumsSort = $state<AlbumSortField>('year');
-let albumsSortDir = $state<SortDir>('desc');
-
-function comparerAlbums(a: AlbumListView, b: AlbumListView) {
-  if (albumsSort === 'year') {
-    const ya = a.year ?? 0;
-    const yb = b.year ?? 0;
-    return albumsSortDir === 'desc' ? yb - ya : ya - yb;
-  }
-  const ta = a.title?.toLowerCase() ?? '';
-  const tb = b.title?.toLowerCase() ?? '';
-  return albumsSortDir === 'desc' ? tb.localeCompare(ta) : ta.localeCompare(tb);
-}
-
-// Ses albums d'un côté, ceux où il n'est qu'invité de l'autre.
-let sortedAlbums = $derived(
-  artistAlbums.filter(a => !a.participation).sort(comparerAlbums)
-);
-let albumsInvite = $derived(
-  artistAlbums.filter(a => a.participation).sort(comparerAlbums)
-);
-
-function toggleAlbumsSort(field: AlbumSortField) {
-  if (albumsSort === field) {
-    albumsSortDir = albumsSortDir === 'desc' ? 'asc' : 'desc';
-  } else {
-    albumsSort = field;
-    albumsSortDir = field === 'year' ? 'desc' : 'asc';
-  }
-}
-
-let heroBgSrc = $derived.by(() => {
-  if (artistImageUrl) return artistImageUrl;
-  if (artistAlbums[0]?.cover_url) return artistAlbums[0].cover_url;
-  return null;
-});
-
-async function playAllTracks() {
-  if (artistTracks.length === 0) return;
-  const queueTracks = toQueueTracks(artistTracks);
-  await queueState.loadTracks(queueTracks);
-  playerService.playFile(queueTracks[0]);
-}
 
 const libraryId = $derived(Number(page.params.library_id));
 const artistId = $derived(String(page.params.artist_id));
 const profil = $derived($profilSelector.profilSelected);
 
-let currentTag = 0;
+let artist = $state<ArtistDetailView | null>(null);
+let portrait = $state<string | null>(null);
+let tracks = $state<TrackListView[]>([]);
+let albums = $state<AlbumListView[]>([]);
+let similaires = $state<ArtistListView[]>([]);
+let chargeTitres = $state(false);
+let chargeAlbums = $state(false);
+let erreur = $state(false);
+let defilement = $state<HTMLDivElement | null>(null);
+
+// ─── Chargement : l'en-tête d'abord, puis titres, albums et voisins en parallèle ───
+let tour = 0;
+let demande = "";
 
 $effect(() => {
   const id = libraryId;
-  const aId = artistId;
+  const aid = artistId;
   const p = profil;
-  error = null;
-
   if (!$profilSelector.initialized) return;
-
-  if (!p) { error = "Aucun profil sélectionné"; loadingHero = false; return; }
-  if (!id || !aId) { error = "Paramètres invalides"; loadingHero = false; return; }
-
-  const tag = ++currentTag;
-  loadData(id, aId, p.id, tag);
+  if (!p || !id || !aid) {
+    erreur = true;
+    return;
+  }
+  // Hors suivi : `charger` réécrit l'état qu'il lit.
+  const n = ++tour;
+  untrack(() => charger(id, aid, p.id, n));
 });
 
-async function loadData(
-  libId: number,
-  artId: string,
-  profilId: number,
-  tag: number
-) {
-  // Reset all states
-  loadingHero = true;
-  loadingTracks = true;
-  loadingAlbums = true;
-  loadingSimilar = true;
-  artist = null;
-  artistAlbums = [];
-  artistTracks = [];
-  similarArtists = [];
-  showAllTracks = false;
-  error = null;
-
+async function charger(libId: number, aid: string, profilId: number, n: number) {
+  erreur = false;
+  // Autre artiste : on vide (l'id d'adresse peut différer de `artist.id`).
+  if (demande !== aid) {
+    demande = aid;
+    artist = null;
+    portrait = null;
+    tracks = [];
+    albums = [];
+    similaires = [];
+  }
+  chargeTitres = chargeAlbums = false;
   try {
-    // Phase 1: Fast — get library + artist info for the hero header
-    const [lib, artistData] = await Promise.all([
-      invoke<Library>('get_library', { libraryId: libId }),
-      loadArtist(artId),
-    ]);
-
-    if (tag !== currentTag) return;
-
+    const [lib, a] = await Promise.all([invoke<Library>("get_library", { libraryId: libId }), loadArtist(aid)]);
+    if (n !== tour) return;
     if (!lib || lib.profil_id !== profilId) {
       goto("/");
       return;
     }
-
-    // Show hero immediately
-    artist = artistData;
-    artistImageUrl = artistData?.thumbnail_path ?? null;
-    loadingHero = false;
-
-    // ─── Portrait de l'artiste, depuis Deezer ───
-    //
-    // C'est le seul appel réseau que l'application déclenche d'elle-même :
-    // ouvrir une fiche artiste sans portrait interroge Deezer. Le résultat est
-    // mis en cache en base — y compris l'absence de résultat — donc une fiche
-    // déjà vue ne redemande rien.
-    //
-    // Le réglage ne touche qu'à ce déclenchement automatique : le bouton de
-    // récupération groupée reste disponible, un clic étant une demande
-    // explicite.
-    const autoArtistImages =
-      settingsStore.get('auto_download_artist_images') !== 'false';
-
-    if (autoArtistImages && artistData?.name && artistData?.id) {
-      invoke<string | null>('fetch_artist_image', {
-        artistId: artistData.id,
-        artistName: artistData.name
-      }).then(url => {
-        if (tag === currentTag && url) artistImageUrl = url;
-      }).catch(() => {});
+    if (!a) {
+      erreur = true;
+      return;
     }
-
-    // Phase 2: Load tracks + albums in parallel
-    invoke<TrackListView[]>('get_tracks_by_artist', { libraryId: libId, artistId: artId })
-      .then(tracks => {
-        if (tag !== currentTag) return;
-        artistTracks = tracks;
-      })
-      .catch(e => console.error('Failed to load tracks:', e))
-      .finally(() => { if (tag === currentTag) loadingTracks = false; });
-
-    invoke<AlbumListView[]>('get_albums_by_artist', { libraryId: libId, artistId: artId })
-      .then(albums => {
-        if (tag !== currentTag) return;
-        artistAlbums = albums;
-      })
-      .catch(e => console.error('Failed to load albums:', e))
-      .finally(() => { if (tag === currentTag) loadingAlbums = false; });
-
-    // Phase 3: Similar artists — loaded after main content
-    invoke<ArtistListView[]>('get_similar_artists', { libraryId: libId, artistId: artId, limit: 10 })
-      .then(artists => {
-        if (tag !== currentTag) return;
-        similarArtists = artists;
-      })
-      .catch(e => console.error('Failed to load similar artists:', e))
-      .finally(() => { if (tag === currentTag) loadingSimilar = false; });
-
+    artist = a;
+    portrait = a.thumbnail_path ?? null;
+    defilement?.scrollTo({ top: 0 });
   } catch (e) {
-    if (tag !== currentTag) return;
-    error = "Impossible de charger l'artiste";
-    loadingHero = false;
+    if (n === tour) erreur = true;
+    console.error("[artiste] chargement :", e);
+    return;
+  }
+
+  // Portrait depuis Deezer : seul appel réseau automatique, mis en cache en base (absence comprise).
+  if ($settingsStore.auto_download_artist_images !== "false" && artist?.name) {
+    invoke<string | null>("fetch_artist_image", { artistId: artist.id, artistName: artist.name })
+      .then((url) => { if (n === tour && url) portrait = url; })
+      .catch(() => {});
+  }
+
+  // L'adresse peut porter l'id de bibliothèque de l'artiste : les requêtes veulent l'id d'artiste.
+  const ida = artist!.id;
+  invoke<TrackListView[]>("get_tracks_by_artist", { libraryId: libId, artistId: ida })
+    .then((r) => {
+      if (n !== tour) return;
+      tracks = r ?? [];
+      ouvrirPremier();
+    })
+    .catch((e) => console.error("[artiste] titres :", e))
+    .finally(() => { if (n === tour) chargeTitres = true; });
+
+  invoke<AlbumListView[]>("get_albums_by_artist", { libraryId: libId, artistId: ida })
+    .then((r) => { if (n === tour) albums = r ?? []; })
+    .catch((e) => console.error("[artiste] albums :", e))
+    .finally(() => { if (n === tour) chargeAlbums = true; });
+
+  invoke<ArtistListView[]>("get_similar_artists", { libraryId: libId, artistId: ida, limit: 12 })
+    .then((r) => { if (n === tour) similaires = (r ?? []).filter((x) => !COMPILATIONS.test(x.name)).slice(0, 10); })
+    .catch((e) => console.error("[artiste] similaires :", e));
+}
+
+// « Various Artists » n'est pas un artiste voisin.
+const COMPILATIONS = /^(various artists?|va|artistes? divers|compilations?)$/i;
+
+$effect(() => {
+  void tracks;
+  resetTagCache();
+});
+
+// Teinte de la lueur : le portrait, à défaut la première pochette.
+const imageTeinte = $derived(portrait ?? albums.find((a) => a.cover_url)?.cover_url ?? null);
+
+// ─── Chiffres ───
+const nombre = (n: number) => n.toLocaleString($currentLocale);
+const albumsPropres = $derived(albums.filter((a) => !a.participation));
+const participations = $derived(albums.filter((a) => a.participation));
+const duree = $derived(tracks.reduce((s, x) => s + (x.duration ?? 0), 0) || artist?.total_duration || 0);
+const nbAlbums = $derived(chargeAlbums ? albumsPropres.length : (artist?.total_albums ?? 0));
+const nbTitres = $derived(chargeTitres ? tracks.length : (artist?.total_tracks ?? 0));
+const periode = $derived.by(() => {
+  const ans = albumsPropres.map((a) => a.year ?? 0).filter((y) => y > 0);
+  if (!ans.length) return null;
+  const [min, max] = [Math.min(...ans), Math.max(...ans)];
+  return min === max ? String(min) : `${min} – ${max}`;
+});
+const plusieurs = (n: number, un: string, n_: string) => `${$t(n === 1 ? un : n_)}`;
+
+// Trois genres les plus présents dans ses titres.
+const genres = $derived.by(() => {
+  const n = new Map<string, number>();
+  for (const x of tracks) if (x.genre?.trim()) n.set(x.genre.trim(), (n.get(x.genre.trim()) ?? 0) + 1);
+  return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([g]) => g);
+});
+
+// ─── Favoris : l'artiste l'est quand tous ses titres le sont ───
+const tousAimes = $derived(tracks.length > 0 && tracks.every((x) => $liked.paths.has(x.path)));
+async function basculerFavori() {
+  const aimer = !tousAimes;
+  try {
+    await liked.toggleAll(tracks.map((x) => x.path), aimer);
+    toasts.push({ type: "success", title: $t(aimer ? "album_view.fav_added" : "album_view.fav_removed"), message: artist?.name ?? "" });
+  } catch (e) {
+    console.error("[artiste] favoris :", e);
   }
 }
+
+// ─── Tous les titres : regroupés par album (année ou nom), sinon à plat ───
+let tri = $state<string>("year");
+let sens = $state<SortDir>("desc");
+const groupe = $derived(tri === "year" || tri === "album");
+
+type Groupe = { cle: string; album: AlbumListView | null; titre: string; annee: number | null; cover: string | null; pistes: TrackListView[] };
+const albumsParId = $derived(new Map(albums.map((a) => [a.id, a])));
+const parTitre = (x: string, y: string) => comparerNaturel.compare(cleTri(x), cleTri(y));
+
+const groupes = $derived.by((): Groupe[] => {
+  if (!groupe) return [];
+  const m = new Map<string, TrackListView[]>();
+  for (const x of tracks) {
+    const cle = x.album_id ?? `?${x.album ?? ""}`;
+    if (!m.has(cle)) m.set(cle, []);
+    m.get(cle)!.push(x);
+  }
+  const liste = [...m].map(([cle, pistes]): Groupe => {
+    const a = albumsParId.get(cle) ?? null;
+    const p = pistes[0];
+    return {
+      cle,
+      album: a,
+      titre: a?.title ?? p.album ?? $t("artist_view.unknown_album"),
+      annee: a?.year ?? (Number(p.year) || null),
+      cover: a?.cover_url ?? p.thumbnail_path ?? null,
+      pistes: pistes.sort(ordreDisque),
+    };
+  });
+  const s = sens === "asc" ? 1 : -1;
+  return tri === "year"
+    ? liste.sort((x, y) => s * ((x.annee ?? 0) - (y.annee ?? 0)) || parTitre(x.titre, y.titre))
+    : liste.sort((x, y) => s * parTitre(x.titre, y.titre));
+});
+const aPlat = $derived(groupe ? [] : trierPistes(tracks, tri, sens));
+// La file de lecture : l'ordre affiché, albums repliés compris.
+const ordreLecture = $derived(groupe ? groupes.flatMap((g) => g.pistes) : aPlat);
+
+let ouverts = $state<Set<string>>(new Set());
+function ouvrirPremier() {
+  const premier = groupes[0]?.cle;
+  ouverts = new Set(premier ? [premier] : []);
+}
+function basculer(cle: string) {
+  const s = new Set(ouverts);
+  if (!s.delete(cle)) s.add(cle);
+  ouverts = s;
+}
+const toutOuvert = $derived(groupes.length > 0 && groupes.every((g) => ouverts.has(g.cle)));
+function toutBasculer() {
+  ouverts = toutOuvert ? new Set() : new Set(groupes.map((g) => g.cle));
+}
+
+// Un nouvel ordre repart du premier album ouvert, comme la maquette.
+function trierPar(cle: string) {
+  if (tri === cle) sens = sens === "asc" ? "desc" : "asc";
+  else {
+    tri = cle;
+    sens = cle === "year" ? "desc" : "asc";
+  }
+  ouvrirPremier();
+}
+
+// L'ordre affiché, pour Maj + clic (le tableau déclare le sien).
+const visibles = $derived(groupe ? groupes.flatMap((g) => (ouverts.has(g.cle) ? g.pistes : [])) : aPlat);
+$effect(() => {
+  if ($viewMode !== "list") selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
+});
+
+// Clic sur une carte de la discographie : son album s'ouvre plus bas.
+async function allerA(id: string) {
+  if (!groupe) {
+    tri = "year";
+    sens = "desc";
+  }
+  if (!groupes.some((g) => g.cle === id)) {
+    goto(`/library/${libraryId}/albums/${id}`);
+    return;
+  }
+  ouverts = new Set([...ouverts, id]);
+  await tick();
+  const el = defilement?.querySelector<HTMLElement>(`[data-groupe="${id}"]`);
+  if (!el || !defilement) return;
+  const haut = el.getBoundingClientRect().top - defilement.getBoundingClientRect().top + defilement.scrollTop - 70;
+  defilement.scrollTo({ top: haut, behavior: "smooth" });
+  el.animate([{ boxShadow: "inset 0 0 0 2px var(--rg-g)" }, { boxShadow: "inset 0 0 0 2px transparent" }], { duration: 1400, easing: "ease-out" });
+}
+
+// Jaquettes par titre : utiles à plat, superflues sous l'en-tête d'album.
+let jaquettes = $state(lireLocal("artiste:jaquettes", "0") === "1");
+function basculerJaquettes() {
+  jaquettes = !jaquettes;
+  ecrireLocal("artiste:jaquettes", jaquettes ? "1" : "0");
+}
+
+const colonnes = $derived(resoudreColonnes(clesAffichees($settingsStore.track_columns)).filter((c) => c.key !== "artist"));
+const largeurs = $derived(lireLargeurs($settingsStore.track_column_widths));
+
+// Discographie : même ordre que les titres (nom, sinon année récente d'abord).
+const discoParNom = $derived(tri === "album" || tri === "title");
+const discographie = $derived(
+  discoParNom
+    ? [...albumsPropres].sort((x, y) => parTitre(x.title, y.title))
+    : [...albumsPropres].sort((x, y) => (y.year ?? 0) - (x.year ?? 0) || parTitre(x.title, y.title)),
+);
+
+let artistMenu = $state<{ x: number; y: number } | null>(null);
+const grille = $derived($viewMode !== "list");
+
+const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded") : null);
 </script>
 
-{#if error}
-  <div class="flex items-center justify-center h-full text-red-500">
-    {error}
-  </div>
+<!-- Cartes et lignes des sections (hors de DetailPage : sinon ce seraient ses props). -->
+{#snippet carteDisco(a: AlbumListView)}<AlbumListItem {libraryId} album={a} onopen={() => allerA(a.id)} />{/snippet}
+{#snippet ligneDisco(a: AlbumListView)}<AlbumListRow {libraryId} album={a} onopen={() => allerA(a.id)} />{/snippet}
+{#snippet carteAlbum(a: AlbumListView)}<AlbumListItem {libraryId} album={a} />{/snippet}
+{#snippet ligneAlbum(a: AlbumListView)}<AlbumListRow {libraryId} album={a} />{/snippet}
+{#snippet carteArtiste(a: ArtistListView)}<ArtistListItem {libraryId} artist={a} />{/snippet}
+{#snippet ligneArtiste(a: ArtistListView)}<ArtistListRow {libraryId} artist={a} />{/snippet}
 
-{:else}
-
-<div class="flex flex-col scrollbar-app overflow-y-auto h-full">
-
-  <!-- HERO -->
-  {#if loadingHero}
-    <ArtistHeroSkeleton />
-  {:else if artist}
-    <div class="sticky left-0 px-8 pt-10 pb-14 shrink-0">
-
-      <!-- BG Dual Layer (style Apple Music) -->
-      {#if heroBgSrc}
-        <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true" style="z-index: 0;">
-          <CoverImg path={heroBgSrc} alt=""
-               class="absolute inset-0 w-full h-full object-cover scale-110"
-               style="filter: blur(30px) saturate(1.4); opacity: 0.5;" />
-          <div class="absolute inset-0"
-               style="background: radial-gradient(ellipse at 25% 50%, transparent 0%, rgba(var(--hero-overlay-rgb),0.6) 50%, rgba(var(--hero-overlay-rgb),0.95) 100%);"></div>
-          <div class="absolute inset-0 dark:bg-black/30 bg-white/30"></div>
-        </div>
-        <div class="absolute left-0 right-0 bottom-0 h-40 pointer-events-none" aria-hidden="true"
-             style="z-index: 1; background: linear-gradient(to bottom, transparent 0%, var(--hero-bg-hex) 100%);"></div>
-      {/if}
-
-      <!-- Retour -->
-      <button
-        type="button"
-        onclick={() => goto(`/library/${libraryId}/artists`)}
-        class="relative z-10 mb-6 inline-flex items-center gap-2 text-sm text-neutral-400
-               hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
-      >
-        <Icon icon="lucide:arrow-left" width={16} />
-        {$t('library.back_artists')}
-      </button>
-
-      <div class="relative z-10 flex items-center gap-6">
-        <!-- Photo -->
-        <div class="w-44 h-44 rounded-full overflow-hidden
-                    bg-neutral-200 dark:bg-neutral-700 shadow-xl flex items-center justify-center">
-          {#if artistImageUrl}
-            <ImgZoom path={artistImageUrl} alt={artist.name}>
-              <CoverImg
-                path={artistImageUrl}
-                alt={artist.name}
-                class="w-full h-full object-cover"
-              />
-            </ImgZoom>
-          {:else}
-            <Icon icon="lucide:user" width={64} class="text-neutral-400" />
-          {/if}
-        </div>
-
-        <!-- Info -->
-        <div class="flex flex-col">
-          <span class="text-sm uppercase text-neutral-500 dark:text-neutral-400 tracking-wide">{$t('library.artist_label')}</span>
-          <h1 class="text-4xl font-bold text-neutral-900 dark:text-white mt-1">{artist.name}</h1>
-          <span class="mt-3 text-sm text-neutral-600 dark:text-neutral-300">
-            {#if loadingAlbums || loadingTracks}
-              <span class="inline-block h-4 w-40 bg-neutral-200 dark:bg-neutral-700 rounded animate-pulse"></span>
-            {:else}
-              {artistAlbums.length} album{artistAlbums.length !== 1 ? 's' : ''} · {artistTracks.length} titre{artistTracks.length !== 1 ? 's' : ''}
-            {/if}
-          </span>
-          <span class="text-xs text-neutral-400 mt-1">
-            Durée totale : {Math.round(artist.total_duration / 60)} min
-          </span>
-
-          {#if !loadingTracks && artistTracks.length > 0}
-            <button
-              type="button"
-              class="mt-5 w-fit flex items-center gap-2 px-6 py-2 rounded-full
-                     bg-green-600 text-white font-medium
-                     hover:bg-green-700 transition-all duration-150 cursor-pointer"
-              onclick={playAllTracks}
-            >
-              <Icon icon="lucide:play" width={16} />
-              {$t('library.play_all')}
-            </button>
-          {:else if loadingTracks}
-            <div class="mt-5 h-10 w-36 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse"></div>
-          {/if}
-        </div>
+<!-- En-tête d'album repliable, collé sous la barre tant qu'il est ouvert. -->
+{#snippet enteteGroupe(cle: string)}
+  {@const g = groupes.find((x) => x.cle === cle)}
+  {#if g}
+    {@const ouvert = ouverts.has(g.cle)}
+    {@const q = g.album ? meilleureQualite(g.pistes) : null}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div data-groupe={g.cle} role="button" tabindex="0" aria-expanded={ouvert}
+         class="group/gh -mx-2 pl-2 pr-3 py-2.5 flex items-center gap-3.5 rounded-xl cursor-pointer select-none transition-colors hover:bg-(--rg-carte)
+                {ouvert ? 'sticky top-15 z-9 mb-1.5 border-b border-(--rg-bd) bg-(--c-fond) dark:bg-zinc-950' : ''}"
+         onclick={() => basculer(g.cle)}
+         onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); basculer(g.cle); } }}>
+      <span class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-(--rg-mu) group-hover/gh:text-(--rg-tx) transition-transform duration-200 {ouvert ? '' : '-rotate-90'}">
+        <Icon icon="material-symbols:expand-more-rounded" width="22" />
+      </span>
+      <span class="w-13 h-13 shrink-0 rounded-[9px] overflow-hidden bg-(--rg-s2) shadow-[0_6px_16px_rgba(0,0,0,0.2)] dark:shadow-[0_6px_16px_rgba(0,0,0,0.4)]">
+        {#if g.cover}<CoverImg path={g.cover} alt="" size="1x" class="w-full h-full object-cover" />{/if}
+      </span>
+      <div class="flex-1 min-w-0 flex flex-col gap-0.75">
+        <b class="truncate text-[17px] font-extrabold tracking-[-0.01em] text-(--rg-tx)" title={g.titre}>{g.titre}</b>
+        <span class="flex items-center gap-2 whitespace-nowrap overflow-hidden text-[13px] text-(--rg-mu)">
+          {#if g.annee}<span>{g.annee}</span><span>·</span>{/if}
+          <span>{nombre(g.pistes.length)} {plusieurs(g.pistes.length, "library_head.tracks_one", "library_head.tracks_n")}</span>
+          <span>·</span>
+          <span>{dureeEcoute(g.pistes.reduce((s, x) => s + (x.duration ?? 0), 0))}</span>
+          {#if q}<QualityBadge palier={q.palier} texte={q.texte} class="px-1.5 py-0.5 max-sm:hidden" />{/if}
+        </span>
       </div>
+      {#if g.album}
+        <a href={`/library/${libraryId}/albums/${g.album.id}`} onclick={(e) => e.stopPropagation()}
+           class="h-8.5 pl-3 pr-2 shrink-0 flex items-center gap-0.5 rounded-[9px] text-[13px] font-semibold transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) @max-[760px]:hidden">
+          {$t("artist_view.open_album")}<Icon icon="material-symbols:chevron-right-rounded" width="20" />
+        </a>
+      {/if}
+      <PlayButton size="md" muted={!ouvert} title={$t("artist_view.play_album")} onclick={(e) => { e.stopPropagation(); handleTracksPlay(g.pistes); }} />
     </div>
   {/if}
+{/snippet}
 
-  <!-- CONTENT -->
-  <div class="px-8 py-10 space-y-12">
+{#snippet grilleTitres(pistes: TrackListView[], aPlat: boolean)}
+  <!-- Deux colonnes lues de haut en bas, une seule quand la place manque. -->
+  <div class="grid grid-cols-2 grid-flow-col gap-x-7 gap-y-0.5 grid-rows-[repeat(var(--rangs),auto)]
+              @max-[900px]:grid-cols-1 @max-[900px]:grid-flow-row @max-[900px]:grid-rows-none"
+       style="--rangs: {Math.ceil(pistes.length / 2)}">
+    {#each pistes as track, i (track.id)}
+      <AlbumTrackRow {libraryId} {track} tracks={ordreLecture} jaquette={jaquettes} artisteAlbum={artist?.name ?? null}
+                     position={i + 1} numero={aPlat ? i + 1 : null}
+                     sousTitre={aPlat ? [track.album, track.year].filter(Boolean).join(" · ") : null} />
+    {/each}
+  </div>
+{/snippet}
 
-    <!-- DISCOGRAPHIE / TITRES -->
-    <div>
-      <div class="flex items-end justify-between mb-5">
-        <div>
-          <h2 class="text-xl font-semibold text-neutral-800 dark:text-neutral-200">
-            {$t('library.discography')}
-          </h2>
-          {#if !loadingTracks}
-            <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
-              {artistTracks.length} titre{artistTracks.length !== 1 ? 's' : ''}
-            </p>
+{#if !artist && !erreur}
+  <PageState chargement message={$t("artist_view.loading")} />
+
+{:else if !artist}
+  <PageState icon="material-symbols:person-outline-rounded" message={$t("artist_view.error")} lien={{ href: `/library/${libraryId}/artists`, label: $t("artist_view.back") }} />
+
+{:else}
+<DetailPage bind:defilement image={imageTeinte} retourHref={`/library/${libraryId}/artists`} retourLabel={$t("artist_view.back")}
+            playLabel={$t("artist_view.play_all")} onplay={() => handleTracksPlay(ordreLecture)}>
+  {#snippet mini()}
+    <span class="w-8.5 h-8.5 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-(--rg-s2) text-(--rg-mu)">
+      {#if portrait}<CoverImg path={portrait} alt="" size="1x" class="w-full h-full object-cover" />{:else}<Icon icon="material-symbols:person-rounded" width="18" />{/if}
+    </span>
+    <b class="truncate text-[15px] text-(--rg-tx)">{artist?.name}</b>
+  {/snippet}
+  {#snippet barre()}<ViewModeSwitch class="bg-(--rg-carte)/80" />{/snippet}
+
+    <!-- ─── En-tête ─── -->
+    <div class="relative flex flex-wrap items-end gap-8 pt-3 pb-7">
+      <div class="relative w-55 @max-[760px]:w-40 aspect-square shrink-0 rounded-full overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
+        {#if portrait}
+          <ImgZoom path={portrait} alt={artist.name}>
+            <CoverImg path={portrait} alt={artist.name} class="w-full h-full object-cover" />
+          </ImgZoom>
+        {:else}
+          <div class="w-full h-full flex items-center justify-center text-(--rg-mu) bg-(--rg-s2)">
+            <Icon icon="material-symbols:person-rounded" width="96" />
+          </div>
+        {/if}
+        <span class="absolute inset-0 rounded-full ring-1 ring-inset ring-black/5 dark:ring-white/6 pointer-events-none"></span>
+      </div>
+
+      <div class="flex-[1_1_320px] min-w-0 flex flex-col gap-3">
+        <div class="text-xs font-bold tracking-[0.1em] uppercase text-(--rg-tx2)">{$t("artist_view.kicker")}</div>
+        <h1 class="font-extrabold leading-none tracking-[-0.03em] text-balance line-clamp-2 text-(--rg-tx)
+                   {artist.name.length > 24 ? 'text-[56px] @max-[760px]:text-[34px]' : 'text-[72px] @max-[760px]:text-[44px]'}" title={artist.name}>{artist.name}</h1>
+
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[15px] text-(--rg-mu)">
+          {#if nbAlbums}
+            <span><b class="font-bold text-(--rg-tx)">{nombre(nbAlbums)}</b> {plusieurs(nbAlbums, "library_head.albums_one", "library_head.albums_n")}</span>
+            <span class="text-(--rg-mu2)">·</span>
+          {/if}
+          <span><b class="font-bold text-(--rg-tx)">{nombre(nbTitres)}</b> {plusieurs(nbTitres, "library_head.tracks_one", "library_head.tracks_n")}</span>
+          {#if duree}
+            <span class="text-(--rg-mu2)">·</span>
+            <span>{dureeEcoute(duree)}</span>
+          {/if}
+          {#if periode}
+            <span class="text-(--rg-mu2)">·</span>
+            <span>{periode}</span>
           {/if}
         </div>
 
-        <!-- Masquées en vue tableau : l'en-tête y trie déjà, sur bien plus
-             de colonnes. Deux commandes pour la même chose, dont l'une
-             couvre un sous-ensemble de l'autre, laissent surtout se
-             demander laquelle fait foi. -->
-        {#if !loadingTracks && artistTracks.length > 0 && $viewMode !== 'list'}
-          <div class="flex items-center rounded-full bg-neutral-100 dark:bg-white/4 border border-neutral-200 dark:border-white/6 p-0.5">
-            <button
-              type="button"
-              class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
-                     transition-all duration-200
-                     {tracksSort === 'album'
-                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
-              onclick={() => toggleTracksSort('album')}
-            >
-              Album
-              {#if tracksSort === 'album'}
-                <svg class="w-3 h-3 transition-transform duration-200 {tracksSortDir === 'desc' ? 'rotate-180' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
-              {/if}
-            </button>
-            <button
-              type="button"
-              class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
-                     transition-all duration-200
-                     {tracksSort === 'year'
-                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
-              onclick={() => toggleTracksSort('year')}
-            >
-              Année
-              {#if tracksSort === 'year'}
-                <svg class="w-3 h-3 transition-transform duration-200 {tracksSortDir === 'desc' ? '' : 'rotate-180'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
-              {/if}
-            </button>
-            <button
-              type="button"
-              class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
-                     transition-all duration-200
-                     {tracksSort === 'title'
-                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
-              onclick={() => toggleTracksSort('title')}
-            >
-              Titre
-              {#if tracksSort === 'title'}
-                <svg class="w-3 h-3 transition-transform duration-200 {tracksSortDir === 'desc' ? 'rotate-180' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
-              {/if}
-            </button>
-          </div>
-        {/if}
+        <div class="flex flex-wrap items-center gap-2.5 mt-2">
+          <PlayButton label={$t("artist_view.play_all")} disabled={!tracks.length} onclick={() => handleTracksPlay(ordreLecture)} />
+          <RoundButton icon="material-symbols:shuffle-rounded" title={$t("album_view.shuffle")} disabled={!tracks.length} onclick={() => handleTracksPlay(tracks, true)} />
+          <RoundButton icon={tousAimes ? "material-symbols:favorite-rounded" : "material-symbols:favorite-outline-rounded"} pressed={tousAimes} disabled={!tracks.length}
+                       title={$t(tousAimes ? "album_view.fav_remove" : "album_view.fav_add")} onclick={basculerFavori} />
+          <RoundButton icon="material-symbols:more-horiz" title={$t("album_view.more")}
+                       onclick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); artistMenu = { x: r.left, y: r.bottom + 6 }; }} />
+          {#if genres.length}
+            <div class="flex flex-wrap gap-1.5 ml-1.5 @max-[760px]:ml-0">
+              {#each genres as g (g)}<ChipLink href={`/library/${libraryId}/genres/${encodeURIComponent(g)}`} label={g} title={$t("album_view.genre_title")} />{/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Discographie (recréée quand l'ordre change : sinon le défilement suit la carte accrochée) ─── -->
+    {#if albumsPropres.length > 0}
+      <CarouselSection class="mt-3" titre={$t("artist_view.discography")}
+                       sousTitre={`${nombre(albumsPropres.length)} ${plusieurs(albumsPropres.length, "library_head.albums_one", "library_head.albums_n")}`}
+                       {grille} items={discographie} cle={(a) => a.id} carte={carteDisco} ligne={ligneDisco} reinit={discoParNom} />
+    {/if}
+
+    <!-- ─── Tous les titres ─── -->
+    <section class="mt-12">
+      <div class="flex flex-col gap-1 mb-2">
+        <h2 class="text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{$t("artist_view.all_tracks")}</h2>
+        <span class="text-[13px] text-(--rg-mu)">{$t(groupe ? "artist_view.grouped" : tri === "title" ? "artist_view.flat_title" : "artist_view.flat")}</span>
       </div>
 
-      {#if loadingTracks}
-        <LibraryTrackSkeleton rows={8} />
-      {:else if artistTracks.length > 0}
-        {#if $viewMode === 'list'}
-          <TrackTable
-            {libraryId}
-            tracks={tableTracks}
-            sortKey={tableSortKey}
-            sortDir={tableSortDir}
-            onsort={handleTableSort}
-          />
-        {:else}
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-1">
-            {#each visibleTracks as track (track.id)}
-              <AlbumListTrackItem libraryId={libraryId} {track} tracks={visibleTracks} showAlbum={true} />
-            {/each}
-          </div>
-        {/if}
+      <div class="flex flex-wrap items-center gap-2.5 pt-1 pb-3.5">
+        <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{nombre(nbTitres)}</b> {plusieurs(nbTitres, "library_head.tracks_one", "library_head.tracks_n")}{#if duree}{" · "}{dureeEcoute(duree)}{/if}</span>
 
-        {#if artistTracks.length > TRACKS_PER_PAGE}
-          <button
-            type="button"
-            class="mt-4 flex items-center gap-1.5 text-xs font-medium cursor-pointer
-                   text-neutral-500 dark:text-neutral-400
-                   hover:text-neutral-700 dark:hover:text-neutral-200
-                   transition-colors"
-            onclick={() => showAllTracks = !showAllTracks}
-          >
-            <Icon icon={showAllTracks ? "lucide:chevron-up" : "lucide:chevron-down"} width={14} />
-            {showAllTracks
-              ? $t('library.show_less')
-              : `${$t('library.show_more')} (${artistTracks.length - TRACKS_PER_PAGE})`}
-          </button>
+        <SegmentedControl variant="discret" label={$t("common.sort")} value={tri} onchange={trierPar}
+                          options={[
+                            { value: "year", label: $t("artist_view.sort_year"), after: flecheSens("year") },
+                            { value: "album", label: $t("artist_view.sort_album"), after: flecheSens("album") },
+                            { value: "title", label: $t("artist_view.sort_title"), after: flecheSens("title") },
+                          ]} />
+        {#if groupe && groupes.length > 1}
+          <ToolbarButton icon={toutOuvert ? "material-symbols:unfold-less-rounded" : "material-symbols:unfold-more-rounded"}
+                         label={$t(toutOuvert ? "artist_view.collapse_all" : "artist_view.expand_all")} onclick={toutBasculer} />
+        {/if}
+        {#if grille}
+          <ToolbarButton icon="material-symbols:image-outline-rounded" label={$t("album_view.covers")} title={$t("album_view.covers_title")} pressed={jaquettes} onclick={basculerJaquettes} />
+        {:else}
+          <TrackColumnsButton {libraryId} avecLibelle />
+        {/if}
+        <SelectionToggle avecLibelle />
+      </div>
+
+      {#if !chargeTitres}
+        <div class="flex justify-center py-10 text-(--rg-mu)"><Icon icon="material-symbols:progress-activity" width="22" class="animate-spin" /></div>
+      {:else if tracks.length === 0}
+        <p class="py-10 text-center text-sm text-(--rg-mu)">{$t("artist_view.no_tracks")}</p>
+      {:else if grille}
+        {#if groupe}
+          {#each groupes as g, k (g.cle)}
+            <div class={k > 0 ? (ouverts.has(groupes[k - 1].cle) ? "mt-7" : "mt-1") : "mt-2"}>
+              {@render enteteGroupe(g.cle)}
+              {#if ouverts.has(g.cle)}{@render grilleTitres(g.pistes, false)}{/if}
+            </div>
+          {/each}
+        {:else}
+          {@render grilleTitres(aPlat, true)}
         {/if}
       {:else}
-        <p class="text-sm text-neutral-400 dark:text-neutral-500 mt-2">{$t('library.no_track_artist')}</p>
+        <LibraryTrackTable {libraryId} tracks={ordreLecture} columns={colonnes} {largeurs} sortKey={groupe ? null : tri} sortDir={sens}
+                           colle={groupe ? null : 60} positions={groupe}
+                           groupes={groupe ? groupes.map((g) => ({ cle: g.cle, pistes: g.pistes, ouvert: ouverts.has(g.cle) })) : null}
+                           {enteteGroupe}
+                           onsort={(cle, dir) => { tri = cle; sens = dir; ouvrirPremier(); }} />
       {/if}
-    </div>
+    </section>
 
-    <!-- ALBUMS -->
-    <div class="sticky left-0">
-      {#if loadingAlbums}
-        <h2 class="text-xl font-semibold mb-1 text-neutral-800 dark:text-neutral-200">
-          {$t('library.albums')}
-        </h2>
-        <LibraryAlbumSkeleton />
-      {:else if sortedAlbums.length > 0}
-        <div class="flex items-end justify-between mb-5">
-          <div>
-            <h2 class="text-xl font-semibold mb-1 text-neutral-800 dark:text-neutral-200">
-              {$t('library.albums')}
-            </h2>
-            <p class="text-xs text-neutral-400 dark:text-neutral-500">
-              {sortedAlbums.length} album{sortedAlbums.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-
-          <div class="flex items-center rounded-full bg-neutral-100 dark:bg-white/4 border border-neutral-200 dark:border-white/6 p-0.5">
-            <button
-              type="button"
-              class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
-                     transition-all duration-200
-                     {albumsSort === 'year'
-                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
-              onclick={() => toggleAlbumsSort('year')}
-            >
-              Année
-              {#if albumsSort === 'year'}
-                <svg class="w-3 h-3 transition-transform duration-200 {albumsSortDir === 'asc' ? 'rotate-180' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
-              {/if}
-            </button>
-            <button
-              type="button"
-              class="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer
-                     transition-all duration-200
-                     {albumsSort === 'title'
-                       ? 'text-neutral-900 dark:text-white bg-white dark:bg-white/10 shadow-sm'
-                       : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-300'}"
-              onclick={() => toggleAlbumsSort('title')}
-            >
-              Titre
-              {#if albumsSort === 'title'}
-                <svg class="w-3 h-3 transition-transform duration-200 {albumsSortDir === 'asc' ? 'rotate-180' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
-              {/if}
-            </button>
-          </div>
-        </div>
-
-        {#if $viewMode === 'list'}
-        <!-- La sous-section suit le mode d'affichage de la liste principale. -->
-          <div class="flex flex-col">
-            {#each sortedAlbums as album (album.id)}
-              <AlbumListRow {libraryId} album={album} />
-            {/each}
-          </div>
-        {:else}
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-6">
-          {#each sortedAlbums as album (album.id)}
-            <AlbumListItem album={album} libraryId={libraryId} />
-          {/each}
-        </div>
-        {/if}
-      {:else if albumsInvite.length === 0}
-        <p class="text-sm text-neutral-400 dark:text-neutral-500 mt-2">{$t('library.no_album_artist')}</p>
-      {/if}
-    </div>
-
-    <!-- APPARAÎT DANS : compilations, bandes originales, featurings -->
-    {#if !loadingAlbums && albumsInvite.length > 0}
-      <div class="sticky left-0">
-        <h2 class="text-xl font-semibold mb-1 text-neutral-800 dark:text-neutral-200">
-          {$t('library.appears_on')}
-        </h2>
-        <p class="text-xs text-neutral-400 dark:text-neutral-500 mb-5">
-          {$t('library.appears_on_desc')}
-        </p>
-
-        {#if $viewMode === 'list'}
-        <!-- La sous-section suit le mode d'affichage de la liste principale. -->
-          <div class="flex flex-col">
-            {#each albumsInvite as album (album.id)}
-              <AlbumListRow {libraryId} album={album} />
-            {/each}
-          </div>
-        {:else}
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-6">
-            {#each albumsInvite as album (album.id)}
-              <AlbumListItem album={album} libraryId={libraryId} />
-            {/each}
-          </div>
-        {/if}
-      </div>
+    {#if participations.length > 0}
+      <CarouselSection titre={$t("artist_view.appears_on")} sousTitre={$t("artist_view.appears_on_desc")}
+                       {grille} items={participations} cle={(a) => a.id} carte={carteAlbum} ligne={ligneAlbum} />
     {/if}
-
-    <!-- ARTISTES SIMILAIRES -->
-    {#if loadingSimilar}
-      <div>
-        <h2 class="text-xl font-semibold mb-1 text-neutral-800 dark:text-neutral-200">
-          {$t('library.similar_artists')}
-        </h2>
-        <LibraryArtistSkeleton />
-      </div>
-    {:else if similarArtists.length > 0}
-      <div class="sticky left-0">
-        <h2 class="text-xl font-semibold mb-1 text-neutral-800 dark:text-neutral-200">
-          {$t('library.similar_artists')}
-        </h2>
-        <p class="text-xs text-neutral-400 dark:text-neutral-500 mb-5">
-          {$t('library.same_genre')}
-        </p>
-
-        {#if $viewMode === 'list'}
-        <!-- La sous-section suit le mode d'affichage de la liste principale. -->
-          <div class="flex flex-col">
-            {#each similarArtists as similarArtist (similarArtist.id)}
-              <ArtistListRow {libraryId} artist={similarArtist} />
-            {/each}
-          </div>
-        {:else}
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-6">
-          {#each similarArtists as similarArtist (similarArtist.id)}
-            <ArtistListItem libraryId={libraryId} artist={similarArtist} />
-          {/each}
-        </div>
-        {/if}
-      </div>
+    {#if similaires.length > 0}
+      <CarouselSection titre={$t("album_view.similar_artists")}
+                       sousTitre={genres[0] ? $t("album_view.same_genre").replace("{g}", genres[0]) : $t("artist_view.same_genre")}
+                       {grille} items={similaires} cle={(a) => a.id} carte={carteArtiste} ligne={ligneArtiste} />
     {/if}
+</DetailPage>
 
-  </div>
-</div>
+{#if artistMenu}
+  <LibraryItemMenu kind="artist" id={artist.id} title={artist.name} {libraryId}
+                   x={artistMenu.x} y={artistMenu.y} onclose={() => (artistMenu = null)} />
+{/if}
 
 {/if}

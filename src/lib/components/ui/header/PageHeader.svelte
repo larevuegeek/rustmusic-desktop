@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, currentLocale } from "$lib/i18n";
   import Icon from "@iconify/svelte";
   import type { Snippet } from "svelte";
 
@@ -8,7 +9,6 @@
     icon = "lucide:music",
     iconColor = "#22c55e",
     count = 0,
-    countLabel = "titre",
     actions,
     extra,
   }: {
@@ -17,7 +17,6 @@
     icon?: string;
     iconColor?: string;
     count?: number;
-    countLabel?: string;
     actions?: Snippet;
     extra?: Snippet;
   } = $props();
@@ -47,7 +46,7 @@
 
     <div class="flex items-center gap-3 mt-2">
       <p class="text-xs text-neutral-400 dark:text-neutral-500">
-        {count} {countLabel}{count !== 1 ? 's' : ''}
+        {count.toLocaleString($currentLocale)} {$t(count === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}
       </p>
 
       {#if actions}

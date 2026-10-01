@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { messageErreur } from "$lib/helper/tools/errorTools";
   import { popinStore } from "$lib/stores/ui/popin.store";
   import { libraryStore } from "$lib/stores/library/library.store";
   import { profilSelector } from "$lib/stores/profil/profil.store";
@@ -23,7 +24,7 @@
   async function submit() {
     resetErrors();
     if (!name.trim()) {
-      errorName = "Le nom est obligatoire";
+      errorName = "forms.name_required";
       return;
     }
     isSubmitting = true;
@@ -33,14 +34,14 @@
 
       await libraryStore.addLibrary(profilId, name, description || null);
       close();
-    } catch (error: any) {
-      const message = String(error?.message ?? error ?? "");
+    } catch (error) {
+      const message = messageErreur(error);
       if (message.includes("UNIQUE") || message.includes("duplicate")) {
-        errorName = "Une bibliothèque avec ce nom existe déjà";
+        errorName = "popins.library_name_taken";
       } else if (message === "NO_PROFIL") {
-        globalError = "Aucun profil sélectionné";
+        globalError = "forms.no_profil";
       } else {
-        globalError = "Une erreur est survenue. Réessaie.";
+        globalError = "forms.error_retry";
       }
     } finally {
       isSubmitting = false;
@@ -63,7 +64,7 @@
         {name.trim() || $t('library.create_library')}
       </p>
       <p class="text-xs text-neutral-500 dark:text-neutral-400">
-        0 titre · Bibliothèque
+        {$t("home.tracks_n").replace("{n}", "0")} · {$t("nav.library")}
       </p>
     </div>
   </div>
@@ -74,7 +75,7 @@
   <!-- Nom -->
   <div class="flex flex-col gap-1.5">
     <label for="lib_name" class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Nom de la bibliothèque <span class="text-red-500">*</span>
+      {$t("popins.library_name")} <span class="text-red-500">*</span>
     </label>
     <input
       id="lib_name"
@@ -87,7 +88,7 @@
              {errorName
                ? 'border-red-400/60 focus:ring-red-500/40'
                : 'border-neutral-200 dark:border-neutral-700 focus:ring-emerald-500/40 hover:border-neutral-300 dark:hover:border-neutral-600'}"
-      placeholder="Ex : Rock, Jazz, Classique…"
+      placeholder={$t("popins.library_name_placeholder")}
       bind:value={name}
       oninput={resetErrors}
       disabled={isSubmitting}
@@ -95,7 +96,7 @@
     {#if errorName}
       <p class="flex items-center gap-1.5 text-xs text-red-500">
         <Icon icon="heroicons:exclamation-circle" class="w-3.5 h-3.5 shrink-0" />
-        {errorName}
+        {$t(errorName)}
       </p>
     {/if}
   </div>
@@ -103,7 +104,7 @@
   <!-- Description -->
   <div class="flex flex-col gap-1.5">
     <label for="lib_desc" class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Description <span class="normal-case font-normal tracking-normal">(optionnel)</span>
+      {$t("forms.description")} <span class="normal-case font-normal tracking-normal">{$t("forms.optional")}</span>
     </label>
     <textarea id="lib_desc"
       class="w-full rounded-xl border px-4 py-3 text-sm resize-none
@@ -114,7 +115,7 @@
              transition-all duration-200
              hover:border-neutral-300 dark:hover:border-neutral-600
              focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-transparent"
-      placeholder="Une courte description…"
+      placeholder={$t("forms.description_placeholder")}
       rows="2"
       bind:value={description}
       disabled={isSubmitting}
@@ -127,7 +128,7 @@
                 bg-red-50 border-red-200 dark:bg-red-900/15 dark:border-red-800/50
                 px-4 py-3">
       <Icon icon="heroicons:exclamation-triangle" class="w-4 h-4 shrink-0 text-red-500" />
-      <p class="text-sm text-red-600 dark:text-red-400">{globalError}</p>
+      <p class="text-sm text-red-600 dark:text-red-400">{$t(globalError)}</p>
     </div>
   {/if}
 

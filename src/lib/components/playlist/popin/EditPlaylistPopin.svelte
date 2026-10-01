@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { messageErreur } from "$lib/helper/tools/errorTools";
   import { popinStore } from "$lib/stores/ui/popin.store";
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
   import { PLAYLIST_COLORS, PLAYLIST_ICONS } from "../playlistConfig";
   import type { Playlist } from "$lib/types/db/playlist/Playlist";
   import Icon from "@iconify/svelte";
+  import { t } from "$lib/i18n";
 
   /* eslint-disable svelte/valid-prop-names-in-kit-pages */
   const { playlist }: { playlist: Playlist } = $props();
@@ -25,6 +27,8 @@
 
   let selectedColor = $derived(PLAYLIST_COLORS[selectedColorIndex]);
   let selectedIcon = $derived(PLAYLIST_ICONS[selectedIconIndex]);
+  // Libellé traduit d'une icône, d'après son id (« mynaui:heart » → heart).
+  const iconLabel = (id: string) => $t(`playlist_icons.${id.split(":")[1]}`);
 
   function close() {
     popinStore.close();
@@ -33,19 +37,19 @@
   async function submit() {
     errorName = null;
     if (!name.trim()) {
-      errorName = "Le nom est obligatoire";
+      errorName = "forms.name_required";
       return;
     }
     isSubmitting = true;
     try {
       await playlistStore.updatePlaylist(playlistId, name, description || null, selectedColor, selectedIcon.id);
       close();
-    } catch (error: any) {
-      const message = String(error?.message ?? error ?? "");
+    } catch (error) {
+      const message = messageErreur(error);
       if (message.includes("UNIQUE") || message.includes("duplicate")) {
-        errorName = "Ce nom est déjà utilisé";
+        errorName = "forms.name_taken";
       } else {
-        errorName = "Une erreur est survenue";
+        errorName = "forms.error_generic";
       }
     } finally {
       isSubmitting = false;
@@ -80,7 +84,7 @@
         {name.trim() || _name}
       </p>
       <p class="text-xs text-neutral-500 dark:text-neutral-400">
-        {track_count} titre{track_count !== 1 ? 's' : ''} · Playlist
+        {track_count === 1 ? $t("home.track_one") : $t("home.tracks_n").replace("{n}", String(track_count))} · {$t("home.playlist")}
       </p>
     </div>
   </div>
@@ -88,7 +92,7 @@
   <!-- Nom -->
   <div class="flex flex-col gap-1.5">
     <label for="pl_edit_name" class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Nom <span class="text-red-500">*</span>
+      {$t("forms.name")} <span class="text-red-500">*</span>
     </label>
     <input
       id="pl_edit_name"
@@ -101,7 +105,7 @@
              {errorName
                ? 'border-red-400/60 focus:ring-red-500/40'
                : 'border-neutral-200 dark:border-neutral-700 focus:ring-emerald-500/40 hover:border-neutral-300 dark:hover:border-neutral-600'}"
-      placeholder="Nom de la playlist"
+      placeholder={$t("popins.playlist_name")}
       bind:value={name}
       oninput={() => errorName = null}
       disabled={isSubmitting}
@@ -109,7 +113,7 @@
     {#if errorName}
       <p class="flex items-center gap-1.5 text-xs text-red-500">
         <Icon icon="heroicons:exclamation-circle" class="w-3.5 h-3.5 shrink-0" />
-        {errorName}
+        {$t(errorName)}
       </p>
     {/if}
   </div>
@@ -117,7 +121,7 @@
   <!-- Description -->
   <div class="flex flex-col gap-1.5">
     <label for="pl_edit_desc" class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Description <span class="normal-case font-normal tracking-normal">(optionnel)</span>
+      {$t("forms.description")} <span class="normal-case font-normal tracking-normal">{$t("forms.optional")}</span>
     </label>
     <textarea id="pl_edit_desc"
       class="w-full rounded-xl border px-4 py-3 text-sm resize-none
@@ -128,7 +132,7 @@
              transition-all duration-200
              hover:border-neutral-300 dark:hover:border-neutral-600
              focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-transparent"
-      placeholder="Une courte description…"
+      placeholder={$t("forms.description_placeholder")}
       rows="2"
       bind:value={description}
       disabled={isSubmitting}
@@ -138,7 +142,7 @@
   <!-- Couleur -->
   <div class="flex flex-col gap-2">
     <span class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Couleur
+      {$t("forms.color")}
     </span>
     <div class="flex items-center gap-2">
       {#each PLAYLIST_COLORS as color, i}
@@ -152,7 +156,7 @@
                  {selectedColorIndex === i
                    ? `box-shadow: 0 0 12px ${color}50, 0 0 0 2px rgba(0,0,0,0.2), 0 0 0 4px ${color}80;`
                    : ''}"
-          aria-label="Couleur {color}"
+          aria-label={$t("forms.color_aria").replace("{color}", color)}
           onclick={() => selectedColorIndex = i}
         ></button>
       {/each}
@@ -162,7 +166,7 @@
   <!-- Icône -->
   <div class="flex flex-col gap-2">
     <span class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Icône
+      {$t("forms.icon")}
     </span>
     <div class="flex flex-wrap items-center gap-1.5">
       {#each PLAYLIST_ICONS as icon, i}
@@ -175,7 +179,7 @@
                    : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 opacity-50 hover:opacity-100'}"
           style={selectedIconIndex === i ? `color: ${selectedColor};` : ''}
           onclick={() => selectedIconIndex = i}
-          title={icon.label}
+          title={iconLabel(icon.id)}
         >
           <Icon icon={icon.id} width="18" height="18" />
         </button>
@@ -198,18 +202,18 @@
           disabled={isSubmitting}
         >
           <Icon icon="heroicons:trash" class="w-3.5 h-3.5" />
-          Supprimer
+          {$t("common.delete")}
         </button>
       {:else}
         <div class="flex items-center gap-2.5">
-          <span class="text-xs text-red-400">Supprimer ?</span>
+          <span class="text-xs text-red-400">{$t("profil.confirm_delete")}</span>
           <button
             type="button"
             class="px-2.5 py-1 rounded text-xs font-semibold text-white bg-red-500 hover:bg-red-400 cursor-pointer transition-colors"
             onclick={handleDelete}
             disabled={isSubmitting}
           >
-            Confirmer
+            {$t("common.confirm")}
           </button>
           <button
             type="button"
@@ -218,7 +222,7 @@
                    cursor-pointer transition-colors"
             onclick={() => showDeleteConfirm = false}
           >
-            Annuler
+            {$t("common.cancel")}
           </button>
         </div>
       {/if}
@@ -235,7 +239,7 @@
         onclick={close}
         disabled={isSubmitting}
       >
-        Annuler
+        {$t("common.cancel")}
       </button>
 
       <button
@@ -252,10 +256,10 @@
       >
         {#if isSubmitting}
           <Icon icon="lucide:loader-2" width="14" height="14" class="animate-spin" />
-          Sauvegarde…
+          {$t("forms.saving")}
         {:else}
           <Icon icon="lucide:check" width="14" height="14" />
-          Sauvegarder
+          {$t("common.save")}
         {/if}
       </button>
     </div>

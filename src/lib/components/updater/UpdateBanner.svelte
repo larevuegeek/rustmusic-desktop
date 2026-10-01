@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t, currentLocale } from "$lib/i18n";
+  import { tailleLisible } from "$lib/helper/tools/sizeTools";
   import { updaterState } from "$lib/stores/updater/updater.store";
   import {
     downloadAndInstall,
@@ -21,20 +22,20 @@
 
   let downloadedMB = $derived.by(() => {
     const s = $updaterState;
-    if (s.kind !== "downloading") return 0;
-    return (s.downloaded / 1024 / 1024).toFixed(1);
+    if (s.kind !== "downloading") return "0";
+    return tailleLisible(s.downloaded, $currentLocale) || "0";
   });
 
   let totalMB = $derived.by(() => {
     const s = $updaterState;
     if (s.kind !== "downloading" || !s.total) return null;
-    return (s.total / 1024 / 1024).toFixed(1);
+    return tailleLisible(s.total, $currentLocale);
   });
 </script>
 
 {#if $updaterState.kind !== "idle" && $updaterState.kind !== "checking"}
   <div
-    class="fixed bottom-28 right-4 z-50 max-w-sm w-[calc(100%-2rem)]
+    class="fixed bottom-38 right-4 z-50 max-w-sm w-[calc(100%-2rem)]
            rounded-xl shadow-2xl border backdrop-blur-xl
            bg-neutral-900/90 text-neutral-100 border-white/10
            p-4"
@@ -84,7 +85,7 @@
             {$t('updater.downloading_title').replace('{version}', $updaterState.version)}
           </p>
           <p class="text-xs text-neutral-400 mt-0.5 font-mono">
-            {downloadedMB} Mo{totalMB ? ` / ${totalMB} Mo · ${percent}%` : ''}
+            {downloadedMB}{totalMB ? ` / ${totalMB} · ${percent}%` : ''}
           </p>
           <div class="mt-2 h-1 rounded-full bg-white/10 overflow-hidden">
             <div

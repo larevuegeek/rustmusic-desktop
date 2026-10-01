@@ -15,7 +15,7 @@
   import { fly } from "svelte/transition";
   import { batchStore } from "$lib/stores/ui/batch.store";
   import { cancelBatch, fileName, skipped } from "$lib/services/batch/batch.service";
-  import { t } from "$lib/i18n";
+  import { t, currentLocale } from "$lib/i18n";
 
   let state = $derived($batchStore);
   let report = $derived(state.report);
@@ -25,6 +25,8 @@
       ? Math.round((state.progress.done / state.progress.total) * 100)
       : 0,
   );
+
+  const fmt = (n: number) => n.toLocaleString($currentLocale);
 
   async function handleCancel() {
     if (!state.jobId) return;
@@ -43,7 +45,7 @@
 
 {#if state.jobId}
   <div
-    class="fixed right-4 bottom-28 z-40 w-80 rounded-xl overflow-hidden
+    class="fixed right-4 bottom-38 z-40 w-80 rounded-xl overflow-hidden
            bg-white dark:bg-neutral-900
            ring-1 ring-black/5 dark:ring-white/10
            shadow-2xl shadow-black/20 dark:shadow-black/60"
@@ -89,11 +91,11 @@
         <!-- ─── En cours ─── -->
         <div class="flex items-baseline justify-between mb-1.5">
           <span class="text-[11px] tabular-nums text-neutral-600 dark:text-neutral-300">
-            {state.progress?.done ?? 0} / {state.progress?.total ?? 0}
+            {fmt(state.progress?.done ?? 0)} / {fmt(state.progress?.total ?? 0)}
           </span>
           {#if (state.progress?.failed ?? 0) > 0}
             <span class="text-[11px] text-amber-500">
-              {state.progress?.failed}
+              {fmt(state.progress?.failed ?? 0)}
               {(state.progress?.failed ?? 0) > 1 ? $t('batch.failures') : $t('batch.failure')}
             </span>
           {/if}
@@ -129,12 +131,12 @@
         <!-- ─── Compte rendu ─── -->
         <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
           <span class="text-emerald-600 dark:text-emerald-400">
-            {report.succeeded} {$t('batch.succeeded')}
+            {fmt(report.succeeded)} {$t('batch.succeeded')}
           </span>
           {#if report.failures.length}
             <span class="text-neutral-300 dark:text-neutral-600">·</span>
             <span class="text-red-500">
-              {report.failures.length}
+              {fmt(report.failures.length)}
               {report.failures.length > 1 ? $t('batch.failures') : $t('batch.failure')}
             </span>
           {/if}
@@ -143,7 +145,7 @@
           {#if skipped(report) > 0}
             <span class="text-neutral-300 dark:text-neutral-600">·</span>
             <span class="text-neutral-500 dark:text-neutral-400">
-              {skipped(report)} {$t('batch.skipped')}
+              {fmt(skipped(report))} {$t('batch.skipped')}
             </span>
           {/if}
         </div>

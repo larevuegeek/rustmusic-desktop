@@ -176,6 +176,15 @@ pub async fn consolider(pool: &SqlitePool) -> Result<AlbumMergeReport, String> {
                 .execute(&mut *tx)
                 .await
                 .map_err(|e| format!("Report des artistes d'album : {e}"))?;
+
+                // Même raison ; si `garde` est déjà épinglée, la cascade retire le doublon.
+                sqlx::query("UPDATE OR IGNORE library_pins SET library_album_id = ? WHERE library_album_id = ?")
+                    .bind(&garde)
+                    .bind(&perdue.id)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|e| format!("Report des épingles : {e}"))?;
+
                 sqlx::query("DELETE FROM library_albums WHERE id = ?")
                     .bind(&perdue.id)
                     .execute(&mut *tx)
@@ -532,6 +541,19 @@ mod tests {
             .fetch_all(&pool).await.unwrap();
         assert_eq!(restants, vec![("alb1".to_string(), "a2".to_string())],
                    "la liaison aurait dû suivre la fusion, pas disparaître");
+    }
+
+    #[tokio::test]
+    async fn les_epingles_de_la_fiche_supprimee_suivent() {
+        let pool = base().await;
+        compilation_eclatee(&pool, r"S:\M\NRJ Hits\01.flac", r"S:\M\NRJ Hits\02.flac").await;
+        sqlx::query("INSERT INTO library_pins (library_id, library_album_id) VALUES (1, 'alb2')")
+            .execute(&pool).await.expect("épingle");
+
+        consolider(&pool).await.expect("consolidation");
+        let restantes: Vec<String> = sqlx::query_scalar("SELECT library_album_id FROM library_pins")
+            .fetch_all(&pool).await.unwrap();
+        assert_eq!(restantes, vec!["alb1".to_string()]);
     }
 
     #[tokio::test]

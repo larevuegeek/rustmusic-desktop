@@ -2,7 +2,7 @@
   import Icon from "@iconify/svelte";
   import { fade, scale } from "svelte/transition";
   import { invoke } from "@tauri-apps/api/core";
-  import { t } from "$lib/i18n";
+  import { t, currentLocale } from "$lib/i18n";
   import { portal } from "$lib/helper/portal";
   import {
     formatSampleRate,
@@ -73,14 +73,12 @@
 
   function rateTone(hz: number): string {
     if (hz >= 352_800) return "text-purple-500 dark:text-purple-400";
-    if (hz >= 176_400) return "text-amber-500 dark:text-amber-400";
-    if (hz >= 88_200) return "text-emerald-500 dark:text-emerald-400";
+    if (hz >= 88_200) return "text-amber-500 dark:text-amber-400";
     return "text-neutral-500 dark:text-neutral-400";
   }
 
   function rateCategory(hz: number): string {
     if (hz >= 352_800) return $t("settings.audio_devices_rate_dsd_pcm");
-    if (hz >= 176_400) return $t("settings.audio_devices_rate_studio");
     if (hz >= 88_200) return $t("settings.audio_devices_rate_hires");
     return $t("settings.audio_devices_rate_cd");
   }
@@ -169,7 +167,7 @@
               <span class="text-[9px] px-1.5 py-0.5 rounded font-semibold
                            bg-amber-500/15 text-amber-600 dark:text-amber-300
                            uppercase tracking-wider">
-                Hi-Res
+                {$t("settings.audio_devices_rate_hires")}
               </span>
             {/if}
             {#if device.manufacturer}
@@ -183,7 +181,7 @@
           class="shrink-0 p-1.5 rounded-lg cursor-pointer text-neutral-400 hover:text-neutral-800
                  dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
           onclick={onClose}
-          aria-label="Close"
+          aria-label={$t("common.close")}
         >
           <Icon icon="lucide:x" width="16" />
         </button>
@@ -352,7 +350,7 @@
           </p>
           <div class="p-3 rounded-lg bg-neutral-50 dark:bg-white/3 border border-neutral-200/70 dark:border-white/5">
             <p class="text-xs text-neutral-700 dark:text-neutral-300 font-mono tabular-nums">
-              {device.minBufferFrames.toLocaleString()} – {device.maxBufferFrames.toLocaleString()} frames
+              {device.minBufferFrames.toLocaleString($currentLocale)} – {device.maxBufferFrames.toLocaleString($currentLocale)} frames
             </p>
             <p class="text-[10px] text-neutral-500 dark:text-neutral-400 mt-1">
               {$t("settings.audio_devices_buffer_hint")}

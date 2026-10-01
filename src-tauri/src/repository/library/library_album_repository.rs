@@ -235,6 +235,8 @@ impl LibraryAlbumRepository {
                 COUNT(lt.id)                   AS total_tracks,
                 COALESCE(SUM(lt.duration), 0.0)  AS total_duration,
                 la.notes,
+                MAX(lc.bits_per_sample)                        AS max_bits,
+                MAX(COALESCE(lt.sample_rate, lc.sample_rate))  AS max_sample_rate,
 
                 -- =========================
                 -- Timestamps
@@ -245,6 +247,7 @@ impl LibraryAlbumRepository {
             FROM library_albums la
             LEFT JOIN artists a ON a.id = la.artist_id
             LEFT JOIN library_tracks lt ON lt.library_album_id = la.id
+            LEFT JOIN library_cache lc ON lc.id = lt.cache_id
             WHERE la.library_id = ? {}
             GROUP BY la.id
             ORDER BY la.title_normalized ASC

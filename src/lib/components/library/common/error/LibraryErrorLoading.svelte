@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "$lib/i18n";
 import Icon from "@iconify/svelte";
 
 let { error }: { error: string } = $props();
@@ -22,7 +23,7 @@ let { error }: { error: string } = $props();
 
     <!-- Title -->
     <div class="text-base font-semibold text-neutral-800 dark:text-neutral-200">
-    Impossible de charger la bibliothèque
+    {$t("common.error_library")}
     </div>
 
     <!-- Error message -->
@@ -38,7 +39,7 @@ let { error }: { error: string } = $props();
             hover:bg-red-600
             active:scale-[0.98]
             transition-all duration-200">
-    Réessayer
+    {$t("common.retry")}
     </button>
 </div>
 </div>

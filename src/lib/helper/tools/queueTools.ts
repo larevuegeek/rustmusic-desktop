@@ -1,6 +1,7 @@
 import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
 import { profilSelector } from "$lib/stores/profil/profil.store";
 import { get } from "svelte/store";
+import { t } from "$lib/i18n";
 
 /**
  * Interface minimale qu'un objet track doit satisfaire
@@ -9,6 +10,8 @@ import { get } from "svelte/store";
  * RecentFile, TrackLikedView) peuvent être adaptés à cette interface.
  */
 export type TrackLike = {
+  /** Chaîne : id de piste de bibliothèque ; nombre : id d'historique ou de favori. */
+  id?: string | number | null;
   path: string | null;
   title?: string | null;
   artist?: string | null;
@@ -35,8 +38,8 @@ export function toQueueTrack(track: TrackLike): QueueTrack {
     queueId: crypto.randomUUID(),
     profilId,
     path: track.path ?? "",
-    title: track.title ?? "Titre inconnu",
-    artist: track.artist ?? track.artist_name ?? "Artiste inconnu",
+    title: track.title ?? get(t)("common.unknown_title"),
+    artist: track.artist ?? track.artist_name ?? get(t)("common.unknown_artist"),
     duration: track.duration ?? 0,
     cover,
     position: 0,

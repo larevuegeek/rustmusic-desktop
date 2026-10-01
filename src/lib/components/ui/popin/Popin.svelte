@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "$lib/i18n";
   import Icon from "@iconify/svelte";
   import { fade, scale } from "svelte/transition";
   import { popinStore, type PopinSize } from "$lib/stores/ui/popin.store";
@@ -86,7 +87,7 @@
                    cursor-pointer text-neutral-400 dark:text-neutral-500
                    hover:text-neutral-800 dark:hover:text-neutral-200
                    hover:bg-neutral-100 dark:hover:bg-white/8 transition-colors"
-            aria-label="Fermer"
+            aria-label={$t("common.close")}
             onclick={() => popinStore.close()}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">

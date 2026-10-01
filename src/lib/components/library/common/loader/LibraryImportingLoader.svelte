@@ -1,6 +1,8 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { importProgressStore } from "$lib/stores/library/importProgress.store";
+  import { t } from "$lib/i18n";
+  import { minutesSecondes } from "$lib/helper/tools/dateTools";
 
   let percent = $derived($importProgressStore.percent);
   let current = $derived($importProgressStore.current);
@@ -9,12 +11,7 @@
   let elapsedMs = $derived($importProgressStore.elapsedMs);
   let active = $derived($importProgressStore.active);
 
-  let elapsedFormatted = $derived.by(() => {
-    const s = Math.floor(elapsedMs / 1000);
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
-  });
+  let elapsedFormatted = $derived(minutesSecondes(elapsedMs / 1000));
 
   // Estimation du temps restant
   let etaFormatted = $derived.by(() => {
@@ -22,10 +19,8 @@
     const msPerFile = elapsedMs / current;
     const remaining = (total - current) * msPerFile;
     const s = Math.floor(remaining / 1000);
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    if (s < 5) return "Presque terminé";
-    return m > 0 ? `~${m}m ${sec}s restant` : `~${sec}s restant`;
+    if (s < 5) return $t("system.almost_done");
+    return $t("system.time_left").replace("{time}", minutesSecondes(s));
   });
 
   const circumference = 2 * Math.PI * 42;
@@ -82,11 +77,11 @@
       {/if}
       <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
         {#if active}
-          Importation en cours
+          {$t("system.importing")}
         {:else if percent === 100}
-          Importation terminée
+          {$t("system.importing_done")}
         {:else}
-          Préparation…
+          {$t("system.preparing")}
         {/if}
       </p>
     </div>

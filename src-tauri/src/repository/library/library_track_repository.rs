@@ -4,9 +4,95 @@ use uuid::Uuid;
 use crate::mapper::library::track::track_detail_view::TrackDetailView;
 use crate::{entity::library::library_track::{LibraryTrack, LibraryTrackCreate}, mapper::library::track::track_list_item_view::TrackListView};
 
+
+/// Filtres de l'onglet Morceaux au-delà de la recherche texte.
+#[derive(Default)]
+pub struct TrackFilters<'a> {
+    /// « hires » ou « lossless » (qui inclut le Hi-Res).
+    pub quality: Option<&'a str>,
+    /// Seulement les titres aimés du profil de la bibliothèque.
+    pub favorites: bool,
+    pub genre: Option<&'a str>,
+}
+
+/// Formats sans perte, pour le filtre « Lossless ».
+const FORMATS_SANS_PERTE: &str = "'FLAC','ALAC','WAV','AIFF','AIF','APE','WV','WAVPACK','TTA','DSF','DFF'";
+
+/// Clauses WHERE de l'onglet Morceaux : recherche (3 `?`), couverture, qualité, favoris, genre (1 `?`).
+/// Les liaisons suivent cet ordre : motif ×3 si recherche, puis genre.
+fn clauses_de_filtre(filter: Option<&str>, missing_cover: bool, extra: &TrackFilters<'_>) -> (&'static str, String, Option<String>) {
+    let like_pattern = filter.map(|f| format!("%{}%", f.to_lowercase()));
+    let filter_clause = if like_pattern.is_some() {
+        "AND (LOWER(lt.title) LIKE ? OR LOWER(a.name) LIKE ? OR LOWER(la.title) LIKE ?)"
+    } else {
+        ""
+    };
+    let mut cover_clause = String::from(if missing_cover {
+        "AND (lc.thumbnail_path IS NULL OR lc.thumbnail_path = '')"
+    } else {
+        ""
+    });
+    // Qualité, favoris, genre : critères d'une liste close, seul le genre est lié.
+    match extra.quality {
+        Some("hires") => cover_clause.push_str(" AND (lc.bits_per_sample > 16 OR COALESCE(lt.sample_rate, lc.sample_rate) > 48000)"),
+        Some("lossless") => cover_clause.push_str(&format!(" AND UPPER(lc.audio_format) IN ({})", FORMATS_SANS_PERTE)),
+        _ => {}
+    }
+    if extra.favorites {
+        cover_clause.push_str(" AND lf.path IN (SELECT tl.path FROM track_liked tl WHERE tl.profil_id = (SELECT l.profil_id FROM library l WHERE l.id = lt.library_id))");
+    }
+    if extra.genre.is_some() {
+        cover_clause.push_str(" AND LOWER(lc.genre) = LOWER(?)");
+    }
+    (filter_clause, cover_clause, like_pattern)
+}
+
+/// Ce que la bibliothèque sait d'un fichier, retrouvé par son chemin.
+#[derive(sqlx::FromRow)]
+pub struct FicheChemin {
+    pub path: String,
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub duration: Option<f64>,
+    pub thumbnail_path: Option<String>,
+}
+
 pub struct LibraryTrackRepository;
 
 impl LibraryTrackRepository {
+    /// Titre, artiste, durée et pochette par chemin (toutes bibliothèques si `library_id` est absent).
+    pub async fn find_fiches_by_paths(
+        pool: &SqlitePool,
+        library_id: Option<i64>,
+        chemins: &[String],
+    ) -> std::collections::HashMap<String, FicheChemin> {
+        let mut fiches = std::collections::HashMap::new();
+        for lot in chemins.chunks(400) {
+            let trous = vec!["?"; lot.len()].join(",");
+            let sql = format!(
+                "SELECT f.path AS path,
+                        COALESCE(t.title, c.title) AS title,
+                        a.name AS artist,
+                        COALESCE(t.duration, c.duration) AS duration,
+                        c.thumbnail_path AS thumbnail_path
+                 FROM library_files f
+                 LEFT JOIN library_tracks t ON t.file_id = f.id
+                 LEFT JOIN library_cache c ON c.id = COALESCE(t.cache_id, f.cache_id)
+                 LEFT JOIN artists a ON a.id = t.artist_id
+                 WHERE (? IS NULL OR f.library_id = ?) AND f.path IN ({trous})"
+            );
+            let mut requete = sqlx::query_as::<_, FicheChemin>(&sql).bind(library_id).bind(library_id);
+            for p in lot {
+                requete = requete.bind(p);
+            }
+            match requete.fetch_all(pool).await {
+                Ok(lignes) => for l in lignes { fiches.entry(l.path.clone()).or_insert(l); },
+                Err(e) => eprintln!("[bibliothèque] fiches par chemin : {e}"),
+            }
+        }
+        fiches
+    }
+
 
     pub async fn insert_library_track<'e, E>(
         exec: E,
@@ -297,6 +383,56 @@ impl LibraryTrackRepository {
         Ok(tracks)
     }
 
+    /// Où commence chaque lettre dans la liste triée par titre (mêmes filtres que la pagination).
+    ///
+    /// Groupe par premier caractère du titre normalisé, dans l'ordre du tri (binaire) :
+    /// le cumul des groupes donne la position de la première piste de chacun.
+    pub async fn find_title_letter_offsets(
+        pool: &SqlitePool,
+        library_id: i64,
+        descending: bool,
+        filter: Option<&str>,
+        missing_cover: bool,
+        extra: &TrackFilters<'_>,
+    ) -> Result<Vec<(String, i64)>, sqlx::Error> {
+        let (filter_clause, cover_clause, like_pattern) = clauses_de_filtre(filter, missing_cover, extra);
+        let sql = format!(
+            r#"SELECT SUBSTR(lt.title_normalized, 1, 1) AS c, COUNT(*) AS n
+               FROM library_tracks lt
+               INNER JOIN library_files lf ON lf.id = lt.file_id
+               LEFT JOIN library_cache lc ON lc.id = lt.cache_id
+               LEFT JOIN library_albums la ON la.id = lt.library_album_id
+               LEFT JOIN artists a ON a.id = lt.artist_id
+               WHERE lt.library_id = ?
+               {}
+               {}
+               GROUP BY c ORDER BY c {}"#,
+            filter_clause, cover_clause, if descending { "DESC" } else { "ASC" }
+        );
+        let mut requete = sqlx::query_as::<_, (Option<String>, i64)>(&sql).bind(library_id);
+        if let Some(ref pat) = like_pattern {
+            requete = requete.bind(pat).bind(pat).bind(pat);
+        }
+        if let Some(g) = extra.genre {
+            requete = requete.bind(g);
+        }
+        let groupes = requete.fetch_all(pool).await?;
+
+        // « é » se range sous E ; chiffres et ponctuation sous « # ». Première occurrence seulement.
+        let mut lettres: Vec<(String, i64)> = Vec::new();
+        let mut position = 0i64;
+        for (c, n) in groupes {
+            let brut = c.unwrap_or_default();
+            let premiere = unidecode::unidecode(&brut).chars().next().unwrap_or('#').to_ascii_uppercase();
+            let lettre = if premiere.is_ascii_uppercase() { premiere.to_string() } else { "#".to_string() };
+            if !lettres.iter().any(|(l, _)| *l == lettre) {
+                lettres.push((lettre, position));
+            }
+            position += n;
+        }
+        Ok(lettres)
+    }
+
     /// Tracks paginés avec filtre et tri dynamique
     pub async fn find_tracks_paginated(
         pool: &SqlitePool,
@@ -310,22 +446,10 @@ impl LibraryTrackRepository {
         sort_dir: &str,
         filter: Option<&str>,
         missing_cover: bool,
+        extra: &TrackFilters<'_>,
     ) -> Result<(Vec<TrackListView>, i64), sqlx::Error> {
 
-        // Préparer le pattern LIKE une seule fois
-        let like_pattern = filter.map(|f| format!("%{}%", f.to_lowercase()));
-
-        let filter_clause = if like_pattern.is_some() {
-            "AND (LOWER(lt.title) LIKE ? OR LOWER(a.name) LIKE ? OR LOWER(la.title) LIKE ?)"
-        } else {
-            ""
-        };
-
-        let cover_clause = if missing_cover {
-            "AND (lc.thumbnail_path IS NULL OR lc.thumbnail_path = '')"
-        } else {
-            ""
-        };
+        let (filter_clause, cover_clause, like_pattern) = clauses_de_filtre(filter, missing_cover, extra);
 
         // Count total
         let count_sql = format!(
@@ -345,6 +469,9 @@ impl LibraryTrackRepository {
             .bind(library_id);
         if let Some(ref pat) = like_pattern {
             count_query = count_query.bind(pat).bind(pat).bind(pat);
+        }
+        if let Some(g) = extra.genre {
+            count_query = count_query.bind(g);
         }
         let total = count_query.fetch_one(&*pool).await.unwrap_or(0);
 
@@ -392,6 +519,9 @@ impl LibraryTrackRepository {
             .bind(library_id);
         if let Some(ref pat) = like_pattern {
             data_query = data_query.bind(pat).bind(pat).bind(pat);
+        }
+        if let Some(g) = extra.genre {
+            data_query = data_query.bind(g);
         }
         if let Some(nom) = sort_bind {
             data_query = data_query.bind(nom);
@@ -857,6 +987,70 @@ impl LibraryTrackRepository {
         .bind(limit)
         .fetch_all(exec)
         .await
+    }
+
+    /// Un mix tiré au hasard. `oublies` : pas écoutés depuis six mois, ou
+    /// jamais. `hires` : plus de 16 bits ou plus de 48 kHz. `hasard` : tout.
+    /// `genre` : ceux du genre donné.
+    pub async fn find_mix_tracks<'e, E>(
+        exec: E,
+        library_id: i64,
+        kind: &str,
+        genre: Option<&str>,
+        decennie: Option<i64>,
+        limit: i64,
+    ) -> Result<Vec<TrackListView>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
+    {
+        // Le critère vient d'une liste fermée, jamais de l'appelant.
+        let critere = match kind {
+            "oublies" => "(lt.last_played_at IS NULL OR lt.last_played_at < datetime('now', '-6 months'))",
+            "hires" => "(lc.bits_per_sample > 16 OR COALESCE(lt.sample_rate, lc.sample_rate) > 48000)",
+            "hasard" => "1 = 1",
+            "genre" if genre.is_some() => "LOWER(lc.genre) = LOWER(?)",
+            // L'année de l'album d'abord : c'est elle qui range les albums par décennie.
+            "decennie" if decennie.is_some() => "COALESCE(la.year, CAST(substr(lc.year, 1, 4) AS INTEGER)) BETWEEN ? AND ? + 9",
+            _ => return Ok(Vec::new()),
+        };
+
+        let sql = format!(r#"
+            SELECT
+                lt.id AS id, lt.title AS title, lt.title_normalized AS title_normalized,
+                COALESCE(lt.track_number, lc.track_number) AS track_number,
+                COALESCE(lt.disc_number, lc.disc_number, 1) AS disc_number,
+                COALESCE(lt.duration, lc.duration) AS duration,
+                COALESCE(lt.bitrate, lc.bitrate) AS bitrate,
+                COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
+                lt.play_count, lt.last_played_at, lt.rating, lt.favorite,
+                lt.tags,
+                lt.created_at, lt.updated_at,
+                lf.path, lf.filename, lf.extension, lf.size,
+                lf.status, lf.is_available, lf.error_message,
+                a.id AS artist_id, lat.id AS library_artist_id, a.name AS artist,
+                la.id AS album_id, la.title AS album,
+                lc.album_artist, lc.year, lc.genre,
+                lc.bits_per_sample, lc.channels, lc.audio_format, lc.mime_type,
+                lc.file_size, lc.extra_tags, lc.thumbnail_path, lc.last_scanned_at
+            FROM library_tracks lt
+            INNER JOIN library_files lf ON lf.id = lt.file_id
+            LEFT JOIN library_cache lc ON lc.id = lt.cache_id
+            LEFT JOIN library_albums la ON la.id = lt.library_album_id
+            LEFT JOIN artists a ON a.id = lt.artist_id
+            LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
+            WHERE lt.library_id = ? AND {critere}
+            ORDER BY RANDOM()
+            LIMIT ?
+        "#);
+
+        let mut requete = sqlx::query_as::<_, TrackListView>(&sql).bind(library_id);
+        if kind == "genre" {
+            requete = requete.bind(genre);
+        }
+        if kind == "decennie" {
+            requete = requete.bind(decennie).bind(decennie);
+        }
+        requete.bind(limit).fetch_all(exec).await
     }
 
     pub async fn find_tracks_by_genre<'e, E>(

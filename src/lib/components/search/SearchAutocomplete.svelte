@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { detectOS } from "$lib/helper/tools/osDetection";
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
   import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
@@ -6,6 +7,7 @@
   import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
   import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
   import { sidebarStore } from "$lib/stores/ui/sidebar.store";
+  import { t } from "$lib/i18n";
 
   type SearchResult = {
     id: string;
@@ -25,29 +27,36 @@
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let selectedIndex = $state(-1);
 
+  // Pas de recherche différée après la disparition du champ.
+  $effect(() => () => { if (debounceTimer) clearTimeout(debounceTimer); });
+
   function handleInput() {
+    if (debounceTimer) clearTimeout(debounceTimer);
     if (query.length < 2) {
       results = [];
       showDropdown = false;
       return;
     }
 
-    if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => doSearch(), 200);
   }
 
   async function doSearch() {
-    if (query.length < 2) return;
+    const demande = query;
+    if (demande.length < 2) return;
     loading = true;
     try {
-      results = await invoke<SearchResult[]>('search', { query, limit: 10 });
+      const r = await invoke<SearchResult[]>('search', { query: demande, limit: 10 });
+      // Champ modifié ou vidé pendant la recherche : ce résultat n'est plus le bon.
+      if (demande !== query) return;
+      results = r;
       showDropdown = results.length > 0;
       selectedIndex = -1;
     } catch (e) {
       console.error('Search failed:', e);
-      results = [];
+      if (demande === query) results = [];
     } finally {
-      loading = false;
+      if (demande === query) loading = false;
     }
   }
 
@@ -78,7 +87,7 @@
     if (result.result_type === 'track' && result.path) {
       // Seuls les morceaux de la liste entrent dans la file.
       handlePlayTrack(result.path, versFileDAttente(
-        results.filter((r) => r.result_type === 'track' && r.path) as any[]
+        results.filter((r) => r.result_type === 'track' && r.path)
       ));
     } else if (result.result_type === 'album' && result.library_id) {
       goto(`/library/${result.library_id}/albums/${result.id}`);
@@ -114,48 +123,56 @@
 
   function getTypeLabel(type: string) {
     switch (type) {
-      case 'track': return 'Morceau';
-      case 'album': return 'Album';
-      case 'artist': return 'Artiste';
+      case 'track': return $t('track_view.kicker');
+      case 'album': return $t('sidebar.album');
+      case 'artist': return $t('sidebar.artist');
       default: return '';
     }
   }
+  const raccourci = detectOS() === 'macos' ? '⌘ K' : 'Ctrl K';
 </script>
 
 <div class="relative w-full">
-  <!-- Input -->
+  <!-- Champ. En contraste élevé, le trait de focus fait le tour du champ (`row`)
+       plutôt que de la seule zone de saisie. -->
   <div
-    class="group relative flex items-center gap-2 rounded-full border px-3 py-2
-           backdrop-blur-md transition
-           dark:shadow-[0_10px_30px_-18px_rgba(0,0,0,0.75)]
-           dark:bg-neutral-900/60 dark:border-white/10
-           dark:hover:bg-neutral-900/75 dark:hover:border-white/20
-           dark:focus-within:bg-neutral-900/80 dark:focus-within:border-white/25
-           bg-neutral-100/80 border-neutral-200/90
-           shadow-[inset_0_1px_3px_rgba(0,0,0,0.06)]
-           hover:bg-neutral-100 hover:border-neutral-300/80
-           focus-within:bg-white focus-within:border-neutral-300 focus-within:shadow-[inset_0_1px_2px_rgba(0,0,0,0.04),0_0_0_2px_rgba(16,185,129,0.15)]"
+    data-focus-ring="row"
+    class="group relative flex items-center gap-2.5 h-9 pl-3 pr-1.5 rounded-[10px] border
+           transition-[background-color,border-color,box-shadow] duration-150
+           bg-white border-(--c-bord) hover:border-(--c-bord2)
+           focus-within:border-emerald-500/60 focus-within:shadow-[0_0_0_3px_rgba(34,197,94,0.14)]
+           dark:bg-[#131715] dark:border-[#1f2522] dark:hover:border-[#2e3632]
+           dark:focus-within:bg-[#151a17] dark:focus-within:border-emerald-500/50
+           dark:focus-within:shadow-[0_0_0_3px_rgba(34,197,94,0.12)]"
   >
     {#if loading}
       <Icon icon="lucide:loader-2" class="h-4 w-4 shrink-0 animate-spin text-green-500" />
     {:else}
-      <Icon icon="mynaui:search" class="h-4 w-4 shrink-0 opacity-70 group-hover:opacity-90 transition dark:text-white/80 text-black/70" />
+      <Icon icon="mynaui:search" class="h-4 w-4 shrink-0 transition-colors text-[#5e625d] dark:text-[#8b948f]
+                                        group-focus-within:text-emerald-500" />
     {/if}
 
     <input
       type="search"
+      data-focus-ring="none"
       bind:value={query}
       oninput={handleInput}
       onkeydown={handleKeydown}
       onfocus={handleFocus}
       onblur={handleBlur}
-      class="w-full bg-transparent outline-none text-sm
-             dark:text-neutral-100 dark:placeholder:text-neutral-500
-             text-neutral-900 placeholder:text-neutral-600"
-      placeholder="Rechercher un titre, un artiste, un album…"
+      class="w-full bg-transparent outline-none text-[13px]
+             dark:text-neutral-100 dark:placeholder:text-[#8b948f]
+             text-[#1a1c1a] placeholder:text-[#6f736d]"
+      placeholder={$t("search.placeholder")}
       autocomplete="off"
       spellcheck="false"
     />
+    <!-- Le raccourci existe (layout) : on le montre tant que le champ est vide. -->
+    {#if !query}
+      <kbd class="hidden lg:inline-flex group-focus-within:hidden shrink-0 items-center h-5.5 px-1.5 rounded-md border pointer-events-none
+                  font-mono text-[10.5px] leading-none text-[#5e625d] dark:text-[#8b948f]
+                  border-(--c-bord) dark:border-[#2e3632] bg-(--c-kbd) dark:bg-[#0b0d0c]">{raccourci}</kbd>
+    {/if}
   </div>
 
   <!-- Dropdown résultats -->
@@ -217,7 +234,7 @@
         onclick={() => { goto(`/search?q=${encodeURIComponent(query)}`); close(); }}
       >
         <Icon icon="lucide:search" width="12" />
-        Voir tous les résultats
+        {$t("search.see_all")}
       </button>
     </div>
   {/if}

@@ -8,6 +8,7 @@
 
 import { writable, get } from "svelte/store";
 import { listen } from "@tauri-apps/api/event";
+import { dataCache } from "$lib/stores/cache/dataCache.store";
 import type { BatchProgress, BatchReport } from "$lib/services/batch/batch.service";
 
 export type BatchState = {
@@ -82,6 +83,7 @@ export async function initBatchListeners() {
   });
 
   await listen<BatchReport>("batch-done", (event) => {
+    dataCache.invalidateFiches();
     store.update((s) =>
       s.jobId === event.payload.job_id
         ? { ...s, report: event.payload, running: false, cancelling: false }

@@ -36,6 +36,9 @@ pub fn to_album_list_view(
 
         // Ce mappeur part de l'album, donc de son propriétaire.
         participation: false,
+        // La qualité se lit sur les pistes : seule la liste des albums la calcule.
+        max_bits: None,
+        max_sample_rate: None,
 
         // ===== Timestamps =====
         created_at: album.created_at,

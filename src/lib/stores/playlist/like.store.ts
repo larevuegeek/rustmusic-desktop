@@ -23,12 +23,15 @@ function createLikedStore() {
 
     update((s) => ({ ...s, loading: true }));
 
-    const rows = await invoke<TrackLikedView[]>('get_tracks_liked', { profilId: profil.profilSelected.id }); 
-
-    const next = new Set(rows.map((r) => r.path));
-
-    set({ paths: next, loading: false });
-    likedCount.set(next.size);
+    try {
+      const rows = await invoke<TrackLikedView[]>('get_tracks_liked', { profilId: profil.profilSelected.id });
+      const next = new Set(rows.map((r) => r.path));
+      set({ paths: next, loading: false });
+      likedCount.set(next.size);
+    } catch (e) {
+      console.error('[likes] rechargement :', e);
+      update((s) => ({ ...s, loading: false }));
+    }
   }
 
   async function like(path: string) {
@@ -108,7 +111,13 @@ function createLikedStore() {
     return isLikedNow ? unlike(path) : like(path);
   }
 
-  return { subscribe, likedCount, refresh, like, unlike, toggle };
+  /** Aime (ou retire) toute une liste : un album, un artiste. */
+  async function toggleAll(paths: string[], aimer: boolean) {
+    const deja = get({ subscribe }).paths;
+    await Promise.all(paths.map((p) => (aimer ? (deja.has(p) ? null : like(p)) : unlike(p))));
+  }
+
+  return { subscribe, likedCount, refresh, like, unlike, toggle, toggleAll };
 }
 
 export const liked = createLikedStore();

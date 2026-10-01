@@ -36,7 +36,7 @@
     onclose,
     showNavigation = false,
     showDelete = false,
-    deleteLabel = 'Supprimer',
+    deleteLabel,
     showAddToPlaylist = true,
     ondelete,
   }: Props = $props();
@@ -96,13 +96,13 @@
 
   function handleAddNext() {
     queueState.addTrack(toQueueTrack(track));
-    toasts.push({ type: "success", title: "Ajouté en priorité", message: "Le morceau sera lu juste après" });
+    toasts.push({ type: "success", title: $t("notify.added_next"), message: $t("notify.track_next") });
     onclose();
   }
 
   function handleAddToQueue() {
     queueState.enqueue(toQueueTrack(track));
-    toasts.push({ type: "success", title: "Ajouté à la file", message: "Le morceau a été ajouté à la suite" });
+    toasts.push({ type: "success", title: $t("notify.queued"), message: $t("notify.track_queued") });
     onclose();
   }
 
@@ -125,7 +125,7 @@
       // Construire les params selon ce qu'on a :
       // - library_track_id (string UUID) → tracks de la bibliothèque
       // - path → fichiers liked, recent, explorateur
-      const params: Record<string, any> = { playlistId: pl.id };
+      const params: Record<string, unknown> = { playlistId: pl.id };
 
       // Si on a un ID string (UUID des library_tracks)
       if (track.id && typeof track.id === 'string') {
@@ -137,7 +137,7 @@
       }
       // Sinon on ne peut rien faire
       else {
-        toasts.push({ type: "error", title: "Erreur", message: "Impossible d'identifier le morceau" });
+        toasts.push({ type: "error", title: $t("notify.error"), message: $t("notify.track_unidentified") });
         onclose();
         return;
       }
@@ -147,9 +147,9 @@
       // Rafraîchir le store pour mettre à jour les compteurs dans la sidebar
       await playlistStore.refresh();
 
-      toasts.push({ type: "success", title: "Ajouté", message: `Ajouté à ${pl.name}` });
+      toasts.push({ type: "success", title: $t("notify.added"), message: $t("notify.added_to").replace("{name}", pl.name) });
     } catch (e) {
-      toasts.push({ type: "error", title: "Erreur", message: String(e) });
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(e) });
     }
     onclose();
   }
@@ -186,7 +186,7 @@
   class="fixed inset-0 z-9998 cursor-default"
   onclick={onclose}
   oncontextmenu={(e) => { e.preventDefault(); onclose(); }}
-  aria-label="Fermer le menu"
+  aria-label={$t("menu.close_menu")}
 ></button>
 
 <!-- Menu contextuel -->
@@ -208,7 +208,7 @@
     onclick={handlePlay}
   >
     <Icon icon="lucide:play" width="14" class="opacity-60" />
-    Lire maintenant
+    {$t("actions.play_now")}
   </button>
 
   <button
@@ -217,7 +217,7 @@
     onclick={handleAddNext}
   >
     <Icon icon="lucide:list-start" width="14" class="opacity-60" />
-    Lire ensuite
+    {$t("track_view.play_next")}
   </button>
 
   <button
@@ -226,7 +226,7 @@
     onclick={handleAddToQueue}
   >
     <Icon icon="lucide:list-end" width="14" class="opacity-60" />
-    Ajouter à la file
+    {$t("albums_view.enqueue")}
   </button>
 
   <div class="h-px mx-2 my-1 bg-white/8"></div>
@@ -241,7 +241,7 @@
     onclick={handleToggleLike}
   >
     <Icon icon={isLiked ? "lucide:heart-off" : "lucide:heart"} width="14" class={isLiked ? '' : 'opacity-60'} />
-    {isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+    {$t(isLiked ? 'actions.like_remove' : 'actions.like_add')}
   </button>
 
   <!-- Ajouter à une playlist -->
@@ -253,7 +253,7 @@
   >
     <span class="flex items-center gap-2.5">
       <Icon icon="lucide:list-plus" width="14" class="opacity-60" />
-      Ajouter à une playlist
+      {$t("menu.add_to_playlist")}
     </span>
     <Icon icon={showPlaylistSub ? "lucide:chevron-down" : "lucide:chevron-right"} width="12" class="opacity-40" />
   </button>
@@ -309,7 +309,7 @@
         onclick={handleViewTrack}
       >
         <Icon icon="lucide:music-4" width="14" class="opacity-60" />
-        Voir le morceau
+        {$t("actions.view_track")}
       </button>
     {/if}
 
@@ -320,7 +320,7 @@
         onclick={handleViewAlbum}
       >
         <Icon icon="lucide:disc-album" width="14" class="opacity-60" />
-        Voir l'album
+        {$t("actions.view_album")}
       </button>
     {/if}
 
@@ -331,7 +331,7 @@
         onclick={handleViewArtist}
       >
         <Icon icon="lucide:mic-2" width="14" class="opacity-60" />
-        Voir l'artiste
+        {$t("actions.view_artist")}
       </button>
     {/if}
   {/if}
@@ -358,7 +358,7 @@
       onclick={handleDelete}
     >
       <Icon icon="lucide:trash-2" width="14" class="opacity-60" />
-      {deleteLabel}
+      {deleteLabel ?? $t("actions.delete")}
     </button>
   {/if}
 </div>

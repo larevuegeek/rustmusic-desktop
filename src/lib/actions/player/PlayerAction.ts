@@ -10,6 +10,7 @@ import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
 import { profilSelector } from "$lib/stores/profil/profil.store";
 import { toasts } from "$lib/stores/ui/toast.store";
 import { playerService } from '$lib/services/player/player.service';
+import { t, currentLocale } from "$lib/i18n";
 
 
 async function handleTrack(path: string, contexte?: QueueTrack[]): Promise<QueueTrack> {
@@ -115,9 +116,9 @@ export default async function openAudioFile(): Promise<void> {
     try {
         const selectedPath = await open({
             multiple: false,
-            title: "Ouvrir un fichier",
+            title: get(t)("home.open_file"),
             filters: [
-            { name: 'Fichiers audio', extensions: ['mp3', 'flac', 'ogg', 'm4a', 'dsf', 'dff'] }
+            { name: get(t)("actions.dialog_audio_files"), extensions: ['mp3', 'flac', 'ogg', 'm4a', 'dsf', 'dff'] }
             ]
         });
 
@@ -147,7 +148,7 @@ export async function openAudioDirectory(): Promise<void> {
         const selectedPath = await open({
             directory: true,  // ← La clé importante !
             multiple: false,
-            title: "Sélectionner un dossier"
+            title: get(t)("actions.dialog_select_folder")
         });
 
         if (!selectedPath) return;
@@ -180,8 +181,9 @@ export async function openAudioDirectory(): Promise<void> {
 
         toasts.push({
             type: "success",
-            title: "Playlist mise à jour",
-            message: `${audioFiles.length} fichier${audioFiles.length > 1 ? 's' : ''} ajouté${audioFiles.length > 1 ? 's' : ''} à la playlist`
+            title: get(t)("notify.playlist_updated"),
+            message: get(t)(audioFiles.length === 1 ? "notify.files_to_playlist_one" : "notify.files_to_playlist_n")
+                .replace("{n}", audioFiles.length.toLocaleString(get(currentLocale)))
         });
 
     } catch(err) {
@@ -197,7 +199,7 @@ export function audioFileToQueueTrack(audioFile: AudioFile): QueueTrack {
         queueId: crypto.randomUUID(),
         profilId: profil.profilSelected?.id ?? 1,
         path: audioFile.path,
-        title: audioFile.tags?.title ?? "Inconnu",
+        title: audioFile.tags?.title ?? get(t)("common.unknown_title"),
         artist: audioFile.tags?.artist,
         duration: audioFile?.duration,
         cover: audioFile.tags?.attached_images?.[0]?.image_src,

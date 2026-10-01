@@ -1,8 +1,9 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import RuleGroup from "./RuleGroup.svelte";
+  import { t } from "$lib/i18n";
   import type { FieldOption, Vocabulary, Node, Group } from "./types";
-  import { operatorsFor, defaultRule, arityOf } from "./types";
+  import { operatorsFor, defaultRule, arityOf, libelleChamp, libelleOperateur } from "./types";
 
   /**
    * Un groupe de conditions, et ses sous-groupes.
@@ -73,15 +74,15 @@
 
   <!-- Le liant du groupe -->
   <div class="flex items-center gap-2 mb-2">
-    <span class="text-xs text-neutral-500 dark:text-neutral-400">Correspond à</span>
+    <span class="text-xs text-neutral-500 dark:text-neutral-400">{$t("smart.match")}</span>
     <select
       bind:value={group.match}
       class="text-xs px-2 py-1 rounded-md cursor-pointer
              bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-white/10
              text-neutral-800 dark:text-neutral-200"
     >
-      <option value="all">toutes les conditions</option>
-      <option value="any">au moins une condition</option>
+      <option value="all">{$t("smart.match_all")}</option>
+      <option value="any">{$t("smart.match_any")}</option>
     </select>
 
     {#if onremove}
@@ -89,7 +90,7 @@
         type="button"
         onclick={onremove}
         class="ml-auto p-1 rounded cursor-pointer text-neutral-400 hover:text-red-500"
-        aria-label="Retirer le groupe"
+        aria-label={$t("smart.remove_group")}
       >
         <Icon icon="lucide:x" width="14" />
       </button>
@@ -119,7 +120,7 @@
                    text-neutral-800 dark:text-neutral-200"
           >
             {#each fields as f (f.key)}
-              <option value={f.key}>{f.label}</option>
+              <option value={f.key}>{libelleChamp(f, $t)}</option>
             {/each}
           </select>
 
@@ -131,7 +132,7 @@
                    text-neutral-800 dark:text-neutral-200"
           >
             {#each ops as o (o.key)}
-              <option value={o.key}>{o.label}</option>
+              <option value={o.key}>{libelleOperateur(o, $t)}</option>
             {/each}
           </select>
 
@@ -141,7 +142,7 @@
             <input
               type="text"
               bind:value={noeud.value}
-              placeholder="valeur"
+              placeholder={$t("smart.value")}
               class="text-xs px-2 py-1.5 rounded-md w-40 shrink-0
                      bg-white dark:bg-white/5 border border-neutral-200 dark:border-white/10
                      text-neutral-800 dark:text-neutral-200
@@ -160,7 +161,7 @@
                        bg-white dark:bg-white/5 border border-neutral-200 dark:border-white/10
                        text-neutral-800 dark:text-neutral-200 focus:outline-none focus:border-emerald-400"
               />
-              <span class="text-[10px] text-neutral-400 shrink-0">et</span>
+              <span class="text-[10px] text-neutral-400 shrink-0">{$t("smart.and")}</span>
               <input
                 type="number"
                 value={Array.isArray(noeud.value) ? noeud.value[1] : ''}
@@ -181,7 +182,7 @@
             type="button"
             onclick={() => retirer(i)}
             class="p-1 rounded cursor-pointer shrink-0 text-neutral-400 hover:text-red-500"
-            aria-label="Retirer la condition"
+            aria-label={$t("smart.remove_condition")}
           >
             <Icon icon="lucide:x" width="14" />
           </button>
@@ -199,7 +200,7 @@
              hover:text-neutral-800 dark:hover:text-neutral-200"
     >
       <Icon icon="lucide:plus" width="12" />
-      Condition
+      {$t("smart.condition")}
     </button>
     {#if depth < PROFONDEUR_MAX - 1}
       <button
@@ -210,7 +211,7 @@
                hover:text-neutral-800 dark:hover:text-neutral-200"
       >
         <Icon icon="lucide:brackets" width="12" />
-        Groupe
+        {$t("smart.group")}
       </button>
     {/if}
   </div>

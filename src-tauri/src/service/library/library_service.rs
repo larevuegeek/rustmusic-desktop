@@ -126,6 +126,47 @@ pub struct ImportComplete {
     pub skipped: usize,
 }
 
+#[derive(Clone, Serialize)]
+pub struct RescanProgressPayload {
+    pub library_id: i64,
+    pub current: usize,
+    pub total: usize,
+}
+
+/// Progression d'un rescan, cumulée sur tous les dossiers de la bibliothèque.
+pub struct RescanProgress {
+    library_id: i64,
+    current: usize,
+    total: usize,
+    derniere_emission: Option<Instant>,
+}
+
+impl RescanProgress {
+    pub fn new(library_id: i64, total: usize) -> Self {
+        Self { library_id, current: 0, total, derniere_emission: None }
+    }
+
+    /// Au plus un évènement toutes les 100 ms ; le premier et le dernier passent toujours.
+    pub fn emettre(&mut self, app: &tauri::AppHandle) {
+        let due = self.derniere_emission
+            .map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(100));
+        if !due && self.current < self.total {
+            return;
+        }
+        self.derniere_emission = Some(Instant::now());
+        let _ = app.emit("rescan-progress", RescanProgressPayload {
+            library_id: self.library_id,
+            current: self.current,
+            total: self.total,
+        });
+    }
+
+    fn avancer(&mut self, app: &tauri::AppHandle) {
+        self.current += 1;
+        self.emettre(app);
+    }
+}
+
 // ============================================================================
 // IMPORT D'UN DOSSIER DANS LA BIBLIOTHÈQUE
 // ============================================================================
@@ -152,9 +193,26 @@ pub async fn save_dir_to_library(
     directory: String
 ) -> Result<Vec<TrackListView>, String> {
 
+    // Scan récursif du dossier
+    let mut files: Vec<PathBuf> = Vec::new();
+    let _ = read_dir_deep(&directory, &mut files);
+
+    save_files_to_library(app, pool_api, library_id, directory, files, None).await
+}
+
+/// Importe les fichiers déjà listés d'un dossier. Le rescan les liste d'avance
+/// pour connaître le total de toute la bibliothèque.
+pub async fn save_files_to_library(
+    app: tauri::AppHandle,
+    pool_api: &SqlitePool,
+    library_id: i64,
+    directory: String,
+    files: Vec<PathBuf>,
+    mut progression: Option<&mut RescanProgress>,
+) -> Result<Vec<TrackListView>, String> {
+
     let start: Instant = Instant::now();
 
-    let mut files: Vec<PathBuf> = Vec::new();
     let mut tracks: Vec<TrackListView> = Vec::new();
 
     // declaration de mes repository
@@ -187,9 +245,6 @@ pub async fn save_dir_to_library(
     // Migrations miniatures (covers → covers/albums/, artists → covers/artists/)
     migrate_old_thumbnails(&app, &ctx.covers_dir, pool_api, "covers").await?;
     migrate_old_thumbnails(&app, &ctx.covers_dir, pool_api, "artists").await?;
-
-    // Scan récursif du dossier
-    let _ = read_dir_deep(&directory, &mut files);
 
     let total: usize = files.len();
     log::info!("📁 {} fichiers trouvés dans {}", total, directory);
@@ -261,6 +316,10 @@ pub async fn save_dir_to_library(
                 percent: if total > 0 { (processed * 100) / total } else { 0 },
                 file_name: file_name.clone(),
             });
+
+            if let Some(p) = progression.as_deref_mut() {
+                p.avancer(&app);
+            }
 
             let analysis = match analysis_result {
                 Ok(a) => a,

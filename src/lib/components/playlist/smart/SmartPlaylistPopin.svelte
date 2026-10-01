@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { t, currentLocale } from "$lib/i18n";
   import { popinStore } from "$lib/stores/ui/popin.store";
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
   import { profilSelector } from "$lib/stores/profil/profil.store";
@@ -9,6 +10,7 @@
   import RuleGroup from "./RuleGroup.svelte";
   import { PRESETS, type Preset } from "./presets";
   import {
+    libelleChamp,
     pruneGroup,
     type FieldOption,
     type Group,
@@ -69,11 +71,11 @@
             "get_library_tag_keys",
             { libraryId },
           );
-          tags = trouves.map((t) => ({
-            key: `tag:${t.key}`,
-            label: t.key.startsWith("custom:") ? t.key.slice(7) : t.key.replace(/_/g, " "),
+          tags = trouves.map((tg) => ({
+            key: `tag:${tg.key}`,
+            label: tg.key.startsWith("custom:") ? tg.key.slice(7) : tg.key.replace(/_/g, " "),
             kind: "text" as const,
-            filled: t.filled,
+            filled: tg.filled,
           }));
         } catch (e) {
           console.error("Recensement des tags impossible:", e);
@@ -180,8 +182,8 @@
     limit = { ...p.limit };
 
     if (!name.trim() || name === nomPoseParRecette) {
-      name = p.name;
-      nomPoseParRecette = p.name;
+      name = $t(p.name);
+      nomPoseParRecette = name;
     }
 
     const ci = PLAYLIST_COLORS.indexOf(p.color);
@@ -191,14 +193,14 @@
   }
 
   const champsTriables = $derived([
-    { key: "random", label: "au hasard" },
-    ...fields.map((f) => ({ key: f.key, label: f.label })),
+    { key: "random", label: $t("smart.random") },
+    ...fields.map((f) => ({ key: f.key, label: libelleChamp(f, $t) })),
   ]);
 
   async function enregistrer() {
     if (!vocabulary) return;
     if (!name.trim()) {
-      erreur = "Le nom est obligatoire.";
+      erreur = $t("smart.name_required");
       return;
     }
 
@@ -220,7 +222,7 @@
         });
       } else {
         const profilId = $profilSelector.profilSelected?.id;
-        if (!profilId) throw new Error("Aucun profil sélectionné.");
+        if (!profilId) throw new Error($t("smart.no_profile"));
         await invoke("create_smart_playlist", {
           profilId,
           name,
@@ -260,7 +262,7 @@
         <input
           type="text"
           bind:value={name}
-          placeholder="Nom de la playlist"
+          placeholder={$t("smart.name_placeholder")}
           class="flex-1 text-sm px-3 py-2 rounded-lg
                  bg-white dark:bg-white/5 border border-neutral-200 dark:border-white/10
                  text-neutral-800 dark:text-neutral-200
@@ -276,7 +278,7 @@
             class="w-5 h-5 rounded-full cursor-pointer transition-transform
                    {colorIndex === i ? 'scale-110 ring-2 ring-offset-1 ring-neutral-400 dark:ring-offset-neutral-900' : ''}"
             style="background: {c}"
-            aria-label="Couleur"
+            aria-label={$t("smart.color")}
           ></button>
         {/each}
       </div>
@@ -290,7 +292,8 @@
                    {iconIndex === i
                      ? 'bg-neutral-200 dark:bg-white/10 text-neutral-800 dark:text-neutral-100'
                      : 'text-neutral-400 hover:bg-neutral-100 dark:hover:bg-white/5'}"
-            aria-label={ic.id}
+            aria-label={$t(ic.cle)}
+            title={$t(ic.cle)}
           >
             <Icon icon={ic.id} width="15" />
           </button>
@@ -306,14 +309,14 @@
            maintenant ce qui va se passer. -->
       <div class="pt-3 border-t border-neutral-200/60 dark:border-white/6">
         <h3 class="text-[10px] uppercase tracking-wider text-neutral-400 mb-2">
-          {playlistId == null ? "Partir d'une recette" : "Remplacer par une recette"}
+          {playlistId == null ? $t("smart.from_preset") : $t("smart.replace_with_preset")}
         </h3>
         <div class="flex flex-wrap gap-1.5">
           {#each PRESETS as p (p.key)}
             <button
               type="button"
               onclick={() => appliquerRecette(p)}
-              title={p.hint}
+              title={$t(p.hint)}
               class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer
                      text-[11px] font-medium
                      bg-neutral-100 dark:bg-white/5
@@ -322,7 +325,7 @@
                      hover:border-neutral-300 dark:hover:border-white/20"
             >
               <Icon icon={p.icon} width="13" style="color: {p.color}" />
-              {p.name}
+              {$t(p.name)}
             </button>
           {/each}
         </div>
@@ -336,7 +339,7 @@
       <!-- Tri et coupe -->
       <div class="pt-3 border-t border-neutral-200/60 dark:border-white/6 space-y-2">
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="text-xs text-neutral-500 dark:text-neutral-400">Limiter à</span>
+          <span class="text-xs text-neutral-500 dark:text-neutral-400">{$t("smart.limit_to")}</span>
           <input
             type="number"
             min="1"
@@ -347,7 +350,7 @@
                    bg-white dark:bg-white/5 border border-neutral-200 dark:border-white/10
                    text-neutral-800 dark:text-neutral-200 focus:outline-none focus:border-emerald-400"
           />
-          <span class="text-xs text-neutral-500 dark:text-neutral-400">morceaux, triés par</span>
+          <span class="text-xs text-neutral-500 dark:text-neutral-400">{$t("smart.tracks_sorted_by")}</span>
           <select
             value={limit.sort ?? ''}
             onchange={(e) => limit = { ...limit, sort: e.currentTarget.value || null }}
@@ -355,7 +358,7 @@
                    bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-white/10
                    text-neutral-800 dark:text-neutral-200"
           >
-            <option value="">ordre naturel</option>
+            <option value="">{$t("smart.natural_order")}</option>
             {#each champsTriables as c (c.key)}
               <option value={c.key}>{c.label}</option>
             {/each}
@@ -369,13 +372,12 @@
                      text-neutral-600 dark:text-neutral-300"
             >
               <Icon icon={limit.desc ? 'lucide:arrow-down' : 'lucide:arrow-up'} width="12" />
-              {limit.desc ? 'décroissant' : 'croissant'}
+              {limit.desc ? $t("smart.descending") : $t("smart.ascending")}
             </button>
           {/if}
         </div>
         <p class="text-[11px] text-neutral-400 dark:text-neutral-500">
-          La coupe ne change pas le nombre de morceaux qui répondent aux règles,
-          seulement combien s'affichent.
+          {$t("smart.limit_hint")}
         </p>
       </div>
     </div>
@@ -389,14 +391,14 @@
         {:else if comptage}
           <p class="text-xs text-neutral-400 flex items-center gap-1.5">
             <Icon icon="lucide:loader-2" width="12" class="animate-spin" />
-            calcul…
+            {$t("smart.counting")}
           </p>
         {:else if compte !== null}
           <p class="text-xs text-neutral-600 dark:text-neutral-300">
-            <span class="font-semibold tabular-nums">{compte}</span>
-            morceau{compte > 1 ? 'x' : ''} correspond{compte > 1 ? 'ent' : ''}
+            <span class="font-semibold tabular-nums">{compte.toLocaleString($currentLocale)}</span>
+            {$t(new Intl.PluralRules($currentLocale).select(compte) === "one" ? "smart.matching_one" : "smart.matching_n")}
             {#if limit.count && compte > limit.count}
-              <span class="text-neutral-400"> — {limit.count} affichés</span>
+              <span class="text-neutral-400"> — {$t("smart.shown").replace("{n}", limit.count.toLocaleString($currentLocale))}</span>
             {/if}
           </p>
         {/if}
@@ -410,7 +412,7 @@
                  text-neutral-600 dark:text-neutral-300
                  hover:bg-neutral-200/60 dark:hover:bg-white/5"
         >
-          Annuler
+          {$t("common.cancel")}
         </button>
         <button
           type="button"
@@ -420,7 +422,7 @@
                  bg-emerald-500 hover:bg-emerald-400
                  disabled:opacity-40 disabled:cursor-default"
         >
-          {playlistId != null ? 'Enregistrer' : 'Créer'}
+          {playlistId != null ? $t("common.save") : $t("common.create")}
         </button>
       </div>
     </div>

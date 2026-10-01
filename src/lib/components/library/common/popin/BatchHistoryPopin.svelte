@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { messageErreur } from "$lib/helper/tools/errorTools";
   // Historique des lots, et retour en arrière.
   //
   // # Pourquoi un écran et pas seulement le bouton du compte rendu
@@ -13,7 +14,7 @@
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
   import { popinStore } from "$lib/stores/ui/popin.store";
-  import { t } from "$lib/i18n";
+  import { t, currentLocale } from "$lib/i18n";
   import {
     listBatchJournal,
     undoBatch,
@@ -49,7 +50,7 @@
       entries = await listBatchJournal(50);
       error = null;
     } catch (e) {
-      error = String((e as any)?.message ?? e ?? "");
+      error = messageErreur(e);
     } finally {
       loading = false;
     }
@@ -64,7 +65,7 @@
       onundone(result.moved);
       await load();
     } catch (e) {
-      error = String((e as any)?.message ?? e ?? "");
+      error = messageErreur(e);
     } finally {
       working = null;
     }
@@ -75,7 +76,7 @@
     // SQLite rend « 2026-08-17 14:32:05 » sans fuseau : c'est de l'UTC, et le
     // dire explicitement évite un décalage de deux heures en été.
     const date = new Date(value.replace(" ", "T") + "Z");
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString($currentLocale);
   }
 </script>
 

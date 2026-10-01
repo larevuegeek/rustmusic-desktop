@@ -5,9 +5,12 @@
   let {
     availableLetters = new Set<string>(),
     onletter,
+    toujours = false,
   }: {
     availableLetters?: Set<string>;
     onletter: (letter: string) => void;
+    /** Affiché d'office (la page décide), sans passer par la préférence d'affichage. */
+    toujours?: boolean;
   } = $props();
 
   const LETTERS = ['#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
@@ -23,34 +26,30 @@
   }
 </script>
 
-{#if $alphabetNavVisible}
+{#if toujours || $alphabetNavVisible}
+  <!-- Toute la hauteur de la zone : les lettres se tassent plutôt que de déborder sur ce qui est au-dessus. -->
+  <div class="absolute right-2.5 inset-y-2 z-20 flex items-center pointer-events-none" transition:fly={{ x: 10, duration: 200 }}>
   <div
-    class="absolute right-1 top-1/2 -translate-y-1/2 z-20
-           flex flex-col items-center gap-px
-           py-2 px-1
-           bg-white/5 dark:bg-black/30 backdrop-blur-sm
-           border border-white/6
-           rounded-md"
-    transition:fly={{ x: 10, duration: 200 }}
+    class="pointer-events-auto max-h-full overflow-hidden flex flex-col items-center py-1.5 px-0.75 rounded-xl
+           bg-(--rg-carte)/70 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-none"
   >
     {#each LETTERS as letter}
       {@const available = availableLetters.has(letter)}
       {@const active = activeLetter === letter}
       <button
         type="button"
-        class="w-5 h-4 flex items-center justify-center
-               text-[10px] font-semibold tabular-nums
-               rounded transition-all duration-150
+        class="w-5.5 h-4.75 min-h-0 shrink flex items-center justify-center text-[clamp(8px,1.5vh,11px)] leading-none font-bold rounded-[5px] transition-all duration-150
                {active
-                 ? 'bg-emerald-500 text-black scale-110'
+                 ? 'bg-(--rg-g) text-(--rg-on-g) scale-110'
                  : available
-                   ? 'text-neutral-400 hover:text-white hover:bg-white/10 cursor-pointer'
-                   : 'text-neutral-700 dark:text-neutral-700 cursor-default'}"
+                   ? 'text-(--rg-tx2) hover:bg-(--rg-g) hover:text-(--rg-on-g) cursor-pointer'
+                   : 'text-(--rg-bd2) cursor-default'}"
         disabled={!available}
         onclick={() => handleClick(letter)}
       >
         {letter}
       </button>
     {/each}
+  </div>
   </div>
 {/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
-  let { src, alt = "", ...rest }: { src: string; alt?: string; class?: string; [key: string]: any } = $props();
+  import type { HTMLImgAttributes } from "svelte/elements";
+  let { src, alt = "", ...rest }: { src: string; alt?: string } & Omit<HTMLImgAttributes, "src" | "alt"> = $props();
   let loaded = $state(false);
   let errored = $state(false);
 </script>

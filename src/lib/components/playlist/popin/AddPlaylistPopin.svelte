@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { messageErreur } from "$lib/helper/tools/errorTools";
   import { popinStore } from "$lib/stores/ui/popin.store";
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
   import { profilSelector } from "$lib/stores/profil/profil.store";
   import { PLAYLIST_COLORS, PLAYLIST_ICONS } from "../playlistConfig";
   import Icon from "@iconify/svelte";
+  import { t } from "$lib/i18n";
   import type { Playlist } from "$lib/types/db/playlist/Playlist";
 
   /** Appelé avec la playlist créée — sert à y verser aussitôt un morceau. */
@@ -18,6 +20,8 @@
 
   let selectedColor = $derived(PLAYLIST_COLORS[selectedColorIndex]);
   let selectedIcon = $derived(PLAYLIST_ICONS[selectedIconIndex]);
+  // Libellé traduit d'une icône, d'après son id (« mynaui:heart » → heart).
+  const iconLabel = (id: string) => $t(`playlist_icons.${id.split(":")[1]}`);
 
   function close() {
     popinStore.close();
@@ -26,7 +30,7 @@
   async function submit() {
     errorName = null;
     if (!name.trim()) {
-      errorName = "Le nom est obligatoire";
+      errorName = "forms.name_required";
       return;
     }
     isSubmitting = true;
@@ -37,12 +41,12 @@
       const creee = await playlistStore.addPlaylist(profilId, name, description || null, selectedColor, selectedIcon.id);
       close();
       apresCreation?.(creee);
-    } catch (error: any) {
-      const message = String(error?.message ?? error ?? "");
+    } catch (error) {
+      const message = messageErreur(error);
       if (message.includes("UNIQUE") || message.includes("duplicate")) {
-        errorName = "Une playlist avec ce nom existe déjà";
+        errorName = "popins.playlist_name_taken";
       } else {
-        errorName = "Une erreur est survenue";
+        errorName = "forms.error_generic";
       }
     } finally {
       isSubmitting = false;
@@ -62,10 +66,10 @@
     </div>
     <div class="min-w-0">
       <p class="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-        {name.trim() || 'Nouvelle playlist'}
+        {name.trim() || $t("playlist.new")}
       </p>
       <p class="text-xs text-neutral-500 dark:text-neutral-400">
-        0 titre · Playlist
+        {$t("home.tracks_n").replace("{n}", "0")} · {$t("home.playlist")}
       </p>
     </div>
   </div>
@@ -73,7 +77,7 @@
   <!-- Nom -->
   <div class="flex flex-col gap-1.5">
     <label for="pl_name" class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Nom <span class="text-red-500">*</span>
+      {$t("forms.name")} <span class="text-red-500">*</span>
     </label>
     <input
       id="pl_name"
@@ -86,7 +90,7 @@
              {errorName
                ? 'border-red-400/60 focus:ring-red-500/40'
                : 'border-neutral-200 dark:border-neutral-700 focus:ring-emerald-500/40 hover:border-neutral-300 dark:hover:border-neutral-600'}"
-      placeholder="Ex : Chill Vibes, Workout Mix…"
+      placeholder={$t("popins.playlist_name_placeholder")}
       bind:value={name}
       oninput={() => errorName = null}
       disabled={isSubmitting}
@@ -94,7 +98,7 @@
     {#if errorName}
       <p class="flex items-center gap-1.5 text-xs text-red-500">
         <Icon icon="heroicons:exclamation-circle" class="w-3.5 h-3.5 shrink-0" />
-        {errorName}
+        {$t(errorName)}
       </p>
     {/if}
   </div>
@@ -102,7 +106,7 @@
   <!-- Description -->
   <div class="flex flex-col gap-1.5">
     <label for="pl_desc" class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Description <span class="normal-case font-normal tracking-normal">(optionnel)</span>
+      {$t("forms.description")} <span class="normal-case font-normal tracking-normal">{$t("forms.optional")}</span>
     </label>
     <textarea id="pl_desc"
       class="w-full rounded-xl border px-4 py-3 text-sm resize-none
@@ -113,7 +117,7 @@
              transition-all duration-200
              hover:border-neutral-300 dark:hover:border-neutral-600
              focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-transparent"
-      placeholder="Une courte description…"
+      placeholder={$t("forms.description_placeholder")}
       rows="2"
       bind:value={description}
       disabled={isSubmitting}
@@ -123,13 +127,13 @@
   <!-- Couleur -->
   <div class="flex flex-col gap-2">
     <span class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Couleur
+      {$t("forms.color")}
     </span>
     <div class="flex items-center gap-2">
       {#each PLAYLIST_COLORS as color, i}
         <button
           type="button"
-          aria-label="Couleur {color}"
+          aria-label={$t("forms.color_aria").replace("{color}", color)}
           class="w-6 h-6 shrink-0 aspect-square rounded-full cursor-pointer transition-all duration-200
                  {selectedColorIndex === i
                    ? 'scale-115'
@@ -147,7 +151,7 @@
   <!-- Icône -->
   <div class="flex flex-col gap-2">
     <span class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-      Icône
+      {$t("forms.icon")}
     </span>
     <div class="flex flex-wrap items-center gap-1.5">
       {#each PLAYLIST_ICONS as icon, i}
@@ -160,7 +164,7 @@
                    : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 opacity-50 hover:opacity-100'}"
           style={selectedIconIndex === i ? `color: ${selectedColor};` : ''}
           onclick={() => selectedIconIndex = i}
-          title={icon.label}
+          title={iconLabel(icon.id)}
         >
           <Icon icon={icon.id} width="18" height="18" />
         </button>
@@ -180,7 +184,7 @@
       onclick={close}
       disabled={isSubmitting}
     >
-      Annuler
+      {$t("common.cancel")}
     </button>
 
     <button
@@ -197,10 +201,10 @@
     >
       {#if isSubmitting}
         <Icon icon="lucide:loader-2" width="14" height="14" class="animate-spin" />
-        Création…
+        {$t("forms.creating")}
       {:else}
         <Icon icon="lucide:plus" width="14" height="14" />
-        Créer
+        {$t("common.create")}
       {/if}
     </button>
   </div>

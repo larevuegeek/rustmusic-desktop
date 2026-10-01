@@ -57,3 +57,15 @@ pub async fn clear_recent_files(
 
     Ok(())
 }
+
+/// Mémorise où l'on en est dans le morceau en cours, pour pouvoir reprendre.
+#[tauri::command]
+pub async fn save_playback_position(
+    state: State<'_, AppState>,
+    path: String,
+    position: f64,
+) -> Result<(), String> {
+    RecentFileRepository::save_position(&state.pool, &path, position)
+        .await
+        .map_err(|e| format!("Position d'écoute : {e}"))
+}

@@ -7,6 +7,9 @@
  * description ne fait que les typer.
  */
 
+import { get } from "svelte/store";
+import { t } from "$lib/i18n";
+
 export type FieldKind = "text" | "number" | "date" | "bool";
 
 export type FieldInfo = {
@@ -56,6 +59,22 @@ export type Limit = {
 
 export type SmartRules = Group & { limit?: Limit | null };
 
+/** Traduit `cle`, ou rend `null` si la langue ne la connaît pas. */
+function traduireOuNull(tr: (k: string) => string, cle: string): string | null {
+  const v = tr(cle);
+  return v === cle ? null : v;
+}
+
+/** Intitulé traduit d'un champ (le backend parle français) ; repli sur son libellé. */
+export function libelleChamp(f: { key: string; label: string }, tr: (k: string) => string): string {
+  return traduireOuNull(tr, `smart.field.${f.key}`) ?? traduireOuNull(tr, `columns.${f.key}`) ?? f.label;
+}
+
+/** Intitulé traduit d'un opérateur ; repli sur celui du backend. */
+export function libelleOperateur(o: OpInfo, tr: (k: string) => string): string {
+  return traduireOuNull(tr, `smart.op.${o.key}`) ?? o.label;
+}
+
 /** Opérateurs valides pour le champ d'une règle. */
 export function operatorsFor(
   vocabulary: Vocabulary,
@@ -92,7 +111,8 @@ export function resumerRegles(
   vocabulary: Vocabulary,
   fields: FieldOption[],
 ): string {
-  const liant = group.match === "all" ? " et " : " ou ";
+  const tr = get(t);
+  const liant = ` ${tr(group.match === "all" ? "smart.and" : "smart.or")} `;
 
   const morceaux = group.rules.map((n) => {
     if ("rules" in n) return `(${resumerRegles(n, vocabulary, fields)})`;
@@ -101,11 +121,16 @@ export function resumerRegles(
     const ops = operatorsFor(vocabulary, fields, n.field);
     const op = ops.find((o) => o.key === n.op);
 
-    const nomChamp = champ?.label ?? n.field;
-    const nomOp = op?.label ?? n.op;
+    const nomChamp = champ ? libelleChamp(champ, tr) : n.field;
+    const nomOp = op ? libelleOperateur(op, tr) : n.op;
 
     if (op?.arity === 0) return `${nomChamp} ${nomOp}`;
-    if (Array.isArray(n.value)) return `${nomChamp} entre ${n.value[0]} et ${n.value[1]}`;
+    if (Array.isArray(n.value)) {
+      return tr("smart.summary_between")
+        .replace("{field}", nomChamp)
+        .replace("{a}", String(n.value[0]))
+        .replace("{b}", String(n.value[1]));
+    }
     return `${nomChamp} ${nomOp} ${n.value}`;
   });
 

@@ -13,6 +13,8 @@ export type SourceDeFile = {
   filename?: string | null;
   name?: string | null;
   artist?: string | null;
+  /** Nom employé par les playlists. */
+  artist_name?: string | null;
   duration?: number | null;
   cover?: string | null;
   thumbnail_path?: string | null;
@@ -25,7 +27,7 @@ export function versQueueTrack(source: SourceDeFile, position = 0): QueueTrack {
     profilId: profil.profilSelected?.id ?? 1,
     path: source.path as string,
     title: source.title ?? source.name ?? source.filename ?? "Inconnu",
-    artist: source.artist ?? undefined,
+    artist: source.artist ?? source.artist_name ?? undefined,
     duration: source.duration ?? undefined,
     cover: source.cover ?? source.thumbnail_path ?? undefined,
     position,

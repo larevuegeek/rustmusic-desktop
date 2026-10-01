@@ -21,6 +21,11 @@ pub struct AlbumListView {
     /// L'artiste n'est qu'invité sur cet album (compilation, BO, featuring).
     #[sqlx(default)]
     pub participation: bool,
+    /// Meilleure qualité de l'album (profondeur, fréquence) : badge et filtre Hi-Res.
+    #[sqlx(default)]
+    pub max_bits: Option<i64>,
+    #[sqlx(default)]
+    pub max_sample_rate: Option<i64>,
 
     // ===== Timestamps =====
     pub created_at: DateTime<Utc>,

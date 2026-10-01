@@ -8,6 +8,10 @@ import { parseLrc, findActiveLineIndex, type LrcLine } from "$lib/helper/lyrics/
 import { playerService } from "$lib/services/player/player.service";
 import { resolveCoverSrc } from "$lib/helper/tools/coverHelper";
 import NowPlayingCard from "$lib/components/player/NowPlayingCard.svelte";
+import { t } from "$lib/i18n";
+
+// Libellé de la source, comme le mini-lecteur.
+const SOURCES: Record<string, string> = { sidecar: "mini.src_sidecar", lrclib: "mini.src_lrclib", manual: "mini.src_manual" };
 
 type Status = "idle" | "loading" | "ready" | "empty" | "error";
 
@@ -91,10 +95,11 @@ $effect(() => {
 
     // Priorité 1 : cover de la queue si c'est une URL asset:// (miniature sur disque)
     if (queueCover && queueCover !== '/images/no-cd.png' && !queueCover.startsWith('data:')) {
+        let vivant = true;
         resolveCoverSrc(queueCover, "2x").then((url) => {
-            bgCoverSrc = url;
+            if (vivant) bgCoverSrc = url;
         });
-        return;
+        return () => { vivant = false; };
     }
 
     // Priorité 2 : cover embarquée dans le fichier audio (data URI)
@@ -133,10 +138,13 @@ async function fetchLyrics(path: string) {
     lastScrolledIndex = -1;
     try {
         const result = await getLyrics(path);
+        // Morceau changé entre-temps : ces paroles ne sont plus les bonnes.
+        if (path !== pathFile) return;
         applyLyrics(result);
-    } catch (e: any) {
+    } catch (e) {
+        if (path !== pathFile) return;
         status = "error";
-        error = String(e ?? "Erreur inconnue");
+        error = String(e ?? $t("lyrics.unknown_error"));
     }
 }
 
@@ -144,12 +152,14 @@ async function handleRefresh() {
     if (!pathFile || isRefreshing) return;
     isRefreshing = true;
     error = null;
+    const path = pathFile;
     try {
-        const result = await refreshLyrics(pathFile);
+        const result = await refreshLyrics(path);
+        if (path !== pathFile) return;
         applyLyrics(result);
-    } catch (e: any) {
+    } catch (e) {
         status = "error";
-        error = String(e ?? "Erreur inconnue");
+        error = String(e ?? $t("lyrics.unknown_error"));
     } finally {
         isRefreshing = false;
     }
@@ -196,7 +206,7 @@ function handleSeekToLine(timeMs: number) {
 <!-- Backdrop -->
 <button
     type="button"
-    aria-label="Fermer les paroles"
+    aria-label={$t("lyrics.close")}
     class="fixed inset-0 z-40 bg-black/30 dark:bg-black/50 backdrop-blur-md
            transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)]"
     class:opacity-100={$lyricsPanelOpened}
@@ -246,15 +256,15 @@ function handleSeekToLine(timeMs: number) {
                 <Icon icon="lucide:mic-vocal" width={17} class="text-white" />
             </div>
             <div class="min-w-0">
-                <div class="text-sm font-semibold text-white">Paroles</div>
+                <div class="text-sm font-semibold text-white">{$t("player.lyrics")}</div>
                 {#if status === "ready" && lyrics}
                     <div class="flex items-center gap-1.5 text-[10px] text-white/60 mt-0.5">
                         {#if syncedLines.length > 0}
                             <span class="px-1.5 py-px rounded bg-emerald-500/20 text-emerald-300 font-medium">
-                                Synchronisé
+                                {$t("lyrics.synced")}
                             </span>
                         {/if}
-                        <span class="capitalize">{lyrics.source}</span>
+                        <span>{SOURCES[lyrics.source] ? $t(SOURCES[lyrics.source]) : lyrics.source}</span>
                     </div>
                 {/if}
             </div>
@@ -268,8 +278,8 @@ function handleSeekToLine(timeMs: number) {
                            text-white/60 hover:text-white hover:bg-white/10 transition-colors"
                     onclick={handleRefresh}
                     disabled={isRefreshing}
-                    aria-label="Rechercher à nouveau"
-                    title="Rechercher à nouveau"
+                    aria-label={$t("lyrics.search_again")}
+                    title={$t("lyrics.search_again")}
                 >
                     <Icon
                         icon="lucide:refresh-cw"
@@ -283,7 +293,7 @@ function handleSeekToLine(timeMs: number) {
                 class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer
                        text-white/60 hover:text-white hover:bg-white/10 transition-colors"
                 onclick={closeLyricsPanel}
-                aria-label="Fermer"
+                aria-label={$t("common.close")}
             >
                 <Icon icon="lucide:x" width={16} />
             </button>
@@ -305,7 +315,7 @@ function handleSeekToLine(timeMs: number) {
         {#if !pathFile || status === "idle"}
             <div class="flex flex-col items-center justify-center h-full text-center">
                 <Icon icon="lucide:music" width={36} class="text-white/30 mb-3" />
-                <p class="text-sm text-white/60">Aucun morceau en lecture</p>
+                <p class="text-sm text-white/60">{$t("lyrics.no_track")}</p>
             </div>
 
         {:else if status === "loading"}
@@ -316,8 +326,8 @@ function handleSeekToLine(timeMs: number) {
                     </div>
                     <div class="absolute inset-0 rounded-full bg-emerald-500/30 blur-xl animate-pulse"></div>
                 </div>
-                <p class="text-sm text-white/80 font-medium mb-1">Recherche des paroles</p>
-                <p class="text-xs text-white/40">Cela peut prendre un instant…</p>
+                <p class="text-sm text-white/80 font-medium mb-1">{$t("lyrics.searching")}</p>
+                <p class="text-xs text-white/40">{$t("lyrics.searching_desc")}</p>
             </div>
 
         {:else if status === "error"}
@@ -325,7 +335,7 @@ function handleSeekToLine(timeMs: number) {
                 <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mb-3">
                     <Icon icon="lucide:wifi-off" width={20} class="text-red-300" />
                 </div>
-                <p class="text-sm font-medium text-white mb-1">Connexion indisponible</p>
+                <p class="text-sm font-medium text-white mb-1">{$t("lyrics.offline")}</p>
                 <p class="text-xs text-white/50 mb-5">{error}</p>
                 <button
                     class="text-xs px-4 py-2 rounded-full cursor-pointer
@@ -333,7 +343,7 @@ function handleSeekToLine(timeMs: number) {
                            border border-white/15 transition-colors"
                     onclick={() => pathFile && fetchLyrics(pathFile)}
                 >
-                    Réessayer
+                    {$t("common.retry")}
                 </button>
             </div>
 
@@ -342,9 +352,9 @@ function handleSeekToLine(timeMs: number) {
                 <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-3">
                     <Icon icon="lucide:file-x" width={20} class="text-white/60" />
                 </div>
-                <p class="text-sm font-medium text-white mb-1">Pas de paroles disponibles</p>
+                <p class="text-sm font-medium text-white mb-1">{$t("lyrics.empty")}</p>
                 <p class="text-xs text-white/50 mb-5 max-w-65">
-                    Aucune parole n'a été trouvée pour ce morceau.
+                    {$t("lyrics.empty_desc")}
                 </p>
                 <button
                     class="text-xs px-4 py-2 rounded-full cursor-pointer
@@ -352,7 +362,7 @@ function handleSeekToLine(timeMs: number) {
                            border border-white/15 transition-colors"
                     onclick={handleRefresh}
                 >
-                    Rechercher à nouveau
+                    {$t("lyrics.search_again")}
                 </button>
             </div>
 

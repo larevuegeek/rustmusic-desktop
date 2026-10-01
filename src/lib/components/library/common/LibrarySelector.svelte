@@ -8,14 +8,34 @@ import type { Library } from "$lib/types/db/library/Library";
 import { popinStore } from "$lib/stores/ui/popin.store";
 import AddLibraryPopin from "$lib/components/library/common/popin/AddLibraryPopin.svelte";
 import { page } from "$app/state";
+import { portal } from "$lib/helper/portal";
+import { currentLocale } from "$lib/i18n";
+
+let { replie = false }: { replie?: boolean } = $props();
 
 let isOpen = $state(false);
 let selectorEl: HTMLElement | null = $state(null);
+let dropdownEl: HTMLElement | null = $state(null);
+let position = $state("");
 
 let activeLibrary = $derived($libraryStore.librarySelected);
 let otherLibraries = $derived($libraryStore.libraries.filter(lib => lib.id !== activeLibrary?.id));
 
+const sousTitre = $derived.by(() => {
+  const n = activeLibrary?.total_tracks ?? 0;
+  const titres = n === 1 ? $t('home.track_one') : $t('home.tracks_n').replace('{n}', n.toLocaleString($currentLocale));
+  const nb = $libraryStore.libraries.length;
+  return nb > 1 ? `${titres} · ${$t('sidebar.libraries_n').replace('{n}', String(nb))}` : titres;
+});
+
+// Porté dans `body` : la barre défile et, repliée, rognerait le menu.
 function toggleDropdown() {
+  if (!isOpen && selectorEl) {
+    const r = selectorEl.getBoundingClientRect();
+    position = replie
+      ? `left: ${r.right + 8}px; top: ${r.top}px; width: 272px;`
+      : `left: ${r.left}px; top: ${r.bottom + 6}px; width: ${Math.max(r.width, 248)}px;`;
+  }
   isOpen = !isOpen;
 }
 
@@ -58,7 +78,8 @@ $effect(() => {
   if (!isOpen) return;
 
   function handleClickOutside(e: MouseEvent) {
-    if (selectorEl && !selectorEl.contains(e.target as Node)) {
+    const cible = e.target as Node;
+    if (selectorEl && !selectorEl.contains(cible) && !dropdownEl?.contains(cible)) {
       isOpen = false;
     }
   }
@@ -74,54 +95,42 @@ $effect(() => {
 });
 </script>
 
-<div class="relative mb-3" bind:this={selectorEl}>
-  <!-- Bouton principal -->
+<div class="relative {replie ? 'flex-none' : 'flex-1 min-w-0'}" bind:this={selectorEl}>
   <button
     type="button"
-    class="group flex items-center gap-2.5 rounded-xl w-full px-3 py-2
-           transition-all duration-200 cursor-pointer
-           bg-neutral-100/60 dark:bg-white/3
-           border border-neutral-200/40 dark:border-white/6
-           hover:bg-neutral-100 dark:hover:bg-white/6
-           hover:border-neutral-300/60 dark:hover:border-white/10"
+    class="flex items-center gap-2.5 w-full rounded-xl cursor-pointer transition-colors
+           bg-(--sb-s1) border border-(--sb-bd) hover:border-(--sb-bd2)
+           {replie ? 'p-1.75' : 'py-2 pr-1.5 pl-2'}"
     onclick={toggleDropdown}
     aria-expanded={isOpen}
+    title={$t('sidebar.change_library')}
   >
-    <!-- Icône -->
-    <div class="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center
-                bg-green-500/15 text-green-500">
-      <Icon icon="lucide:library" width="14" height="14" />
-    </div>
-
-    <!-- Infos -->
-    <span class="flex-1 flex flex-col leading-tight text-left min-w-0">
-      {#if $libraryStore.isLoading}
-        <span class="text-xs text-neutral-400">{$t('common.loading')}</span>
-      {:else if activeLibrary}
-        <span class="text-[13px] font-medium text-neutral-800 dark:text-neutral-200 truncate">
-          {activeLibrary.name}
-        </span>
-        <span class="text-[10px] text-neutral-400 dark:text-neutral-500">
-          {activeLibrary.total_tracks} titre{activeLibrary.total_tracks !== 1 ? 's' : ''}
-        </span>
-      {:else}
-        <span class="text-xs text-neutral-400">{$t('selector.no_library')}</span>
-      {/if}
+    <span class="w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)">
+      <Icon icon="material-symbols:library-music-outline-rounded" width="20" class="sb-icone" />
     </span>
 
-    <!-- Chevron -->
-    <svg
-      class="w-3.5 h-3.5 shrink-0 text-neutral-400 transition-transform duration-200
-             {isOpen ? 'rotate-180' : ''}"
-      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-      <path d="m6 9 6 6 6-6"/>
-    </svg>
+    {#if !replie}
+      <span class="flex-1 flex flex-col gap-px min-w-0 text-left">
+        {#if $libraryStore.isLoading}
+          <small class="text-xs text-(--sb-mu)">{$t('common.loading')}</small>
+        {:else if activeLibrary}
+          <b class="text-sm font-bold truncate text-(--sb-tx)">{activeLibrary.name}</b>
+          <small class="text-xs truncate text-(--sb-mu)">{sousTitre}</small>
+        {:else}
+          <small class="text-xs text-(--sb-mu)">{$t('selector.no_library')}</small>
+        {/if}
+      </span>
+      <Icon icon="material-symbols:unfold-more-rounded" width="18" class="shrink-0 text-(--sb-tx2)" />
+    {/if}
   </button>
 
   <!-- Dropdown -->
   {#if isOpen}
     <div
-      class="absolute top-full left-0 right-0 mt-1.5 z-50"
+      use:portal
+      bind:this={dropdownEl}
+      class="fixed z-[9999]"
+      style={position}
       transition:scale={{ duration: 120, start: 0.97 }}
     >
       <div class="rounded-xl border overflow-hidden

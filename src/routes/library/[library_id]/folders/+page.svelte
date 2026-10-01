@@ -1,127 +1,70 @@
 <script lang="ts">
+  import SearchField from "$lib/components/ui/input/SearchField.svelte";
+  import MenuSelect from "$lib/components/ui/menu/MenuSelect.svelte";
+  import ViewModeSwitch from "$lib/components/ui/input/ViewModeSwitch.svelte";
   import Icon from "@iconify/svelte";
-  import { viewMode } from "$lib/stores/ui/viewMode.store";
+  import { onDestroy } from "svelte";
   import { page } from "$app/state";
+  import { goto } from "$app/navigation";
   import { invoke } from "@tauri-apps/api/core";
+  import { t, currentLocale } from "$lib/i18n";
+  import { viewMode } from "$lib/stores/ui/viewMode.store";
   import { libraryHeader } from "$lib/stores/library/libraryHeader";
   import { libraryStore } from "$lib/stores/library/library.store";
-  import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
+  import { tagWorkshop } from "$lib/stores/tags/tagWorkshop.store";
+  import { toasts } from "$lib/stores/ui/toast.store";
+  import { canWriteTags } from "$lib/services/tags/tagEditor.service";
   import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
   import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
+  import { tailleLisible } from "$lib/helper/tools/sizeTools";
+  import { ilYA } from "$lib/helper/tools/dateTools";
+  import { cleTri } from "$lib/helper/library/cleTri";
+  import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
   import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
-  import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import { tagWorkshop } from "$lib/stores/tags/tagWorkshop.store";
-  import { canWriteTags } from "$lib/services/tags/tagEditor.service";
-  import { toasts } from "$lib/stores/ui/toast.store";
-  import { formatBitrate } from "$lib/helper/tools/audioFormatTools";
-
-  type LibraryDir = {
-    id: string;
-    library_id: number;
-    path: string;
-    name: string;
-    total_files: number;
-  };
+  import type { LibraryDir } from "$lib/types/db/library/LibraryDir";
 
   type DirEntry = {
-    name: string;
-    path: string;
-    is_dir: boolean;
-    size: number;
-    extension: string | null;
-  };
-
-  type FileTagsInfo = {
-    path: string;
-    filename: string;
-    extension: string;
-    size: number;
-    title: string | null;
-    artist: string | null;
-    album: string | null;
-    album_artist: string | null;
-    year: string | null;
-    genre: string | null;
-    track_number: number | null;
-    disc_number: number | null;
-    duration: number;
-    bitrate: number;
-    sample_rate: number;
-    bits_per_sample: number;
-    channels: number;
-    audio_format: string;
-    cover: string | null;
+    name: string; path: string; is_dir: boolean; size: number; extension: string | null;
+    title: string | null; artist: string | null; duration: number | null; thumbnail_path: string | null;
   };
 
   const libraryId = $derived(Number(page.params.library_id));
+  const currentLibrary = $derived($libraryStore.libraries.find((l) => l.id === libraryId));
 
-  let rootDirs: LibraryDir[] = $state([]);
-  let entries: DirEntry[] = $state([]);
+  // ─── Navigation : racines importées, puis l'arborescence ───
+  let rootDirs = $state<LibraryDir[]>([]);
+  let entries = $state<DirEntry[]>([]);
   let loading = $state(true);
-  let currentPath: string | null = $state(null);
-  // Le breadcrumb est la source de vérité pour la navigation
-  // Chaque entrée = un niveau, avec le path exact retourné par le backend
-  let breadcrumb: { name: string; path: string }[] = $state([]);
-
-  // Context menu
+  let currentPath = $state<string | null>(null);
+  // Le fil d'Ariane fait foi : un niveau par entrée, avec le chemin exact rendu par le moteur.
+  let breadcrumb = $state<{ name: string; path: string }[]>([]);
   let contextMenu = $state<{ x: number; y: number; entry: DirEntry } | null>(null);
-
-  // File info popin
-  let showFileInfo = $state(false);
-  let fileInfoLoading = $state(false);
-  let fileInfo: FileTagsInfo | null = $state(null);
-
-  let isRoot = $derived(currentPath === null);
+  const isRoot = $derived(currentPath === null);
 
   $effect(() => {
-    libraryHeader.update(() => ({
-      subtitle: 'Explorateur',
-      icon: 'lucide:folder-open',
-      total: isRoot ? rootDirs.length : entries.length
-    }));
-  });
-
-  $effect(() => {
-    loadRootDirs();
-  });
-
-
-  async function loadRootDirs() {
+    const id = libraryId;
     loading = true;
-    try {
-      rootDirs = await invoke('get_library_dirs', { libraryId });
-    } catch (e) {
-      console.error('Failed to load dirs:', e);
-    } finally {
-      loading = false;
-    }
-  }
+    invoke<LibraryDir[]>("get_library_dirs", { libraryId: id })
+      .then((d) => { if (id === libraryId) rootDirs = d ?? []; })
+      .catch((e) => console.error("Failed to load dirs:", e))
+      .finally(() => (loading = false));
+  });
 
   async function navigateTo(path: string, name: string) {
     loading = true;
     currentPath = path;
-
-    // Vérifier si on clique sur un élément déjà dans le breadcrumb (navigation arrière)
-    const existingIndex = breadcrumb.findIndex(b => b.path === path);
-    if (existingIndex >= 0) {
-      // Tronquer le breadcrumb au niveau cliqué
-      breadcrumb = breadcrumb.slice(0, existingIndex + 1);
-    } else if (breadcrumb.length === 0) {
-      // Premier niveau : on entre dans une racine importée
-      breadcrumb = [{ name, path }];
-    } else {
-      // On descend d'un niveau : ajouter au breadcrumb
-      breadcrumb = [...breadcrumb, { name, path }];
-    }
-
+    recherche = "";
+    const i = breadcrumb.findIndex((b) => b.path === path);
+    breadcrumb = i >= 0 ? breadcrumb.slice(0, i + 1) : breadcrumb.length === 0 ? [{ name, path }] : [...breadcrumb, { name, path }];
     try {
-      entries = await invoke('list_directory', { libraryId, path });
+      const r = await invoke<DirEntry[]>("list_directory", { libraryId, path });
+      // Un autre dossier a pu être ouvert entre-temps (NAS lent).
+      if (currentPath === path) entries = r;
     } catch (e) {
-      console.error('Failed to list directory:', e);
-      entries = [];
+      console.error("Failed to list directory:", e);
+      if (currentPath === path) entries = [];
     } finally {
-      loading = false;
+      if (currentPath === path) loading = false;
     }
   }
 
@@ -129,73 +72,38 @@
     currentPath = null;
     breadcrumb = [];
     entries = [];
+    recherche = "";
   }
 
-  function handleContextMenu(e: MouseEvent, entry: DirEntry) {
-    e.preventDefault();
-    contextMenu = { x: e.clientX, y: e.clientY, entry };
+  function goToParent() {
+    if (breadcrumb.length <= 1) return goToRoot();
+    const parent = breadcrumb[breadcrumb.length - 2];
+    navigateTo(parent.path, parent.name);
   }
 
-  async function openFileInfo(entry: DirEntry) {
-    contextMenu = null;
-    showFileInfo = true;
-    fileInfoLoading = true;
-    fileInfo = null;
-    try {
-      fileInfo = await invoke('get_file_tags', { path: entry.path });
-    } catch (e) {
-      console.error('Failed to get file tags:', e);
-    } finally {
-      fileInfoLoading = false;
-    }
+  const fichiers = $derived(entries.filter((e) => !e.is_dir));
+  const dirCount = $derived(entries.length - fichiers.length);
+
+  function lireFichier(entry: DirEntry) {
+    handlePlayTrack(entry.path, versFileDAttente(fichiers));
+  }
+  function lireDossier() {
+    if (fichiers.length) handlePlayTrack(fichiers[0].path, versFileDAttente(fichiers));
   }
 
-  function formatSize(bytes: number): string {
-    if (bytes === 0) return '';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-  }
-
-  function formatDuration(seconds: number): string {
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  }
-
-  function formatSampleRate(sr: number): string {
-    return sr >= 1000 ? `${(sr / 1000).toFixed(1)} kHz` : `${sr} Hz`;
-  }
-
+  // Les fichiers du niveau affiché partent dans l'atelier de tags (pas les sous-dossiers).
   let openingWorkshop = $state(false);
-
-  /**
-   * Envoie les fichiers du dossier courant dans l'atelier de tags.
-   *
-   * C'est l'entrée la plus naturelle : un dossier est presque toujours un
-   * album, et c'est là qu'on constate qu'il manque l'année ou que l'artiste
-   * est mal orthographié. Seuls les fichiers du niveau affiché partent — pas
-   * les sous-dossiers, dont le contenu n'est pas sous les yeux.
-   */
   async function openWorkshop() {
-    const files = entries.filter(e => !e.is_dir).map(e => e.path);
+    const files = fichiers.map((e) => e.path);
     if (files.length === 0 || openingWorkshop) return;
-
     openingWorkshop = true;
     try {
-      const checks = await Promise.all(files.map(p => canWriteTags(p)));
+      const checks = await Promise.all(files.map((p) => canWriteTags(p)));
       const writable = files.filter((_, i) => checks[i]);
-
       if (writable.length === 0) {
-        toasts.push({
-          type: "info",
-          title: $t("workshop.title"),
-          message: $t("tags.none_writable"),
-        });
+        toasts.push({ type: "info", title: $t("workshop.title"), message: $t("tags.none_writable") });
         return;
       }
-
       const folder = breadcrumb[breadcrumb.length - 1]?.name ?? $t("nav.folders");
       await tagWorkshop.load(writable, folder, `/library/${libraryId}/folders`);
       await goto(`/library/${libraryId}/tags`);
@@ -204,485 +112,265 @@
     }
   }
 
-  let dirCount = $derived(entries.filter(e => e.is_dir).length);
-  let fileCount = $derived(entries.filter(e => !e.is_dir).length);
+  // ─── Filtre et tri ───
+  let recherche = $state("");
+  type Tri = "name" | "files" | "size" | "scan";
+  const TRIS: { cle: Tri; libelle: string; icone: string; racine: boolean }[] = [
+    { cle: "name", libelle: "folders_view.sort_name", icone: "material-symbols:sort-by-alpha-rounded", racine: false },
+    { cle: "files", libelle: "folders_view.sort_files", icone: "material-symbols:description-outline-rounded", racine: true },
+    { cle: "size", libelle: "folders_view.sort_size", icone: "material-symbols:hard-drive-outline-rounded", racine: false },
+    { cle: "scan", libelle: "folders_view.sort_scan", icone: "material-symbols:sync-rounded", racine: true },
+  ];
+  let tri = $state<Tri>("name");
+  // Le nombre de fichiers et la date de scan n'existent qu'à la racine.
+  const trisDispo = $derived(TRIS.filter((x) => isRoot || !x.racine));
+  const triEffectif = $derived(trisDispo.some((x) => x.cle === tri) ? tri : "name");
 
-  function goToParent() {
-    if (breadcrumb.length <= 1) {
-      // On est à la racine importée (ou pas de breadcrumb) → retour grille
-      goToRoot();
-      return;
-    }
+  const comparer = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+  const racines = $derived.by(() => {
+    const q = recherche.trim().toLowerCase();
+    const liste = rootDirs.filter((d) => !q || `${d.name} ${d.path}`.toLowerCase().includes(q));
+    const f: Record<Tri, (a: LibraryDir, b: LibraryDir) => number> = {
+      name: (a, b) => comparer.compare(cleTri(a.name), cleTri(b.name)),
+      files: (a, b) => b.total_files - a.total_files,
+      size: (a, b) => b.total_size - a.total_size,
+      scan: (a, b) => String(b.last_scan_at ?? "").localeCompare(String(a.last_scan_at ?? "")),
+    };
+    return [...liste].sort(f[triEffectif]);
+  });
+  // Dans un dossier : les sous-dossiers d'abord, puis les fichiers.
+  const visibles = $derived.by(() => {
+    const q = recherche.trim().toLowerCase();
+    const liste = entries.filter((e) => !q || e.name.toLowerCase().includes(q));
+    return [...liste].sort((a, b) =>
+      Number(b.is_dir) - Number(a.is_dir) || (triEffectif === "size" ? b.size - a.size : 0) || comparer.compare(a.name, b.name));
+  });
 
-    // Remonter d'un niveau via le breadcrumb
-    const parent = breadcrumb[breadcrumb.length - 2];
-    navigateTo(parent.path, parent.name);
-  }
+  // ─── En-tête : dossiers suivis et fichiers ───
+  $effect(() => {
+    const n = rootDirs.length;
+    const fichiersTotal = rootDirs.reduce((s, d) => s + (d.total_files ?? 0), 0);
+    libraryHeader.update(() => ({
+      chiffres: [
+        { n, un: "library_head.folders_one", plusieurs: "library_head.folders_n" },
+        { n: fichiersTotal, un: "library_head.files_one", plusieurs: "library_head.files_n" },
+        { n: currentLibrary?.total_tracks ?? 0, un: "library_head.tracks_one", plusieurs: "library_head.tracks_n" },
+      ],
+    }));
+  });
+  onDestroy(() => libraryHeader.update((h) => ({ ...h, chiffres: null })));
+
+  const nombre = (n: number) => n.toLocaleString($currentLocale);
+  const nb = (n: number, un: string, plusieurs: string) => `${nombre(n)} ${$t(n === 1 ? un : plusieurs)}`;
+  const ETATS: Record<string, { cle: string; classes: string }> = {
+    scanning: { cle: "library_head.status_scanning", classes: "bg-(--rg-ambg) text-(--rg-am)" },
+    error: { cle: "library_head.status_error", classes: "bg-red-500/10 text-red-600 dark:text-red-400" },
+  };
+  const etatDe = (d: LibraryDir) => ETATS[d.scan_status] ?? { cle: "library_head.status_ok", classes: "bg-(--rg-g)/10 text-(--rg-gtx)" };
+
+  const bouton = "h-8.5 px-3 flex items-center gap-1.5 rounded-[10px] border text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) disabled:opacity-40";
+  const tuileDossier = "shrink-0 rounded-xl flex items-center justify-center border";
 </script>
 
-<div class="flex-1 px-6 py-4 overflow-y-auto scrollbar-app h-full">
+<!-- Icône d'une entrée : dossier en ambre, fichier audio en vert. -->
+{#snippet icone(estDossier: boolean, taille: string, largeur: number)}
+  <span class="{tuileDossier} {taille} {estDossier ? 'bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-am)' : 'bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)'}">
+    <Icon icon={estDossier ? "material-symbols:folder-outline-rounded" : "material-symbols:music-note-rounded"} width={largeur} />
+  </span>
+{/snippet}
 
-  <!-- ═══ BREADCRUMB ═══ -->
-  {#if !isRoot}
-    <div class="flex items-center gap-1 mb-4 px-1">
-      <button
-        class="flex items-center gap-1 text-xs text-neutral-400 hover:text-green-500 cursor-pointer transition-colors"
-        onclick={goToRoot}
-      >
-        <Icon icon="lucide:hard-drive" width="12" />
-        Racine
-      </button>
+{#if $libraryStore.isImporting}
+  <LibraryImportingLoader />
+{:else}
+  <div class="flex flex-col h-full">
+    <!-- ─── Outils : recherche, actions du dossier, tri, vue ─── -->
+    <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 pt-3 pb-2">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <SearchField bind:value={recherche} class="w-65 @max-4xl:flex-1 @max-4xl:w-auto min-w-36" clearLabel={$t("folders_view.clear")}
+                     placeholder={isRoot ? $t("folders_view.filter_dirs").replace("{n}", nombre(rootDirs.length)) : $t("folders_view.filter_entries")} />
 
-      {#each breadcrumb as crumb, i (crumb.path)}
-        <Icon icon="lucide:chevron-right" width="12" class="text-neutral-300 dark:text-neutral-600" />
-        {#if i < breadcrumb.length - 1}
-          <button
-            class="text-xs text-neutral-400 hover:text-green-500 cursor-pointer transition-colors truncate max-w-[120px]"
-            onclick={() => navigateTo(crumb.path, crumb.name)}
-          >
-            {crumb.name}
+        {#if !isRoot && fichiers.length > 0}
+          <button type="button" class={bouton} onclick={lireDossier}>
+            <Icon icon="material-symbols:play-arrow-rounded" width="18" class="text-(--rg-g)" /><span class="@max-2xl:hidden">{$t("folders_view.play_folder")}</span>
           </button>
-        {:else}
-          <span class="text-xs font-medium text-neutral-700 dark:text-neutral-200 truncate max-w-[200px]">
-            {crumb.name}
-          </span>
-        {/if}
-      {/each}
-
-      <div class="ml-auto flex items-center gap-3 text-[10px] text-neutral-400">
-        {#if fileCount > 0}
-          <button
-            type="button"
-            onclick={openWorkshop}
-            disabled={openingWorkshop}
-            class="flex items-center gap-1.5 px-2 h-6 rounded-lg text-[11px]
-                   cursor-pointer transition-colors disabled:opacity-40
-                   text-neutral-500 dark:text-neutral-400
-                   hover:text-emerald-600 dark:hover:text-emerald-400
-                   hover:bg-emerald-500/10"
-            title={$t('workshop.fix_tags')}
-          >
-            <Icon
-              icon={openingWorkshop ? 'lucide:loader-circle' : 'lucide:table-properties'}
-              width="12"
-              class={openingWorkshop ? 'animate-spin' : ''}
-            />
-            {$t('workshop.short')}
+          <button type="button" class={bouton} onclick={openWorkshop} disabled={openingWorkshop} title={$t("workshop.fix_tags")}>
+            <Icon icon={openingWorkshop ? "material-symbols:progress-activity" : "material-symbols:table-edit-outline-rounded"} width="18" class={openingWorkshop ? "animate-spin" : ""} />
+            <span class="@max-2xl:hidden">{$t("workshop.fix_tags")}</span>
           </button>
         {/if}
-        {#if dirCount > 0}
-          <span>{dirCount} dossier{dirCount > 1 ? 's' : ''}</span>
-        {/if}
-        {#if fileCount > 0}
-          <span>{fileCount} fichier{fileCount > 1 ? 's' : ''}</span>
-        {/if}
+
+        <span class="flex-1"></span>
+
+        <MenuSelect value={triEffectif} options={trisDispo.map((x) => ({ value: x.cle, label: $t(x.libelle), icon: x.icone }))}
+                    onchange={(v) => (tri = v as typeof tri)} labelClass="@max-xl:hidden" menuClass="w-55" />
+
+        <ViewModeSwitch />
       </div>
-    </div>
-  {/if}
 
-  <!-- ═══ CONTENU ═══ -->
-  {#if $libraryStore.isImporting}
-    <LibraryImportingLoader />
-
-  {:else if loading}
-    <div class="flex items-center justify-center py-20">
-      <Icon icon="lucide:loader-2" width="24" class="animate-spin text-neutral-400" />
-    </div>
-
-  {:else if isRoot}
-    {#if rootDirs.length === 0}
-      <div class="flex flex-col items-center justify-center py-20 text-center">
-        <div class="relative mb-5">
-          <div class="absolute inset-0 rounded-2xl bg-green-500/25 blur-2xl scale-[2] animate-pulse"></div>
-          <div class="relative w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-neutral-800
-                      border border-neutral-200/60 dark:border-neutral-700/40
-                      flex items-center justify-center">
-            <Icon icon="lucide:folder-open" width="24" class="text-green-500/60" />
-          </div>
-        </div>
-        <h3 class="text-base font-semibold text-neutral-700 dark:text-neutral-200 mb-1.5">
-          Aucun dossier importé
-        </h3>
-        <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs">
-          Importez un dossier depuis la barre d'action pour l'explorer ici.
-        </p>
-      </div>
-    {:else}
-      {#if $viewMode === 'list'}
-        <!-- Vue tableau des dossiers racines.
-             La grille montre de grandes tuiles, agréables mais peu denses : à
-             partir d'une dizaine de dossiers on passe son temps à faire défiler
-             pour comparer des nombres de fichiers alignés nulle part. -->
-        <div class="flex items-center gap-4 px-3 py-2 mb-1
-                    text-[10px] uppercase tracking-wider text-neutral-400
-                    border-b border-neutral-200/60 dark:border-white/5">
-          <div class="w-10 shrink-0"></div>
-          <div class="flex-1 min-w-0">Dossier</div>
-          <div class="hidden sm:block flex-1 min-w-0">Chemin</div>
-          <div class="w-24 text-right shrink-0">Fichiers</div>
-        </div>
-
-        {#each rootDirs as dir (dir.id)}
-          <button
-            type="button"
-            class="w-full group flex items-center gap-4 px-3 py-2.5 rounded-xl cursor-pointer text-left
-                   hover:bg-neutral-50 dark:hover:bg-white/4 transition-colors duration-100"
-            onclick={() => navigateTo(dir.path, dir.name)}
-          >
-            <div class="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center
-                        bg-green-500/8 group-hover:bg-green-500/15 transition-colors">
-              <Icon icon="lucide:folder" width="18"
-                    class="text-green-500/70 group-hover:text-green-500 transition-colors" />
-            </div>
-            <div class="flex-1 min-w-0 text-sm font-medium truncate
-                        text-neutral-800 dark:text-neutral-200">
-              {dir.name}
-            </div>
-            <!-- Le chemin complet, que la grille ne pouvait pas montrer : c'est
-                 lui qui distingue deux dossiers homonymes sur deux disques. -->
-            <div class="hidden sm:block flex-1 min-w-0 text-xs truncate
-                        text-neutral-400 dark:text-neutral-500" title={dir.path}>
-              {dir.path}
-            </div>
-            <div class="w-24 text-right text-xs tabular-nums shrink-0
-                        text-neutral-500 dark:text-neutral-400">
-              {dir.total_files} fichier{dir.total_files !== 1 ? 's' : ''}
-            </div>
+      <!-- Fil d'Ariane : racine › dossiers ouverts ; à droite, le contenu du niveau. -->
+      {#if !isRoot}
+        <div class="mt-3 flex items-center gap-1 min-w-0 text-[13px]">
+          <button type="button" class="w-7.5 h-7.5 shrink-0 mr-1 flex items-center justify-center rounded-lg cursor-pointer text-(--rg-mu) hover:bg-(--rg-carte) hover:text-(--rg-tx)"
+                  title={$t("common.parent_folder")} aria-label={$t("common.parent_folder")} onclick={goToParent}>
+            <Icon icon="material-symbols:arrow-upward-rounded" width="18" />
           </button>
-        {/each}
-      {:else}
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 min-[2200px]:grid-cols-8 gap-3">
-        {#each rootDirs as dir (dir.id)}
-          <button
-            class="group flex flex-col items-center gap-2 p-4 rounded-2xl cursor-pointer
-                   bg-white/50 dark:bg-white/3
-                   border border-neutral-200/50 dark:border-white/5
-                   hover:bg-green-500/5 hover:border-green-500/20
-                   hover:shadow-lg hover:shadow-green-500/5
-                   active:scale-[0.97] transition-all duration-200"
-            onclick={() => navigateTo(dir.path, dir.name)}
-          >
-            <div class="w-14 h-14 rounded-xl flex items-center justify-center
-                        bg-green-500/8 group-hover:bg-green-500/15 transition-colors duration-200">
-              <Icon icon="lucide:folder" width="24"
-                    class="text-green-500/70 group-hover:text-green-500 transition-colors" />
-            </div>
-            <div class="text-center min-w-0 w-full">
-              <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{dir.name}</p>
-              <p class="text-[10px] text-neutral-400 mt-0.5">
-                {dir.total_files} fichier{dir.total_files !== 1 ? 's' : ''}
-              </p>
-            </div>
+          <button type="button" class="shrink-0 flex items-center gap-1.5 px-1.5 py-1 rounded-md cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-carte)" onclick={goToRoot}>
+            <Icon icon="material-symbols:hard-drive-outline-rounded" width="16" />{$t("folders_view.root")}
           </button>
-        {/each}
-      </div>
-      {/if}
-    {/if}
-
-  {:else if entries.length === 0}
-    <div class="flex flex-col items-center justify-center py-20 text-center">
-      <Icon icon="lucide:folder-x" width="32" class="text-neutral-300 dark:text-neutral-600 mb-3" />
-      <p class="text-sm text-neutral-400">Dossier vide</p>
-    </div>
-
-  {:else}
-    <!-- ═══ VUE EXPLORATEUR ═══ -->
-    <div class="flex flex-col">
-      <!-- Dossier parent -->
-      <button
-        type="button"
-        class="group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer
-               hover:bg-neutral-50 dark:hover:bg-white/4
-               active:bg-neutral-100 dark:active:bg-white/6
-               transition-colors duration-100 text-left w-full"
-        onclick={goToParent}
-      >
-        <div class="w-9 h-9 rounded-lg shrink-0 flex items-center justify-center
-                    bg-neutral-200/50 dark:bg-white/5 group-hover:bg-neutral-300/50 dark:group-hover:bg-white/8 transition-colors">
-          <Icon icon="lucide:corner-left-up" width="16" class="text-neutral-400" />
-        </div>
-        <p class="text-sm text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-700 dark:group-hover:text-neutral-200 transition-colors">
-          ..
-        </p>
-      </button>
-
-      {#if $viewMode === 'grid'}
-        <!-- Vue grille des entrées.
-             La liste est plus dense et porte l'extension et la taille ; la
-             grille se parcourt à l'œil, ce qui vaut mieux quand on cherche un
-             dossier parmi trente au nom qui se ressemble. -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5
-                    2xl:grid-cols-6 min-[1800px]:grid-cols-8 gap-3 pt-2">
-          {#each entries as entry (entry.path)}
-            <button
-              type="button"
-              class="group flex flex-col items-center gap-2 p-4 rounded-2xl cursor-pointer
-                     bg-white/50 dark:bg-white/3
-                     border border-neutral-200/50 dark:border-white/5
-                     hover:bg-green-500/5 hover:border-green-500/20
-                     active:scale-[0.97] transition-all duration-200"
-              onclick={() => entry.is_dir ? navigateTo(entry.path, entry.name) : handlePlayTrack(entry.path, versFileDAttente(entries.filter((e) => !e.is_dir)))}
-              oncontextmenu={(e) => !entry.is_dir && handleContextMenu(e, entry)}
-            >
-              <div class="w-14 h-14 rounded-xl flex items-center justify-center transition-colors
-                          {entry.is_dir
-                            ? 'bg-amber-500/8 group-hover:bg-amber-500/15'
-                            : 'bg-green-500/8 group-hover:bg-green-500/15'}">
-                <Icon icon={entry.is_dir ? 'lucide:folder' : 'lucide:file-audio'} width="24"
-                      class={entry.is_dir ? 'text-amber-500' : 'text-green-500'} />
-              </div>
-              <div class="text-center min-w-0 w-full">
-                <p class="text-sm font-medium truncate text-neutral-700 dark:text-neutral-200"
-                   title={entry.name}>
-                  {entry.name}
-                </p>
-                <p class="text-[10px] text-neutral-400 mt-0.5">
-                  {#if entry.is_dir}
-                    dossier
-                  {:else}
-                    {entry.extension ?? ''}{#if entry.size > 0} · {formatSize(entry.size)}{/if}
-                  {/if}
-                </p>
-              </div>
-            </button>
+          {#each breadcrumb as crumb, i (crumb.path)}
+            <Icon icon="material-symbols:chevron-right-rounded" width="16" class="shrink-0 text-(--rg-mu2)" />
+            {#if i < breadcrumb.length - 1}
+              <button type="button" class="min-w-0 max-w-40 truncate px-1.5 py-1 rounded-md cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-carte)"
+                      title={crumb.path} onclick={() => navigateTo(crumb.path, crumb.name)}>{crumb.name}</button>
+            {:else}
+              <span class="min-w-0 truncate px-1.5 font-semibold text-(--rg-tx)" title={crumb.path}>{crumb.name}</span>
+            {/if}
           {/each}
+          <span class="ml-auto pl-3 shrink-0 whitespace-nowrap text-xs text-(--rg-mu)">
+            {#if dirCount > 0}{nb(dirCount, "library_head.folders_one", "library_head.folders_n")}{/if}{#if dirCount > 0 && fichiers.length > 0}{" · "}{/if}{#if fichiers.length > 0}{nb(fichiers.length, "library_head.files_one", "library_head.files_n")}{/if}
+          </span>
         </div>
-      {:else}
-      {#each entries as entry (entry.path)}
-        <button
-          type="button"
-          class="group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer
-                 hover:bg-neutral-50 dark:hover:bg-white/4
-                 active:bg-neutral-100 dark:active:bg-white/6
-                 transition-colors duration-100 w-full text-left"
-          onclick={() => entry.is_dir ? navigateTo(entry.path, entry.name) : handlePlayTrack(entry.path, versFileDAttente(entries.filter((e) => !e.is_dir)))}
-          oncontextmenu={(e) => !entry.is_dir && handleContextMenu(e, entry)}
-        >
-          <!-- Icône -->
-          {#if entry.is_dir}
-            <div class="w-9 h-9 rounded-lg shrink-0 flex items-center justify-center
-                        bg-amber-500/8 group-hover:bg-amber-500/15 transition-colors">
-              <Icon icon="lucide:folder" width="16" class="text-amber-500" />
-            </div>
-          {:else}
-            <div class="w-9 h-9 rounded-lg shrink-0 flex items-center justify-center
-                        bg-green-500/8 group-hover:bg-green-500/15 transition-colors">
-              <Icon icon="lucide:file-audio" width="16" class="text-green-500" />
-            </div>
-          {/if}
-
-          <!-- Nom -->
-          <div class="flex-1 min-w-0 text-left">
-            <p class="text-sm text-neutral-700 dark:text-neutral-200 truncate
-                      group-hover:text-neutral-900 dark:group-hover:text-white transition-colors">
-              {entry.name}
-            </p>
-          </div>
-
-          <!-- Extension badge -->
-          {#if entry.extension}
-            <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded
-                         bg-neutral-100 dark:bg-white/5
-                         text-neutral-400 dark:text-neutral-500">
-              {entry.extension}
-            </span>
-          {/if}
-
-          <!-- Taille -->
-          {#if !entry.is_dir && entry.size > 0}
-            <span class="text-[11px] text-neutral-400 dark:text-neutral-500 tabular-nums shrink-0 w-16 text-right">
-              {formatSize(entry.size)}
-            </span>
-          {/if}
-
-          <!-- Actions -->
-          {#if entry.is_dir}
-            <Icon icon="lucide:chevron-right" width="14"
-                  class="text-neutral-300 dark:text-neutral-600
-                         group-hover:text-neutral-500 dark:group-hover:text-neutral-400
-                         transition-colors shrink-0" />
-          {:else}
-            <span
-              class="p-1.5 rounded-lg shrink-0
-                     opacity-0 group-hover:opacity-100
-                     text-green-500
-                     transition-all duration-150"
-            >
-              <Icon icon="lucide:play" width="14" />
-            </span>
-          {/if}
-        </button>
-      {/each}
       {/if}
     </div>
-  {/if}
-</div>
 
-<!-- ═══ MENU CONTEXTUEL ═══ -->
-{#if contextMenu}
-  <TrackContextMenu
-    track={{ path: contextMenu.entry.path, title: contextMenu.entry.name }}
-    x={contextMenu.x}
-    y={contextMenu.y}
-    libraryId={libraryId}
-    onclose={() => contextMenu = null}
-  />
-{/if}
+    <!-- ─── Contenu ─── -->
+    <div class="flex-1 relative min-h-0">
+      <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-4 md:pr-14 pb-16">
+        {#if loading}
+          <div class="flex items-center justify-center py-20 text-(--rg-mu)">
+            <Icon icon="material-symbols:progress-activity" width="26" class="animate-spin" />
+          </div>
 
-<!-- ═══ POPIN INFOS FICHIER ═══ -->
-{#if showFileInfo}
-  <div class="fixed inset-0 z-50 flex items-center justify-center">
-    <button type="button" class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default" onclick={() => showFileInfo = false} aria-label="Fermer"></button>
+        {:else if isRoot && rootDirs.length === 0}
+          <div class="flex flex-col items-center justify-center py-20 text-center">
+            <div class="w-16 h-16 mb-5 rounded-2xl border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+              <Icon icon="material-symbols:folder-open-outline-rounded" width="30" />
+            </div>
+            <h3 class="text-base font-semibold text-(--rg-tx) mb-1.5">{$t("common.no_imported_folder")}</h3>
+            <p class="text-sm text-(--rg-mu) max-w-xs">{$t("common.no_imported_folder_desc")}</p>
+          </div>
 
-    <div class="relative w-full max-w-lg mx-4
-                bg-neutral-50 dark:bg-neutral-900
-                border border-neutral-200/60 dark:border-white/8
-                rounded-2xl shadow-2xl shadow-black/20
-                overflow-hidden">
-
-      <!-- Header avec cover -->
-      <div class="flex items-center justify-between px-6 py-4 border-b border-neutral-200/60 dark:border-white/6">
-        <div class="flex items-center gap-3">
-          {#if fileInfo?.cover}
-            <img src={fileInfo.cover} alt="Cover"
-                 class="w-10 h-10 rounded-lg object-cover shadow-sm" />
+        {:else if isRoot}
+          {#if racines.length === 0}
+            <p class="py-16 text-center text-sm text-(--rg-mu)">{$t("folders_view.no_match")}</p>
+          {:else if $viewMode === "list"}
+            <!-- Racines en liste : nom et chemin, fichiers, poids, dernier scan. -->
+            <div class="flex flex-col pt-2">
+              {#each racines as dir (dir.id)}
+                {@const etat = etatDe(dir)}
+                <button type="button"
+                        class="group relative grid grid-cols-[48px_minmax(0,1fr)_100px_90px_150px_40px] max-[900px]:grid-cols-[48px_minmax(0,1fr)_90px_40px] items-center gap-4 py-2 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors hover:bg-(--rg-carte)
+                               before:absolute before:left-18 before:right-3 before:top-0 before:h-px [button+&]:before:bg-(--rg-line) hover:before:opacity-0 [&:hover+button]:before:opacity-0"
+                        onclick={() => navigateTo(dir.path, dir.name)}>
+                  {@render icone(true, "w-12 h-12", 22)}
+                  <span class="min-w-0">
+                    <span class="block truncate text-base font-semibold text-(--rg-tx)">{dir.name}</span>
+                    <span class="block mt-0.5 truncate font-mono text-xs text-(--rg-mu)" title={dir.path}>{dir.path}</span>
+                  </span>
+                  <span class="text-right text-[13px] tabular-nums text-(--rg-mu)"><b class="font-medium text-(--rg-tx2)">{nombre(dir.total_files)}</b> {$t(dir.total_files === 1 ? "library_head.files_one" : "library_head.files_n")}</span>
+                  <span class="text-right text-[13px] tabular-nums text-(--rg-mu) max-[900px]:hidden">{tailleLisible(dir.total_size, $currentLocale)}</span>
+                  <span class="flex justify-end max-[900px]:hidden">
+                    <span class="flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap {etat.classes}">
+                      <span class="w-1.5 h-1.5 rounded-full bg-current"></span>{dir.last_scan_at ? ilYA(dir.last_scan_at, $currentLocale, "short") : $t(etat.cle)}
+                    </span>
+                  </span>
+                  <Icon icon="material-symbols:chevron-right-rounded" width="19" class="justify-self-end text-(--rg-mu2) group-hover:text-(--rg-tx2)" />
+                </button>
+              {/each}
+            </div>
           {:else}
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-green-500/10 border border-green-500/20">
-              <Icon icon="lucide:file-audio" width="16" class="text-green-500" />
+            <!-- Racines en cartes : de quoi reconnaître un dossier sans l'ouvrir. -->
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4 pt-3">
+              {#each racines as dir (dir.id)}
+                {@const etat = etatDe(dir)}
+                <button type="button"
+                        class="group flex flex-col gap-3.5 p-4 rounded-2xl border text-left cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)"
+                        onclick={() => navigateTo(dir.path, dir.name)}>
+                  <span class="flex items-start justify-between gap-3">
+                    {@render icone(true, "w-12 h-12", 24)}
+                    <span class="flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap {etat.classes}">
+                      <span class="w-1.5 h-1.5 rounded-full bg-current"></span>{$t(etat.cle)}
+                    </span>
+                  </span>
+                  <span class="min-w-0">
+                    <span class="block truncate text-[15px] font-bold text-(--rg-tx)" title={dir.name}>{dir.name}</span>
+                    <span class="block mt-0.5 truncate font-mono text-[11px] text-(--rg-mu)" title={dir.path}>{dir.path}</span>
+                  </span>
+                  <span class="flex items-center gap-1.5 text-[13px] text-(--rg-mu) whitespace-nowrap">
+                    <span><b class="font-semibold text-(--rg-tx2)">{nombre(dir.total_files)}</b> {$t(dir.total_files === 1 ? "library_head.files_one" : "library_head.files_n")}</span>
+                    {#if dir.total_size}<span>· {tailleLisible(dir.total_size, $currentLocale)}</span>{/if}
+                    {#if dir.last_scan_at}<span class="ml-auto font-mono text-[11px] text-(--rg-mu2)">{ilYA(dir.last_scan_at, $currentLocale, "short")}</span>{/if}
+                  </span>
+                </button>
+              {/each}
             </div>
           {/if}
-          <div class="min-w-0">
-            <h2 class="text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate max-w-75">
-              {fileInfo?.title ?? fileInfo?.filename ?? 'Chargement...'}
-            </h2>
-            {#if fileInfo?.artist}
-              <p class="text-xs text-neutral-400 truncate">{fileInfo.artist}</p>
-            {/if}
+
+        {:else if entries.length === 0}
+          <div class="flex flex-col items-center justify-center py-20 text-center text-(--rg-mu)">
+            <Icon icon="material-symbols:folder-off-outline-rounded" width="32" class="mb-3" />
+            <p class="text-sm">{$t("common.empty_folder")}</p>
           </div>
-        </div>
-        <button
-          class="p-1.5 rounded-lg cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200
-                 hover:bg-neutral-200/60 dark:hover:bg-white/8 transition-all"
-          onclick={() => showFileInfo = false}
-        >
-          <Icon icon="lucide:x" width="16" />
-        </button>
-      </div>
 
-      <!-- Body -->
-      <div class="px-6 py-5 max-h-[60vh] overflow-y-auto scrollbar-app">
-        {#if fileInfoLoading}
-          <div class="flex items-center justify-center py-12">
-            <Icon icon="lucide:loader-2" width="20" class="animate-spin text-neutral-400" />
+        {:else if visibles.length === 0}
+          <p class="py-16 text-center text-sm text-(--rg-mu)">{$t("folders_view.no_match")}</p>
+
+        {:else if $viewMode === "grid"}
+          <!-- Entrées en tuiles : un dossier parmi trente se retrouve à l'œil. -->
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pt-3">
+            {#each visibles as entry (entry.path)}
+              <button type="button"
+                      class="group flex flex-col items-center gap-2.5 p-4 rounded-2xl border text-center cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)"
+                      onclick={() => (entry.is_dir ? navigateTo(entry.path, entry.name) : lireFichier(entry))}
+                      oncontextmenu={(e) => { if (!entry.is_dir) { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, entry }; } }}>
+                {@render icone(entry.is_dir, "w-14 h-14", 26)}
+                <span class="w-full min-w-0">
+                  <span class="block truncate text-sm font-semibold text-(--rg-tx)" title={entry.name}>{entry.name}</span>
+                  <span class="block mt-0.5 text-[11px] text-(--rg-mu)">
+                    {#if entry.is_dir}{$t("library_head.folders_one")}{:else}<span class="uppercase tracking-wide">{entry.extension ?? $t("folders_view.audio")}</span>{#if entry.size > 0}{" · "}{tailleLisible(entry.size, $currentLocale)}{/if}{/if}
+                  </span>
+                </span>
+              </button>
+            {/each}
           </div>
-        {:else if fileInfo}
-          <div class="space-y-5">
 
-            <!-- Cover -->
-            {#if fileInfo.cover}
-              <div class="flex justify-center">
-                <img src={fileInfo.cover} alt="Cover"
-                     class="w-40 h-40 rounded-xl object-cover shadow-lg shadow-black/20" />
-              </div>
-            {/if}
-
-            <!-- Tags principaux -->
-            <div>
-              <h3 class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 mb-3">Tags</h3>
-              <div class="grid grid-cols-2 gap-x-6 gap-y-2.5">
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Titre</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.title ?? '—'}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Artiste</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.artist ?? '—'}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Album</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.album ?? '—'}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Album Artist</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.album_artist ?? '—'}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Année</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.year ?? '—'}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Genre</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.genre ?? '—'}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Piste</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.track_number ?? '—'}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Disque</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.disc_number ?? '—'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="h-px bg-neutral-200/60 dark:bg-white/5"></div>
-
-            <!-- Infos techniques -->
-            <div>
-              <h3 class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 mb-3">Audio</h3>
-              <div class="grid grid-cols-2 gap-x-6 gap-y-2.5">
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Durée</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{formatDuration(fileInfo.duration)}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Format</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.audio_format}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Bitrate</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{formatBitrate(fileInfo.bitrate)}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Sample Rate</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{formatSampleRate(fileInfo.sample_rate)}</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Bits/Sample</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.bits_per_sample} bits</p>
-                </div>
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Canaux</p>
-                  <p class="text-sm text-neutral-700 dark:text-neutral-200">{fileInfo.channels === 2 ? 'Stéréo' : fileInfo.channels === 1 ? 'Mono' : `${fileInfo.channels} ch`}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="h-px bg-neutral-200/60 dark:bg-white/5"></div>
-
-            <!-- Infos fichier -->
-            <div>
-              <h3 class="text-[10px] font-semibold uppercase tracking-widest text-neutral-400 mb-3">Fichier</h3>
-              <div class="space-y-2">
-                <div>
-                  <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Chemin</p>
-                  <p class="text-xs text-neutral-600 dark:text-neutral-300 font-mono break-all">{fileInfo.path}</p>
-                </div>
-                <div class="grid grid-cols-2 gap-x-6">
-                  <div>
-                    <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Taille</p>
-                    <p class="text-sm text-neutral-700 dark:text-neutral-200">{formatSize(fileInfo.size)}</p>
-                  </div>
-                  <div>
-                    <p class="text-[10px] text-neutral-400 dark:text-neutral-500">Extension</p>
-                    <p class="text-sm text-neutral-700 dark:text-neutral-200 uppercase">{fileInfo.extension}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+        {:else}
+          <!-- Entrées en liste : nom, format, poids ; lecture au survol des fichiers. -->
+          <div class="flex flex-col pt-2">
+            {#each visibles as entry (entry.path)}
+              <button type="button"
+                      class="group relative grid grid-cols-[40px_minmax(0,1fr)_70px_90px_40px] items-center gap-4 py-1.5 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors hover:bg-(--rg-carte)
+                             before:absolute before:left-16 before:right-3 before:top-0 before:h-px [button+&]:before:bg-(--rg-line) hover:before:opacity-0 [&:hover+button]:before:opacity-0"
+                      onclick={() => (entry.is_dir ? navigateTo(entry.path, entry.name) : lireFichier(entry))}
+                      oncontextmenu={(e) => { if (!entry.is_dir) { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, entry }; } }}>
+                {@render icone(entry.is_dir, "w-10 h-10", 19)}
+                <span class="min-w-0 truncate text-sm {entry.is_dir ? 'font-semibold text-(--rg-tx)' : 'text-(--rg-tx2)'}" title={entry.name}>{entry.name}</span>
+                <span class="justify-self-end">
+                  {#if entry.extension}
+                    <span class="px-1.5 py-0.5 rounded-[5px] border text-[10px] font-bold uppercase tracking-[0.06em] bg-(--rg-s2) border-(--rg-bd) text-(--rg-mu)">{entry.extension}</span>
+                  {/if}
+                </span>
+                <span class="text-right text-[13px] tabular-nums text-(--rg-mu)">{!entry.is_dir && entry.size > 0 ? tailleLisible(entry.size, $currentLocale) : ""}</span>
+                <span class="justify-self-end flex items-center justify-center w-8 h-8 rounded-full
+                             {entry.is_dir ? 'text-(--rg-mu2) group-hover:text-(--rg-tx2)' : 'opacity-0 group-hover:opacity-100 bg-(--rg-g) text-(--rg-on-g)'}"
+                      title={entry.is_dir ? $t("folders_view.open") : $t("folders_view.play")}>
+                  <Icon icon={entry.is_dir ? "material-symbols:chevron-right-rounded" : "material-symbols:play-arrow-rounded"} width={entry.is_dir ? 19 : 20} />
+                </span>
+              </button>
+            {/each}
           </div>
         {/if}
       </div>
     </div>
   </div>
+{/if}
+
+{#if contextMenu}
+  <TrackContextMenu
+    track={{ path: contextMenu.entry.path, title: contextMenu.entry.name }}
+    x={contextMenu.x}
+    y={contextMenu.y}
+    {libraryId}
+    onclose={() => (contextMenu = null)}
+  />
 {/if}

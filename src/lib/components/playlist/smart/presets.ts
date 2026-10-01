@@ -12,10 +12,11 @@ import type { Group, Limit } from "./types";
 
 export type Preset = {
   key: string;
+  /** Clé i18n du nom, traduite à l'affichage. */
   name: string;
   icon: string;
   color: string;
-  /** Ce que la recette fait, dit en une ligne. */
+  /** Ce que la recette fait, dit en une ligne (clé i18n). */
   hint: string;
   rules: Group;
   limit: Limit;
@@ -24,10 +25,10 @@ export type Preset = {
 export const PRESETS: Preset[] = [
   {
     key: "most_played",
-    name: "Les plus écoutés",
+    name: "smart.preset.most_played",
     icon: "mynaui:fire",
     color: "#f97316",
-    hint: "Les 100 morceaux que tu as le plus joués",
+    hint: "smart.preset.most_played_hint",
     rules: {
       match: "all",
       rules: [{ field: "play_count", op: "gt", value: 0 }],
@@ -36,12 +37,12 @@ export const PRESETS: Preset[] = [
   },
   {
     key: "top_genres",
-    name: "Mes styles favoris",
+    name: "smart.preset.top_genres",
     icon: "mynaui:star",
     color: "#8b5cf6",
     // Le classement se recalcule à chaque ouverture : cette playlist suit les
     // goûts, elle ne fige pas une liste de genres décidée un jour.
-    hint: "Au hasard dans les 5 genres que tu écoutes le plus",
+    hint: "smart.preset.top_genres_hint",
     rules: {
       match: "all",
       rules: [{ field: "genre", op: "in_top_played", value: 5 }],
@@ -50,10 +51,10 @@ export const PRESETS: Preset[] = [
   },
   {
     key: "top_artists",
-    name: "Mes artistes favoris",
+    name: "smart.preset.top_artists",
     icon: "mynaui:heart",
     color: "#ec4899",
-    hint: "Au hasard chez les 10 artistes que tu écoutes le plus",
+    hint: "smart.preset.top_artists_hint",
     rules: {
       match: "all",
       rules: [{ field: "artist", op: "in_top_played", value: 10 }],
@@ -62,10 +63,10 @@ export const PRESETS: Preset[] = [
   },
   {
     key: "best_rated",
-    name: "Mes préférés",
+    name: "smart.preset.best_rated",
     icon: "mynaui:star",
     color: "#22c55e",
-    hint: "Tout ce que tu as noté 4 étoiles ou plus",
+    hint: "smart.preset.best_rated_hint",
     rules: {
       match: "all",
       rules: [{ field: "rating", op: "gte", value: 4 }],
@@ -74,10 +75,10 @@ export const PRESETS: Preset[] = [
   },
   {
     key: "never_played",
-    name: "Jamais écoutés",
+    name: "smart.preset.never_played",
     icon: "mynaui:moon",
     color: "#0ea5e9",
-    hint: "Ce qui dort dans la bibliothèque depuis son import",
+    hint: "smart.preset.never_played_hint",
     rules: {
       match: "all",
       rules: [{ field: "play_count", op: "eq", value: 0 }],
@@ -86,12 +87,12 @@ export const PRESETS: Preset[] = [
   },
   {
     key: "forgotten",
-    name: "Oubliés",
+    name: "smart.preset.forgotten",
     icon: "mynaui:cloud",
     color: "#f59e0b",
     // Deux conditions, et la première compte : sans elle, la playlist se
     // remplirait de morceaux jamais écoutés, qui ne sont pas « oubliés ».
-    hint: "Déjà aimés, mais plus joués depuis six mois",
+    hint: "smart.preset.forgotten_hint",
     rules: {
       match: "all",
       rules: [
@@ -103,10 +104,10 @@ export const PRESETS: Preset[] = [
   },
   {
     key: "recent",
-    name: "Ajouts récents",
+    name: "smart.preset.recent",
     icon: "mynaui:sun",
     color: "#14b8a6",
-    hint: "Entrés dans la bibliothèque ce dernier mois",
+    hint: "smart.preset.recent_hint",
     rules: {
       match: "all",
       rules: [{ field: "created_at", op: "in_last", value: 30 }],
@@ -115,10 +116,10 @@ export const PRESETS: Preset[] = [
   },
   {
     key: "hires",
-    name: "Haute résolution",
+    name: "smart.preset.hires",
     icon: "mynaui:lightning",
     color: "#6366f1",
-    hint: "24 bits ou plus — de quoi tirer parti du bit-perfect",
+    hint: "smart.preset.hires_hint",
     rules: {
       match: "all",
       rules: [{ field: "bits_per_sample", op: "gte", value: 24 }],

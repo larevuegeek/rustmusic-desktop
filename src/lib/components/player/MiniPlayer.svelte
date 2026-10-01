@@ -1,132 +1,156 @@
 <script lang="ts">
+  // Mini-lecteur : fenêtre compacte teintée par la pochette, file et paroles en onglets repliables.
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
   import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-  import { t } from "$lib/i18n";
+  import LogoRustMusic from "$lib/components/ui/logo/LogoRustMusic.svelte";
+  import PlayerProgressBar from "./PlayerProgressBar.svelte";
+  import { t, currentLocale } from "$lib/i18n";
   import { player } from "$lib/stores/player/player.store";
   import { playerService } from "$lib/services/player/player.service";
   import { queueState } from "$lib/stores/queue/queueState.store";
+  import { liked } from "$lib/stores/playlist/like.store";
+  import { settingsStore } from "$lib/stores/settings/settings.store";
+  import { couleurMorceau } from "$lib/stores/player/trackColor.store";
+  import { playbackPipelineStore, pipelineMode } from "$lib/stores/player/playbackPipeline.store";
+  import { CHAINE } from "$lib/helper/audio/chaineAudio";
   import { displayTitle } from "$lib/helper/tools/stringTools";
-  import { durationToMinutes } from "$lib/helper/tools/dateTools";
-  import { isDsdFormat } from "$lib/helper/tools/audioFormatTools";
-  import { getLyrics } from "$lib/services/lyrics/lyrics.service";
+  import { minutesSecondes } from "$lib/helper/tools/dateTools";
+  import { dsdLabel, formatDsdRate, isDsdFormat } from "$lib/helper/tools/audioFormatTools";
+  import { getLyrics, type Lyrics } from "$lib/services/lyrics/lyrics.service";
   import { parseLrc, findActiveLineIndex, type LrcLine } from "$lib/helper/lyrics/lrcParser";
-  import { exitMiniPlayer, setMiniExpanded, reportCollapsedHeight } from "$lib/stores/ui/miniPlayer.store";
+  import { exitMiniPlayer, setMiniExpanded, reportCollapsedHeight, miniPinned, toggleMiniPin } from "$lib/stores/ui/miniPlayer.store";
   import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
 
-  let audioFile = $derived($player?.audioFile);
-  let audioTags = $derived(audioFile?.tags);
-  let trackTitle = $derived(
-    displayTitle(audioTags?.title, $player?.pathFile, $t("common.unknown_title")),
-  );
-  let artist = $derived(audioTags?.artist ?? "");
-  let coverSrc = $derived(
-    audioTags?.attached_images?.[0]?.image_src ?? "/images/no-cd.png",
-  );
-  let pathFile = $derived($player?.pathFile ?? null);
+  const audioFile = $derived($player?.audioFile);
+  const audioTags = $derived(audioFile?.tags);
+  const pathFile = $derived($player?.pathFile ?? null);
+  const hasTrack = $derived(!!pathFile);
+  const isPlaying = $derived($player?.status === "playing");
+  const trackTitle = $derived(displayTitle(audioTags?.title, pathFile, $t("common.unknown_title")));
+  const coverSrc = $derived(audioTags?.attached_images?.[0]?.image_src ?? null);
+  const duration = $derived($player?.duration ?? 0);
+  const jsPosition = $derived($player?.jsPosition ?? 0);
+  const percent = $derived(duration ? Math.min(100, Math.max(0, (jsPosition / duration) * 100)) : 0);
+  const aime = $derived(!!pathFile && $liked.paths.has(pathFile));
 
-  let isPlaying = $derived($player?.status === "playing");
-  let duration = $derived($player?.duration ?? 0);
-  let jsPosition = $derived($player?.jsPosition ?? 0);
-  let percent = $derived(
-    duration ? Math.min(100, Math.max(0, (jsPosition / duration) * 100)) : 0,
-  );
-  let hasTrack = $derived(!!$player?.pathFile);
-
-  let qualityBadge = $derived.by(() => {
-    const f = audioFile;
-    if (!f) return null;
-    if (isDsdFormat(f.audio_format)) return { label: "DSD", tone: "amber" };
-    if (f.bits_per_sample && f.bits_per_sample >= 24) return { label: "Hi-Res", tone: "emerald" };
-    if (f.audio_format) return { label: f.audio_format, tone: "neutral" };
-    return null;
-  });
-  let rateLabel = $derived.by(() => {
+  // « FLAC » + « 16/44,1 » ; le DSD n'a qu'une fréquence.
+  const nombre = $derived(new Intl.NumberFormat($currentLocale, { maximumFractionDigits: 1 }));
+  const dsd = $derived(isDsdFormat(audioFile?.audio_format));
+  const format = $derived(!audioFile ? null : dsd ? dsdLabel(audioFile.sample_rate) : audioFile.audio_format?.toUpperCase() ?? null);
+  const qualite = $derived.by(() => {
     const sr = audioFile?.sample_rate;
     if (!sr) return "";
-    if (isDsdFormat(audioFile?.audio_format)) {
-      return `${(sr / 1_000_000).toFixed(2).replace(/\.?0+$/, "")} MHz`;
-    }
-    return `${Math.round(sr / 1000)} kHz`;
+    if (dsd) return formatDsdRate(sr);
+    const khz = nombre.format(sr / 1000);
+    return audioFile?.bits_per_sample ? `${audioFile.bits_per_sample}/${khz}` : `${khz} kHz`;
+  });
+  const chaine = $derived.by(() => {
+    const m = pipelineMode($playbackPipelineStore);
+    return m ? CHAINE[m] : null;
   });
 
-  // ─── Panneau déroulant : 'none' | 'queue' | 'lyrics' ───
-  type Panel = "none" | "queue" | "lyrics";
-  let panel = $state<Panel>("none");
-
-  async function selectPanel(p: Panel) {
-    if (panel === p) {
-      panel = "none";
-      setMiniExpanded(false);
-    } else {
-      panel = p;
-      setMiniExpanded(true);
-    }
+  // ─── Onglets : recliquer l'onglet ouvert le replie ───
+  type Onglet = "queue" | "lyrics" | null;
+  let onglet = $state<Onglet>(null);
+  function basculer(o: Exclude<Onglet, null>) {
+    onglet = onglet === o ? null : o;
+    setMiniExpanded(onglet !== null);
   }
 
-  // ─── File d'attente ───
-  let currentIndex = $derived($queueState.currentIndex);
-  let upNext = $derived(
-    currentIndex > -1 ? $queueState.tracks.slice(currentIndex + 1) : $queueState.tracks,
-  );
-  async function playFromQueue(track: QueueTrack, localIdx: number) {
-    const real = (currentIndex > -1 ? currentIndex + 1 : 0) + localIdx;
-    await queueState.setCurrentIndex(real);
+  // ─── File : le titre en cours en tête, puis la suite ───
+  const currentIndex = $derived($queueState.currentIndex);
+  const enCours = $derived(currentIndex > -1 ? ($queueState.tracks[currentIndex] ?? null) : null);
+  const suite = $derived(currentIndex > -1 ? $queueState.tracks.slice(currentIndex + 1) : $queueState.tracks);
+  const aVenir = $derived(suite.length + (enCours ? 1 : 0));
+
+  const reel = (i: number) => (currentIndex > -1 ? currentIndex + 1 : 0) + i;
+
+  async function jouer(track: QueueTrack, i: number) {
+    await queueState.setCurrentIndex(reel(i));
     await playerService.playFile(track);
   }
 
+  // Glisser-déposer par la poignée (elle capture le pointeur), comme dans la file complète.
+  let depart = $state<number | null>(null);
+  let survol = $state<number | null>(null);
+  function saisir(e: PointerEvent, i: number) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    depart = i;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function deplacer(e: PointerEvent) {
+    if (depart === null) return;
+    const ligne = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-qi]") as HTMLElement | null;
+    if (ligne) survol = Number(ligne.dataset.qi);
+  }
+  function lacher() {
+    if (depart !== null && survol !== null && depart !== survol) queueState.reorderTracks(reel(depart), reel(survol));
+    depart = null;
+    survol = null;
+  }
+
   // ─── Paroles synchronisées ───
-  let lyricsLines = $state<LrcLine[]>([]);
-  let lyricsPlain = $state<string | null>(null);
-  let lyricsStatus = $state<"idle" | "loading" | "ready" | "empty">("idle");
-  let lyricsForPath = "";
-  let lyricsBox = $state<HTMLDivElement | null>(null);
-  let lineEls: Record<number, HTMLElement> = {};
+  let lignes = $state<LrcLine[]>([]);
+  let texteBrut = $state<string | null>(null);
+  let source = $state<Lyrics["source"] | null>(null);
+  let etat = $state<"idle" | "loading" | "ready" | "empty">("idle");
+  let parolesDe = "";
+  let boite = $state<HTMLDivElement | null>(null);
+  const elLignes: Record<number, HTMLElement> = {};
 
-  let currentMs = $derived(jsPosition * 1000);
-  let activeLine = $derived(
-    lyricsLines.length > 0 ? findActiveLineIndex(lyricsLines, currentMs) : -1,
-  );
+  const active = $derived(lignes.length > 0 ? findActiveLineIndex(lignes, jsPosition * 1000) : -1);
 
-  async function loadLyrics(path: string) {
-    lyricsStatus = "loading";
-    lyricsLines = [];
-    lyricsPlain = null;
-    lyricsForPath = path;
+  async function chargerParoles(path: string) {
+    etat = "loading";
+    lignes = [];
+    texteBrut = null;
+    source = null;
+    parolesDe = path;
     try {
       const res = await getLyrics(path);
-      if (lyricsForPath !== path) return; // course : le morceau a changé
+      if (parolesDe !== path) return;
       if (!res || (!res.synced && !res.plain)) {
-        lyricsStatus = "empty";
+        etat = "empty";
         return;
       }
-      if (res.synced) lyricsLines = parseLrc(res.synced);
-      lyricsPlain = res.plain;
-      lyricsStatus = lyricsLines.length > 0 || res.plain ? "ready" : "empty";
+      if (res.synced) lignes = parseLrc(res.synced);
+      texteBrut = res.plain;
+      source = res.source;
+      etat = lignes.length > 0 || res.plain ? "ready" : "empty";
     } catch {
-      lyricsStatus = "empty";
+      etat = "empty";
     }
   }
 
-  // Charger les paroles quand on ouvre l'onglet OU quand le morceau change.
   $effect(() => {
-    if (panel === "lyrics" && pathFile && pathFile !== lyricsForPath) {
-      loadLyrics(pathFile);
+    if (onglet === "lyrics" && pathFile && pathFile !== parolesDe) chargerParoles(pathFile);
+  });
+
+  // La ligne courante au milieu ; sans animation à l'ouverture.
+  let dejaCentre = false;
+  $effect(() => {
+    const i = active;
+    if (onglet !== "lyrics" || i < 0 || !boite) {
+      dejaCentre = false;
+      return;
     }
+    const el = elLignes[i];
+    if (!el) return;
+    const haut = el.offsetTop - boite.clientHeight / 2 + el.offsetHeight / 2;
+    boite.scrollTo({ top: haut, behavior: dejaCentre ? "smooth" : "instant" });
+    dejaCentre = true;
   });
 
-  // Auto-scroll de la ligne active au centre.
-  $effect(() => {
-    const idx = activeLine;
-    if (panel !== "lyrics" || idx < 0 || !lyricsBox) return;
-    const el = lineEls[idx];
-    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
-  });
+  const SOURCES: Record<string, string> = { sidecar: "mini.src_sidecar", lrclib: "mini.src_lrclib", manual: "mini.src_manual" };
 
-  // Mesure la hauteur réelle du contenu replié → la fenêtre s'y ajuste au pixel.
-  let headerEl = $state<HTMLDivElement | null>(null);
+  // ─── Fenêtre ───
+  let entete = $state<HTMLDivElement | null>(null);
   $effect(() => {
-    const el = headerEl;
+    const el = entete;
     if (!el) return;
     reportCollapsedHeight(el.offsetHeight);
     const ro = new ResizeObserver(() => reportCollapsedHeight(el.offsetHeight));
@@ -134,165 +158,215 @@
     return () => ro.disconnect();
   });
 
-  function seekAt(e: MouseEvent) {
-    if (!duration) return;
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    playerService.seekTo(ratio * duration);
+  // Même règle que la barre de titre. Avant de quitter, la fenêtre (masquée) reprend sa taille
+  // normale : c'est celle-là que l'appli retiendra pour le prochain lancement.
+  async function fermer() {
+    const w = getCurrentWindow();
+    if ($settingsStore.minimize_to_tray === "true") return w.hide();
+    await w.hide();
+    await exitMiniPlayer();
+    await w.close();
   }
-  function seekKey(e: KeyboardEvent) {
-    if (!duration) return;
-    if (e.key === "ArrowRight") playerService.seekTo(Math.min(duration, jsPosition + 5));
-    else if (e.key === "ArrowLeft") playerService.seekTo(Math.max(0, jsPosition - 5));
-  }
+
+  // L'image « sans pochette » de l'appli, plutôt qu'un carré vide.
+  const SANS_POCHETTE = "/images/no-cd.png";
+
+  const tb = "w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-(--lc-ic) hover:bg-(--lc-survol) hover:text-(--lc-tx)";
+  const ib = "w-9 h-9 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic-fort) hover:bg-(--lc-survol)";
+  const entetePanneau = "flex items-center justify-between px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-(--lc-mu)";
 </script>
 
-<div class="fixed inset-0 flex flex-col bg-white dark:bg-neutral-950 text-neutral-900 dark:text-white overflow-hidden select-none">
-  <!-- Halo coloré depuis la cover -->
-  <div
-    class="absolute top-0 left-0 w-48 h-48 rounded-full blur-[70px] opacity-20 pointer-events-none"
-    style="background-image: url({coverSrc}); background-size: cover; background-position: center;"
-  ></div>
+{#snippet vignette(path: string | null | undefined)}
+  <span class="w-10 h-10 shrink-0 rounded-md overflow-hidden bg-(--lc-survol)">
+    {#if path && path !== SANS_POCHETTE}
+      <CoverImg {path} alt="" size="1x" class="w-full h-full object-cover" />
+    {:else}
+      <img src={SANS_POCHETTE} alt="" class="w-full h-full object-cover" />
+    {/if}
+  </span>
+{/snippet}
 
-  <!-- Contenu replié (mesuré pour dimensionner la fenêtre au pixel près) -->
-  <div bind:this={headerEl} class="relative shrink-0">
-  <!-- Top bar -->
-  <div data-tauri-drag-region class="relative flex items-center justify-between px-3 pt-2 pb-0.5 shrink-0">
-    <span data-tauri-drag-region class="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-400 pointer-events-none">
-      <svg viewBox="0 0 256 256" class="w-3 h-3"><path fill="#22c55e" d="M232 128v56a24 24 0 0 1-24 24h-16a24 24 0 0 1-24-24v-40a24 24 0 0 1 24-24h23.65A87.71 87.71 0 0 0 128.68 40H128a88 88 0 0 0-87.64 80H64a24 24 0 0 1 24 24v40a24 24 0 0 1-24 24H48a24 24 0 0 1-24-24v-56a104.11 104.11 0 0 1 177.89-73.34A103.4 103.4 0 0 1 232 128"/></svg>
-      RustMusic
-    </span>
-    <button
-      class="flex items-center justify-center w-6 h-6 rounded-md cursor-pointer text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
-      onclick={() => exitMiniPlayer()}
-      aria-label={$t("mini.restore")} title={$t("mini.restore")}
-    >
-      <Icon icon="lucide:maximize-2" width="13" />
-    </button>
-  </div>
+<div
+  class="lecteur mini-lecteur fixed inset-0 flex flex-col overflow-hidden select-none"
+  style:--lh={$couleurMorceau.h}
+  style:--ls={$couleurMorceau.s}
+>
+  <!-- Partie repliée, mesurée : la fenêtre s'y ajuste au pixel. -->
+  <div bind:this={entete} class="shrink-0">
+    <div class="h-8.5 flex items-center gap-0.5 pl-3 pr-1.5">
+      <!-- Le vrai logo, comme la barre de titre ; toute la zone déplace la fenêtre. -->
+      <div data-tauri-drag-region class="flex-1 h-full flex items-center gap-1 cursor-grab">
+        <Icon icon="material-symbols-light:drag-indicator" width="16" class="shrink-0 text-(--lc-ic) opacity-60 pointer-events-none" />
+        <span class="flex pointer-events-none"><LogoRustMusic width={104} /></span>
+      </div>
+      <button type="button" class="{tb} {$miniPinned ? 'text-(--lc-acc)!' : ''}" title={$t("mini.pin")} aria-label={$t("mini.pin")} aria-pressed={$miniPinned} onclick={toggleMiniPin}>
+        <Icon icon={$miniPinned ? "material-symbols:keep" : "material-symbols-light:keep-outline"} width="17" />
+      </button>
+      <button type="button" class={tb} title={$t("mini.restore")} aria-label={$t("mini.restore")} onclick={() => exitMiniPlayer()}>
+        <Icon icon="material-symbols-light:open-in-full-rounded" width="17" />
+      </button>
+      <button type="button" class="{tb} hover:bg-[#c42b1c]! hover:text-white!" title={$t("common.close")} aria-label={$t("common.close")} onclick={fermer}>
+        <Icon icon="material-symbols-light:close-rounded" width="18" />
+      </button>
+    </div>
 
-  <!-- Player row -->
-  <div class="relative flex items-center gap-3.5 px-3.5 pt-2 pb-1 shrink-0">
-    <img src={coverSrc} alt="" class="w-15 h-15 rounded-xl object-cover shrink-0 shadow-xl shadow-black/50 ring-1 ring-white/10" />
-    <div class="flex-1 min-w-0">
-      <p class="text-[14px] font-bold truncate leading-tight" title={trackTitle}>
-        {hasTrack ? trackTitle : $t("player.inactive")}
-      </p>
-      <p class="text-[11px] text-neutral-500 dark:text-neutral-400 truncate leading-tight mt-0.5">{artist}</p>
-      {#if hasTrack && qualityBadge}
-        <div class="flex items-center gap-1.5 mt-1.5">
-          <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wide
-                       {qualityBadge.tone === 'amber' ? 'bg-amber-500/15 text-amber-300' :
-                        qualityBadge.tone === 'emerald' ? 'bg-emerald-500/15 text-emerald-300' :
-                        'bg-neutral-200/60 dark:bg-white/10 text-neutral-600 dark:text-neutral-300'}">
-            {qualityBadge.label}
-          </span>
-          {#if rateLabel}<span class="text-[9px] text-neutral-500 dark:text-neutral-400 tabular-nums">{rateLabel}</span>{/if}
-        </div>
+    <!-- Pochette, titre, qualité · j'aime -->
+    <div class="flex items-center gap-3.5 px-4 pt-1">
+      <div class="lecteur-pochette w-21 h-21 shrink-0 rounded-[10px] overflow-hidden">
+        <img src={hasTrack && coverSrc ? coverSrc : SANS_POCHETTE} alt="" class="w-full h-full object-cover" />
+      </div>
+      <div class="min-w-0 flex-1 flex flex-col gap-0.75">
+        <span class="truncate text-lg font-extrabold tracking-[-0.01em] text-(--lc-tx)" title={trackTitle}>{hasTrack ? trackTitle : $t("player.no_track")}</span>
+        {#if audioTags?.artist}<span class="truncate text-sm font-medium text-(--lc-acc)">{audioTags.artist}</span>{/if}
+        {#if hasTrack && (format || qualite)}
+          <div class="mt-1.25 flex items-center gap-2 min-w-0 font-mono text-[10px] text-(--lc-tx2)">
+            {#if format}<span class="px-1.75 py-0.5 rounded-[5px] font-medium tracking-[0.05em] bg-(--lc-fmt-bg) text-(--lc-fmt-tx)">{format}</span>{/if}
+            {#if qualite}<span class="whitespace-nowrap">{qualite}</span>{/if}
+            {#if chaine}
+              <span class="flex items-center gap-1.25 min-w-0 whitespace-nowrap"><span class="w-1.25 h-1.25 shrink-0 rounded-full {chaine.point}"></span><span class="truncate">{$t(chaine.cle)}</span></span>
+            {/if}
+          </div>
+        {/if}
+      </div>
+      {#if hasTrack}
+        <button type="button" class="self-start w-8 h-8 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors hover:bg-(--lc-survol)
+                                    {aime ? 'text-[#e2566a] dark:text-[#ff7a88]' : 'text-(--lc-ic) hover:text-(--lc-tx)'}"
+                title={$t("player.like")} aria-label={$t("player.like")} aria-pressed={aime} onclick={() => pathFile && liked.toggle(pathFile)}>
+          <Icon icon={aime ? "material-symbols:favorite-rounded" : "material-symbols-light:favorite-outline-rounded"} width="20" />
+        </button>
       {/if}
     </div>
-    <div class="flex items-center gap-2.5 shrink-0">
-      <button class="text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
-              onclick={async () => await playerService.prevTrack()} aria-label="Précédent">
-        <Icon icon="lucide:skip-back" width="16" />
-      </button>
-      <button class="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500 text-white
-                     hover:bg-emerald-400 transition-colors cursor-pointer shrink-0 shadow-lg shadow-emerald-500/25"
-              onclick={() => playerService.handleTogglePlay()} aria-label={isPlaying ? "Pause" : "Lecture"}>
-        <Icon icon={isPlaying ? "lucide:pause" : "lucide:play"} width="18" class={isPlaying ? "" : "ml-0.5"} />
-      </button>
-      <button class="text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
-              onclick={async () => await playerService.nextTrack()} aria-label="Suivant">
-        <Icon icon="lucide:skip-forward" width="16" />
-      </button>
-    </div>
-  </div>
 
-  <!-- Progression -->
-  <div class="relative px-3.5 pb-1.5 shrink-0">
-    <div class="flex items-center gap-2">
-      <span class="text-[8px] text-neutral-500 dark:text-neutral-400 tabular-nums w-7 text-right">{durationToMinutes(jsPosition)}</span>
-      <div class="relative flex-1 h-1.5 rounded-full bg-neutral-200/60 dark:bg-white/10 overflow-hidden cursor-pointer group"
-           role="slider" tabindex="0" aria-label="Progression"
-           aria-valuenow={Math.round(percent)} aria-valuemin={0} aria-valuemax={100}
-           onclick={seekAt} onkeydown={seekKey}>
-        <div class="absolute inset-y-0 left-0 rounded-full bg-emerald-500 group-hover:bg-emerald-400 transition-colors" style="width: {percent}%"></div>
+    <!-- Commandes et progression -->
+    <div class="flex items-center gap-3 px-4 pt-3">
+      <div class="flex items-center gap-0.5 shrink-0">
+        <button type="button" class={ib} title={$t("player.prev")} aria-label={$t("player.prev")} onclick={() => playerService.prevTrack()}>
+          <Icon icon="material-symbols:skip-previous-rounded" width="28" />
+        </button>
+        <button type="button" class="lecteur-lecture w-11.5 h-11.5 flex items-center justify-center rounded-full cursor-pointer transition-transform hover:scale-105 active:scale-95 bg-(--lc-play) text-(--lc-play-tx)"
+                title={isPlaying ? $t("player.pause") : $t("player.play")} aria-label={isPlaying ? $t("player.pause") : $t("player.play")}
+                onclick={() => playerService.handleTogglePlay()}>
+          <Icon icon={isPlaying ? "material-symbols:pause-rounded" : "material-symbols:play-arrow-rounded"} width="28" />
+        </button>
+        <button type="button" class={ib} title={$t("player.next")} aria-label={$t("player.next")} onclick={() => playerService.nextTrack()}>
+          <Icon icon="material-symbols:skip-next-rounded" width="28" />
+        </button>
       </div>
-      <span class="text-[8px] text-neutral-500 dark:text-neutral-400 tabular-nums w-7">{durationToMinutes(duration)}</span>
+      <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+        <PlayerProgressBar position={percent} onseek={(p) => duration && playerService.seekTo((p / 100) * duration)} />
+        <div class="flex justify-between font-mono text-[10px] tabular-nums text-(--lc-mu)">
+          <span>{minutesSecondes(jsPosition)}</span><span>{minutesSecondes(duration)}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Onglets File / Paroles -->
+    <div class="grid grid-cols-2 gap-1 mx-3 mt-3.5 mb-3 p-0.75 rounded-[11px] border bg-(--lc-seg) border-(--lc-seg-bd)" role="tablist">
+      {#each [{ id: "queue", icone: "material-symbols-light:queue-music-rounded", libelle: $t("mini.queue_tab") }, { id: "lyrics", icone: "material-symbols-light:lyrics-outline-rounded", libelle: $t("mini.lyrics") }] as o (o.id)}
+        {@const ouvert = onglet === o.id}
+        <button type="button" role="tab" aria-selected={ouvert}
+                class="h-8 flex items-center justify-center gap-1.75 rounded-lg text-[13px] font-semibold cursor-pointer transition-colors
+                       {ouvert ? 'bg-(--lc-seg-on) text-(--lc-tx) shadow-[0_1px_2px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.06)]' : 'text-(--lc-tx2) hover:text-(--lc-tx)'}"
+                onclick={() => basculer(o.id as "queue" | "lyrics")}>
+          <Icon icon={o.icone} width="18" class={ouvert ? "text-(--lc-acc)" : ""} />
+          {o.libelle}
+          {#if o.id === "queue" && aVenir > 0}
+            <span class="px-1.5 py-px rounded-lg font-mono text-[10px] bg-(--lc-survol) text-(--lc-tx2)">{aVenir}</span>
+          {/if}
+        </button>
+      {/each}
     </div>
   </div>
 
-  <!-- Onglets File d'attente / Paroles -->
-  <div class="relative shrink-0 flex items-stretch border-t border-neutral-200/70 dark:border-white/5">
-    {#each [{ id: 'queue', icon: 'ph:queue', label: $t('mini.up_next') }, { id: 'lyrics', icon: 'lucide:mic-vocal', label: $t('mini.lyrics') }] as tab}
-      {@const isOpen = panel === tab.id}
-      <button
-        class="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium cursor-pointer transition-colors relative
-               {isOpen ? 'text-emerald-400' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-200'}"
-        onclick={() => selectPanel(tab.id as Panel)}
-      >
-        <Icon icon={tab.icon} width="12" />
-        {tab.label}
-        {#if tab.id === 'queue' && upNext.length > 0}
-          <span class="px-1 rounded bg-neutral-200/60 dark:bg-white/10 text-[8px] tabular-nums">{upNext.length}</span>
-        {/if}
-        <Icon icon="lucide:chevron-{isOpen ? 'up' : 'down'}" width="11" class="opacity-60" />
-        {#if isOpen}
-          <span class="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-emerald-500"></span>
-        {/if}
-      </button>
-    {/each}
-  </div>
-  </div>
-  <!-- /Contenu replié -->
+  <!-- Panneau déroulé -->
+  {#if onglet}
+    <div class="relative flex-1 min-h-0 flex flex-col border-t border-(--lc-trait) bg-(--lc-panneau)" in:fade={{ duration: 160, delay: 60 }}>
+      {#if onglet === "queue"}
+        <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app pb-2">
+          {#if enCours}
+            <p class={entetePanneau}>{$t("mini.now_playing")}</p>
+            <div class="flex items-center gap-3 mx-1.5 py-1.5 pl-2 pr-2.5 rounded-[10px] bg-(--lc-encours)">
+              <span class="w-3.5 shrink-0"></span>
+              {@render vignette(enCours.cover)}
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-semibold text-(--lc-acc)">{enCours.title}</span>
+                <span class="block truncate text-xs text-(--lc-mu)">{enCours.artist ?? ""}</span>
+              </span>
+              <span class="mini-eq flex items-end gap-0.5 h-3 shrink-0" data-pause={isPlaying ? undefined : ""}><i></i><i></i><i></i></span>
+            </div>
+          {/if}
 
-  <!-- Panneau déroulant -->
-  {#if panel !== "none"}
-    <div class="relative flex-1 min-h-0 border-t border-neutral-200/70 dark:border-white/5 overflow-hidden" in:fade={{ duration: 180, delay: 60 }}>
-      {#if panel === "queue"}
-        <div class="h-full overflow-y-auto scrollbar-app">
-          {#if upNext.length === 0}
-            <p class="px-3 py-6 text-[11px] text-neutral-500 dark:text-neutral-400 text-center">{$t("mini.queue_empty")}</p>
+          <div class={entetePanneau}>
+            <span>{suite.length === 1 ? $t("mini.next_one") : $t("mini.next_count").replace("{n}", String(suite.length))}</span>
+            {#if suite.length > 0 && enCours}
+              <button type="button" class="normal-case tracking-normal text-[11px] font-semibold cursor-pointer text-(--lc-mu) hover:text-(--lc-tx)"
+                      title={$t("mini.clear_next_hint")} onclick={() => queueState.clearUpcoming()}>{$t("mini.clear_next")}</button>
+            {/if}
+          </div>
+
+          {#if suite.length === 0}
+            <p class="px-4 py-4 text-xs text-(--lc-mu)">{$t("mini.queue_empty")}</p>
           {:else}
-            {#each upNext as track, i (track.queueId)}
-              <button class="w-full flex items-center gap-2.5 px-3 py-1.5 text-left cursor-pointer hover:bg-neutral-100 dark:bg-white/5 transition-colors"
-                      onclick={() => playFromQueue(track, i)}>
-                <div class="w-8 h-8 rounded overflow-hidden shrink-0 bg-neutral-100 dark:bg-white/5">
-                  <CoverImg path={track.cover} alt="" size="1x" class="w-full h-full object-cover" />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="text-[11px] font-medium truncate">{track.title}</p>
-                  <p class="text-[9px] text-neutral-500 dark:text-neutral-400 truncate">{track.artist ?? ''}</p>
-                </div>
+            {#each suite as track, i (track.queueId)}
+              <div
+                data-qi={i}
+                role="button"
+                tabindex="0"
+                class="group flex items-center gap-3 mx-1.5 py-1.5 pl-2 pr-2.5 rounded-[10px] cursor-pointer transition-colors hover:bg-(--lc-survol)
+                       {depart === i ? 'opacity-50' : ''} {depart !== null && survol === i && depart !== i ? 'shadow-[inset_0_2px_0_var(--lc-acc)]' : ''}"
+                onclick={() => jouer(track, i)}
+                onkeydown={(e) => { if (e.key === "Enter") jouer(track, i); }}
+              >
+                <span class="w-3.5 shrink-0 flex justify-center text-(--lc-mu2) opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing touch-none"
+                      title={$t("mini.move")} role="presentation" onpointerdown={(e) => saisir(e, i)} onpointermove={deplacer} onpointerup={lacher}
+                      onclick={(e) => e.stopPropagation()}>
+                  <Icon icon="material-symbols-light:drag-indicator" width="16" />
+                </span>
+                {@render vignette(track.cover)}
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-semibold text-(--lc-tx)">{track.title}</span>
+                  <span class="block truncate text-xs text-(--lc-mu)">{track.artist ?? ""}</span>
+                </span>
                 {#if track.duration}
-                  <span class="text-[9px] text-neutral-600 tabular-nums shrink-0">{durationToMinutes(track.duration)}</span>
+                  <span class="font-mono text-[11px] tabular-nums text-(--lc-mu) group-hover:hidden">{minutesSecondes(track.duration)}</span>
                 {/if}
-              </button>
+                <button type="button" class="hidden group-hover:flex w-6.5 h-6.5 items-center justify-center rounded-md cursor-pointer text-(--lc-mu) hover:bg-(--lc-survol) hover:text-(--lc-tx)"
+                        title={$t("mini.remove")} aria-label={$t("mini.remove")} onclick={(e) => { e.stopPropagation(); queueState.removeTrack(track.queueId); }}>
+                  <Icon icon="material-symbols-light:close-rounded" width="16" />
+                </button>
+              </div>
             {/each}
           {/if}
         </div>
-      {:else if panel === "lyrics"}
-        <div bind:this={lyricsBox} class="h-full overflow-y-auto scrollbar-app px-4 py-3">
-          {#if lyricsStatus === "loading"}
-            <p class="text-[11px] text-neutral-500 dark:text-neutral-400 text-center py-6">{$t("mini.lyrics_loading")}</p>
-          {:else if lyricsLines.length > 0}
-            <div class="space-y-1.5">
-              {#each lyricsLines as line, i (i)}
-                <p
-                  bind:this={lineEls[i]}
-                  class="text-[12px] leading-snug transition-colors duration-200
-                         {i === activeLine ? 'text-emerald-400 font-semibold' : 'text-neutral-500 dark:text-neutral-400'}"
-                >
-                  {line.text || '♪'}
-                </p>
-              {/each}
-            </div>
-          {:else if lyricsPlain}
-            <p class="text-[12px] text-neutral-600 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed">{lyricsPlain}</p>
+      {:else}
+        <div bind:this={boite} class="mini-paroles relative flex-1 min-h-0 overflow-y-auto scrollbar-app">
+          {#if etat === "loading"}
+            <p class="py-24 text-center text-xs text-(--lc-mu)">{$t("mini.lyrics_loading")}</p>
+          {:else if lignes.length > 0}
+            <div class="h-27.5"></div>
+            {#each lignes as ligne, i (i)}
+              <button
+                type="button"
+                bind:this={elLignes[i]}
+                class="block w-full text-left px-5 py-1.25 text-[17px] font-bold leading-[1.35] text-pretty origin-left cursor-pointer
+                       transition-[color,transform] duration-250 hover:text-(--lc-tx2)
+                       {i === active ? 'text-(--lc-tx) scale-104 first-letter:text-(--lc-acc)' : i < active ? 'text-(--lc-ly-passe)' : 'text-(--lc-ly)'}"
+                title={$t("mini.jump_line")}
+                onclick={() => playerService.seekTo(ligne.timeMs / 1000)}
+              >{ligne.text || "♪"}</button>
+            {/each}
+            <div class="h-27.5"></div>
+          {:else if texteBrut}
+            <p class="px-5 py-4 text-sm leading-relaxed whitespace-pre-wrap text-(--lc-tx2)">{texteBrut}</p>
           {:else}
-            <p class="text-[11px] text-neutral-500 dark:text-neutral-400 text-center py-6">{$t("mini.lyrics_empty")}</p>
+            <p class="py-24 text-center text-xs text-(--lc-mu)">{$t("mini.lyrics_empty")}</p>
           {/if}
         </div>
+        {#if etat === "ready"}
+          <span class="shrink-0 h-6.5 flex items-center px-4 text-[10px] text-(--lc-mu2) border-t border-(--lc-trait)">
+            {lignes.length > 0 ? $t("mini.lyrics_synced") : $t("mini.lyrics_plain")}{#if source && SOURCES[source]} · {$t(SOURCES[source])}{/if}
+          </span>
+        {/if}
       {/if}
     </div>
   {/if}

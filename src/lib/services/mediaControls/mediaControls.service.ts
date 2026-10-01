@@ -142,7 +142,6 @@ export const mediaControlsService = {
     }
     enabled = true;
     await attachListeners();
-    console.log("[smtc] enabled");
 
     // Si un morceau est déjà chargé au moment de l'activation, on pousse
     // tout de suite pour ne pas attendre le prochain changement.
@@ -165,7 +164,6 @@ export const mediaControlsService = {
     } catch (e) {
       console.warn("[smtc] disable failed:", e);
     }
-    console.log("[smtc] disabled");
   },
 
   /**

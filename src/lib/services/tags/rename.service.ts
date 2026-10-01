@@ -7,7 +7,15 @@
  * pas rattrapable à la main — l'aperçu à blanc est ce qui permet d'oser.
  */
 
+import { dataCache } from "$lib/stores/cache/dataCache.store";
 import { invoke } from "@tauri-apps/api/core";
+import { get } from "svelte/store";
+import { t } from "$lib/i18n";
+
+/** Un motif prédéfini ; `label` est traduit à chaque lecture (clé `rename.preset_names.*`). */
+function modele(cle: string, pattern: string): { label: string; pattern: string } {
+  return { pattern, get label() { return get(t)(`rename.preset_names.${cle}`); } };
+}
 
 /** Ce qui arriverait à un fichier. */
 export type MoveView = {
@@ -125,7 +133,7 @@ export async function applyRename(
   restructure = false,
   options: Partial<MoveOptions> | null = null,
 ): Promise<MoveOutcome> {
-  return invoke<MoveOutcome>("apply_rename", {
+  const r = await invoke<MoveOutcome>("apply_rename", {
     libraryId,
     pattern,
     restructure,
@@ -134,6 +142,8 @@ export async function applyRename(
       ? { satellites: false, cleanup_empty: false, roots: [], ...options }
       : null,
   });
+  dataCache.invalidateFiches();
+  return r;
 }
 
 /**
@@ -178,7 +188,9 @@ export async function listBatchJournal(limit = 20): Promise<JournalEntry[]> {
 }
 
 export async function undoBatch(batchId: string): Promise<MoveOutcome> {
-  return invoke<MoveOutcome>("undo_batch", { batchId });
+  const r = await invoke<MoveOutcome>("undo_batch", { batchId });
+  dataCache.invalidateFiches();
+  return r;
 }
 
 /**
@@ -188,11 +200,11 @@ export async function undoBatch(batchId: string): Promise<MoveOutcome> {
  * la lit en entier. Au-delà, on ne les compare plus et on retape le sien.
  */
 export const PRESETS: { label: string; pattern: string }[] = [
-  { label: "01 - Titre", pattern: "{track:02} - {title}.{ext}" },
-  { label: "01. Artiste - Titre", pattern: "{track:02}. {artist} - {title}.{ext}" },
-  { label: "Artiste - Titre", pattern: "{artist} - {title}.{ext}" },
+  modele("track_title", "{track:02} - {title}.{ext}"),
+  modele("track_artist_title", "{track:02}. {artist} - {title}.{ext}"),
+  modele("artist_title", "{artist} - {title}.{ext}"),
   // Le groupe optionnel évite le « 1-01 » sur les albums à disque unique.
-  { label: "1-01 - Titre (coffret)", pattern: "[{disc}-]{track:02} - {title}.{ext}" },
+  modele("disc_track_title", "[{disc}-]{track:02} - {title}.{ext}"),
 ];
 
 /**
@@ -202,22 +214,10 @@ export const PRESETS: { label: string; pattern: string }[] = [
  * autant de dossiers qu'elle compte d'artistes.
  */
 export const TREE_PRESETS: { label: string; pattern: string }[] = [
-  {
-    label: "Artiste / Album / 01 - Titre",
-    pattern: "{albumartist|artist}/{album}/{track:02} - {title}.{ext}",
-  },
-  {
-    label: "Artiste / Album (Année) / 01 - Titre",
-    pattern: "{albumartist|artist}/{album} ({year})/{track:02} - {title}.{ext}",
-  },
-  {
-    label: "Genre / Artiste / Album / 01 - Titre",
-    pattern: "{genre}/{albumartist|artist}/{album}/{track:02} - {title}.{ext}",
-  },
-  {
-    label: "Artiste / Album / 1-01 - Titre",
-    pattern: "{albumartist|artist}/{album}/[{disc}-]{track:02} - {title}.{ext}",
-  },
+  modele("tree_artist_album", "{albumartist|artist}/{album}/{track:02} - {title}.{ext}"),
+  modele("tree_artist_album_year", "{albumartist|artist}/{album} ({year})/{track:02} - {title}.{ext}"),
+  modele("tree_genre_artist_album", "{genre}/{albumartist|artist}/{album}/{track:02} - {title}.{ext}"),
+  modele("tree_artist_album_disc", "{albumartist|artist}/{album}/[{disc}-]{track:02} - {title}.{ext}"),
 ];
 
 /** Les champs qu'un motif peut citer, pour l'aide à la saisie. */

@@ -32,6 +32,8 @@ export type AudioDeviceInfo = {
   isHires: boolean;
   /** ID WASAPI pour probing détaillé (Windows uniquement). */
   wasapiId: string | null;
+  /** Bus de l'adaptateur : « USB », « HDAUDIO », « BTHENUM »… (Windows uniquement). */
+  bus: string | null;
 };
 
 /** Résultat du probing WASAPI par device (Windows uniquement). */
@@ -57,6 +59,8 @@ type State = {
    * à `set_device` pour l'identification côté CPAL.
    */
   activeDisplayName: string | null;
+  /** Capacités réelles en exclusif par displayName (Windows) : CPAL y donne la même table partout. */
+  exclusive: Record<string, WasapiDeviceCapabilities>;
 };
 
 const initial: State = {
@@ -65,6 +69,7 @@ const initial: State = {
   devices: [],
   error: null,
   activeDisplayName: null,
+  exclusive: {},
 };
 
 function createStore() {
@@ -77,11 +82,25 @@ function createStore() {
       update((s) => {
         const active =
           s.activeDisplayName ?? devices.find((d) => d.isDefault)?.displayName ?? null;
-        return { ...s, loaded: true, loading: false, devices, activeDisplayName: active };
+        return { ...s, loaded: true, loading: false, devices, activeDisplayName: active, exclusive: {} };
       });
+      sonder(devices);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       update((s) => ({ ...s, loading: false, error: msg }));
+    }
+  }
+
+  /** Interroge le pilote de chaque sortie (formats acceptés, sans ouvrir de flux), l'une après l'autre. */
+  async function sonder(devices: AudioDeviceInfo[]): Promise<void> {
+    for (const d of devices) {
+      if (!d.wasapiId) continue;
+      try {
+        const caps = await invoke<WasapiDeviceCapabilities>("wasapi_probe_device_capabilities", { deviceId: d.wasapiId });
+        update((s) => ({ ...s, exclusive: { ...s.exclusive, [d.displayName]: caps } }));
+      } catch {
+        // Sortie débranchée entre-temps : on garde les valeurs CPAL.
+      }
     }
   }
 

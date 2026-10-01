@@ -19,7 +19,8 @@ import { toasts } from "$lib/stores/ui/toast.store";
 import { onMount } from "svelte";
 import { t } from "$lib/i18n";
 
-let tracks: RecentFileListView[] = $state([]);
+// Lu du store : l'abonnement se défait tout seul en quittant la page.
+const tracks = $derived($recent);
 
 // ─── Vue tableau ───
 //
@@ -68,10 +69,6 @@ async function chargerTableau(chemins: string[]) {
 let loading = $state(false);
 let contextMenu = $state<{ x: number; y: number; track: RecentFileListView } | null>(null);
 
-const unsubscribe = recent.subscribe((files) => {
-  tracks = files;
-});
-
 async function loadRecent() {
   loading = true;
   await recent.refreshRecent();
@@ -82,8 +79,8 @@ function handleClearRecent() {
   recent.clearRecent();
   toasts.push({
     type: "success",
-    title: "Historique vidé",
-    message: "Les titres récents ont été supprimés"
+    title: $t("playlist_page.history_cleared"),
+    message: $t("playlist_page.history_cleared_desc")
   });
 }
 
@@ -99,12 +96,11 @@ onMount(() => {
 <div class="h-full overflow-y-auto scrollbar-app py-5 px-4 md:px-10">
 
   <PageHeader
-    title="Récemment joués"
-    subtitle="Historique"
+    title={$t("playlist_page.recent_title")}
+    subtitle={$t("playlist_page.history")}
     icon="mynaui:clock-8"
     iconColor="#0ea5e9"
     count={tracks.length}
-    countLabel="titre"
   >
     {#snippet actions()}
       <div class="flex items-center gap-2">
@@ -177,7 +173,7 @@ onMount(() => {
                       bg-neutral-200 dark:bg-neutral-700
                       flex items-center justify-center shrink-0">
             {#if track.thumbnail_path}
-              <CoverImg path={track.thumbnail_path} alt="Cover"
+              <CoverImg path={track.thumbnail_path} alt={$t("tags.cover")}
                    class="w-full h-full object-cover" />
             {:else}
               <Icon icon="lucide:music" width={18} class="text-neutral-400" />
@@ -188,17 +184,17 @@ onMount(() => {
         <div class="flex flex-col items-stretch min-w-0">
           <button onclick={() => handleSelectTrack(track.path, versFileDAttente(tracks))} class="text-left cursor-pointer min-w-0 w-full">
             <span class="block font-medium text-neutral-800 dark:text-neutral-200 truncate"
-                  title={track.title ?? "Titre inconnu"}>
-              {track.title ?? "Titre inconnu"}
+                  title={track.title ?? $t("common.unknown_title")}>
+              {track.title ?? $t("common.unknown_title")}
             </span>
           </button>
 
           <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-            {track.artist ?? "Artiste inconnu"}
+            {track.artist ?? $t("common.unknown_artist")}
           </div>
 
           <div class="text-xs text-neutral-500 dark:text-neutral-400 truncate my-1">
-            <span class="font-semibold">{track.album ?? "Album inconnu"}</span>
+            <span class="font-semibold">{track.album ?? $t("common.unknown_album")}</span>
           </div>
 
           <span class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate tracking-wide">
@@ -225,7 +221,7 @@ onMount(() => {
           onclick={(e) => { contextMenu = { x: e.clientX, y: e.clientY, track }; }}
           class="p-2 rounded-md cursor-pointer text-neutral-500 dark:text-neutral-400
                  hover:bg-black/5 dark:hover:bg-white/10"
-          aria-label="Actions"
+          aria-label={$t("albums_view.more")}
         >
           <Icon icon="uit:ellipsis-v" width={24} height={24} />
         </button>

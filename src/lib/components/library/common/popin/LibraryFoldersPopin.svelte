@@ -1,9 +1,13 @@
 <script lang="ts">
+  import { tailleLisible } from "$lib/helper/tools/sizeTools";
   import Icon from "@iconify/svelte";
   import { oublierLocalisations } from "$lib/helper/library/trackLocation";
   import { invoke } from "@tauri-apps/api/core";
   import { handleAddDirectory } from "$lib/actions/library/LibraryAction";
   import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
+  import { portal } from "$lib/helper/portal";
+  import { t, currentLocale } from "$lib/i18n";
+  import { depuisCourt } from "$lib/helper/tools/dateTools";
 
   type LibraryDir = {
     id: string;
@@ -63,147 +67,138 @@
     }
   }
 
-  function formatSize(bytes: number): string {
-    if (bytes === 0) return '—';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-  }
-
-  function formatDate(dateStr: string | null): string {
-    if (!dateStr) return 'Jamais';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('fr-FR', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
-  }
-
   async function handleAddFolder() {
     await handleAddDirectory(libraryId);
     await loadDirs();
   }
+
+  const formatSize = (bytes: number) => tailleLisible(bytes, $currentLocale);
+
+  function nb(n: number, un: string, plusieurs: string): string {
+    return n === 1 ? $t(un) : $t(plusieurs).replace('{n}', n.toLocaleString($currentLocale));
+  }
+
+  const totalFichiers = $derived(dirs.reduce((s, d) => s + (d.total_files ?? 0), 0));
+  const totalTaille = $derived(dirs.reduce((s, d) => s + (d.total_size ?? 0), 0));
+  const resume = $derived([
+    nb(dirs.length, 'folders_popin.folders_one', 'folders_popin.folders_n'),
+    totalFichiers > 0 ? nb(totalFichiers, 'folders_popin.files_one', 'folders_popin.files_n') : '',
+    formatSize(totalTaille),
+  ].filter(Boolean).join(' · '));
+
+  const maintenant = Date.now();
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- Overlay -->
-<div
-  class="fixed inset-0 z-50 flex items-center justify-center"
-  onkeydown={(e) => e.key === 'Escape' && (open = false)}
->
-  <!-- Backdrop -->
+<svelte:window onkeydown={(e) => e.key === 'Escape' && (open = false)} />
+
+<!-- Porté vers `body` : ouverte depuis la barre latérale, elle y restait enfermée
+     (son conteneur porte une transformation, qui piège les `fixed`). -->
+<div use:portal>
+<div class="sidebar fixed inset-0 z-9990 flex items-center justify-center p-4">
   <button
     type="button"
     class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default"
     onclick={() => open = false}
-    aria-label="Fermer"
+    aria-label={$t('common.close')}
   ></button>
 
-  <!-- Content -->
-  <div class="relative w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col
-              bg-neutral-50 dark:bg-neutral-900
-              border border-neutral-200/60 dark:border-white/8
-              rounded-2xl shadow-2xl shadow-black/20
-              overflow-hidden">
-
-    <!-- Header -->
-    <div class="flex items-center justify-between px-6 py-4
-                border-b border-neutral-200/60 dark:border-white/6">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center
-                    bg-green-500/10 border border-green-500/20">
-          <Icon icon="lucide:folder-cog" width="16" class="text-green-500" />
-        </div>
-        <div>
-          <h2 class="text-base font-semibold text-neutral-800 dark:text-neutral-100">
-            Dossiers synchronisés
-          </h2>
-          <p class="text-[11px] text-neutral-400 dark:text-neutral-500">
-            {dirs.length} dossier{dirs.length !== 1 ? 's' : ''} indexé{dirs.length !== 1 ? 's' : ''}
-          </p>
-        </div>
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="dossiers-titre"
+    class="relative w-full max-w-xl max-h-[80vh] flex flex-col overflow-hidden rounded-2xl
+           bg-(--sb-bg) border border-(--sb-bd) shadow-2xl shadow-black/40"
+  >
+    <!-- En-tête -->
+    <div class="flex items-center gap-3 px-5 pt-5 pb-4">
+      <span class="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)">
+        <Icon icon="material-symbols:folder-managed-outline-rounded" width="22" class="sb-icone" />
+      </span>
+      <div class="flex-1 min-w-0">
+        <h2 id="dossiers-titre" class="text-lg font-bold leading-tight text-(--sb-tx)">{$t('folders_popin.title')}</h2>
+        <p class="text-xs text-(--sb-mu) truncate">{loading ? $t('common.loading') : resume}</p>
       </div>
-
       <button
-        class="p-1.5 rounded-lg cursor-pointer
-               text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200
-               hover:bg-neutral-200/60 dark:hover:bg-white/8
-               transition-all"
+        type="button"
+        class="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center cursor-pointer transition-colors
+               text-(--sb-mu) hover:bg-(--sb-s2) hover:text-(--sb-tx)"
         onclick={() => open = false}
+        title={$t('common.close')}
+        aria-label={$t('common.close')}
       >
-        <Icon icon="lucide:x" width="16" />
+        <Icon icon="material-symbols:close-rounded" width="20" />
       </button>
     </div>
 
-    <!-- Body -->
-    <div class="flex-1 overflow-y-auto px-4 py-3 scrollbar-app">
+    <!-- Dossiers -->
+    <div class="flex-1 overflow-y-auto px-4 pb-4 smart-scroll">
       {#if loading}
         <div class="flex items-center justify-center py-12">
-          <Icon icon="lucide:loader-2" width="20" class="animate-spin text-neutral-400" />
+          <Icon icon="lucide:loader-2" width="20" class="animate-spin text-(--sb-mu)" />
         </div>
 
       {:else if dirs.length === 0}
-        <div class="flex flex-col items-center justify-center py-12 text-center">
-          <Icon icon="lucide:folder-open" width="32" class="text-neutral-300 dark:text-neutral-600 mb-3" />
-          <p class="text-sm text-neutral-500 dark:text-neutral-400 mb-1">Aucun dossier</p>
-          <p class="text-xs text-neutral-400 dark:text-neutral-500">
-            Ajoutez un dossier pour indexer vos fichiers audio.
-          </p>
+        <div class="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-(--sb-bd2)">
+          <Icon icon="material-symbols:folder-open-outline-rounded" width="32" class="text-(--sb-mu) mb-2" />
+          <p class="text-sm font-semibold text-(--sb-tx2)">{$t('folders_popin.empty')}</p>
+          <p class="text-xs text-(--sb-mu) mt-0.5">{$t('folders_popin.empty_desc')}</p>
         </div>
 
       {:else}
-        <div class="space-y-1">
+        <div class="flex flex-col gap-2">
           {#each dirs as dir (dir.id)}
-            <div class="group flex items-center gap-3 px-4 py-3 rounded-xl
-                        hover:bg-neutral-100 dark:hover:bg-white/4
-                        transition-colors duration-150">
+            {@const enCours = rescanningId === dir.id}
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-(--sb-s1) border border-(--sb-bd)">
+              <span class="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)">
+                <Icon icon="material-symbols:folder-outline-rounded" width="20" class="sb-icone" />
+              </span>
 
-              <!-- Icon -->
-              <div class="w-9 h-9 rounded-lg shrink-0 flex items-center justify-center
-                          bg-green-500/10 border border-green-500/15">
-                <Icon icon="lucide:folder" width="16" class="text-green-500" />
-              </div>
-
-              <!-- Info -->
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">
-                  {dir.name}
-                </p>
-                <p class="text-[10px] text-neutral-400 dark:text-neutral-500 truncate mt-0.5 font-mono">
-                  {dir.path}
-                </p>
+                <p class="text-sm font-bold truncate text-(--sb-tx)">{dir.name}</p>
+                <p class="font-mono text-[11px] truncate text-(--sb-mu2)" title={dir.path}>{dir.path}</p>
+
+                <div class="flex flex-wrap items-center gap-1.5 mt-2 text-[11px] font-medium">
+                  {#if dir.total_files > 0}
+                    <span class="px-2 py-0.5 rounded-md bg-(--sb-s2) text-(--sb-tx2)">
+                      {nb(dir.total_files, 'folders_popin.files_one', 'folders_popin.files_n')}
+                    </span>
+                  {/if}
+                  {#if dir.total_size > 0}
+                    <span class="px-2 py-0.5 rounded-md bg-(--sb-s2) text-(--sb-tx2)">{formatSize(dir.total_size)}</span>
+                  {/if}
+                  <span class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-(--sb-s2) text-(--sb-tx2)">
+                    <span class="sb-point w-1.5 h-1.5 rounded-full
+                                 {enCours ? 'text-amber-400 animate-pulse' : dir.last_scan_at ? 'text-(--sb-point)' : 'text-(--sb-mu)'}"></span>
+                    {enCours
+                      ? $t('folders_popin.scanning')
+                      : dir.last_scan_at
+                        ? $t('folders_popin.scanned').replace('{ago}', depuisCourt(dir.last_scan_at, maintenant, $t))
+                        : $t('folders_popin.never_scanned')}
+                  </span>
+                </div>
               </div>
 
-              <!-- Stats -->
-              <div class="hidden sm:flex flex-col items-end text-[10px] text-neutral-400 dark:text-neutral-500 shrink-0 gap-0.5">
-                {#if dir.total_files > 0}
-                  <span>{dir.total_files} fichiers</span>
-                {/if}
-                <span>{formatDate(dir.last_scan_at)}</span>
-              </div>
-
-              <!-- Actions -->
-              <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <div class="flex items-center gap-0.5 shrink-0 self-start">
                 <button
-                  class="p-1.5 rounded-lg cursor-pointer
-                         text-neutral-400 hover:text-green-500
-                         hover:bg-green-500/10 transition-all"
-                  title="Rescanner"
-                  disabled={rescanningId === dir.id}
+                  type="button"
+                  class="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors
+                         text-(--sb-mu) enabled:hover:bg-(--sb-s2) enabled:hover:text-(--sb-tx) disabled:cursor-default"
+                  title={$t('folders_popin.rescan')}
+                  aria-label={$t('folders_popin.rescan')}
+                  disabled={enCours}
                   onclick={() => handleRescanDir(dir)}
                 >
-                  <Icon icon="lucide:refresh-cw" width="14"
-                        class={rescanningId === dir.id ? 'animate-spin' : ''} />
+                  <Icon icon="material-symbols:refresh-rounded" width="18" class={enCours ? 'animate-spin text-amber-400' : ''} />
                 </button>
                 <button
-                  class="p-1.5 rounded-lg cursor-pointer
-                         text-neutral-400 hover:text-red-500
-                         hover:bg-red-500/10 transition-all"
-                  title="Retirer"
+                  type="button"
+                  class="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors
+                         text-(--sb-mu) hover:bg-red-500/10 hover:text-red-400"
+                  title={$t('folders_popin.remove')}
+                  aria-label={$t('folders_popin.remove')}
                   onclick={() => handleRemoveDir(dir)}
                 >
-                  <Icon icon="lucide:trash-2" width="14" />
+                  <Icon icon="material-symbols:delete-outline-rounded" width="18" />
                 </button>
               </div>
             </div>
@@ -212,30 +207,26 @@
       {/if}
     </div>
 
-    <!-- Footer -->
-    <div class="px-6 py-3 border-t border-neutral-200/60 dark:border-white/6
-                flex items-center justify-between">
+    <!-- Pied -->
+    <div class="flex items-center justify-between gap-3 px-5 py-4 border-t border-(--sb-sep)">
       <button
-        class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer
-               border border-dashed border-neutral-300 dark:border-neutral-700
-               text-neutral-500 dark:text-neutral-400
-               hover:border-green-500/40 hover:text-green-500 hover:bg-green-500/5
-               transition-all duration-150"
+        type="button"
+        class="flex items-center gap-2 h-9 px-3.5 rounded-lg cursor-pointer text-sm font-semibold transition-[filter]
+               bg-(--sb-g) text-(--rg-on-g) hover:brightness-110"
         onclick={handleAddFolder}
       >
-        <Icon icon="lucide:plus" width="12" />
-        Ajouter un dossier
+        <Icon icon="material-symbols:add-rounded" width="18" />
+        {$t('folders_popin.add')}
       </button>
-
       <button
-        class="px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer
-               text-neutral-500 dark:text-neutral-400
-               hover:bg-neutral-100 dark:hover:bg-white/5
-               transition-colors"
+        type="button"
+        class="h-9 px-4 rounded-lg cursor-pointer text-sm font-semibold transition-colors
+               text-(--sb-tx2) hover:bg-(--sb-s2) hover:text-(--sb-tx)"
         onclick={() => open = false}
       >
-        Fermer
+        {$t('common.close')}
       </button>
     </div>
   </div>
+</div>
 </div>

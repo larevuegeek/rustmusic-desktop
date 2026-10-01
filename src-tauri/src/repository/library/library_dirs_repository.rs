@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -161,6 +162,34 @@ impl LibraryDirRepository {
         .await?;
 
         Ok(())
+    }
+
+    // =========================================
+    // DERNIER SCAN DE LA BIBLIOTHÈQUE
+    // =========================================
+    pub async fn find_last_scan_at<'e, E>(
+        exec: E,
+        library_id: i64,
+    ) -> Result<Option<DateTime<Utc>>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
+    {
+        sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+            "SELECT MAX(last_scan_at) FROM library_dirs WHERE library_id = ?"
+        )
+        .bind(library_id)
+        .fetch_one(exec)
+        .await
+    }
+
+    /// Les chemins de tous les dossiers importés, toutes bibliothèques confondues.
+    pub async fn all_paths<'e, E>(exec: E) -> Result<Vec<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar::<_, String>("SELECT DISTINCT path FROM library_dirs")
+            .fetch_all(exec)
+            .await
     }
 
     // =========================================
