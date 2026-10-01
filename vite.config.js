@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from '@tailwindcss/vite';
+import { icones } from "./scripts/vite-icones.js";
 // @ts-expect-error node:fs is a nodejs module (no @types/node installed)
 import { readFileSync } from "node:fs";
 
@@ -13,6 +14,7 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [
     tailwindcss(),
+    icones(),
     sveltekit(),
   ],
 

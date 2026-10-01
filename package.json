@@ -62,9 +62,12 @@
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
     "@iconify-json/lucide": "^1.2.125",
+    "@iconify-json/material-symbols": "^1.2.93",
+    "@iconify-json/material-symbols-light": "^1.2.94",
     "@iconify-json/mynaui": "^1.2.17",
     "@iconify-json/ph": "^1.2.2",
     "@iconify-json/radix-icons": "^1.2.6",
+    "@iconify-json/simple-icons": "^1.2.98",
     "@iconify-json/tabler": "^1.2.35",
     "@iconify-json/uit": "^1.2.3",
     "@iconify/svelte": "^5.2.2",

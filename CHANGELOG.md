@@ -137,12 +137,16 @@ langues, et une grande bibliothèque ne la fait plus peiner.
   par lots de 150.
 - La recherche des Albums et des Artistes ne retrie plus à chaque frappe.
 - Les miniatures de pochettes ne sont plus redemandées à chaque affichage.
+- Seules les icônes réellement utilisées sont embarquées, au lieu de packs
+  entiers : le code de l'interface passe de 12 à 2,5 Mo.
 
 ### Sous le capot
 - Composants d'interface communs (boutons, menus, champs, carrousels,
   charpente des fiches) ; les grandes fenêtres d'édition de tags et de
   renommage sont découpées en morceaux lisibles.
 - L'extension SQL inutilisée est retirée, et le code mort supprimé.
+- Dépendances mises à jour pour trois failles signalées par `npm audit`
+  (`devalue`, `nanoid`, `sharp`).
 
 ## [0.2.6] - 2026-09-27
 

@@ -388,7 +388,7 @@ function handleRelease() {
                         border border-neutral-100 dark:border-white/5
                         shadow-[0_4px_24px_rgba(0,0,0,0.03)]
                         dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]">
-              <Icon icon="mynaui:music-note" width="40" height="40"
+              <Icon icon="mynaui:music" width="40" height="40"
                 class="text-neutral-300 dark:text-neutral-600" />
             </div>
             <!-- Decorative rings -->

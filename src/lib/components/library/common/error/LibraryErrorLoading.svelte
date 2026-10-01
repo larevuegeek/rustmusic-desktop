@@ -18,7 +18,7 @@ let { error }: { error: string } = $props();
     <!-- Icon -->
     <div class="w-14 h-14 flex items-center justify-center 
                 rounded-full bg-red-500/10 text-red-500">
-    <Icon icon="mynaui:warning-triangle" class="w-7 h-7" />
+    <Icon icon="mynaui:danger-triangle" class="w-7 h-7" />
     </div>
 
     <!-- Title -->
