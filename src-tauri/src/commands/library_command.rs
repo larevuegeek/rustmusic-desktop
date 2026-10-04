@@ -30,8 +30,7 @@ use crate::repository::library::library_track_repository::{LibraryTrackRepositor
 use crate::mapper::library::artist::track_artist_view::TrackArtistView;
 use crate::repository::library::library_track_artist_repository::LibraryTrackArtistRepository;
 use crate::service::library::artist_link_repair::ArtistLinkReport;
-use crate::service::library::library_service::{LibrarySaveContext, RescanProgress, create_context, save_dir_to_library, save_files_to_library, save_track_to_library};
-use crate::helper::files::reader::read_dir_deep;
+use crate::service::library::library_service::{IMPORT, LibrarySaveContext, RescanProgress, create_context, lister_fichiers, save_dir_to_library, save_files_to_library, save_track_to_library};
 use crate::{state::AppState};
 use crate::mapper::library::track::track_list_item_view::TrackListView;
 
@@ -70,7 +69,8 @@ pub async fn add_directory(
     directory: String
 ) -> Result<Vec<TrackListView>, String> {
     
-    let tracks: Vec<TrackListView> = save_dir_to_library(app, &state.pool, library_id, directory).await?;
+    let Some(jeton) = IMPORT.demarrer() else { return Err("deja_en_cours".into()) };
+    let tracks: Vec<TrackListView> = save_dir_to_library(app, &state.pool, library_id, directory, &jeton).await?;
 
     Ok(tracks)
 }
@@ -159,6 +159,8 @@ pub async fn rescan_library(
         return Err("Aucun dossier enregistré dans cette bibliothèque".to_string());
     }
 
+    let Some(jeton) = IMPORT.demarrer() else { return Err("deja_en_cours".into()) };
+
     let library_name = LibraryRepository::find_library_by_id(&state.pool, library_id)
         .await
         .map(|library| library.name)
@@ -170,11 +172,11 @@ pub async fn rescan_library(
     }));
 
     // Tout est listé d'abord : la progression porte sur la bibliothèque entière.
-    let lots: Vec<_> = dirs.into_iter().map(|dir| {
-        let mut files: Vec<PathBuf> = Vec::new();
-        read_dir_deep(&dir.path, &mut files);
-        (dir, files)
-    }).collect();
+    let mut lots: Vec<_> = Vec::with_capacity(dirs.len());
+    for dir in dirs {
+        let Some(files) = lister_fichiers(&app, library_id, &dir.path).await else { break };
+        lots.push((dir, files));
+    }
 
     let total: usize = lots.iter().map(|(_, files)| files.len()).sum();
     let mut progression = RescanProgress::new(library_id, total);
@@ -184,7 +186,10 @@ pub async fn rescan_library(
 
     // Re-scanner chaque dossier (les fichiers inchangés sont sautés via le cache)
     for (dir, files) in lots {
-        match save_files_to_library(app.clone(), &state.pool, library_id, dir.path, files, Some(&mut progression)).await {
+        if jeton.annule() {
+            break;
+        }
+        match save_files_to_library(app.clone(), &state.pool, library_id, dir.path, files, Some(&mut progression), &jeton).await {
             Ok(tracks) => all_tracks.extend(tracks),
             Err(e) => log::error!("Erreur rescan dossier {}: {}", dir.name, e),
         }
@@ -193,6 +198,7 @@ pub async fn rescan_library(
     let _ = app.emit("rescan-complete", serde_json::json!({
         "library_id": library_id,
         "library_name": library_name,
+        "cancelled": jeton.annule(),
     }));
 
     Ok(all_tracks)
@@ -436,7 +442,8 @@ pub async fn rescan_library_dir(
     let dir = dirs.into_iter().find(|d| d.id == dir_id)
         .ok_or_else(|| "Directory not found".to_string())?;
 
-    save_dir_to_library(app, &state.pool, library_id, dir.path).await
+    let Some(jeton) = IMPORT.demarrer() else { return Err("deja_en_cours".into()) };
+    save_dir_to_library(app, &state.pool, library_id, dir.path, &jeton).await
 }
 
 #[tauri::command]
@@ -1337,6 +1344,7 @@ pub fn cancel_task(task_id: String) -> bool {
     match task_id.as_str() {
         "album-covers" => POCHETTES.annuler(),
         "artist-images" => PORTRAITS.annuler(),
+        "import" | "rescan" => IMPORT.annuler(),
         _ => false,
     }
 }

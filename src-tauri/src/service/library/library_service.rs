@@ -15,7 +15,8 @@ use crate::entity::library::library_cache::{LibraryCache, LibraryCacheCreate};
 use crate::entity::library::library_dirs::{LibraryDir, LibraryDirCreate};
 use crate::entity::library::library_track::{LibraryTrack, LibraryTrackCreate};
 use crate::entity::library::library_track_artist::LibraryTrackArtistCreate;
-use crate::helper::files::reader::read_dir_deep;
+use crate::helper::files::reader::read_dir_deep_suivi;
+use crate::helper::tache::{Jeton, Tache};
 use crate::helper::library::thumbnail_helper::{migrate_old_thumbnails, thumbnail_saver};
 use crate::helper::string::string::{normalize_name, normalize_sort_name, split_artists};
 use crate::mapper::library::track::mapper_track::to_track_list_view;
@@ -110,17 +111,40 @@ pub fn create_context(
 // EVENTS DE PROGRESSION
 // ============================================================================
 
+/// Import ou rescan : un seul à la fois, arrêtable.
+pub static IMPORT: Tache = Tache::new();
+
+#[derive(Clone, Serialize)]
+pub struct ImportStart {
+    pub library_id: i64,
+    pub directory: String,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ImportListing {
+    pub library_id: i64,
+    pub directory: String,
+    pub found: usize,
+}
+
 #[derive(Clone, Serialize)]
 pub struct ImportProgress {
+    pub library_id: i64,
+    pub directory: String,
     pub current: usize,
     pub total: usize,
     pub percent: usize,
     pub file_name: String,
+    /// Nouveaux morceaux, pas encore validés en base.
+    pub added: usize,
 }
 
 #[derive(Clone, Serialize)]
 pub struct ImportComplete {
+    pub library_id: i64,
+    pub directory: String,
     pub total: usize,
+    pub cancelled: bool,
     pub duration_ms: u128,
     /// Number of files skipped because of an analysis or DB error.
     pub skipped: usize,
@@ -190,42 +214,70 @@ pub async fn save_dir_to_library(
     app: tauri::AppHandle,
     pool_api: &SqlitePool,
     library_id: i64,
-    directory: String
+    directory: String,
+    jeton: &Jeton,
 ) -> Result<Vec<TrackListView>, String> {
 
-    // Scan récursif du dossier
-    let mut files: Vec<PathBuf> = Vec::new();
-    let _ = read_dir_deep(&directory, &mut files);
+    // Enregistré avant le listage pour apparaître tout de suite.
+    let library_dir = trouver_ou_creer_dossier(pool_api, library_id, &directory).await?;
+    let _ = app.emit("import-start", ImportStart { library_id, directory: directory.clone() });
 
-    save_files_to_library(app, pool_api, library_id, directory, files, None).await
+    let Some(files) = lister_fichiers(&app, library_id, &directory).await else {
+        let _ = LibraryDirRepository::update_scan_result(
+            pool_api, &library_dir.id, 0, 0, "cancelled", None,
+        ).await;
+        let _ = app.emit("import-complete", ImportComplete {
+            library_id, directory, total: 0, cancelled: true, duration_ms: 0, skipped: 0,
+        });
+        return Ok(Vec::new());
+    };
+
+    save_files_to_library(app, pool_api, library_id, directory, files, None, jeton).await
 }
 
-/// Importe les fichiers déjà listés d'un dossier. Le rescan les liste d'avance
-/// pour connaître le total de toute la bibliothèque.
-pub async fn save_files_to_library(
-    app: tauri::AppHandle,
+/// Liste les fichiers audio hors du runtime async ; `None` si l'import est arrêté.
+pub async fn lister_fichiers(
+    app: &tauri::AppHandle,
+    library_id: i64,
+    directory: &str,
+) -> Option<Vec<PathBuf>> {
+    let app = app.clone();
+    let directory = directory.to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        let emettre = |found: usize| {
+            let _ = app.emit("import-listing", ImportListing {
+                library_id, directory: directory.clone(), found,
+            });
+        };
+        let mut files: Vec<PathBuf> = Vec::new();
+        let mut derniere: Option<Instant> = None;
+        let complet = read_dir_deep_suivi(&directory, &mut files, &mut |found| {
+            if derniere.map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(100)) {
+                derniere = Some(Instant::now());
+                emettre(found);
+            }
+            !IMPORT.annulation_demandee()
+        });
+        emettre(files.len());
+        complet.then_some(files)
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+async fn trouver_ou_creer_dossier(
     pool_api: &SqlitePool,
     library_id: i64,
-    directory: String,
-    files: Vec<PathBuf>,
-    mut progression: Option<&mut RescanProgress>,
-) -> Result<Vec<TrackListView>, String> {
-
-    let start: Instant = Instant::now();
-
-    let mut tracks: Vec<TrackListView> = Vec::new();
-
-    // declaration de mes repository
-    let ctx: LibrarySaveContext = create_context(app.clone(), pool_api);
-
-    // On ajoute le dossier (hors transaction, c'est 1 seule requête)
-    let library_dir: LibraryDir = match LibraryDirRepository::find_by_path(pool_api, library_id, &directory).await {
-        Ok(Some(library_dir)) => library_dir,
+    directory: &str,
+) -> Result<LibraryDir, String> {
+    match LibraryDirRepository::find_by_path(pool_api, library_id, directory).await {
+        Ok(Some(library_dir)) => Ok(library_dir),
         Ok(None) => {
             LibraryDirRepository::insert_library_dir(pool_api, LibraryDirCreate {
                     library_id,
-                    path: directory.clone(),
-                    name: PathBuf::from(&directory)
+                    path: directory.to_string(),
+                    name: PathBuf::from(directory)
                         .file_name()
                         .and_then(|s| s.to_str())
                         .unwrap_or("Unknown")
@@ -237,10 +289,33 @@ pub async fn save_files_to_library(
                     exclude_patterns: None,
                 })
                 .await
-                .map_err(|e| e.to_string())?
+                .map_err(|e| e.to_string())
         },
-        Err(e) => return Err(format!("Failed to find directory: {}", e)),
-    };
+        Err(e) => Err(format!("Failed to find directory: {}", e)),
+    }
+}
+
+/// Importe les fichiers déjà listés d'un dossier. Le rescan les liste d'avance
+/// pour connaître le total de toute la bibliothèque.
+pub async fn save_files_to_library(
+    app: tauri::AppHandle,
+    pool_api: &SqlitePool,
+    library_id: i64,
+    directory: String,
+    files: Vec<PathBuf>,
+    mut progression: Option<&mut RescanProgress>,
+    jeton: &Jeton,
+) -> Result<Vec<TrackListView>, String> {
+
+    let start: Instant = Instant::now();
+
+    let mut tracks: Vec<TrackListView> = Vec::new();
+
+    // declaration de mes repository
+    let ctx: LibrarySaveContext = create_context(app.clone(), pool_api);
+
+    // On ajoute le dossier (hors transaction, c'est 1 seule requête)
+    let library_dir: LibraryDir = trouver_ou_creer_dossier(pool_api, library_id, &directory).await?;
 
     // Migrations miniatures (covers → covers/albums/, artists → covers/artists/)
     migrate_old_thumbnails(&app, &ctx.covers_dir, pool_api, "covers").await?;
@@ -270,8 +345,16 @@ pub async fn save_files_to_library(
     let mut processed: usize = 0;
     let mut skipped: Vec<(PathBuf, String)> = Vec::new();
     let covers_dir = ctx.covers_dir.clone();
+    let mut annule = false;
+    let mut ajoutes: usize = 0;
 
     for chunk in files.chunks(BATCH_SIZE) {
+
+        // Arrêt entre deux lots : ce qui est fait est validé.
+        if jeton.annule() {
+            annule = true;
+            break;
+        }
 
         // ── Phase 1 : Analyse parallèle (CPU-bound, sync, rayon) ──
         // Double protection :
@@ -311,10 +394,13 @@ pub async fn save_files_to_library(
 
             // Émettre la progression
             let _ = app.emit("import-progress", ImportProgress {
+                library_id,
+                directory: directory.clone(),
                 current: processed,
                 total,
                 percent: if total > 0 { (processed * 100) / total } else { 0 },
                 file_name: file_name.clone(),
+                added: ajoutes,
             });
 
             if let Some(p) = progression.as_deref_mut() {
@@ -334,7 +420,10 @@ pub async fn save_files_to_library(
             match save_analysed_to_db(
                 &mut *tx, library_id, Some(library_dir.id.clone()), analysis
             ).await {
-                Ok(track) => tracks.push(track),
+                Ok((track, nouveau)) => {
+                    ajoutes += nouveau as usize;
+                    tracks.push(track);
+                }
                 Err(e) => {
                     log::warn!("⚠️ DB ignoré {} : {}", file_name, e);
                     skipped.push((file.clone(), e));
@@ -368,7 +457,7 @@ pub async fn save_files_to_library(
     let _ = LibraryDirRepository::update_scan_result(
         pool_api, &library_dir.id,
         tracks.len() as i64, total_size,
-        "completed", None,
+        if annule { "cancelled" } else { "completed" }, None,
     ).await;
 
 
@@ -377,7 +466,10 @@ pub async fn save_files_to_library(
 
     // Émettre l'événement de fin au frontend
     let _ = app.emit("import-complete", ImportComplete {
+        library_id,
+        directory,
         total: tracks.len(),
+        cancelled: annule,
         duration_ms: elapsed.as_millis(),
         skipped: skipped.len(),
     });
@@ -397,7 +489,7 @@ async fn save_analysed_to_db(
     library_id: i64,
     library_dir_id: Option<String>,
     analysis: FileAnalysisResult,
-) -> Result<TrackListView, String> {
+) -> Result<(TrackListView, bool), String> {
     let now = Utc::now();
 
     // ─── Upsert le fichier en DB ───
@@ -410,12 +502,15 @@ async fn save_analysed_to_db(
         created_at: now.clone(), updated_at: now, last_verified_at: None,
     }).await.map_err(|e| format!("Failed to insert file: {}", e))?;
 
+    // L'upsert garde le statut d'un fichier connu.
+    let nouveau = library_file.status != "indexed";
+
     // ─── Skip si fichier inchangé ───
     if library_file.status == "indexed" && library_file.modified_at == analysis.file_modified {
         if let Ok(Some(existing_view)) = LibraryTrackRepository::find_track_view_by_file_id(
             &mut *conn, &library_file.id
         ).await {
-            return Ok(existing_view);
+            return Ok((existing_view, false));
         }
     }
 
@@ -580,7 +675,7 @@ async fn save_analysed_to_db(
         &mut *conn, &library_file.id, analysis.file_modified.as_deref(),
     ).await;
 
-    Ok(to_track_list_view(&library_track, &library_file, &library_cache, &artist, library_artist.as_ref(), library_album.as_ref()))
+    Ok((to_track_list_view(&library_track, &library_file, &library_cache, &artist, library_artist.as_ref(), library_album.as_ref()), nouveau))
 }
 
 // Version pool — pour l'import de fichiers individuels (hors transaction)

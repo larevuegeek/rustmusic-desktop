@@ -57,6 +57,8 @@ export async function importerDossier(libraryId: number, directory: string): Pro
     try {
         return (await invoke<TrackListView[]>('add_directory', { libraryId, directory })) ?? [];
     } catch (err) {
+        // Un import tourne déjà : l'appelant le signale.
+        if (err === 'deja_en_cours') throw err;
         console.error(err);
         return [];
     } finally {

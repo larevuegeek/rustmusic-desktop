@@ -11,14 +11,13 @@ import { onDestroy, tick } from "svelte";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
 import { t, currentLocale } from "$lib/i18n";
-import { libraryStore } from "$lib/stores/library/library.store";
 import { libraryHeader } from "$lib/stores/library/libraryHeader";
 import { settingsStore } from "$lib/stores/settings/settings.store";
-import { handleAddFiles, handleAddDirectory } from "$lib/actions/library/LibraryAction";
 import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
 import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
 import { clesAffichees, resoudreColonnes, lireLargeurs, resetTagCache, type SortDir } from "$lib/config/trackColumns";
 import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
+import { importAffiche, importsTermines } from "$lib/stores/library/importProgress.store";
 import LibraryTrackTable from "$lib/components/library/track/LibraryTrackTable.svelte";
 import FilterChip from "$lib/components/ui/input/FilterChip.svelte";
 import Menu from "$lib/components/ui/menu/Menu.svelte";
@@ -28,7 +27,6 @@ import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 import type { GenreView } from "$lib/types/ui/library/genre/GenreView";
 
 const libraryId = $derived(Number(page.params.library_id));
-const currentLibrary = $derived($libraryStore.libraries.find((l) => l.id === libraryId));
 
 // ─── Préférences retenues : tri et densité ───
 type Tri = "title" | "artist" | "album" | "rating" | "duration" | "date";
@@ -232,9 +230,9 @@ function allerLettre(l: string) {
   else charger(Math.max(0, i - 20), i);
 }
 
-// Tout changement de bibliothèque, de tri ou de filtre repart du début.
+// Tout changement de bibliothèque, de tri, de filtre ou un import validé repart du début.
 $effect(() => {
-  void [libraryId, tri, sens, rechercheEnvoyee, hiRes, sansPerte, favoris, sansPochette, genre];
+  void [libraryId, tri, sens, rechercheEnvoyee, hiRes, sansPerte, favoris, sansPochette, genre, $importsTermines];
   charger(0);
   chargerLettres();
 });
@@ -265,27 +263,8 @@ onDestroy(() => libraryHeader.update((h) => ({ ...h, action: null })));
 const nombre = (n: number) => n.toLocaleString($currentLocale);
 </script>
 
-{#if $libraryStore.isImporting}
+{#if $importAffiche}
   <LibraryImportingLoader />
-
-{:else if currentLibrary?.total_tracks === 0}
-  <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
-    <div class="w-16 h-16 mb-5 rounded-2xl border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
-      <Icon icon="material-symbols:music-note-rounded" width="30" />
-    </div>
-    <h3 class="text-base font-semibold text-(--rg-tx) mb-1.5">{$t("library.empty_title")}</h3>
-    <p class="text-sm text-(--rg-mu) max-w-xs leading-relaxed mb-6">{$t("library.empty_desc")}</p>
-    <div class="flex items-center gap-2">
-      <button class="h-10 px-4 flex items-center gap-2 rounded-[10px] text-sm font-bold cursor-pointer bg-(--rg-g) text-(--rg-on-g) hover:bg-[#34d673]"
-              onclick={() => libraryId && handleAddFiles(libraryId)}>
-        <Icon icon="material-symbols:upload-file-outline-rounded" width="18" />{$t("library.import_files")}
-      </button>
-      <button class="h-10 px-4 flex items-center gap-2 rounded-[10px] text-sm font-semibold cursor-pointer border border-(--rg-bd2) text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-carte)"
-              onclick={() => libraryId && handleAddDirectory(libraryId)}>
-        <Icon icon="material-symbols:create-new-folder-outline-rounded" width="18" />{$t("library.import_folder")}
-      </button>
-    </div>
-  </div>
 
 {:else}
   <div class="flex flex-col h-full">

@@ -3,8 +3,8 @@
 ## [0.2.8] - 2026-10-04
 
 Le son tient enfin sa promesse de bit-perfect, la bibliothèque s'explore par
-années, par mix et par playlists, et l'application explique ses termes
-techniques.
+années, par mix et par playlists, l'application explique ses termes
+techniques, et l'import se suit en direct et s'arrête à tout moment.
 
 ### Audio
 - **Bit-perfect réel en mode exclusif**, sous Windows, Linux et macOS. La
@@ -82,11 +82,48 @@ techniques.
 - « Ajouter à une playlist » ne propose plus les playlists auto, qui ne
   recevaient rien.
 
+### Import
+- **L'import se suit en direct.** Le dossier ajouté apparaît tout de suite
+  dans « Dossiers synchronisés », avec la recherche des fichiers (« 1 234
+  trouvés »), puis l'avancement, la barre de progression et le fichier en
+  cours. Sur un partage réseau, la longue recherche des fichiers ne laisse
+  plus l'écran muet.
+- **Un import ou un rescan s'arrête** depuis le popin des dossiers, l'écran de
+  progression ou la barre d'état. Ce qui est déjà importé est gardé, et un
+  message « Importation partielle » dit combien de titres, d'albums et
+  d'artistes ont été ajoutés. Le bouton annuler de la barre d'état arrête
+  vraiment l'import, au lieu de seulement masquer la tâche.
+- Le compteur de titres de la barre latérale et de l'en-tête monte pendant
+  l'import, et ne compte que les morceaux réellement nouveaux.
+- Après un import, même arrêté, l'accueil, les Morceaux, les Genres et les
+  Dossiers se rechargent : plus de « 0 résultat » alors que des titres ont été
+  ajoutés.
+- Un seul import à la fois : un second dit « Un import est déjà en cours » au
+  lieu d'échouer sans rien dire.
+- Une bibliothèque vide affiche la progression de l'import, d'où qu'il ait
+  été lancé, avec les boutons Arrêter et Dossiers.
+
+### Premier lancement
+- **Accueil de bienvenue** sans bibliothèque ou avec une bibliothèque vide :
+  « Importer ma musique », les trois étapes, et un aperçu des sections. On
+  peut aussi juste écouter un dossier sans rien importer.
+- **Page d'import** : nom de la bibliothèque, import d'un dossier ou de
+  fichiers, formats reconnus. Annuler le choix du dossier ne crée rien.
+- Sans bibliothèque, toutes les tuiles de la barre latérale restent
+  affichées et mènent à l'import, puis à la section choisie. Dans une
+  bibliothèque vide, chaque onglet propose directement l'import.
+
 ### Navigation
 - Onglets dans l'ordre Morceaux, Artistes, Albums, Genres, Années, Dossiers,
   Mix, Playlists. Années, Mix et Playlists se cochent dans Apparence.
 - Mode « onglets en haut » : Accueil ouvre la barre du haut, et la barre
   latérale n'a plus de tuiles. « Les deux » est exactement la somme des deux.
+- Les boutons Fichier et Dossier de la barre latérale sont affichés par
+  défaut, et l'aperçu d'Apparence les place au-dessus des tuiles, comme dans
+  la barre.
+- Les vignettes de Titres likés, Récemment joués et des playlists sans
+  pochette gardent leur couleur en mode sombre (le rose virait à l'olive) et
+  leur icône se lit.
 
 ### Bibliothèque
 - Les colonnes hors de l'écran à droite ne sont plus vides. Seule la liste
@@ -112,9 +149,16 @@ techniques.
 - Les menus (Artistes, Albums, Dossiers) s'affichent dans la langue de l'app
   sur l'ampli, et plus toujours en français.
 
+### Fenêtre
+- **macOS : le bouton vert passe en plein écran**, comme dans les autres
+  applications ; ⌥ + clic garde l'agrandissement. Le mini-lecteur sait en
+  sortir et y revenir.
+
 ### Divers
 - L'export des réglages conserve les playlists auto, les mix et l'épinglage.
 - Le nettoyage du cache d'images épargne les pochettes de playlists.
+- L'accueil, les statistiques et la page d'import ne sont plus coupés en bas
+  sur une petite fenêtre.
 
 ## [0.2.7] - 2026-10-01
 

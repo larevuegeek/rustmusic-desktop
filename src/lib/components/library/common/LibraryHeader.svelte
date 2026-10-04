@@ -10,6 +10,7 @@ import { libraryHeader } from "$lib/stores/library/libraryHeader";
 import { tailleLisible } from "$lib/helper/tools/sizeTools";
 import { ONGLETS_BIBLIOTHEQUE, ongletCourant } from "$lib/config/libraryTabs";
 import { libraryStore } from "$lib/stores/library/library.store";
+import { pistesAvecImport } from "$lib/stores/library/importProgress.store";
 import Menu from "$lib/components/ui/menu/Menu.svelte";
 import MenuItem from "$lib/components/ui/menu/MenuItem.svelte";
 import LibraryActionBar from "./LibraryActionBar.svelte";
@@ -47,7 +48,7 @@ const morceaux = $derived(section?.key === "tracks");
 const chiffres = $derived.by(() => {
   const albums = { n: library.total_albums, un: "library_head.albums_one", plusieurs: "library_head.albums_n" };
   const artistes = { n: library.total_artists, un: "library_head.artists_one", plusieurs: "library_head.artists_n" };
-  const titres = { n: library.total_tracks, un: "library_head.tracks_one", plusieurs: "library_head.tracks_n" };
+  const titres = { n: $pistesAvecImport(library), un: "library_head.tracks_one", plusieurs: "library_head.tracks_n" };
   if ($libraryHeader.chiffres) return $libraryHeader.chiffres.filter((c) => c.n > 0);
   const ordre = morceaux ? [titres, albums, artistes] : section?.key === "artists" ? [artistes, albums, titres] : [albums, artistes, titres];
   return ordre.filter((c) => c.n > 0);
@@ -96,7 +97,7 @@ function changer(lib: Library) {
             {#each $libraryStore.libraries as lib (lib.id)}
               <MenuItem icon="material-symbols:library-music-outline-rounded" actif={lib.id === library.id} onclick={() => changer(lib)}>
                 {lib.name}
-                {#snippet fin()}<span class="font-mono text-[11px] text-(--rg-mu2)">{nombre(lib.total_tracks)}</span>{/snippet}
+                {#snippet fin()}<span class="font-mono text-[11px] text-(--rg-mu2)">{nombre($pistesAvecImport(lib))}</span>{/snippet}
               </MenuItem>
             {/each}
           </Menu>

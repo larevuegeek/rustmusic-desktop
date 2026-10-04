@@ -90,7 +90,7 @@ export const settingsDefaults: AppSettings = {
   show_recent_in_playlists: 'true',
   show_liked_in_home: 'true',
   show_recent_in_home: 'true',
-  show_open_buttons: 'false',
+  show_open_buttons: 'true',
   show_favorites: 'true',
   library_tabs_position: 'both',
   library_tabs: '["tracks","artists","albums","genres","folders"]',

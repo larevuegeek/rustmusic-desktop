@@ -19,6 +19,7 @@
   const appWindow = getCurrentWindow();
 
   let isMaximized = $state(false);
+  let isFullscreen = $state(false);
   let osDetected = detectOS();
 
   let minimizeToTray = $derived($settingsStore.minimize_to_tray === 'true');
@@ -41,7 +42,10 @@
 
   // Suit l'état réel : bouton, Win+↑, double clic ou fenêtre tirée vers le haut.
   $effect(() => {
-    const lire = () => { appWindow.isMaximized().then((v) => { isMaximized = v; }).catch(() => {}); };
+    const lire = () => {
+      appWindow.isMaximized().then((v) => { isMaximized = v; }).catch(() => {});
+      appWindow.isFullscreen().then((v) => { isFullscreen = v; }).catch(() => {});
+    };
     lire();
     let arreter: (() => void) | null = null;
     let fini = false;
@@ -51,6 +55,12 @@
 
   function minimize() { appWindow.minimize(); }
   function toggleMaximize() { appWindow.toggleMaximize(); }
+
+  // Sur Mac, le vert passe en plein écran comme ailleurs dans le système ; ⌥ + clic agrandit.
+  function boutonVert(e: MouseEvent) {
+    if (osDetected !== 'macos' || e.altKey) toggleMaximize();
+    else appWindow.isFullscreen().then((v) => appWindow.setFullscreen(!v)).catch(() => {});
+  }
 
   // Seulement sur le vide : un double clic dans la recherche n'agrandit pas la fenêtre.
   function doubleClic(e: MouseEvent) {
@@ -141,8 +151,9 @@
       <button
         class="w-3 h-3 rounded-full bg-[#28c840] opacity-70 hover:opacity-100
                transition-opacity cursor-pointer"
-        onclick={toggleMaximize}
-        aria-label={$t("window.maximize")}
+        onclick={boutonVert}
+        aria-label={osDetected !== 'macos' ? $t("window.maximize")
+          : isFullscreen ? $t("window.exit_fullscreen") : $t("window.fullscreen")}
       ></button>
       <button
         class="w-3 h-3 rounded-full bg-[#ff5f57] opacity-70 hover:opacity-100

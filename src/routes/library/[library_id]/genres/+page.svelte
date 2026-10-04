@@ -18,6 +18,7 @@ import { viewMode } from "$lib/stores/ui/viewMode.store";
 import { handleRandomMix } from "$lib/actions/queue/QueueAction";
 import { cleTri, lettreTri } from "$lib/helper/library/cleTri";
 import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
+import { importAffiche, importsTermines } from "$lib/stores/library/importProgress.store";
 import GenreCard from "$lib/components/library/genre/GenreCard.svelte";
 import GenreListRow from "$lib/components/library/genre/GenreListRow.svelte";
 import AlphabetNav from "$lib/components/ui/alphabet/AlphabetNav.svelte";
@@ -34,6 +35,7 @@ let genres = $state<GenreView[]>([]);
 let chargement = $state(true);
 $effect(() => {
   const id = libraryId;
+  void $importsTermines;
   chargement = true;
   invoke<GenreView[]>("get_genres", { libraryId: id })
     .then((g) => { if (id === libraryId) genres = g; })
@@ -129,7 +131,7 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
 const lienSansGenre = $derived(`/library/${libraryId}/albums?genre=__sans__`);
 </script>
 
-{#if $libraryStore.isImporting}
+{#if $importAffiche}
   <LibraryImportingLoader />
 
 {:else if chargement && genres.length === 0}

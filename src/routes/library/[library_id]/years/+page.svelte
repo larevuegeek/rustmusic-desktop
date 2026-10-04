@@ -5,11 +5,11 @@ import { onDestroy } from "svelte";
 import Icon from "@iconify/svelte";
 import { t, currentLocale } from "$lib/i18n";
 import { libraryHeader } from "$lib/stores/library/libraryHeader";
-import { libraryStore } from "$lib/stores/library/library.store";
 import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
 import { handlePeriodeMix, handleRandomMix } from "$lib/actions/queue/QueueAction";
 import { lireLocal, ecrireLocal } from "$lib/helper/tools/stockage";
 import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
+import { importAffiche } from "$lib/stores/library/importProgress.store";
 import AlbumListItem from "$lib/components/library/album/AlbumListItem.svelte";
 import Carousel from "$lib/components/ui/carousel/Carousel.svelte";
 import MenuSelect from "$lib/components/ui/menu/MenuSelect.svelte";
@@ -113,7 +113,7 @@ function monter(noeud: HTMLElement, d: number) {
 const puce = "h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text-[13px] font-semibold transition-colors";
 </script>
 
-{#if $libraryStore.isImporting}
+{#if $importAffiche}
   <LibraryImportingLoader />
 
 {:else if $libraryContentStore.isLoading && albums.length === 0}

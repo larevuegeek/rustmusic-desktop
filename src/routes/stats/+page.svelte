@@ -41,7 +41,7 @@ let qualityTotal = $derived.by(() => {
 });
 </script>
 
-<div class="py-6 px-4 md:px-10 scrollbar-app overflow-y-auto" style="height: calc(100vh - 250px);">
+<div class="py-6 px-4 md:px-10 h-full overflow-y-auto overscroll-contain scrollbar-app">
 
   <!-- Header -->
   <div class="flex items-center gap-3 mb-8">

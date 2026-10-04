@@ -18,17 +18,20 @@
 
 <div class="flex flex-col gap-1.5 p-4 bg-(--rg-creux)" aria-hidden="true">
   <p class="mb-1 text-[11px] font-bold tracking-[0.08em] uppercase leading-[1.2] text-(--rg-mu2)">{$t("settings.preview")}</p>
+  <!-- Même ordre que la barre : Fichier / Dossier, puis les tuiles. -->
+  {#if ouvrir}
+    <div class="flex items-center gap-1">
+      <span class="flex-1 h-4 rounded {case_} border border-[#e2ddd3] dark:border-[#262d29]"></span>
+      <span class="flex-1 h-4 rounded {case_} border border-[#e2ddd3] dark:border-[#262d29]"></span>
+      <span class="w-3 text-center text-[9px] leading-none text-(--rg-mu2)">•••</span>
+    </div>
+    <span class="h-px my-0.5 bg-linear-to-r from-transparent via-(--rg-mu2)/40 to-transparent"></span>
+  {/if}
   <div class="grid grid-cols-3 gap-1">
     {#each [0, 1, 2, 3, 4, 5] as i (i)}
       <span class="h-5.5 rounded-[5px] {i === 0 ? 'bg-(--rg-gbg) border border-(--rg-gbd)' : case_}"></span>
     {/each}
   </div>
-  {#if ouvrir}
-    <div class="flex gap-1 pt-1.5">
-      <span class="flex-1 h-4 rounded {case_} border border-[#e2ddd3] dark:border-[#262d29]"></span>
-      <span class="flex-1 h-4 rounded {case_} border border-[#e2ddd3] dark:border-[#262d29]"></span>
-    </div>
-  {/if}
   <div class="flex flex-col gap-1 pt-1.5">
     <em class="not-italic {titre}">{$t("nav.playlists")}</em>
     {@render ligne(55, false)}

@@ -1,5 +1,6 @@
 <script lang="ts">
 import { libraryStore } from "$lib/stores/library/library.store"
+import { pistesAvecImport } from "$lib/stores/library/importProgress.store";
 import { t } from "$lib/i18n";
 import Icon from "@iconify/svelte";
 import { goto } from "$app/navigation";
@@ -22,7 +23,7 @@ let activeLibrary = $derived($libraryStore.librarySelected);
 let otherLibraries = $derived($libraryStore.libraries.filter(lib => lib.id !== activeLibrary?.id));
 
 const sousTitre = $derived.by(() => {
-  const n = activeLibrary?.total_tracks ?? 0;
+  const n = $pistesAvecImport(activeLibrary);
   const titres = n === 1 ? $t('home.track_one') : $t('home.tracks_n').replace('{n}', n.toLocaleString($currentLocale));
   const nb = $libraryStore.libraries.length;
   return nb > 1 ? `${titres} · ${$t('sidebar.libraries_n').replace('{n}', String(nb))}` : titres;
@@ -208,7 +209,7 @@ $effect(() => {
                       {/if}
                     </div>
                     <div class="text-[10px] text-neutral-400 dark:text-neutral-500">
-                      {library.total_tracks} titre{library.total_tracks !== 1 ? 's' : ''}
+                      {$pistesAvecImport(library)} titre{$pistesAvecImport(library) !== 1 ? 's' : ''}
                       · {library.total_albums} album{library.total_albums !== 1 ? 's' : ''}
                     </div>
                   </div>

@@ -31,6 +31,7 @@ const NORMAL_H = 900;
 let savedSize: PhysicalSize | null = null;
 let savedPos: PhysicalPosition | null = null;
 let savedMaximized = false;
+let savedFullscreen = false;
 /** Hauteur logique courante (suivie pour animer depuis la bonne valeur). */
 let currentH = MINI_H;
 /** Hauteur réelle du contenu replié, mesurée par le composant (ResizeObserver). */
@@ -54,11 +55,33 @@ async function setH(h: number): Promise<void> {
   }
 }
 
+/** Quitte le plein écran et attend la fin de l'animation : macOS ignore les redimensionnements pendant. */
+async function quitterPleinEcran(win: ReturnType<typeof getCurrentWindow>): Promise<void> {
+  let fin: () => void = () => {};
+  const termine = new Promise<void>((r) => { fin = r; });
+  let calme: ReturnType<typeof setTimeout> | undefined;
+  const plafond = setTimeout(fin, 2000);
+  const arreter = await win.onResized(() => {
+    clearTimeout(calme);
+    calme = setTimeout(fin, 200);
+  });
+  try {
+    await win.setFullscreen(false);
+    await termine;
+  } finally {
+    clearTimeout(calme);
+    clearTimeout(plafond);
+    arreter();
+  }
+}
+
 export async function enterMiniPlayer(): Promise<void> {
   if (get(miniPlayerActive) || bascule) return;
   bascule = true;
   try {
     const win = getCurrentWindow();
+    savedFullscreen = await win.isFullscreen();
+    if (savedFullscreen) await quitterPleinEcran(win);
     savedMaximized = await win.isMaximized();
     if (savedMaximized) await win.unmaximize();
     savedSize = await win.innerSize();
@@ -95,6 +118,7 @@ export async function exitMiniPlayer(): Promise<void> {
     if (fiable && savedPos) await win.setPosition(savedPos);
     else await win.center();
     if (savedMaximized) await win.maximize();
+    if (savedFullscreen) await win.setFullscreen(true);
     miniPlayerActive.set(false);
   } catch (e) {
     console.error("[mini-player] exit failed:", e);

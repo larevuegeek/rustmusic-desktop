@@ -78,10 +78,28 @@ export const taskProgressStore = {
       }
     );
 
-    const u2 = await listen<{ total: number; duration_ms: number }>(
+    // Listage d'un dossier ajouté ; le rescan a déjà sa tâche.
+    const u1b = await listen<{ found: number }>(
+      'import-listing', (e) => {
+        if (get(taskWriter)['rescan']?.active) return;
+        upsertTask('import', {
+          label: get(t)("system.task_listing"),
+          icon: "lucide:folder-search",
+          current: 0,
+          total: 0,
+          percent: 0,
+          detail: get(t)(e.payload.found === 1 ? "system.files_found_one" : "system.files_found_n")
+            .replace("{n}", e.payload.found.toLocaleString(get(currentLocale))),
+        });
+      }
+    );
+
+    const u2 = await listen<{ total: number; duration_ms: number; cancelled: boolean }>(
       'import-complete', (e) => {
         upsertTask('import', {
-          label: get(t)(e.payload.total === 1 ? "system.task_import_done_one" : "system.task_import_done_n").replace("{n}", String(e.payload.total)),
+          label: e.payload.cancelled
+            ? get(t)("system.task_import_stopped")
+            : get(t)(e.payload.total === 1 ? "system.task_import_done_one" : "system.task_import_done_n").replace("{n}", String(e.payload.total)),
           percent: 100,
           current: e.payload.total,
           total: e.payload.total,
@@ -207,7 +225,7 @@ export const taskProgressStore = {
       },
     );
 
-    unlisteners = [u1, u2, u3, u3b, u3c, u3d, u4, u5, u5b, u6, u7, u8];
+    unlisteners = [u1, u1b, u2, u3, u3b, u3c, u3d, u4, u5, u5b, u6, u7, u8];
   },
 
   cancel: (id: string) => {

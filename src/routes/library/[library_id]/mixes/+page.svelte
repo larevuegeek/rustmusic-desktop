@@ -6,13 +6,13 @@ import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "$lib/i18n";
 import { libraryHeader } from "$lib/stores/library/libraryHeader";
-import { libraryStore } from "$lib/stores/library/library.store";
 import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
 import { playlistStore } from "$lib/stores/playlist/playlist.store";
 import { renouveler } from "$lib/stores/mix/mix.store";
 import { mixPourVous, mixGenres, mixDecennies, mixCrees, type SpecMix } from "$lib/config/mixes";
 import { actionsMix, nouveauMix } from "$lib/actions/mix/MixAction";
 import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
+import { importAffiche } from "$lib/stores/library/importProgress.store";
 import ToolbarButton from "$lib/components/ui/button/ToolbarButton.svelte";
 import MixCard from "$lib/components/mix/MixCard.svelte";
 import type { GenreMix } from "$lib/types/ui/library/genre/GenreMix";
@@ -68,7 +68,7 @@ const grille = "grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap
   {/each}
 {/snippet}
 
-{#if $libraryStore.isImporting}
+{#if $importAffiche}
   <LibraryImportingLoader />
 {:else}
   <div class="flex flex-col h-full">

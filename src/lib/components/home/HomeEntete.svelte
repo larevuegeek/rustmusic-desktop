@@ -3,11 +3,13 @@ import Icon from "@iconify/svelte";
 import { t, currentLocale } from "$lib/i18n";
 import type { LibraryStats } from "$lib/types/ui/library/stats/LibraryStats";
 
-let { nom, libraryId, stats, onajouter }: {
+let { nom, libraryId, stats, onajouter, sousTitre = null, bouton = true }: {
   nom: string | null | undefined;
   libraryId: number | null;
   stats: LibraryStats | null;
   onajouter: () => void;
+  sousTitre?: string | null;
+  bouton?: boolean;
 } = $props();
 
 function salutation(): string {
@@ -36,7 +38,7 @@ const chiffres = $derived(stats && libraryId ? [
   </h1>
 
   <p class="@3xl:col-start-1 @3xl:row-start-2 min-w-0 text-[17px] text-neutral-500 dark:text-[#9aa39e]">
-    {$t('home.subtitle')}
+    {sousTitre ?? $t('home.subtitle')}
   </p>
 
   {#if chiffres.length > 0}
@@ -57,6 +59,7 @@ const chiffres = $derived(stats && libraryId ? [
   {/if}
 
   <!-- Même famille que les boutons secondaires du hero ; seul le « + » porte l'accent. -->
+  {#if bouton}
   <button type="button" onclick={onajouter}
           class="@3xl:col-start-2 @3xl:row-start-1 self-center justify-self-start @3xl:justify-self-end mt-3 @3xl:mt-0
                  h-10 px-4 rounded-full text-sm font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap
@@ -64,4 +67,5 @@ const chiffres = $derived(stats && libraryId ? [
                  dark:bg-white/10 dark:hover:bg-white/16 dark:text-white transition-colors">
     <Icon icon="lucide:plus" width={16} class="text-[#16a34a] dark:text-[#22c55e]" /> {$t('home.add_music')}
   </button>
+  {/if}
 </header>

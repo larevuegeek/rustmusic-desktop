@@ -20,6 +20,7 @@ import { cleTri, lettreTri, comparerNaturel } from "$lib/helper/library/cleTri";
 import { differe } from "$lib/helper/tools/differe.svelte";
 import LibraryAlbumSkeleton from "$lib/components/library/common/skeleton/LibraryAlbumSkeleton.svelte";
 import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
+import { importAffiche } from "$lib/stores/library/importProgress.store";
 import AlbumListItem from "$lib/components/library/album/AlbumListItem.svelte";
 import AlbumListRow from "$lib/components/library/album/AlbumListRow.svelte";
 import AlphabetNav from "$lib/components/ui/alphabet/AlphabetNav.svelte";
@@ -133,7 +134,7 @@ function allerLettre(l: string) {
 const nombre = (n: number) => n.toLocaleString($currentLocale);
 </script>
 
-{#if $libraryStore.isImporting}
+{#if $importAffiche}
   <LibraryImportingLoader />
 
 {:else if currentLibrary?.total_albums === 0}

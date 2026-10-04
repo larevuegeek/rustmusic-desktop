@@ -82,7 +82,7 @@ onMount(() => {
 >
   <!-- ─── Haut : ouvrir, navigation, bibliothèque. Le logo est dans la barre de titre. ─── -->
   <div class="shrink-0 flex flex-col gap-3 {replie ? 'items-center' : ''}">
-    <!-- Masqué par défaut : l'accueil propose déjà les deux actions. -->
+    <!-- Affiché par défaut ; se masque depuis son « … » ou Réglages → Apparence. -->
     {#if montrerBoutonsOuvrir && !replie}
       <div class="flex items-center gap-2">
         {#each [

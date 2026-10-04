@@ -34,6 +34,8 @@
     "core:window:allow-set-position",
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
     "core:window:allow-center",
     "autostart:allow-enable",
     "autostart:allow-disable",

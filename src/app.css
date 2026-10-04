@@ -689,15 +689,16 @@ html, body {
 /* Icônes Material un cran plus épaisses, comme la police de la maquette. */
 .sb-icone path { stroke: currentColor; stroke-width: 0.55; stroke-linejoin: round; }
 
-/* Vignette sans pochette : un carré plein de sa couleur `--c`, comme la maquette. */
+/* Vignette sans pochette : un carré de sa couleur `--c`. Mélange en oklab : en oklch,
+   le fond quasi noir (légèrement vert) faisait tourner la teinte, le rose virait à l'olive. */
 .sb-vignette {
   display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
-  background: color-mix(in oklch, var(--c) 34%, #ffffff);
-  color: color-mix(in oklch, var(--c) 70%, #000000 30%);
+  background: color-mix(in oklab, var(--c) 30%, #ffffff);
+  color: color-mix(in oklab, var(--c) 75%, #000000);
 }
 .dark .sb-vignette {
-  background: color-mix(in oklch, var(--c) 30%, #0b0d0c);
-  color: color-mix(in oklch, var(--c) 45%, #0b0d0c);
+  background: color-mix(in oklab, var(--c) 24%, #0b0d0c);
+  color: color-mix(in oklab, var(--c) 80%, #ffffff);
 }
 
 /* Pied de la barre : halo de la couleur du profil `--profil`, avatar en relief. */

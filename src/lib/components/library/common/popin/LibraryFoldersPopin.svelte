@@ -5,6 +5,8 @@
   import { invoke } from "@tauri-apps/api/core";
   import { handleAddDirectory } from "$lib/actions/library/LibraryAction";
   import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
+  import { importProgressStore } from "$lib/stores/library/importProgress.store";
+  import { toasts } from "$lib/stores/ui/toast.store";
   import { portal } from "$lib/helper/portal";
   import { t, currentLocale } from "$lib/i18n";
   import { depuisCourt } from "$lib/helper/tools/dateTools";
@@ -33,8 +35,21 @@
     if (open) loadDirs();
   });
 
-  async function loadDirs() {
-    loading = true;
+  const imp = $derived($importProgressStore);
+  const importIci = $derived(imp.active && imp.libraryId === libraryId);
+
+  // Recharge quand un dossier inconnu commence à s'importer, puis à la fin de chaque dossier.
+  let dossierSuivi = '';
+  $effect(() => {
+    const dossier = importIci ? imp.directory : '';
+    if (dossier === dossierSuivi) return;
+    const fini = dossierSuivi !== '';
+    dossierSuivi = dossier;
+    if (open && (fini || !dirs.some(d => d.path === dossier))) loadDirs(false);
+  });
+
+  async function loadDirs(attente = true) {
+    if (attente) loading = true;
     try {
       dirs = await invoke('get_library_dirs', { libraryId });
     } catch (e) {
@@ -42,6 +57,12 @@
     } finally {
       loading = false;
     }
+  }
+
+  function signalerOccupe(e: unknown): boolean {
+    if (e !== 'deja_en_cours') return false;
+    toasts.push({ type: "error", title: $t("notify.error"), message: $t("notify.import_busy") });
+    return true;
   }
 
   async function handleRescanDir(dir: LibraryDir) {
@@ -52,7 +73,7 @@
       await loadDirs();
       libraryContentStore.load(libraryId);
     } catch (e) {
-      console.error('Rescan failed:', e);
+      if (!signalerOccupe(e)) console.error('Rescan failed:', e);
     } finally {
       rescanningId = null;
     }
@@ -147,7 +168,8 @@
       {:else}
         <div class="flex flex-col gap-2">
           {#each dirs as dir (dir.id)}
-            {@const enCours = rescanningId === dir.id}
+            {@const suivi = importIci && imp.directory === dir.path}
+            {@const enCours = suivi || rescanningId === dir.id}
             <div class="flex items-center gap-3 p-3 rounded-xl bg-(--sb-s1) border border-(--sb-bd)">
               <span class="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)">
                 <Icon icon="material-symbols:folder-outline-rounded" width="20" class="sb-icone" />
@@ -169,27 +191,58 @@
                   <span class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-(--sb-s2) text-(--sb-tx2)">
                     <span class="sb-point w-1.5 h-1.5 rounded-full
                                  {enCours ? 'text-amber-400 animate-pulse' : dir.last_scan_at ? 'text-(--sb-point)' : 'text-(--sb-mu)'}"></span>
-                    {enCours
-                      ? $t('folders_popin.scanning')
-                      : dir.last_scan_at
-                        ? $t('folders_popin.scanned').replace('{ago}', depuisCourt(dir.last_scan_at, maintenant, $t))
-                        : $t('folders_popin.never_scanned')}
+                    {#if suivi && imp.stopping}
+                      {$t('folders_popin.stopping')}
+                    {:else if suivi && imp.phase === 'listing'}
+                      {$t('folders_popin.listing').replace('{n}', imp.found.toLocaleString($currentLocale))}
+                    {:else if suivi}
+                      {imp.current.toLocaleString($currentLocale)} / {imp.total.toLocaleString($currentLocale)}
+                    {:else if enCours}
+                      {$t('folders_popin.scanning')}
+                    {:else if dir.scan_status === 'cancelled'}
+                      {$t('folders_popin.cancelled')}
+                    {:else if dir.last_scan_at}
+                      {$t('folders_popin.scanned').replace('{ago}', depuisCourt(dir.last_scan_at, maintenant, $t))}
+                    {:else}
+                      {$t('folders_popin.never_scanned')}
+                    {/if}
                   </span>
                 </div>
+
+                {#if suivi && imp.phase === 'importing'}
+                  <div class="mt-2 h-1 rounded-full overflow-hidden bg-(--sb-s2)">
+                    <div class="h-full rounded-full bg-(--sb-g) transition-[width] duration-300" style="width: {imp.percent}%"></div>
+                  </div>
+                  <p class="mt-1 font-mono text-[10px] truncate text-(--sb-mu2)" title={imp.fileName}>{imp.fileName}</p>
+                {/if}
               </div>
 
               <div class="flex items-center gap-0.5 shrink-0 self-start">
-                <button
-                  type="button"
-                  class="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors
-                         text-(--sb-mu) enabled:hover:bg-(--sb-s2) enabled:hover:text-(--sb-tx) disabled:cursor-default"
-                  title={$t('folders_popin.rescan')}
-                  aria-label={$t('folders_popin.rescan')}
-                  disabled={enCours}
-                  onclick={() => handleRescanDir(dir)}
-                >
-                  <Icon icon="material-symbols:refresh-rounded" width="18" class={enCours ? 'animate-spin text-amber-400' : ''} />
-                </button>
+                {#if suivi}
+                  <button
+                    type="button"
+                    class="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors
+                           text-amber-400 enabled:hover:bg-(--sb-s2) disabled:cursor-default disabled:opacity-50"
+                    title={$t('folders_popin.stop')}
+                    aria-label={$t('folders_popin.stop')}
+                    disabled={imp.stopping}
+                    onclick={() => importProgressStore.stop()}
+                  >
+                    <Icon icon="material-symbols:stop-circle-outline-rounded" width="18" />
+                  </button>
+                {:else}
+                  <button
+                    type="button"
+                    class="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors
+                           text-(--sb-mu) enabled:hover:bg-(--sb-s2) enabled:hover:text-(--sb-tx) disabled:cursor-default disabled:opacity-50"
+                    title={$t('folders_popin.rescan')}
+                    aria-label={$t('folders_popin.rescan')}
+                    disabled={enCours || imp.active}
+                    onclick={() => handleRescanDir(dir)}
+                  >
+                    <Icon icon="material-symbols:refresh-rounded" width="18" class={enCours ? 'animate-spin text-amber-400' : ''} />
+                  </button>
+                {/if}
                 <button
                   type="button"
                   class="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors

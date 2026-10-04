@@ -32,9 +32,19 @@ const tuiles = $derived.by((): Tuile[] => {
     actif: pathname === "/", aller: () => nav("/"),
   };
   const id = libraryId;
-  if (id == null) return [accueil];
+  const onglets = resoudreOnglets(lireOnglets($settingsStore.library_tabs));
 
-  return [accueil, ...resoudreOnglets(lireOnglets($settingsStore.library_tabs)).map((o) => ({
+  // Sans bibliothèque, les sections mènent à l'import ; les playlists, au profil, restent accessibles.
+  if (id == null) {
+    const section = pathname === "/import" ? page.url.searchParams.get("section") : null;
+    return [accueil, ...onglets.map((o) => ({
+      cle: o.key, label: $t(o.labelKey), icone: o.icon,
+      actif: o.key === "playlists" ? ouvert === o.key : section === o.key,
+      aller: () => nav(o.key === "playlists" ? "/playlists" : `/import?section=${o.key}`),
+    }))];
+  }
+
+  return [accueil, ...onglets.map((o) => ({
     cle: o.key, label: $t(o.labelKey), icone: o.icon, actif: ouvert === o.key,
     aller: () => { memoriserOnglet(id, o.key); nav(lienOnglet(id, o.key)); },
   }))];

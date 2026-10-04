@@ -10,8 +10,10 @@ import LibraryErrorLoading from "$lib/components/library/common/error/LibraryErr
 import Icon from "@iconify/svelte";
 import LibraryHeader from "$lib/components/library/common/LibraryHeader.svelte";
 import LibraryTabBar from "$lib/components/library/common/LibraryTabBar.svelte";
+import ImportAccueil from "$lib/components/library/common/ImportAccueil.svelte";
+import { importAffiche } from "$lib/stores/library/importProgress.store";
 import { settingsStore } from "$lib/stores/settings/settings.store";
-import { lirePlacement } from "$lib/config/libraryTabs";
+import { lirePlacement, ongletCourant } from "$lib/config/libraryTabs";
 import { invoke } from "@tauri-apps/api/core";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { toasts } from "$lib/stores/ui/toast.store";
@@ -66,6 +68,12 @@ const avecSaBarre = $derived(/^\/library\/\d+\/(albums|tracks|artists|genres|yea
 
 const placementOnglets = $derived(lirePlacement($settingsStore.library_tabs_position));
 
+// Bibliothèque sans morceau et sans import en cours : les listes cèdent la place à l'import.
+const vide = $derived(
+  avecSaBarre && !$importAffiche
+  && $libraryStore.libraries.find((l) => l.id === libraryId)?.total_tracks === 0
+);
+
 // Glisser-déposer : WebView2 ne donne pas les chemins des fichiers déposés, l'événement de Tauri si.
 const EXTENSIONS_AUDIO = ['mp3', 'flac', 'ogg', 'm4a', 'wav', 'aac', 'opus', 'dsf', 'dff', 'aiff'];
 
@@ -116,6 +124,9 @@ async function importer(chemins: string[]) {
 {:else if library}
 <div class="biblio-maquette flex flex-col h-full relative">
 
+  {#if vide}
+    <ImportAccueil {library} section={ongletCourant(page.url.pathname)} />
+  {:else}
   {#if !isFocusedView}
   <LibraryHeader {library} />
 
@@ -137,6 +148,7 @@ async function importer(chemins: string[]) {
       </div>
     {/key}
   </div>
+  {/if}
 
   <!-- Overlay drag & drop -->
   {#if dragOver}

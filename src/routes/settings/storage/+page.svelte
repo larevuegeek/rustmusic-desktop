@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { oublierLocalisations } from "$lib/helper/library/trackLocation";
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { openPath } from "@tauri-apps/plugin-opener";
   import { save, open } from "@tauri-apps/plugin-dialog";
   import { toasts } from "$lib/stores/ui/toast.store";
@@ -149,15 +150,20 @@
 
   async function handleRescan() {
     rescanning = true;
+    // Un arrêt vaut pour toutes les bibliothèques.
+    let arrete = false;
+    const ecoute = await listen<{ cancelled: boolean }>('rescan-complete', (e) => { arrete ||= e.payload.cancelled; });
     try {
       const libraries = $libraryStore.libraries;
       for (const lib of libraries) {
         await invoke('rescan_library', { libraryId: lib.id });
         oublierLocalisations();
+        if (arrete) break;
       }
     } catch (e) {
       console.error('Rescan failed:', e);
     } finally {
+      ecoute();
       rescanning = false;
     }
   }

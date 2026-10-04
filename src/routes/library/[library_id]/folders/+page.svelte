@@ -20,6 +20,7 @@
   import { ilYA } from "$lib/helper/tools/dateTools";
   import { cleTri } from "$lib/helper/library/cleTri";
   import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
+  import { importAffiche, importsTermines } from "$lib/stores/library/importProgress.store";
   import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
   import type { LibraryDir } from "$lib/types/db/library/LibraryDir";
   import SelectionToggle from "$lib/components/ui/selection/SelectionToggle.svelte";
@@ -48,6 +49,7 @@
 
   $effect(() => {
     const id = libraryId;
+    void $importsTermines;
     loading = true;
     invoke<LibraryDir[]>("get_library_dirs", { libraryId: id })
       .then((d) => { if (id === libraryId) rootDirs = d ?? []; })
@@ -208,7 +210,7 @@
   </span>
 {/snippet}
 
-{#if $libraryStore.isImporting}
+{#if $importAffiche}
   <LibraryImportingLoader />
 {:else}
   <div class="flex flex-col h-full">

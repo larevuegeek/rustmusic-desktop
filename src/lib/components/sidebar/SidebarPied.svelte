@@ -74,7 +74,7 @@ async function rescanner() {
     libraryContentStore.refresh();
     libraryStore.refresh();
   } catch (e) {
-    toasts.push({ type: "error", title: $t("sidebar.rescan"), message: String(e) });
+    toasts.push({ type: "error", title: $t("sidebar.rescan"), message: e === 'deja_en_cours' ? $t("notify.import_busy") : String(e) });
   } finally {
     rescanEnCours = false;
   }

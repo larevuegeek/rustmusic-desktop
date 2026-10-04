@@ -1,8 +1,10 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { importProgressStore } from "$lib/stores/library/importProgress.store";
-  import { t } from "$lib/i18n";
+  import { t, currentLocale } from "$lib/i18n";
   import { minutesSecondes } from "$lib/helper/tools/dateTools";
+  import { page } from "$app/state";
+  import LibraryFoldersPopin from "$lib/components/library/common/popin/LibraryFoldersPopin.svelte";
 
   let percent = $derived($importProgressStore.percent);
   let current = $derived($importProgressStore.current);
@@ -10,6 +12,13 @@
   let fileName = $derived($importProgressStore.fileName);
   let elapsedMs = $derived($importProgressStore.elapsedMs);
   let active = $derived($importProgressStore.active);
+  let listing = $derived(active && $importProgressStore.phase === 'listing');
+  let stopping = $derived($importProgressStore.stopping);
+  let found = $derived($importProgressStore.found);
+  let directory = $derived($importProgressStore.directory);
+
+  const libraryId = $derived($importProgressStore.libraryId ?? Number(page.params.library_id));
+  let dossiers = $state(false);
 
   let elapsedFormatted = $derived(minutesSecondes(elapsedMs / 1000));
 
@@ -60,9 +69,13 @@
 
       <!-- Centre -->
       <div class="absolute inset-0 flex flex-col items-center justify-center">
-        <span class="text-2xl font-bold tabular-nums text-neutral-800 dark:text-white tracking-tight">
-          {percent}<span class="text-sm font-medium text-neutral-400">%</span>
-        </span>
+        {#if listing}
+          <Icon icon="lucide:folder-search" width={26} class="text-emerald-500 animate-pulse" />
+        {:else}
+          <span class="text-2xl font-bold tabular-nums text-neutral-800 dark:text-white tracking-tight">
+            {percent}<span class="text-sm font-medium text-neutral-400">%</span>
+          </span>
+        {/if}
       </div>
     </div>
 
@@ -76,7 +89,11 @@
         <Icon icon="lucide:loader-2" width={18} class="text-neutral-400 animate-spin" />
       {/if}
       <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-        {#if active}
+        {#if stopping}
+          {$t("folders_popin.stopping")}
+        {:else if listing}
+          {$t("system.task_listing")}
+        {:else if active}
           {$t("system.importing")}
         {:else if percent === 100}
           {$t("system.importing_done")}
@@ -90,7 +107,11 @@
     <div class="flex items-center gap-3 text-xs tabular-nums text-neutral-400 dark:text-neutral-500 mb-5">
       <span class="flex items-center gap-1">
         <Icon icon="lucide:music" width={12} />
-        {current} / {total}
+        {#if listing}
+          {$t(found === 1 ? "system.files_found_one" : "system.files_found_n").replace("{n}", found.toLocaleString($currentLocale))}
+        {:else}
+          {current.toLocaleString($currentLocale)} / {total.toLocaleString($currentLocale)}
+        {/if}
       </span>
       {#if elapsedMs > 0}
         <span class="w-px h-3 bg-neutral-300/50 dark:bg-neutral-700/50"></span>
@@ -116,8 +137,18 @@
       </div>
     </div>
 
+    <!-- Dossier en cours -->
+    {#if directory}
+      <div class="flex items-center gap-1.5 w-full px-2 mb-1">
+        <Icon icon="lucide:folder" width={11} class="text-neutral-400/60 shrink-0" />
+        <p class="font-mono text-[11px] text-neutral-400 dark:text-neutral-500 truncate" title={directory}>
+          {directory}
+        </p>
+      </div>
+    {/if}
+
     <!-- Fichier en cours -->
-    {#if fileName}
+    {#if fileName && !listing}
       <div class="flex items-center gap-1.5 w-full px-2">
         <Icon icon="lucide:file-audio" width={11} class="text-neutral-400/60 shrink-0" />
         <p class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate">
@@ -126,8 +157,41 @@
       </div>
     {/if}
 
+    <!-- Actions -->
+    <div class="flex items-center gap-2 mt-6">
+      {#if active}
+        <button
+          type="button"
+          class="h-9 px-3.5 flex items-center gap-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors
+                 border border-neutral-200/80 dark:border-neutral-700/60 text-neutral-600 dark:text-neutral-300
+                 enabled:hover:text-amber-500 enabled:hover:border-amber-500/40 disabled:opacity-50 disabled:cursor-default"
+          disabled={stopping}
+          onclick={() => importProgressStore.stop()}
+        >
+          <Icon icon="material-symbols:stop-circle-outline-rounded" width="18" />
+          {stopping ? $t("folders_popin.stopping") : $t("folders_popin.stop")}
+        </button>
+      {/if}
+      {#if libraryId}
+        <button
+          type="button"
+          class="h-9 px-3.5 flex items-center gap-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors
+                 text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-100
+                 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60"
+          onclick={() => (dossiers = true)}
+        >
+          <Icon icon="material-symbols:folder-open-outline-rounded" width="18" />
+          {$t("library_head.folders")}
+        </button>
+      {/if}
+    </div>
+
   </div>
 </div>
+
+{#if dossiers && libraryId}
+  <LibraryFoldersPopin bind:open={dossiers} {libraryId} />
+{/if}
 
 <style>
   @keyframes shimmer {
