@@ -1,4 +1,4 @@
-import type { PipelineMode } from "$lib/stores/player/playbackPipeline.store";
+import type { PipelineMode, PlaybackPipelineInfo } from "$lib/stores/player/playbackPipeline.store";
 
 /** Teintes des pastilles du lecteur, indépendantes de la pochette. */
 export const TEINTE = {
@@ -12,8 +12,32 @@ export const TEINTE = {
 /** État de la chaîne : vert intact, violet DSD natif, ambre modifié. */
 export const CHAINE: Record<PipelineMode, { cle: string; desc: string; teinte: string; point: string }> = {
   "bit-perfect": { cle: "pipeline.badge_bit_perfect", desc: "pipeline.bit_perfect_desc", teinte: TEINTE.vert, point: "bg-emerald-500 dark:bg-emerald-400" },
+  exclusive: { cle: "pipeline.badge_exclusive", desc: "pipeline.exclusive_desc", teinte: TEINTE.bleu, point: "bg-sky-500 dark:bg-sky-400" },
   dop: { cle: "pipeline.badge_dop", desc: "pipeline.dop_desc", teinte: TEINTE.violet, point: "bg-violet-500 dark:bg-violet-400" },
   resampled: { cle: "pipeline.badge_resampled", desc: "pipeline.resampled_desc", teinte: TEINTE.ambre, point: "bg-amber-500 dark:bg-amber-400" },
   dsd: { cle: "pipeline.badge_dsd_pcm", desc: "pipeline.dsd_pcm_desc", teinte: TEINTE.ambre, point: "bg-amber-500 dark:bg-amber-400" },
   shared: { cle: "pipeline.badge_shared", desc: "pipeline.shared_desc", teinte: TEINTE.neutre, point: "bg-(--lc-mu2)" },
 };
+
+/** « 44,1 kHz », « 2,82 MHz », selon la langue. */
+export function frequenceLisible(hz: number, langue: string): string {
+  const n = new Intl.NumberFormat(langue, { maximumFractionDigits: 2 });
+  if (hz >= 1_000_000) return `${n.format(hz / 1_000_000)} MHz`;
+  return hz >= 1_000 ? `${n.format(hz / 1_000)} kHz` : `${hz} Hz`;
+}
+
+/** Ce qui n'a pas marché pour ce morceau, en clair ; `null` si rien. */
+export function messageRepli(
+  info: PlaybackPipelineInfo,
+  t: (cle: string) => string,
+  frequence: (hz: number) => string,
+): string | null {
+  if (info.repli) return t(`pipeline.fallback_${info.repli}`);
+  // Exclusif obtenu, mais à une autre fréquence que celle du fichier.
+  if (info.backend.includes("exclusive") && info.resampler_active && info.intermediate_pcm_rate == null) {
+    return t("pipeline.fallback_rate")
+      .replace("{source}", frequence(info.source_sample_rate))
+      .replace("{output}", frequence(info.output_sample_rate));
+  }
+  return null;
+}

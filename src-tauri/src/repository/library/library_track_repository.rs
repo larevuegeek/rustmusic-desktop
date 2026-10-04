@@ -51,11 +51,43 @@ fn clauses_de_filtre(filter: Option<&str>, missing_cover: bool, extra: &TrackFil
 #[derive(sqlx::FromRow)]
 pub struct FicheChemin {
     pub path: String,
+    pub track_id: Option<String>,
     pub title: Option<String>,
     pub artist: Option<String>,
     pub duration: Option<f64>,
     pub thumbnail_path: Option<String>,
 }
+
+/// Colonnes d'une piste en liste, pour les requêtes par dossier.
+const PISTES_DE_DOSSIER: &str = r#"
+            SELECT
+                lt.id AS id, lt.title AS title, lt.title_normalized AS title_normalized,
+                COALESCE(lt.track_number, lc.track_number) AS track_number,
+                COALESCE(lt.disc_number, lc.disc_number, 1) AS disc_number,
+                COALESCE(lt.duration, lc.duration) AS duration,
+                COALESCE(lt.bitrate, lc.bitrate) AS bitrate,
+                COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
+                lt.play_count AS play_count, lt.last_played_at AS last_played_at,
+                lt.rating AS rating, lt.favorite AS favorite,
+                lt.tags AS tags,
+                lt.created_at AS created_at, lt.updated_at AS updated_at,
+                lf.path AS path, lf.filename AS filename, lf.extension AS extension,
+                lf.size AS size, lf.status AS status, lf.is_available AS is_available,
+                lf.error_message AS error_message,
+                a.id AS artist_id, lat.id AS library_artist_id, a.name AS artist,
+                la.id AS album_id, la.title AS album,
+                lc.album_artist AS album_artist, lc.year AS year, lc.genre AS genre,
+                lc.bits_per_sample AS bits_per_sample, lc.channels AS channels,
+                lc.audio_format AS audio_format, lc.mime_type AS mime_type,
+                lc.file_size AS file_size, lc.extra_tags AS extra_tags,
+                lc.thumbnail_path AS thumbnail_path, lc.last_scanned_at AS last_scanned_at
+            FROM library_tracks lt
+            INNER JOIN library_files lf ON lf.id = lt.file_id
+            LEFT JOIN library_cache lc ON lc.id = lt.cache_id
+            LEFT JOIN library_albums la ON la.id = lt.library_album_id
+            LEFT JOIN artists a ON a.id = lt.artist_id
+            LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
+"#;
 
 pub struct LibraryTrackRepository;
 
@@ -71,13 +103,15 @@ impl LibraryTrackRepository {
             let trous = vec!["?"; lot.len()].join(",");
             let sql = format!(
                 "SELECT f.path AS path,
+                        t.id AS track_id,
                         COALESCE(t.title, c.title) AS title,
                         a.name AS artist,
                         COALESCE(t.duration, c.duration) AS duration,
-                        c.thumbnail_path AS thumbnail_path
+                        COALESCE(c.thumbnail_path, la.cover_url) AS thumbnail_path
                  FROM library_files f
                  LEFT JOIN library_tracks t ON t.file_id = f.id
                  LEFT JOIN library_cache c ON c.id = COALESCE(t.cache_id, f.cache_id)
+                 LEFT JOIN library_albums la ON la.id = t.library_album_id
                  LEFT JOIN artists a ON a.id = t.artist_id
                  WHERE (? IS NULL OR f.library_id = ?) AND f.path IN ({trous})"
             );
@@ -675,43 +709,35 @@ impl LibraryTrackRepository {
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
-        sqlx::query_as::<_, TrackListView>(
-            r#"
-            SELECT
-                lt.id AS id, lt.title AS title, lt.title_normalized AS title_normalized,
-                COALESCE(lt.track_number, lc.track_number) AS track_number,
-                COALESCE(lt.disc_number, lc.disc_number, 1) AS disc_number,
-                COALESCE(lt.duration, lc.duration) AS duration,
-                COALESCE(lt.bitrate, lc.bitrate) AS bitrate,
-                COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
-                lt.play_count AS play_count, lt.last_played_at AS last_played_at,
-                lt.rating AS rating, lt.favorite AS favorite,
-                lt.tags AS tags,
-                lt.created_at AS created_at, lt.updated_at AS updated_at,
-                lf.path AS path, lf.filename AS filename, lf.extension AS extension,
-                lf.size AS size, lf.status AS status, lf.is_available AS is_available,
-                lf.error_message AS error_message,
-                a.id AS artist_id, lat.id AS library_artist_id, a.name AS artist,
-                la.id AS album_id, la.title AS album,
-                lc.album_artist AS album_artist, lc.year AS year, lc.genre AS genre,
-                lc.bits_per_sample AS bits_per_sample, lc.channels AS channels,
-                lc.audio_format AS audio_format, lc.mime_type AS mime_type,
-                lc.file_size AS file_size, lc.extra_tags AS extra_tags,
-                lc.thumbnail_path AS thumbnail_path, lc.last_scanned_at AS last_scanned_at
-            FROM library_tracks lt
-            INNER JOIN library_files lf ON lf.id = lt.file_id
-            LEFT JOIN library_cache lc ON lc.id = lt.cache_id
-            LEFT JOIN library_albums la ON la.id = lt.library_album_id
-            LEFT JOIN artists a ON a.id = lt.artist_id
-            LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
-            WHERE lt.library_id = ? AND lf.library_dir_id = ?
-            ORDER BY lf.path, lt.disc_number, lt.track_number
-            "#
-        )
-        .bind(library_id)
-        .bind(dir_id)
-        .fetch_all(exec)
-        .await
+        let sql = format!("{PISTES_DE_DOSSIER} WHERE lt.library_id = ? AND lf.library_dir_id = ? ORDER BY lf.path, lt.disc_number, lt.track_number");
+        sqlx::query_as::<_, TrackListView>(&sql)
+            .bind(library_id)
+            .bind(dir_id)
+            .fetch_all(exec)
+            .await
+    }
+
+    /// Les pistes rangées sous un dossier quelconque (sous-dossiers compris), par son chemin.
+    pub async fn find_tracks_under_path<'e, E>(
+        exec: E,
+        library_id: i64,
+        dossier: &str,
+    ) -> Result<Vec<TrackListView>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
+    {
+        // Préfixe exact suivi d'un séparateur : « Muse » n'attrape pas « Muse 2 », et LIKE n'aurait rien à échapper.
+        let base = dossier.trim_end_matches(['/', '\\']);
+        let (windows, unix) = (format!("{base}\\"), format!("{base}/"));
+        let sql = format!("{PISTES_DE_DOSSIER} WHERE lt.library_id = ? AND (substr(lf.path, 1, length(?)) = ? OR substr(lf.path, 1, length(?)) = ?) ORDER BY lf.path, lt.disc_number, lt.track_number");
+        sqlx::query_as::<_, TrackListView>(&sql)
+            .bind(library_id)
+            .bind(&windows)
+            .bind(&windows)
+            .bind(&unix)
+            .bind(&unix)
+            .fetch_all(exec)
+            .await
     }
 
     // Retourne un TrackListView complet pour un file_id donné
@@ -992,25 +1018,30 @@ impl LibraryTrackRepository {
     /// Un mix tiré au hasard. `oublies` : pas écoutés depuis six mois, ou
     /// jamais. `hires` : plus de 16 bits ou plus de 48 kHz. `hasard` : tout.
     /// `genre` : ceux du genre donné.
-    pub async fn find_mix_tracks<'e, E>(
-        exec: E,
+    /// `decennie` / `annee` : par date de l'album. Au plus quelques titres par artiste.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn find_mix_tracks(
+        pool: &sqlx::SqlitePool,
         library_id: i64,
         kind: &str,
         genre: Option<&str>,
         decennie: Option<i64>,
+        annee: Option<i64>,
         limit: i64,
-    ) -> Result<Vec<TrackListView>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
+    ) -> Result<Vec<TrackListView>, sqlx::Error> {
         // Le critère vient d'une liste fermée, jamais de l'appelant.
-        let critere = match kind {
-            "oublies" => "(lt.last_played_at IS NULL OR lt.last_played_at < datetime('now', '-6 months'))",
-            "hires" => "(lc.bits_per_sample > 16 OR COALESCE(lt.sample_rate, lc.sample_rate) > 48000)",
-            "hasard" => "1 = 1",
-            "genre" if genre.is_some() => "LOWER(lc.genre) = LOWER(?)",
+        let mut textes: Vec<String> = Vec::new();
+        let critere: String = match kind {
+            "oublies" => "(lt.last_played_at IS NULL OR lt.last_played_at < datetime('now', '-6 months'))".into(),
+            "hires" => "(lc.bits_per_sample > 16 OR COALESCE(lt.sample_rate, lc.sample_rate) > 48000)".into(),
+            "hasard" => "1 = 1".into(),
+            "genre" if genre.is_some() => {
+                textes.push(genre.unwrap_or_default().to_string());
+                "LOWER(lc.genre) = LOWER(?)".into()
+            }
             // L'année de l'album d'abord : c'est elle qui range les albums par décennie.
-            "decennie" if decennie.is_some() => "COALESCE(la.year, CAST(substr(lc.year, 1, 4) AS INTEGER)) BETWEEN ? AND ? + 9",
+            "decennie" if decennie.is_some() => "COALESCE(la.year, CAST(substr(lc.year, 1, 4) AS INTEGER)) BETWEEN ? AND ? + 9".into(),
+            "annee" if annee.is_some() => "COALESCE(la.year, CAST(substr(lc.year, 1, 4) AS INTEGER)) = ?".into(),
             _ => return Ok(Vec::new()),
         };
 
@@ -1044,13 +1075,18 @@ impl LibraryTrackRepository {
         "#);
 
         let mut requete = sqlx::query_as::<_, TrackListView>(&sql).bind(library_id);
-        if kind == "genre" {
-            requete = requete.bind(genre);
+        for t in &textes {
+            requete = requete.bind(t);
         }
         if kind == "decennie" {
             requete = requete.bind(decennie).bind(decennie);
         }
-        requete.bind(limit).fetch_all(exec).await
+        if kind == "annee" {
+            requete = requete.bind(annee);
+        }
+        // Tirage large, puis variété : un artiste ne remplit pas le mix à lui seul.
+        let tirage = requete.bind((limit * 6).min(1200)).fetch_all(pool).await?;
+        Ok(crate::core::variete::diversifier(tirage, limit as usize, |p| p.artist_id.clone()))
     }
 
     pub async fn find_tracks_by_genre<'e, E>(
@@ -1096,5 +1132,53 @@ impl LibraryTrackRepository {
         .await?;
 
         Ok(tracks)
+    }
+
+    /// Les titres sortis entre deux années (incluses) : l'année de l'album
+    /// d'abord, comme pour les mix et la page Années.
+    pub async fn find_tracks_by_years<'e, E>(
+        exec: E,
+        library_id: i64,
+        debut: i64,
+        fin: i64,
+    ) -> Result<Vec<TrackListView>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
+    {
+        sqlx::query_as::<_, TrackListView>(
+            r#"
+            SELECT
+                lt.id AS id, lt.title AS title, lt.title_normalized AS title_normalized,
+                COALESCE(lt.track_number, lc.track_number) AS track_number,
+                COALESCE(lt.disc_number, lc.disc_number, 1) AS disc_number,
+                COALESCE(lt.duration, lc.duration) AS duration,
+                COALESCE(lt.bitrate, lc.bitrate) AS bitrate,
+                COALESCE(lt.sample_rate, lc.sample_rate) AS sample_rate,
+                lt.play_count, lt.last_played_at, lt.rating, lt.favorite,
+                lt.tags,
+                lt.created_at, lt.updated_at,
+                lf.path, lf.filename, lf.extension, lf.size,
+                lf.status, lf.is_available, lf.error_message,
+                a.id AS artist_id, lat.id AS library_artist_id, a.name AS artist,
+                la.id AS album_id, la.title AS album,
+                lc.album_artist, lc.year, lc.genre,
+                lc.bits_per_sample, lc.channels, lc.audio_format, lc.mime_type,
+                lc.file_size, lc.extra_tags, lc.thumbnail_path, lc.last_scanned_at
+            FROM library_tracks lt
+            INNER JOIN library_files lf ON lf.id = lt.file_id
+            LEFT JOIN library_cache lc ON lc.id = lt.cache_id
+            LEFT JOIN library_albums la ON la.id = lt.library_album_id
+            LEFT JOIN artists a ON a.id = lt.artist_id
+            LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
+            WHERE lt.library_id = ?
+              AND COALESCE(la.year, CAST(substr(lc.year, 1, 4) AS INTEGER)) BETWEEN ? AND ?
+            ORDER BY la.title, la.id, disc_number, track_number
+            "#
+        )
+        .bind(library_id)
+        .bind(debut)
+        .bind(fin)
+        .fetch_all(exec)
+        .await
     }
 }

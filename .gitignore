@@ -14,4 +14,6 @@ vite.config.ts.timestamp-*
 
 src-tauri/keys/rustmusic.key
 test*
+!src-tauri/tests/
+!src-tauri/tests/**
 ROADMAP.md

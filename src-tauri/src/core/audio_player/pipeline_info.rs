@@ -51,6 +51,27 @@ pub struct PlaybackPipelineInfo {
     /// resampling + source rate accepté par le DAC). Sert au badge
     /// « Bit-perfect » côté frontend.
     pub bit_perfect: bool,
+    /// Sortie demandée non obtenue : l'interface dit pourquoi.
+    pub repli: Option<Repli>,
+}
+
+/// Pourquoi la sortie exclusive ou le DoP n'ont pas pu servir ce morceau.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Repli {
+    /// Le DAC refuse le format en exclusif.
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
+    FormatRefuse,
+    /// Une autre application tient le DAC.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    AppareilOccupe,
+    /// Aucun accès direct pour cette sortie (Linux : pas de carte `hw:`).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    AppareilIntrouvable,
+    /// Échec d'ouverture d'une autre nature.
+    Indisponible,
+    /// Le DAC n'accepte pas le DoP : DSD converti en PCM.
+    DopRefuse,
 }
 
 impl PlaybackPipelineInfo {
@@ -74,6 +95,34 @@ pub fn dsd_label(rate: u32) -> String {
     }
 }
 
+/// Source entière et sans perte (FLAC, ALAC, PCM entier) : décodée en f32, elle se
+/// reconvertit à l'identique. Une source avec perte ou flottante ne l'est pas.
+pub fn est_entier_sans_perte(codec: symphonia::core::codecs::audio::AudioCodecId) -> bool {
+    use symphonia::core::codecs::audio::well_known as ids;
+    [
+        ids::CODEC_ID_FLAC, ids::CODEC_ID_ALAC,
+        ids::CODEC_ID_PCM_S8, ids::CODEC_ID_PCM_S8_PLANAR, ids::CODEC_ID_PCM_U8, ids::CODEC_ID_PCM_U8_PLANAR,
+        ids::CODEC_ID_PCM_S16LE, ids::CODEC_ID_PCM_S16LE_PLANAR, ids::CODEC_ID_PCM_S16BE, ids::CODEC_ID_PCM_S16BE_PLANAR,
+        ids::CODEC_ID_PCM_U16LE, ids::CODEC_ID_PCM_U16LE_PLANAR, ids::CODEC_ID_PCM_U16BE, ids::CODEC_ID_PCM_U16BE_PLANAR,
+        ids::CODEC_ID_PCM_S24LE, ids::CODEC_ID_PCM_S24LE_PLANAR, ids::CODEC_ID_PCM_S24BE, ids::CODEC_ID_PCM_S24BE_PLANAR,
+        ids::CODEC_ID_PCM_U24LE, ids::CODEC_ID_PCM_U24LE_PLANAR, ids::CODEC_ID_PCM_U24BE, ids::CODEC_ID_PCM_U24BE_PLANAR,
+        ids::CODEC_ID_PCM_S32LE, ids::CODEC_ID_PCM_S32LE_PLANAR, ids::CODEC_ID_PCM_S32BE, ids::CODEC_ID_PCM_S32BE_PLANAR,
+    ]
+    .contains(&codec)
+}
+
+/// Profondeur de la source : déclarée par le conteneur, sinon (ALAC) lue dans son magic cookie.
+pub fn profondeur_source(params: &symphonia::core::codecs::audio::AudioCodecParameters) -> Option<u32> {
+    use symphonia::core::codecs::audio::well_known::CODEC_ID_ALAC;
+    params.bits_per_sample.or_else(|| {
+        if params.codec != CODEC_ID_ALAC {
+            return None;
+        }
+        let cookie = params.extra_data.as_ref()?;
+        symphonia_common::apple::audio::alac::MagicCookie::read(cookie).ok().map(|c| u32::from(c.bit_depth))
+    })
+}
+
 /// Best-effort label for a Symphonia codec id.
 pub fn symphonia_format_label(codec: symphonia::core::codecs::audio::AudioCodecId) -> &'static str {
     use symphonia::core::codecs::audio::well_known as ids;
@@ -83,6 +132,7 @@ pub fn symphonia_format_label(codec: symphonia::core::codecs::audio::AudioCodecI
         c if c == ids::CODEC_ID_VORBIS => "OGG Vorbis",
         c if c == ids::CODEC_ID_OPUS => "Opus",
         c if c == ids::CODEC_ID_AAC => "AAC",
+        c if c == ids::CODEC_ID_ALAC => "ALAC",
         c if c == ids::CODEC_ID_PCM_S16LE
             || c == ids::CODEC_ID_PCM_S24LE
             || c == ids::CODEC_ID_PCM_F32LE =>

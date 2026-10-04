@@ -117,6 +117,7 @@ pub async fn create_smart_playlist(
     color: Option<String>,
     icon: Option<String>,
     rules: rules::SmartRules,
+    is_mix: Option<bool>,
 ) -> Result<i64, String> {
     // Les règles sont validées avant d'être enregistrées : une playlist qu'on
     // ne saurait pas évaluer ne doit pas exister.
@@ -126,8 +127,8 @@ pub async fn create_smart_playlist(
     let json = serde_json::to_string(&rules).map_err(|e| format!("Règles : {e}"))?;
 
     let (id,): (i64,) = sqlx::query_as(
-        "INSERT INTO playlists (profil_id, name, color, icon, is_smart, rules)
-         VALUES (?, ?, ?, ?, 1, ?)
+        "INSERT INTO playlists (profil_id, name, color, icon, is_smart, rules, is_mix, pinned)
+         VALUES (?, ?, ?, ?, 1, ?, ?, ?)
          RETURNING id",
     )
     .bind(profil_id)
@@ -135,6 +136,9 @@ pub async fn create_smart_playlist(
     .bind(color.unwrap_or_else(|| "#8b5cf6".to_string()))
     .bind(icon.unwrap_or_else(|| "lucide:sparkles".to_string()))
     .bind(&json)
+    .bind(is_mix.unwrap_or(false))
+    // Un mix ne s'épingle pas : il vit sur la page Mix.
+    .bind(!is_mix.unwrap_or(false))
     .fetch_one(&state.pool)
     .await
     .map_err(|e| format!("Création : {e}"))?;

@@ -7,15 +7,12 @@ import LibraryImportingLoader from "$lib/components/library/common/loader/Librar
 import { handleAddFiles, handleAddDirectory } from "$lib/actions/library/LibraryAction";
 import { onMount } from "svelte";
 import { t } from "$lib/i18n";
+import { dernierOnglet } from "$lib/config/libraryTabs";
 
 const libraryId = $derived(Number(page.params.library_id));
 
 // Simple étape : on file vers le dernier onglet visité.
-onMount(() => {
-  let lastTab: string | null = null;
-  try { lastTab = localStorage.getItem(`lib-tab-${libraryId}`); } catch {}
-  goto(`/library/${libraryId}/${lastTab || 'tracks'}`, { replaceState: true });
-});
+onMount(() => goto(`/library/${libraryId}/${dernierOnglet(libraryId)}`, { replaceState: true }));
 const currentLibrary = $derived(
   $libraryStore.libraries.find(l => l.id === libraryId)
 );

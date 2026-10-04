@@ -95,7 +95,8 @@ impl AudioAnalyser {
             (track.id, audio_params, track.duration, track.time_base, track.num_frames)
         };
 
-        let bits_per_sample: u32 = codec_params.bits_per_sample.unwrap_or(0);
+        // ALAC : la profondeur n'est que dans le magic cookie.
+        let bits_per_sample: u32 = crate::core::audio_player::pipeline_info::profondeur_source(&codec_params).unwrap_or(0);
         let source_sample_rate: u32 = codec_params.sample_rate.ok_or("Pas de sample rate")?;
         let channels: usize = codec_params.channels.as_ref().ok_or("Pas d'info channels")?.count();
 

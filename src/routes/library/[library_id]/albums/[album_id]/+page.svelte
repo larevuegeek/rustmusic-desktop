@@ -435,7 +435,7 @@ const grille = $derived($viewMode !== "list");
       </div>
     {/each}
   {:else}
-    <LibraryTrackTable {libraryId} tracks={pistesTriees} columns={colonnes} {largeurs} sortKey={tri} sortDir={sens} colle={60} positions={tri === null}
+    <LibraryTrackTable {libraryId} tracks={pistesTriees} columns={colonnes} {largeurs} barreHorizontale sortKey={tri} sortDir={sens} colle={60} positions={tri === null}
                        onsort={(cle, dir) => { tri = cle; sens = dir; }} />
   {/if}
 

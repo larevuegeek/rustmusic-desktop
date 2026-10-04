@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { recupererPochettes, recupererPortraits, nettoyerImages } from "$lib/actions/library/ImageAction";
   import { onMount } from "svelte";
   import { oublierLocalisations } from "$lib/helper/library/trackLocation";
   import { invoke } from "@tauri-apps/api/core";
@@ -161,26 +162,30 @@
     }
   }
 
+  // Relance aussi les artistes restés sans portrait ; ceux déjà trouvés ne sont pas retéléchargés.
   async function handleFetchArtistImages() {
     fetchingImages = true;
     try {
-      await invoke('fetch_all_artist_images', { force: true });
-    } catch (e) {
-      console.error('Failed to fetch artist images:', e);
+      await recupererPortraits(true);
     } finally {
       fetchingImages = false;
+    }
+  }
+
+  let cleaningImages = $state(false);
+  async function handleCleanImages() {
+    cleaningImages = true;
+    try {
+      await nettoyerImages();
+    } finally {
+      cleaningImages = false;
     }
   }
 
   async function handleFetchAlbumCovers() {
     fetchingCovers = true;
     try {
-      const libraries = $libraryStore.libraries;
-      for (const lib of libraries) {
-        await invoke('fetch_all_album_covers', { libraryId: lib.id });
-      }
-    } catch (e) {
-      console.error('Failed to fetch album covers:', e);
+      await recupererPochettes($libraryStore.libraries.map((l) => l.id).filter((id): id is number => id != null));
     } finally {
       fetchingCovers = false;
     }
@@ -254,6 +259,9 @@
       busy={fetchingCovers}
       onclick={handleFetchAlbumCovers}
     />
+  </OptionItem>
+  <OptionItem title={$t("settings.clean_images")} desc={$t("settings.clean_images_desc")} keywords="cache images pochettes portraits espace">
+    <GhostButton icon="material-symbols:cleaning-services-outline-rounded" label={$t("settings.clean_images_btn")} busy={cleaningImages} onclick={handleCleanImages} />
   </OptionItem>
   <OptionItem title={$t("settings.repair_links")} desc={$t("settings.repair_links_desc")} keywords="feat artistes">
     <GhostButton icon="material-symbols:link-rounded" label={$t("settings.repair_links_btn")} busy={repairingLinks} onclick={handleRepairArtistLinks} />

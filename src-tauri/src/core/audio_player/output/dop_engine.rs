@@ -1,29 +1,15 @@
-//! Moteur DoP persistant (gapless DSD natif) — Windows uniquement.
+//! Moteur DoP persistant (gapless DSD natif) — Windows, Linux et macOS.
 //!
 //! # Problème résolu
 //! Un DAC DSD se **mute** pendant qu'il acquiert le lock DSD (jusqu'à ~2-3 s).
-//! Si chaque piste reconstruit le stream WASAPI, le DAC déverrouille puis
-//! reverrouille à CHAQUE morceau → délai + clic de bascule de mode entre pistes.
+//! Si chaque piste reconstruit le stream, le DAC déverrouille puis reverrouille
+//! à CHAQUE morceau → délai + clic de bascule de mode entre pistes.
 //!
-//! # Solution
-//! Le moteur garde **un seul stream WASAPI vivant** tant que les pistes
-//! successives sont du DSD **compatible** (même carrier rate + canaux + device).
-//! Entre les pistes, le render écrit du **silence DSD natif** → le DAC reste
-//! verrouillé. Résultat : le warm-up (lock) n'a lieu qu'**une fois**, et les
-//! pistes suivantes démarrent **instantanément**, sans clic ni perte de début.
-//!
-//! Dès qu'une piste **non-DSD** ou de carrier différent arrive, on `stop()` le
-//! moteur (le DAC déverrouille) et la lecture repasse par le chemin normal.
-//!
-//! # Architecture
-//! - Un ring buffer i32 unique, `producer` partagé (`Arc<Mutex>`), `consumer`
-//!   au thread render persistant.
-//! - Le thread **render** (persistant) : warm-up une fois, puis lit le ring
-//!   buffer / écrit du silence entre pistes, jusqu'au `render_stop` (teardown).
-//! - Un thread **décodeur par piste** : décode DSD → encode DoP → pousse dans
-//!   le producer partagé. Remplacé à chaque `begin_track`.
+//! Un seul stream vivant tant que les pistes DSD sont compatibles (rate, canaux, device) :
+//! silence DoP entre elles, le DAC reste verrouillé, un seul warm-up.
+//! Render persistant par OS (WASAPI, ALSA `hw:`, CoreAudio) ; un décodeur par piste.
 
-#![cfg(target_os = "windows")]
+#![cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -33,16 +19,63 @@ use std::time::{Duration, Instant};
 use ringbuf::traits::{Producer, Split};
 use ringbuf::{HeapProd, HeapRb};
 
-use crate::core::audio_decoder::dsd::dop_encoder::{dop_carrier_rate, DopEncoder};
+use crate::core::audio_decoder::dsd::dop_encoder::DopEncoder;
 use crate::core::audio_decoder::dsd::dsd_container::DsdContainerReader;
-use crate::core::audio_player::audio_output_wasapi::{run_wasapi_dop_playback, DopRenderCtl};
+
+/// Silence DoP émis à l'ouverture, le temps que le DAC verrouille le DSD.
+pub const PRECHAUFFAGE_S: f64 = 2.5;
+
+/// Pilotage du render persistant, partagé avec le moteur.
+#[derive(Clone)]
+pub struct DopRenderCtl {
+    pub is_paused: Arc<AtomicBool>,
+    /// Arrête le render → teardown du moteur (DAC déverrouille). PAS un
+    /// changement de piste (celui-ci utilise `drain_request`).
+    pub render_stop: Arc<AtomicBool>,
+    /// Frames de musique jouées (position). Remis à 0 par le moteur au début
+    /// de chaque piste ; le render l'incrémente au fil de la lecture.
+    pub music_frames_played: Arc<AtomicUsize>,
+    pub seek_flush: Arc<AtomicBool>,
+    /// Jeter la queue du ring buffer (changement de piste) sans couper le stream.
+    pub drain_request: Arc<AtomicBool>,
+    /// `true` quand le warm-up (lock DSD) est fini et la musique démarre.
+    pub audio_started: Arc<AtomicBool>,
+    /// `true` dès que le stream a démarré (init réussi). Sert au moteur pour
+    /// confirmer que `new()` a bien ouvert le device.
+    pub started_ok: Arc<AtomicBool>,
+}
+
+/// Le DAC à ouvrir, selon l'OS. Utilisé seulement à la création d'un moteur.
+pub enum CibleDop {
+    #[cfg(target_os = "windows")]
+    Wasapi { device_name: String },
+    /// La réservation D-Bus vit avec le moteur : PipeWire ne reprend la carte qu'à sa fermeture.
+    #[cfg(target_os = "linux")]
+    Alsa {
+        hw_id: String,
+        reservation: Option<super::device_reservation::DeviceReservation>,
+    },
+    #[cfg(target_os = "macos")]
+    CoreAudio { device: cpal::Device, device_id: u32 },
+}
 
 /// Instance globale unique du moteur DoP (persiste entre les pistes).
 static ENGINE: Mutex<Option<DopEngine>> = Mutex::new(None);
 
+/// Un moteur vivant peut-il jouer ce DSD tel quel ? Il tient alors le DAC :
+/// inutile (et, sous Linux, impossible) de le sonder à nouveau.
+#[cfg_attr(target_os = "windows", allow(dead_code))] // Windows sonde sans ouvrir le DAC
+pub fn moteur_compatible(carrier_rate: u32, channels: u16, device_name: &str) -> bool {
+    ENGINE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .is_some_and(|e| e.is_compatible(carrier_rate, channels, device_name))
+}
+
 /// Démarre une piste sur le moteur global : réutilise le moteur vivant s'il
-/// est compatible (carrier + canaux + device), sinon en crée un nouveau (après
-/// avoir arrêté l'ancien). Retourne `(handle, warmup_needed)` où
+/// est compatible (carrier + canaux + device), sinon en crée un nouveau sur
+/// `cible` (après avoir arrêté l'ancien). Retourne `(handle, warmup_needed)` où
 /// `warmup_needed = true` si un NOUVEAU moteur a été créé (→ warm-up + compteur
 /// figé). `false` si réutilisation → démarrage instantané.
 #[allow(clippy::too_many_arguments)]
@@ -50,6 +83,7 @@ pub fn begin_track_on_engine(
     carrier_rate: u32,
     channels: u16,
     device_name: String,
+    cible: CibleDop,
     is_paused: Arc<AtomicBool>,
     decoder: Box<dyn DsdContainerReader + Send>,
     lsb_first: bool,
@@ -68,7 +102,7 @@ pub fn begin_track_on_engine(
         if let Some(old) = guard.take() {
             old.stop();
         }
-        let engine = DopEngine::new(carrier_rate, channels, device_name, is_paused)?;
+        let engine = DopEngine::new(carrier_rate, channels, device_name, cible, is_paused)?;
         *guard = Some(engine);
     }
 
@@ -83,7 +117,7 @@ pub fn begin_track_on_engine(
 ///
 /// Programme un **watchdog** : si aucune nouvelle piste ne démarre dans les 5 s
 /// (= vrai arrêt utilisateur, pas un changement de piste), on ferme le moteur
-/// pour libérer le DAC (sinon il resterait locké en exclusive indéfiniment).
+/// pour libérer le DAC (sinon il resterait locké en exclusif indéfiniment).
 pub fn end_current_track_on_engine(drain_now: bool) {
     let gen = {
         let mut guard = ENGINE.lock().unwrap_or_else(|e| e.into_inner());
@@ -117,7 +151,7 @@ pub fn end_current_track_on_engine(drain_now: bool) {
     }
 }
 
-/// Teardown complet du moteur (coupe le stream WASAPI → le DAC déverrouille).
+/// Teardown complet du moteur (coupe le stream → le DAC déverrouille).
 /// À appeler sur STOP utilisateur ou avant une lecture non-DSD/incompatible.
 pub fn teardown_engine() {
     if let Some(e) = ENGINE.lock().unwrap_or_else(|e| e.into_inner()).take() {
@@ -135,11 +169,9 @@ pub struct DopTrackHandle {
     /// Passe à `true` quand le warm-up DAC est fini (1re piste seulement ;
     /// déjà `true` pour les pistes suivantes → démarrage instantané).
     pub audio_started: Arc<AtomicBool>,
-    /// Carrier rate effectif (pour convertir frames → secondes côté appelant).
-    pub carrier_rate: u32,
 }
 
-/// Moteur DoP persistant. Stocké dans l'`AudioPlayer` (`Option<DopEngine>`).
+/// Moteur DoP persistant (instance unique dans `ENGINE`).
 pub struct DopEngine {
     carrier_rate: u32,
     channels: u16,
@@ -164,16 +196,18 @@ pub struct DopEngine {
 }
 
 impl DopEngine {
-    /// Crée le moteur et démarre le render persistant (ouvre le stream WASAPI).
+    /// Crée le moteur et démarre le render persistant (ouvre le stream).
     /// `is_paused` est partagé avec l'`AudioPlayer` (pause globale).
-    /// Bloque brièvement (~1 s max) le temps de confirmer l'ouverture du stream.
+    /// Bloque brièvement (3 s max) le temps de confirmer l'ouverture du stream.
     pub fn new(
         carrier_rate: u32,
         channels: u16,
         device_name: String,
+        cible: CibleDop,
         is_paused: Arc<AtomicBool>,
     ) -> Result<Self, String> {
-        // Ring ~4 s de musique (tient le warm-up + marge).
+        // Ring ~4 s de musique (tient le warm-up + marge). Capacité paire en
+        // trames entières : pushes et pops restent alignés sur les canaux.
         let capacity = (carrier_rate as usize * channels as usize * 4).max(1 << 16);
         let ring = HeapRb::<i32>::new(capacity);
         let (producer, consumer) = ring.split();
@@ -190,12 +224,37 @@ impl DopEngine {
         };
 
         let render_ctl = ctl.clone();
-        let dev = device_name.clone();
         let render_handle = std::thread::Builder::new()
             .name("rustmusic-dop-render".into())
-            .spawn(move || {
-                run_wasapi_dop_playback(carrier_rate, channels, consumer, Some(dev), render_ctl)
+            .spawn(move || match cible {
+                #[cfg(target_os = "windows")]
+                CibleDop::Wasapi { device_name } => {
+                    crate::core::audio_player::audio_output_wasapi::run_wasapi_dop_playback(
+                        carrier_rate,
+                        channels,
+                        consumer,
+                        Some(device_name),
+                        render_ctl,
+                    )
                     .map_err(|e| e.to_string())
+                }
+                #[cfg(target_os = "linux")]
+                CibleDop::Alsa { hw_id, reservation } => {
+                    // Gardée jusqu'au retour du render (stream fermé), puis relâchée.
+                    let _reservation = reservation;
+                    super::dop_alsa::run_alsa_dop_render(&hw_id, carrier_rate, channels, consumer, render_ctl)
+                }
+                #[cfg(target_os = "macos")]
+                CibleDop::CoreAudio { device, device_id } => {
+                    super::dop_coreaudio::run_coreaudio_dop_render(
+                        &device,
+                        device_id,
+                        carrier_rate,
+                        channels,
+                        consumer,
+                        render_ctl,
+                    )
+                }
             })
             .map_err(|e| format!("spawn render DoP: {e}"))?;
 
@@ -214,6 +273,7 @@ impl DopEngine {
                 return Err(msg);
             }
             if start.elapsed() > Duration::from_secs(3) {
+                ctl.render_stop.store(true, Ordering::Relaxed);
                 return Err("timeout ouverture stream DoP".to_string());
             }
             std::thread::sleep(Duration::from_millis(10));
@@ -256,7 +316,8 @@ impl DopEngine {
             let _ = h.join();
         }
 
-        // 2. Drainer la queue de la piste précédente (le render jette le buffer).
+        // 2. Drainer la queue de la piste précédente (le render jette le buffer,
+        //    warm-up compris : sinon le début de la nouvelle piste serait jeté).
         self.ctl.drain_request.store(true, Ordering::Release);
         // Laisser le render traiter le drain (~2 cycles).
         std::thread::sleep(Duration::from_millis(45));
@@ -299,7 +360,6 @@ impl DopEngine {
             music_frames_played: self.ctl.music_frames_played.clone(),
             decoder_done: self.decoder_done.clone(),
             audio_started: self.ctl.audio_started.clone(),
-            carrier_rate: self.carrier_rate,
         }
     }
 
@@ -311,8 +371,6 @@ impl DopEngine {
     /// (fin naturelle) : on laisse la petite queue se jouer (transition douce).
     pub fn end_current_track(&mut self, drain_now: bool) {
         if drain_now {
-            // Jeter la musique bufferisée AVANT de rendre la main : le render
-            // videra le ring au prochain cycle (~19 ms) et passera au silence.
             self.ctl.drain_request.store(true, Ordering::Release);
         }
         self.decoder_stop.store(true, Ordering::Relaxed);
@@ -321,7 +379,7 @@ impl DopEngine {
         }
     }
 
-    /// Teardown complet : coupe le stream WASAPI (le DAC déverrouille le DSD).
+    /// Teardown complet : coupe le stream (le DAC déverrouille le DSD).
     pub fn stop(mut self) {
         self.decoder_stop.store(true, Ordering::Relaxed);
         if let Some(h) = self.decoder_handle.take() {
@@ -331,7 +389,7 @@ impl DopEngine {
         if let Some(h) = self.render_handle.take() {
             let _ = h.join();
         }
-        log::info!("⏹  Moteur DoP arrêté (stream WASAPI fermé)");
+        log::info!("⏹  Moteur DoP arrêté (stream fermé)");
     }
 }
 
@@ -351,7 +409,6 @@ fn dop_decode_loop(
 ) {
     let channels = decoder.channel_count();
     let mut encoder = DopEncoder::new(channels, lsb_first);
-    let _ = dop_carrier_rate; // (carrier déjà calculé par l'appelant)
 
     loop {
         if decoder_stop.load(Ordering::Relaxed) {

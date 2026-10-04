@@ -21,9 +21,10 @@ use crate::repository::library::library_dirs_repository::LibraryDirRepository;
 use crate::repository::library::library_files_repository::LibraryFilesRepository;
 use crate::repository::library::library_repository::LibraryRepository;
 use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::repository::settings::settings_repository::SettingsRepository;
 
 const AUDIO_EXTENSIONS: &[&str] = &[
-    "mp3", "flac", "wav", "aiff", "aif", "ogg", "opus", "m4a", "aac", "alac", "ape", "wma",
+    "mp3", "flac", "wav", "aiff", "aif", "ogg", "opus", "m4a", "aac",
     "dsf", "dff",
 ];
 
@@ -39,6 +40,14 @@ impl SqliteLibraryProvider {
 
 #[async_trait]
 impl LibraryProvider for SqliteLibraryProvider {
+    async fn language(&self) -> String {
+        SettingsRepository::get(&*self.pool, "language")
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "fr".to_string())
+    }
+
     async fn list_libraries(&self) -> Result<Vec<DlnaLibrary>, DlnaError> {
         let libs = LibraryRepository::find_all(&*self.pool)
             .await

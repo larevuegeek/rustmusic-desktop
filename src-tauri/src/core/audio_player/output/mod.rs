@@ -20,11 +20,13 @@ mod traits;
 mod types;
 #[cfg(target_os = "windows")]
 mod wasapi_exclusive;
+#[cfg(target_os = "windows")]
+pub use wasapi_exclusive::fermer_moteur;
 #[cfg(target_os = "linux")]
 mod exclusive_alsa;
 #[cfg(target_os = "macos")]
 mod exclusive_coreaudio;
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub mod dop_engine;
 #[cfg(target_os = "linux")]
 pub mod dop_alsa;
@@ -33,6 +35,26 @@ pub mod device_reservation;
 #[cfg(target_os = "macos")]
 pub mod dop_coreaudio;
 
+pub mod echantillons;
+
+use crate::core::audio_player::pipeline_info::Repli;
+
+/// Linux / macOS : le DAC accepte-t-il le rate source en exclusif ? Le décodeur produit alors ce rate.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+pub fn exclusif_au_rate_source(device_name: &str, source_rate: u32, channels: u16) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        matches!(current_preference(), AudioBackend::AlsaExclusive)
+            && dop_alsa::resolve_hw_id(device_name)
+                .is_some_and(|hw| exclusive_alsa::probe(&hw, source_rate, channels).is_ok())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = channels;
+        matches!(current_preference(), AudioBackend::CoreAudioExclusive)
+            && exclusive_coreaudio::CoreAudioExclusiveOutput::probe(device_name, source_rate).is_some()
+    }
+}
 pub use preference::{current_preference, dop_enabled, set_dop_enabled, set_wasapi_exclusive};
 pub use traits::{AudioOutput, AudioOutputError};
 pub use types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
@@ -64,7 +86,7 @@ pub fn create_symphonia_output<C>(
     atomics: PlaybackAtomics,
     shared: SymphoniaSharedState,
     consumer: C,
-) -> Result<Box<dyn AudioOutput>, AudioOutputError>
+) -> Result<(Box<dyn AudioOutput>, Option<Repli>), AudioOutputError>
 where
     C: Consumer<Item = f32> + Send + 'static,
 {
@@ -86,14 +108,20 @@ where
                     output.output_sample_rate(),
                     output.output_channels()
                 );
-                return Ok(Box::new(output));
+                return Ok((Box::new(output), None));
             }
             Err(build_err) => {
                 log::warn!(
                     "🎚️  WASAPI exclusive indisponible ({}), fallback CPAL shared mode",
                     build_err.error
                 );
-                // Le consumer a été rendu, on peut le passer à CPAL.
+                let repli = if build_err.error.to_string().contains(crate::core::audio_player::audio_output_wasapi::AUCUN_FORMAT) {
+                    Repli::FormatRefuse
+                } else {
+                    Repli::Indisponible
+                };
+                // Le consumer a été rendu, on peut le passer à CPAL ; le DAC doit être libre.
+                wasapi_exclusive::fermer_moteur();
                 return cpal_symphonia::CpalSymphoniaOutput::try_new(
                     cpal_device,
                     cpal_config,
@@ -101,28 +129,44 @@ where
                     build_err.consumer,
                     atomics,
                     shared,
+                    echantillons::MARGE_PARTAGEE,
                 )
                 .map(|o| {
                     log::info!("🎚️  Audio backend : CPAL shared ({})", o.device_name());
-                    Box::new(o) as Box<dyn AudioOutput>
+                    (Box::new(o) as Box<dyn AudioOutput>, Some(repli))
                 });
             }
         }
     }
+    #[allow(unused_mut)]
+    let mut repli = None;
+    // Le DAC s'ouvre au rate que produit le décodeur (celui négocié en amont) : jamais d'écart de vitesse.
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    let rate_decodeur = cpal_config.sample_rate;
     // ─── Tentative ALSA hw: exclusive (Linux uniquement) ───
     // La faisabilité est vérifiée AVANT de consommer le `consumer` : tant que
     // `probe` n'a pas répondu, le repli CPAL reste possible sans acrobatie.
     #[cfg(target_os = "linux")]
     if matches!(desired_backend, AudioBackend::AlsaExclusive) {
-        if let Some(hw_id) = dop_alsa::resolve_hw_id(&cpal_device_name) {
-            if let Some(negotiation) =
-                exclusive_alsa::probe(&hw_id, source_sample_rate, source_channels)
-            {
+        let negociation = match dop_alsa::resolve_hw_id(&cpal_device_name) {
+            Some(hw_id) => exclusive_alsa::probe(&hw_id, rate_decodeur, source_channels)
+                .map(|n| (hw_id, n)),
+            None => {
+                log::info!(
+                    "🎚️  ALSA exclusive : aucune carte hw: ne correspond à « {cpal_device_name} » \
+                     → CPAL partagé"
+                );
+                Err(Repli::AppareilIntrouvable)
+            }
+        };
+        match negociation {
+            Err(motif) => repli = Some(motif),
+            Ok((hw_id, negotiation)) => {
                 match exclusive_alsa::AlsaExclusiveOutput::try_new(
                     hw_id,
                     cpal_device_name.clone(),
                     negotiation,
-                    source_sample_rate,
+                    rate_decodeur,
                     source_channels,
                     consumer,
                     atomics.clone(),
@@ -135,18 +179,13 @@ where
                             output.output_sample_rate(),
                             output.output_channels()
                         );
-                        return Ok(Box::new(output));
+                        return Ok((Box::new(output), None));
                     }
                     // Le consumer est perdu avec le thread : impossible de
                     // retomber sur CPAL. Cas extrême (échec de spawn).
                     Err(e) => return Err(e),
                 }
             }
-        } else {
-            log::info!(
-                "🎚️  ALSA exclusive : aucune carte hw: ne correspond à « {cpal_device_name} » \
-                 → CPAL partagé"
-            );
         }
     }
 
@@ -154,13 +193,13 @@ where
     #[cfg(target_os = "macos")]
     if matches!(desired_backend, AudioBackend::CoreAudioExclusive) {
         if let Some(device_id) =
-            exclusive_coreaudio::CoreAudioExclusiveOutput::probe(&cpal_device_name, source_sample_rate)
+            exclusive_coreaudio::CoreAudioExclusiveOutput::probe(&cpal_device_name, rate_decodeur)
         {
             match exclusive_coreaudio::CoreAudioExclusiveOutput::try_new(
                 cpal_device.clone(),
                 device_id,
                 cpal_device_name.clone(),
-                source_sample_rate,
+                rate_decodeur,
                 source_channels,
                 consumer,
                 atomics.clone(),
@@ -173,19 +212,24 @@ where
                         output.output_sample_rate(),
                         output.output_channels()
                     );
-                    return Ok(Box::new(output));
+                    return Ok((Box::new(output), None));
                 }
                 // `CpalSymphoniaOutput::try_new` a déjà consommé le consumer :
                 // si lui échoue, un fallback CPAL échouerait pareil.
                 Err(e) => return Err(e),
             }
         }
+        repli = Some(Repli::Indisponible);
     }
 
+    #[cfg(not(target_os = "windows"))]
+    let _ = source_sample_rate;
     #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
-    let _ = (source_sample_rate, source_channels);
+    let _ = source_channels;
 
     // ─── Path CPAL (default, cross-platform) ───
+    #[cfg(target_os = "windows")]
+    wasapi_exclusive::fermer_moteur();
     let _ = desired_backend; // évite warning unused quand aucun backend exclusif
     cpal_symphonia::CpalSymphoniaOutput::try_new(
         cpal_device,
@@ -194,9 +238,10 @@ where
         consumer,
         atomics,
         shared,
+        echantillons::MARGE_PARTAGEE,
     )
     .map(|o| {
         log::info!("🎚️  Audio backend : CPAL shared ({})", o.device_name());
-        Box::new(o) as Box<dyn AudioOutput>
+        (Box::new(o) as Box<dyn AudioOutput>, repli)
     })
 }

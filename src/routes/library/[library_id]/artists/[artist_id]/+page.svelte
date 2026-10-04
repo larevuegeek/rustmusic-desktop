@@ -310,7 +310,9 @@ const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-s
     {@const ouvert = ouverts.has(g.cle)}
     {@const q = g.album ? meilleureQualite(g.pistes) : null}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- Le tableau défile de côté : l'en-tête d'album, lui, reste en place. -->
     <div data-groupe={g.cle} role="button" tabindex="0" aria-expanded={ouvert}
+         style="transform: translateX(var(--tx, 0px)); max-width: calc(var(--vue, 100%) + 1rem)"
          class="group/gh -mx-2 pl-2 pr-3 py-2.5 flex items-center gap-3.5 rounded-xl cursor-pointer select-none transition-colors hover:bg-(--rg-carte)
                 {ouvert ? 'sticky top-15 z-9 mb-1.5 border-b border-(--rg-bd) bg-(--c-fond) dark:bg-zinc-950' : ''}"
          onclick={() => basculer(g.cle)}
@@ -475,7 +477,7 @@ const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-s
           {@render grilleTitres(aPlat, true)}
         {/if}
       {:else}
-        <LibraryTrackTable {libraryId} tracks={ordreLecture} columns={colonnes} {largeurs} sortKey={groupe ? null : tri} sortDir={sens}
+        <LibraryTrackTable {libraryId} tracks={ordreLecture} columns={colonnes} {largeurs} barreHorizontale sortKey={groupe ? null : tri} sortDir={sens}
                            colle={groupe ? null : 60} positions={groupe}
                            groupes={groupe ? groupes.map((g) => ({ cle: g.cle, pistes: g.pistes, ouvert: ouverts.has(g.cle) })) : null}
                            {enteteGroupe}

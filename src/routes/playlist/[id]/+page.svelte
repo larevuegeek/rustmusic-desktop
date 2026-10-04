@@ -109,6 +109,8 @@
   }
 
   const playlistId = $derived(Number(page.params.id));
+  // Lu dans le store : épingler depuis la barre ou la page Playlists se voit ici aussi.
+  const epinglee = $derived($playlistStore.playlists.find((p) => p.id === playlistId)?.pinned ?? false);
 
   async function loadPlaylist() {
     loading = true;
@@ -220,6 +222,17 @@
           </button>
 
           <div class="w-px h-4 bg-neutral-200 dark:bg-white/10"></div>
+
+          <button
+            type="button"
+            class="p-1.5 rounded-lg cursor-pointer transition-colors
+                   {epinglee ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200'}"
+            title={epinglee ? $t("sidebar.unpin") : $t("sidebar.pin")}
+            aria-pressed={epinglee}
+            onclick={() => playlist && playlistStore.setPinned(playlist.id, !epinglee)}
+          >
+            <Icon icon={epinglee ? "material-symbols:keep-rounded" : "material-symbols:keep-outline-rounded"} width="15" />
+          </button>
 
           <button
             type="button"

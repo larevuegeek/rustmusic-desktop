@@ -1,6 +1,8 @@
 <script lang="ts">
+import { volume } from "$lib/stores/player/volume.store";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import Icon from "@iconify/svelte";
+import AnneauAttente from "$lib/components/ui/loader/AnneauAttente.svelte";
 import { t, currentLocale } from "$lib/i18n";
 import PlayerProgressBar from "./PlayerProgressBar.svelte";
 import PlayerSoundBar from "./PlayerSoundBar.svelte";
@@ -27,12 +29,14 @@ import { settingsStore } from "$lib/stores/settings/settings.store";
 import { detectOS } from "$lib/helper/tools/osDetection";
 import { audioDevicesStore } from "$lib/stores/audio/audioDevices.store";
 import { decrireSortie } from "$lib/helper/audio/deviceLabel";
-import { TEINTE, CHAINE } from "$lib/helper/audio/chaineAudio";
+import { TEINTE, CHAINE, messageRepli, frequenceLisible } from "$lib/helper/audio/chaineAudio";
 
 const audioFile = $derived($player?.audioFile);
 const audioTags = $derived(audioFile?.tags);
 const hasTrack = $derived(!!$player?.pathFile);
 const isPlaying = $derived($player?.status === "playing");
+// Le son n'a pas encore démarré (ouverture du DAC, décodage).
+const enAttente = $derived(isPlaying && !!$player?.isPreparing);
 const duration = $derived($player?.duration ?? 0);
 const jsPosition = $derived($player?.jsPosition ?? 0);
 const jsPositionPercent = $derived(duration ? Math.min(100, Math.max(0, (jsPosition / duration) * 100)) : 0);
@@ -45,7 +49,7 @@ const trackTitle = $derived(displayTitle(audioTags?.title, $player?.pathFile, $t
 
 const surWindows = detectOS() === "windows";
 const wasapiConfigured = $derived($settingsStore.wasapi_exclusive === "true");
-const modeChaine = $derived(pipelineMode($playbackPipelineStore));
+const modeChaine = $derived(pipelineMode($playbackPipelineStore, $volume));
 let showPipelinePopover = $state(false);
 
 // ─── Fiche du morceau : titre, artiste et album mènent quelque part ───
@@ -94,6 +98,8 @@ const cheminDecoupe = $derived.by(() => {
 });
 
 const chaine = $derived(modeChaine ? CHAINE[modeChaine] : null);
+// Sortie demandée non obtenue : la pastille porte un avertissement et le motif.
+const repli = $derived($playbackPipelineStore ? messageRepli($playbackPipelineStore, $t, (hz) => frequenceLisible(hz, $currentLocale)) : null);
 
 // « 16 bit · 44,1 kHz » ; le DSD n'a qu'une fréquence.
 const qualite = $derived(
@@ -224,13 +230,15 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
           </button>
           <button
             type="button"
-            class="lecteur-lecture w-12.5 h-12.5 mx-2 shrink-0 flex items-center justify-center rounded-full cursor-pointer
+            class="lecteur-lecture relative w-12.5 h-12.5 mx-2 shrink-0 flex items-center justify-center rounded-full cursor-pointer
                    bg-(--lc-play) text-(--lc-play-tx) transition-transform hover:scale-105 active:scale-95"
-            title={isPlaying ? $t("player.pause") : $t("player.play")}
+            title={enAttente ? $t("player.preparing") : isPlaying ? $t("player.pause") : $t("player.play")}
             aria-label={isPlaying ? $t("player.pause") : $t("player.play")}
+            aria-busy={enAttente}
             onclick={() => playerService.handleTogglePlay()}
           >
             <Icon icon={isPlaying ? "material-symbols-light:pause-rounded" : "material-symbols-light:play-arrow-rounded"} width="32" />
+            <AnneauAttente actif={enAttente} />
           </button>
           <button type="button" class={gros} title={$t("player.next")} aria-label={$t("player.next")} onclick={() => playerService.nextTrack()}>
             <Icon icon="material-symbols-light:skip-next-rounded" width="32" />
@@ -298,8 +306,9 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
         <div class="group/chemin flex-1 min-w-0 flex items-center gap-1 font-mono text-[10.5px] max-md:hidden">
           <button type="button" class="min-w-0 flex items-center gap-1.5 cursor-pointer" title={$t("player.open_folder")} onclick={() => $player?.pathFile && handleOpenPath($player.pathFile)}>
             <Icon icon="material-symbols-light:folder-open-outline-rounded" width="15" class="shrink-0 group-hover/chemin:text-(--lc-tx2)" />
-            <span class="lecteur-dossier min-w-0 truncate group-hover/chemin:text-(--lc-tx2)">{MARQUE + cheminDecoupe.dossier + MARQUE}</span>
-            <span class="shrink-0 whitespace-nowrap text-(--lc-tx2)">{cheminDecoupe.fichier}</span>
+            <span class="lecteur-dossier min-w-0 shrink-[999] truncate group-hover/chemin:text-(--lc-tx2)">{MARQUE + cheminDecoupe.dossier + MARQUE}</span>
+            <!-- Le dossier s'efface d'abord, le nom se tronque ensuite. -->
+            <span class="min-w-8 truncate text-(--lc-tx2)" title={cheminDecoupe.fichier}>{cheminDecoupe.fichier}</span>
           </button>
           <button type="button" class="shrink-0 w-5.5 h-5.5 flex items-center justify-center rounded-md cursor-pointer opacity-0 group-hover/chemin:opacity-100 focus-visible:opacity-100 hover:bg-(--lc-survol) hover:text-(--lc-tx)"
                   title={copie ? $t("player.path_copied") : $t("player.copy_path")} aria-label={$t("player.copy_path")} onclick={copierChemin}>
@@ -318,14 +327,20 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
 
       <div class="shrink-0 ml-auto flex items-center gap-1.5">
         {#if chaine}
-          <span class="{pastille} {chaine.teinte}" title={$t("player.audio_chain")}><span class="w-1.5 h-1.5 rounded-full bg-current"></span>{$t(chaine.cle)}</span>
+          <button type="button" class="{pastille} {chaine.teinte} {pastilleCliquable}" title={repli ?? $t("pipeline.learn")} onclick={() => goto("/settings/guide")}>
+            {#if repli}
+              <Icon icon="material-symbols:warning-rounded" width="13" class="shrink-0 text-amber-600 dark:text-amber-400" />
+            {:else}
+              <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+            {/if}{$t(chaine.cle)}
+          </button>
         {/if}
         {#if nomSortie}
           <button type="button" class="{pastille} {TEINTE.bleu} {pastilleCliquable} max-w-44 max-[1250px]:hidden" title={$t("player.output")} onclick={() => goto("/settings/audio")}>
             <Icon icon="material-symbols-light:speaker-outline-rounded" width="14" class="shrink-0" /><span class="truncate">{nomSortie}</span>
           </button>
         {/if}
-        {#if surWindows && wasapiConfigured}
+        {#if surWindows && wasapiConfigured && !$playbackPipelineStore?.repli}
           <button type="button" class="{pastille} {TEINTE.vert} {pastilleCliquable}" title={$t("player.wasapi_on_short")} onclick={() => goto("/settings/audio")}>
             <span class={voyant}></span>WASAPI
           </button>

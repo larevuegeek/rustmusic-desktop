@@ -2,6 +2,8 @@ import type { Playlist } from "$lib/types/db/playlist/Playlist";
 import { profilSelector } from "$lib/stores/profil/profil.store";
 import { writable, get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
+import { toasts } from "$lib/stores/ui/toast.store";
+import { t } from "$lib/i18n";
 
 export type PlaylistState = {
   playlists: Playlist[],
@@ -108,6 +110,19 @@ export const playlistStore = {
     playlistWriter.update(state => ({
       ...state,
       playlists: state.playlists.map(p => p.id === id ? updated : p)
+    }));
+  },
+  /** Épingle la playlist dans la barre latérale, ou l'en retire. */
+  setPinned: async (id: number, pinned: boolean) => {
+    try {
+      await invoke('set_playlist_pinned', { playlistId: id, pinned });
+    } catch (e) {
+      toasts.push({ type: 'error', title: get(t)('notify.error'), message: String(e) });
+      return;
+    }
+    playlistWriter.update(state => ({
+      ...state,
+      playlists: state.playlists.map(p => p.id === id ? { ...p, pinned } : p)
     }));
   },
   removePlaylist: async (id: number) => {

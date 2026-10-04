@@ -7,6 +7,7 @@
   import { toasts } from "$lib/stores/ui/toast.store";
   import { toQueueTrack, type TrackLike } from "$lib/helper/tools/queueTools";
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
+  import { playlistsRangees } from "$lib/stores/playlist/couvertures.store";
   import { invoke } from "@tauri-apps/api/core";
   import type { Playlist } from "$lib/types/db/playlist/Playlist";
   import { t } from "$lib/i18n";
@@ -73,7 +74,7 @@
     );
     onclose();
   }
-  let playlists = $derived($playlistStore.playlists);
+  let playlists = $derived($playlistsRangees);
 
   // Position ajustée pour ne pas sortir de l'écran
   let menuStyle = $derived.by(() => {
@@ -195,16 +196,16 @@
   tabindex="-1"
   oncontextmenu={(e) => e.preventDefault()}
   class="fixed z-[9999] w-55 py-1.5
-         bg-neutral-950/95 backdrop-blur-xl
-         border border-white/10
-         rounded-xl shadow-2xl shadow-black/30
+         bg-(--rg-carte) dark:bg-(--rg-s2) 
+         border border-(--rg-bd) dark:border-[#2a312d]
+         rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] 
          overflow-hidden"
   style={menuStyle}
 >
   <!-- Lire -->
   <button
     class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-           text-neutral-200 hover:bg-green-500/15 hover:text-green-400 transition-colors"
+           text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx) transition-colors"
     onclick={handlePlay}
   >
     <Icon icon="lucide:play" width="14" class="opacity-60" />
@@ -213,7 +214,7 @@
 
   <button
     class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-           text-neutral-200 hover:bg-white/10 transition-colors"
+           text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
     onclick={handleAddNext}
   >
     <Icon icon="lucide:list-start" width="14" class="opacity-60" />
@@ -222,21 +223,21 @@
 
   <button
     class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-           text-neutral-200 hover:bg-white/10 transition-colors"
+           text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
     onclick={handleAddToQueue}
   >
     <Icon icon="lucide:list-end" width="14" class="opacity-60" />
     {$t("albums_view.enqueue")}
   </button>
 
-  <div class="h-px mx-2 my-1 bg-white/8"></div>
+  <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
   <!-- Liker -->
   <button
     class="favori w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
            {isLiked
-             ? 'text-pink-400 hover:bg-pink-500/15'
-             : 'text-neutral-200 hover:bg-pink-500/15 hover:text-pink-400'}
+             ? 'text-pink-600 dark:text-pink-400 hover:bg-pink-500/15'
+             : 'text-(--rg-tx) hover:bg-pink-500/15 hover:text-pink-600 dark:hover:text-pink-400'}
            transition-colors"
     onclick={handleToggleLike}
   >
@@ -248,7 +249,7 @@
   {#if showAddToPlaylist}
   <button
     class="w-full flex items-center justify-between px-3.5 py-2 text-sm text-left cursor-pointer
-           text-neutral-200 hover:bg-white/10 transition-colors"
+           text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
     onclick={() => showPlaylistSub = !showPlaylistSub}
   >
     <span class="flex items-center gap-2.5">
@@ -259,12 +260,12 @@
   </button>
 
   {#if showPlaylistSub}
-    <div class="border-t border-white/5 bg-white/2">
+    <div class="border-t border-(--rg-bd) dark:border-white/6 bg-(--rg-hover)">
       <button
         type="button"
         class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-left text-[13px] cursor-pointer
-               text-neutral-600 dark:text-neutral-300
-               hover:bg-neutral-100 dark:hover:bg-white/5"
+               text-(--rg-tx2)
+               hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
         onclick={handleCreatePlaylist}
       >
         <Icon icon="lucide:plus" width="13" class="opacity-60" />
@@ -272,7 +273,7 @@
       </button>
 
       {#if playlists.length > 0}
-        <div class="h-px mx-2 bg-white/4"></div>
+        <div class="h-px mx-2 bg-(--rg-bd) dark:bg-white/8"></div>
       {/if}
 
       {#if playlists.length === 0}
@@ -280,17 +281,17 @@
       {:else}
         {#each playlists as pl, i (pl.id)}
           {#if i > 0}
-            <div class="h-px mx-2 bg-white/4"></div>
+            <div class="h-px mx-2 bg-(--rg-bd) dark:bg-white/8"></div>
           {/if}
           <button
             class="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-left cursor-pointer
-                   text-neutral-300 hover:bg-white/8 transition-colors"
+                   text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
             onclick={() => handleAddToPlaylist(pl)}
           >
             <Icon icon={pl.icon ?? "lucide:list-music"} width="13"
                   style="color: {pl.color ?? '#22c55e'};" class="opacity-70" />
             <span class="truncate">{pl.name}</span>
-            <span class="ml-auto text-[10px] text-neutral-600">{pl.track_count}</span>
+            <span class="ml-auto text-[10px] text-(--rg-mu2)">{pl.track_count}</span>
           </button>
         {/each}
       {/if}
@@ -300,12 +301,12 @@
 
   <!-- Navigation (optionnel) -->
   {#if showNavigation && libraryId}
-    <div class="h-px mx-2 my-1 bg-white/8"></div>
+    <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
     {#if track.id}
       <button
         class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-               text-neutral-200 hover:bg-white/10 transition-colors"
+               text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
         onclick={handleViewTrack}
       >
         <Icon icon="lucide:music-4" width="14" class="opacity-60" />
@@ -316,7 +317,7 @@
     {#if track.album_id}
       <button
         class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-               text-neutral-200 hover:bg-white/10 transition-colors"
+               text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
         onclick={handleViewAlbum}
       >
         <Icon icon="lucide:disc-album" width="14" class="opacity-60" />
@@ -327,7 +328,7 @@
     {#if track.library_artist_id || track.artist_id}
       <button
         class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-               text-neutral-200 hover:bg-white/10 transition-colors"
+               text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
         onclick={handleViewArtist}
       >
         <Icon icon="lucide:mic-2" width="14" class="opacity-60" />
@@ -338,10 +339,10 @@
 
   <!-- Modifier les tags — masqué si le format n'est pas réinscriptible -->
   {#if canEditTags}
-    <div class="h-px mx-2 my-1 bg-white/8"></div>
+    <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
     <button
       class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-             text-neutral-200 hover:bg-white/10 transition-colors"
+             text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
       onclick={handleEditTags}
     >
       <Icon icon="lucide:tag" width="14" class="opacity-60" />
@@ -351,10 +352,10 @@
 
   <!-- Supprimer (optionnel) -->
   {#if showDelete}
-    <div class="h-px mx-2 my-1 bg-white/8"></div>
+    <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
     <button
       class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-             text-red-400 hover:bg-red-500/15 hover:text-red-300 transition-colors"
+             text-red-600 dark:text-red-400 hover:bg-red-500/15 hover:text-red-700 dark:hover:text-red-300 transition-colors"
       onclick={handleDelete}
     >
       <Icon icon="lucide:trash-2" width="14" class="opacity-60" />

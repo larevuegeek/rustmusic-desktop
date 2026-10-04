@@ -66,14 +66,14 @@
   tabindex="-1"
   oncontextmenu={(e) => e.preventDefault()}
   class="fixed z-[9999] w-62 py-1.5
-         bg-neutral-950/95 backdrop-blur-xl
-         border border-white/10
-         rounded-xl shadow-2xl shadow-black/30
+         bg-(--rg-carte) dark:bg-(--rg-s2) 
+         border border-(--rg-bd) dark:border-[#2a312d]
+         rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] 
          overflow-hidden"
   style={menuStyle}
 >
   <button
-    class="{ligne} text-neutral-200 enabled:hover:bg-green-500/15 enabled:hover:text-green-400"
+    class="{ligne} text-(--rg-tx) enabled:hover:bg-green-500/15 enabled:hover:text-green-400"
     onclick={epinglerEnCours}
     disabled={!enCours || dejaEpingle}
     title={enCours?.titre ?? ''}
@@ -83,23 +83,23 @@
   </button>
 
   <button
-    class="{ligne} text-neutral-200 hover:bg-white/5"
+    class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
     onclick={() => { const m = figer(); onclose(); goto(`/library/${m.libraryId}/${m.album ? 'albums' : 'artists'}`); }}
   >
     <Icon icon={album ? 'material-symbols:album-rounded' : 'material-symbols:mic-external-on-rounded'} width="15" class="opacity-60 shrink-0" />
     {$t(album ? 'sidebar.browse_albums' : 'sidebar.browse_artists')}
   </button>
 
-  <div class="h-px mx-2 my-1 bg-white/6"></div>
+  <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
   <button
-    class="{ligne} text-neutral-200 hover:bg-white/5"
+    class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
     onclick={() => { const m = figer(); onclose(); settingsStore.set(m.album ? 'show_pinned_albums' : 'show_pinned_artists', 'false'); }}
   >
     <Icon icon="lucide:eye-off" width="14" class="opacity-60 shrink-0" />
     {$t('sidebar.hide_section')}
   </button>
   <!-- La section emporte ce menu : on dit où la retrouver. -->
-  <p class="px-3.5 pb-1.5 text-[11px] leading-snug text-neutral-500">{$t('sidebar.hide_section_note')}</p>
+  <p class="px-3.5 pb-1.5 text-[11px] leading-snug text-(--rg-mu)">{$t('sidebar.hide_section_note')}</p>
 </div>
 </div>

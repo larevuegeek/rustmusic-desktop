@@ -11,6 +11,7 @@
   import { fade } from "svelte/transition";
   import { t } from "$lib/i18n";
   import { settingsSections } from "$lib/config/settingsSections";
+  import { lireOnglets } from "$lib/config/libraryTabs";
   import { settingsDefaults, settingsStore } from "$lib/stores/settings/settings.store";
   import { rechercheReglages } from "$lib/stores/ui/settingsSearch.store";
   import VersionCard from "$lib/components/settings/VersionCard.svelte";
@@ -28,7 +29,8 @@
   const actif = $derived(page.url.pathname.split("/")[2] ?? "general");
   const section = $derived(settingsSections.find((s) => s.id === actif) ?? settingsSections[0]);
 
-  const modifiees = $derived((section.cles ?? []).filter((cle) => $settingsStore[cle] !== settingsDefaults[cle]));
+  const normal = (cle: string, v: string) => (cle === "library_tabs" ? JSON.stringify(lireOnglets(v)) : v);
+  const modifiees = $derived((section.cles ?? []).filter((cle) => normal(cle, $settingsStore[cle]) !== normal(cle, settingsDefaults[cle])));
 
   async function retablir() {
     for (const cle of modifiees) await settingsStore.set(cle, settingsDefaults[cle]);
@@ -82,6 +84,7 @@
     <nav class="shrink-0 flex flex-col gap-0.5">
       {#each settingsSections as s (s.id)}
         {@const estActif = s.id === actif}
+        {#if s.groupeKey}<p class="px-3 pt-4 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-(--rg-mu2)">{$t(s.groupeKey)}</p>{/if}
         <a
           href="/settings/{s.id}"
           class="flex items-center gap-3 px-3 py-2.25 rounded-[10px] leading-[1.2] transition-colors

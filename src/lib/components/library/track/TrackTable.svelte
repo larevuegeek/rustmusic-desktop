@@ -185,6 +185,7 @@
             text-[10px] uppercase tracking-wider text-neutral-400
             bg-neutral-50 dark:bg-zinc-950
             border-b border-neutral-200/60 dark:border-white/5">
+  {#if $selectionStore.active}<div class="w-5 shrink-0"></div>{/if}
   {#each columns as col (col.key)}
     {@const w = largeurAffichee(col)}
     <!-- Chaque colonne est un conteneur de largeur fixe, doublé d'une poignée

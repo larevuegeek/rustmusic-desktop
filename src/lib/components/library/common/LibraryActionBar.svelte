@@ -1,4 +1,5 @@
 <script lang="ts">
+import { recupererPochettes, recupererPortraits } from "$lib/actions/library/ImageAction";
 // « Ajouter un dossier » et le menu « Gérer » : scan, dossiers, pochettes, import, suppression.
 import { goto } from "$app/navigation";
 import Icon from "@iconify/svelte";
@@ -9,7 +10,6 @@ import { tailleLisible } from "$lib/helper/tools/sizeTools";
 import { libraryStore } from "$lib/stores/library/library.store";
 import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
 import { popinStore } from "$lib/stores/ui/popin.store";
-import { toasts } from "$lib/stores/ui/toast.store";
 import { handleAddDirectory, handleAddFiles } from "$lib/actions/library/LibraryAction";
 import Dialog from "$lib/components/ui/dialog/Dialog.svelte";
 import Menu from "$lib/components/ui/menu/Menu.svelte";
@@ -35,25 +35,26 @@ async function lancer() {
 
 let ouvert = $state(false);
 let dossiers = $state(false);
-let enCours = $state<"scan" | "covers" | "artists" | null>(null);
+let enCours = $state<{ scan?: boolean; covers?: boolean; artists?: boolean }>({});
+const occupe = $derived(!!(enCours.scan || enCours.covers || enCours.artists));
 
 const id = $derived(library.id as number);
 const taille = $derived(dirs.reduce((s, d) => s + (d.total_size ?? 0), 0));
 const etat = $derived(
-  dirs.some((d) => d.scan_status === "scanning") || enCours === "scan" ? "scanning" : dirs.some((d) => d.scan_status === "error") ? "error" : "ok",
+  dirs.some((d) => d.scan_status === "scanning") || enCours.scan ? "scanning" : dirs.some((d) => d.scan_status === "error") ? "error" : "ok",
 );
 const sansPochette = $derived($libraryContentStore.albums.filter((a) => !a.cover_url).length);
 const nombre = (n: number) => n.toLocaleString($currentLocale);
 
 async function agir(quoi: "scan" | "covers" | "artists", tache: () => Promise<void>) {
-  if (enCours) return;
-  enCours = quoi;
+  if (enCours[quoi]) return;
+  enCours[quoi] = true;
   try {
     await tache();
   } catch (e) {
     console.error(`[bibliothèque] ${quoi} :`, e);
   } finally {
-    enCours = null;
+    enCours[quoi] = false;
   }
 }
 
@@ -66,17 +67,8 @@ const rescanner = () => agir("scan", async () => {
   onchange?.();
 });
 
-const pochettes = () => agir("covers", async () => {
-  const n = await invoke<number>("fetch_all_album_covers", { libraryId: id });
-  libraryContentStore.refresh();
-  toasts.push({ type: "success", title: $t("library_head.covers"), message: $t("library_head.covers_done").replace("{n}", String(n)) });
-});
-
-const portraits = () => agir("artists", async () => {
-  const n = await invoke<number>("fetch_all_artist_images");
-  libraryContentStore.refresh();
-  toasts.push({ type: "success", title: $t("library_head.artist_images"), message: $t("library_head.artist_images_done").replace("{n}", String(n)) });
-});
+const pochettes = () => agir("covers", () => recupererPochettes([id]));
+const portraits = () => agir("artists", () => recupererPortraits());
 
 function supprimer() {
   ouvert = false;
@@ -142,7 +134,7 @@ const tuile = "w-8.5 h-8.5 shrink-0 rounded-[9px] border flex items-center justi
              {ouvert ? 'text-(--rg-tx) border-(--rg-bd2) bg-(--rg-carte)' : 'text-(--rg-tx2) border-(--rg-bd2) hover:text-(--rg-tx) hover:bg-(--rg-carte)'}"
       onclick={() => (ouvert = !ouvert)}
     >
-      <Icon icon={enCours ? "material-symbols:progress-activity" : "material-symbols:more-horiz"} width="20" class={enCours ? "animate-spin" : ""} />
+      <Icon icon={occupe ? "material-symbols:progress-activity" : "material-symbols:more-horiz"} width="20" class={occupe ? "animate-spin" : ""} />
       {$t("library_head.manage")}
     </button>
 
@@ -166,15 +158,15 @@ const tuile = "w-8.5 h-8.5 shrink-0 rounded-[9px] border flex items-center justi
       </div>
 
       <div class="p-1.5">
-        {@render action("material-symbols:sync-rounded", $t("library_head.rescan"), $t("library_head.rescan_desc"), rescanner, undefined, false, enCours === "scan")}
+        {@render action("material-symbols:sync-rounded", $t("library_head.rescan"), $t("library_head.rescan_desc"), rescanner, undefined, false, !!enCours.scan)}
         {@render action("material-symbols:folder-open-outline-rounded", $t("library_head.folders"),
           [dirs.length === 1 ? $t("library_head.dirs_one") : $t("library_head.dirs_n").replace("{n}", String(dirs.length)), tailleLisible(taille, $currentLocale)].filter(Boolean).join(" · "),
           () => { ouvert = false; dossiers = true; }, "fleche")}
         {@render action("material-symbols:upload-file-outline-rounded", $t("library.add_files"), $t("library_head.add_files_desc"), () => { ouvert = false; handleAddFiles(id); })}
         {@render action("material-symbols:image-search-rounded", $t("library_head.covers"),
           sansPochette === 0 ? $t("library_head.covers_ok") : sansPochette === 1 ? $t("library_head.covers_missing_one") : $t("library_head.covers_missing_n").replace("{n}", nombre(sansPochette)),
-          pochettes, sansPochette, sansPochette > 0, enCours === "covers")}
-        {@render action("material-symbols:person-outline-rounded", $t("library_head.artist_images"), $t("library_head.artist_images_desc"), portraits, undefined, false, enCours === "artists")}
+          pochettes, sansPochette, sansPochette > 0, !!enCours.covers)}
+        {@render action("material-symbols:person-outline-rounded", $t("library_head.artist_images"), $t("library_head.artist_images_desc"), portraits, undefined, false, !!enCours.artists)}
         {@render action("material-symbols:swap-vert-rounded", $t("library_head.import_export"), $t("library_head.import_export_desc"), () => { ouvert = false; goto("/settings/storage"); }, "fleche")}
       </div>
 

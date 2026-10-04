@@ -12,6 +12,7 @@
   import Badge from "$lib/components/ui/text/Badge.svelte";
   import { t } from "$lib/i18n";
   import { playbackPipelineStore } from "$lib/stores/player/playbackPipeline.store";
+  import { volume, chargerVolume, reglerVolume } from "$lib/stores/player/volume.store";
 
   const surWindows = detectOS() === "windows";
   const wasapiExclusive = $derived($settingsStore.wasapi_exclusive === "true");
@@ -23,6 +24,10 @@
 
   let value = $state(80);
   let previousValue = $state(80);
+  // Le store fait foi : les raccourcis clavier le changent aussi.
+  $effect(() => {
+    value = $volume;
+  });
   const isMuted = $derived(value === 0);
 
   let showDevices = $state(false);
@@ -33,27 +38,13 @@
   const active = $derived(devices.find((d) => d.displayName === $audioDevicesStore.activeDisplayName) ?? null);
 
   onMount(async () => {
-    try {
-      value = await invoke<number>("get_volume");
-      previousValue = value;
-    } catch (e) {
-      console.error("Failed to get volume", e);
-    }
+    await chargerVolume();
+    previousValue = $volume;
     audioDevicesStore.ensureLoaded();
   });
 
-  let volumeTimer: ReturnType<typeof setTimeout> | null = null;
-
-  // Au plus toutes les 50 ms, pas à chaque pixel.
   function handleChange() {
-    if (volumeTimer) clearTimeout(volumeTimer);
-    volumeTimer = setTimeout(async () => {
-      try {
-        await invoke("set_volume", { volume: value });
-      } catch (e) {
-        console.error("Failed to set volume", e);
-      }
-    }, 50);
+    reglerVolume(value);
   }
 
   function toggleMute() {

@@ -64,6 +64,8 @@ export async function resolveCoverSrc(path: string | null | undefined, size: Cov
     const resolvedPath = path.replace(/[\/\\]full[\/\\]/, `/${size}/`);
 
     if (resolvedPath.startsWith("http") || resolvedPath.startsWith("data:") || resolvedPath.startsWith("blob:")) return resolvedPath;
+    // Image de l'interface (« pas de CD ») : servie telle quelle, ce n'est pas un fichier du disque.
+    if (path.startsWith("/images/")) return path;
 
     // Mode asset protocol (rapide)
     if (COVER_MODE === 'asset') {

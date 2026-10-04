@@ -28,7 +28,7 @@ impl PlaylistRepository {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING
                 id, profil_id, library_id, name, description, color, icon, cover,
-                track_count, duration, position, is_smart, created_at, updated_at
+                track_count, duration, position, is_smart, is_mix, pinned, created_at, updated_at
             "#,
         )
         .bind(profil_id)
@@ -69,7 +69,7 @@ impl PlaylistRepository {
             WHERE id = ?
             RETURNING
                 id, profil_id, library_id, name, description, color, icon, cover,
-                track_count, duration, position, is_smart, created_at, updated_at
+                track_count, duration, position, is_smart, is_mix, pinned, created_at, updated_at
             "#,
         )
         .bind(name)
@@ -102,7 +102,7 @@ impl PlaylistRepository {
             WHERE id = ?
             RETURNING
                 id, profil_id, library_id, name, description, color, icon, cover,
-                track_count, duration, position, is_smart, created_at, updated_at
+                track_count, duration, position, is_smart, is_mix, pinned, created_at, updated_at
             "#,
         )
         .bind(track_count)
@@ -158,7 +158,7 @@ impl PlaylistRepository {
                 CASE WHEN is_smart = 1 THEN track_count
                      ELSE (SELECT COUNT(*) FROM playlist_items pi WHERE pi.playlist_id = playlists.id)
                 END AS track_count,
-                duration, position, is_smart, created_at, updated_at
+                duration, position, is_smart, is_mix, pinned, created_at, updated_at
             FROM playlists
             WHERE id = ?
             "#,
@@ -201,7 +201,7 @@ impl PlaylistRepository {
                 CASE WHEN is_smart = 1 THEN track_count
                      ELSE (SELECT COUNT(*) FROM playlist_items pi WHERE pi.playlist_id = playlists.id)
                 END AS track_count,
-                duration, position, is_smart, created_at, updated_at
+                duration, position, is_smart, is_mix, pinned, created_at, updated_at
             FROM playlists
             WHERE profil_id = ?
             ORDER BY position ASC, id DESC

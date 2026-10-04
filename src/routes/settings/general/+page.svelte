@@ -37,6 +37,7 @@
           { cle: "single_click_play", titre: txt("single_click_play"), desc: txt("single_click_play_desc") },
           { cle: "resume_playback", titre: txt("resume_playback"), desc: txt("resume_playback_desc") },
           { cle: "gapless", titre: txt("gapless"), desc: txt("gapless_desc"), motsCles: "gapless" },
+          { cle: "prevent_sleep", titre: txt("prevent_sleep"), desc: txt("prevent_sleep_desc"), motsCles: "veille sleep suspend" },
         ],
       },
       {

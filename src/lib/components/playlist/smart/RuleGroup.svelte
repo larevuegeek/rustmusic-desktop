@@ -69,17 +69,15 @@
 </script>
 
 <div class="rounded-lg border {depth > 0
-              ? 'border-neutral-200 dark:border-white/10 bg-neutral-100/60 dark:bg-white/3 p-3'
+              ? 'border-(--rg-bd) bg-(--rg-carte) p-3'
               : 'border-transparent'}">
 
   <!-- Le liant du groupe -->
-  <div class="flex items-center gap-2 mb-2">
-    <span class="text-xs text-neutral-500 dark:text-neutral-400">{$t("smart.match")}</span>
+  <div class="flex items-center gap-2 mb-3">
+    <span class="text-[13px] text-(--rg-mu)">{$t("smart.match")}</span>
     <select
       bind:value={group.match}
-      class="text-xs px-2 py-1 rounded-md cursor-pointer
-             bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-white/10
-             text-neutral-800 dark:text-neutral-200"
+      class="h-8 px-2.5 rounded-lg text-[13px] cursor-pointer bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
     >
       <option value="all">{$t("smart.match_all")}</option>
       <option value="any">{$t("smart.match_any")}</option>
@@ -89,7 +87,7 @@
       <button
         type="button"
         onclick={onremove}
-        class="ml-auto p-1 rounded cursor-pointer text-neutral-400 hover:text-red-500"
+        class="ml-auto w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-(--rg-mu) hover:text-red-500 hover:bg-red-500/10"
         aria-label={$t("smart.remove_group")}
       >
         <Icon icon="lucide:x" width="14" />
@@ -97,7 +95,7 @@
     {/if}
   </div>
 
-  <div class="space-y-1.5">
+  <div class="space-y-2">
     {#each group.rules as noeud, i (i)}
       {#if estGroupe(noeud)}
         <RuleGroup
@@ -110,14 +108,12 @@
       {:else}
         {@const ops = operatorsFor(vocabulary, fields, noeud.field)}
         {@const arite = arityOf(ops, noeud.op)}
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-2">
           <!-- Champ -->
           <select
             value={noeud.field}
             onchange={(e) => changerChamp(i, e.currentTarget.value)}
-            class="text-xs px-2 py-1.5 rounded-md cursor-pointer min-w-0 flex-1
-                   bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-white/10
-                   text-neutral-800 dark:text-neutral-200"
+            class="h-9 px-2.5 rounded-lg text-[13px] cursor-pointer min-w-0 flex-1 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
           >
             {#each fields as f (f.key)}
               <option value={f.key}>{libelleChamp(f, $t)}</option>
@@ -127,9 +123,7 @@
           <!-- Opérateur -->
           <select
             bind:value={noeud.op}
-            class="text-xs px-2 py-1.5 rounded-md cursor-pointer w-40 shrink-0
-                   bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-white/10
-                   text-neutral-800 dark:text-neutral-200"
+            class="h-9 px-2.5 rounded-lg text-[13px] cursor-pointer w-40 shrink-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
           >
             {#each ops as o (o.key)}
               <option value={o.key}>{libelleOperateur(o, $t)}</option>
@@ -143,10 +137,7 @@
               type="text"
               bind:value={noeud.value}
               placeholder={$t("smart.value")}
-              class="text-xs px-2 py-1.5 rounded-md w-40 shrink-0
-                     bg-white dark:bg-white/5 border border-neutral-200 dark:border-white/10
-                     text-neutral-800 dark:text-neutral-200
-                     focus:outline-none focus:border-emerald-400"
+              class="h-9 px-2.5 rounded-lg text-[13px] w-40 shrink-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) outline-none focus:border-(--rg-g)"
             />
           {:else if arite === 2}
             <div class="flex items-center gap-1 w-40 shrink-0">
@@ -157,11 +148,9 @@
                   const b = Array.isArray(noeud.value) ? noeud.value[1] : 0;
                   group.rules[i] = { ...noeud, value: [Number(e.currentTarget.value), b] };
                 }}
-                class="text-xs px-2 py-1.5 rounded-md w-full min-w-0
-                       bg-white dark:bg-white/5 border border-neutral-200 dark:border-white/10
-                       text-neutral-800 dark:text-neutral-200 focus:outline-none focus:border-emerald-400"
+                class="h-9 px-2.5 rounded-lg text-[13px] w-full min-w-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) outline-none focus:border-(--rg-g)"
               />
-              <span class="text-[10px] text-neutral-400 shrink-0">{$t("smart.and")}</span>
+              <span class="text-xs text-(--rg-mu) shrink-0">{$t("smart.and")}</span>
               <input
                 type="number"
                 value={Array.isArray(noeud.value) ? noeud.value[1] : ''}
@@ -169,9 +158,7 @@
                   const a = Array.isArray(noeud.value) ? noeud.value[0] : 0;
                   group.rules[i] = { ...noeud, value: [a, Number(e.currentTarget.value)] };
                 }}
-                class="text-xs px-2 py-1.5 rounded-md w-full min-w-0
-                       bg-white dark:bg-white/5 border border-neutral-200 dark:border-white/10
-                       text-neutral-800 dark:text-neutral-200 focus:outline-none focus:border-emerald-400"
+                class="h-9 px-2.5 rounded-lg text-[13px] w-full min-w-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) outline-none focus:border-(--rg-g)"
               />
             </div>
           {:else}
@@ -181,7 +168,7 @@
           <button
             type="button"
             onclick={() => retirer(i)}
-            class="p-1 rounded cursor-pointer shrink-0 text-neutral-400 hover:text-red-500"
+            class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer shrink-0 text-(--rg-mu) hover:text-red-500 hover:bg-red-500/10"
             aria-label={$t("smart.remove_condition")}
           >
             <Icon icon="lucide:x" width="14" />
@@ -191,13 +178,11 @@
     {/each}
   </div>
 
-  <div class="flex items-center gap-2 mt-2">
+  <div class="flex items-center gap-2 mt-3">
     <button
       type="button"
       onclick={ajouterRegle}
-      class="text-[11px] flex items-center gap-1 cursor-pointer
-             text-neutral-500 dark:text-neutral-400
-             hover:text-neutral-800 dark:hover:text-neutral-200"
+      class="h-8 px-3 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 cursor-pointer border border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) transition-colors"
     >
       <Icon icon="lucide:plus" width="12" />
       {$t("smart.condition")}
@@ -206,9 +191,7 @@
       <button
         type="button"
         onclick={ajouterGroupe}
-        class="text-[11px] flex items-center gap-1 cursor-pointer
-               text-neutral-500 dark:text-neutral-400
-               hover:text-neutral-800 dark:hover:text-neutral-200"
+        class="h-8 px-3 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 cursor-pointer border border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) transition-colors"
       >
         <Icon icon="lucide:brackets" width="12" />
         {$t("smart.group")}

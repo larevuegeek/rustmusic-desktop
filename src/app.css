@@ -131,6 +131,18 @@ html, body {
   --karbon-emerald-500: #10b981;
   --karbon-emerald-600: #059669;
 }
+/* Mêmes jetons en mode clair : Modal et Dialog restaient noirs sur un fond clair. */
+:root:not(.dark) {
+  --karbon-bg-card: #ffffff;
+  --karbon-bg-input: #f8f6f1;
+  --karbon-text: #1a1c1a;
+  --karbon-text-2: #3d403c;
+  --karbon-text-3: #5e625d;
+  --karbon-text-4: #8a8e88;
+  --karbon-border: #e2ddd3;
+  --karbon-border-input: #d6d0c4;
+  --karbon-nav-hover-bg: #f1eee8;
+}
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Light-mode design tokens */

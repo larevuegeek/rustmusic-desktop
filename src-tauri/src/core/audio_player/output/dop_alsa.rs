@@ -14,23 +14,19 @@
 //! (`0x05/0xFA`, alterné à chaque trame, compteur continu) est posé ici sur
 //! CHAQUE trame — musique comme silence — sinon le DAC perd le lock DSD.
 //!
-//! # v1 : per-track
-//! Un stream par piste (pas encore de moteur gapless persistant). Le DAC DSD
-//! se re-verrouille entre les morceaux (~1-2 s). Le moteur persistant viendra
-//! dans un second temps (parité avec `dop_engine.rs` de Windows).
+//! Stream tenu par le moteur DoP persistant (`dop_engine`) : pistes enchaînées sans relock.
 
 #![cfg(target_os = "linux")]
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use alsa::pcm::{Access, Format, HwParams, PCM};
 use alsa::{Direction, ValueOr};
+use ringbuf::traits::{Consumer, Observer};
+use ringbuf::HeapCons;
 
-use crate::core::audio_decoder::dsd::dop_encoder::{
-    dop_silence_payload, stamp_marker, DopEncoder,
-};
-use crate::core::audio_decoder::dsd::dsd_container::DsdContainerReader;
+use super::dop_engine::{DopRenderCtl, PRECHAUFFAGE_S};
+use crate::core::audio_decoder::dsd::dop_encoder::{dop_silence_payload, stamp_marker};
 
 /// Un périphérique de sortie ALSA hardware candidat au DoP.
 #[derive(Debug, Clone)]
@@ -149,54 +145,29 @@ pub fn dop_format_supported(hw_id: &str, carrier_rate: u32, channels: u16) -> bo
     }
 }
 
-/// Pilotage du render DoP par le thread de lecture.
-pub struct AlsaDopControl {
-    /// Pause globale : on écrit du silence DSD (DAC reste locké).
-    pub is_paused: Arc<AtomicBool>,
-    /// Arrêt demandé : le render sort dès que possible.
-    pub is_stopped: Arc<AtomicBool>,
-    /// Position courante en secondes (bits f64). Mise à jour par le render.
-    pub current_position: Arc<AtomicU64>,
-    /// Seek demandé en secondes (bits f64) ; `u64::MAX` = aucun.
-    pub seek_position: Arc<AtomicU64>,
-    /// Durée totale en secondes (bits f64), pour clamper le seek.
-    pub total_duration: Arc<AtomicU64>,
-}
+/// Trames écrites par tour : ~11,6 ms au porteur DSD64 (176,4 kHz). `writei`
+/// bloque tant que le tampon matériel est plein : c'est lui qui cadence la boucle.
+const BLOC: usize = 2048;
 
-/// Nombre de trames de silence écrites par cycle en pause (~21 ms @ 176.4k).
-const SILENCE_FRAMES: usize = 4096;
-
-/// Ouvre le stream ALSA et joue la piste DSD en DoP jusqu'à EOF ou stop.
-///
-/// Boucle single-thread : décode un super-bloc DSD → encode DoP → tamponne les
-/// marqueurs → `writei` **bloquant** (fournit le cadencement temps réel). En
-/// pause on écrit du silence DoP pour garder le DAC verrouillé.
-///
-/// Retour : `Ok(true)` = fin naturelle (EOF), `Ok(false)` = stop utilisateur.
-pub fn run_alsa_dop_playback(
+/// Render persistant du moteur DoP sur le `hw:` jusqu'au `render_stop` ; silence DoP sinon.
+/// Marqueur posé sur chaque trame avec un compteur continu : `0x05/0xFA` ne se rompt jamais.
+pub fn run_alsa_dop_render(
     hw_id: &str,
     carrier_rate: u32,
     channels: u16,
-    mut decoder: Box<dyn DsdContainerReader + Send>,
-    lsb_first: bool,
-    ctl: AlsaDopControl,
-) -> Result<bool, String> {
-    let ch = channels as usize;
+    mut consumer: HeapCons<i32>,
+    ctl: DopRenderCtl,
+) -> Result<(), String> {
+    let ch = channels.max(1) as usize;
 
     let pcm = open_hw_pcm(hw_id).map_err(|e| format!("ouverture {hw_id}: {e}"))?;
     configure_dop_params(&pcm, carrier_rate, channels)?;
     pcm.prepare().map_err(|e| format!("prepare: {e}"))?;
 
-    log::info!("🎚️  Stream ALSA DoP ouvert : {hw_id} @ {carrier_rate} Hz / {channels} ch (S32_LE, bit-perfect)");
-
-    let mut encoder = DopEncoder::new(channels as u8, lsb_first);
-    // Marqueur DoP : alterne à CHAQUE trame, compteur continu (musique + silence).
+    let silence = dop_silence_payload();
     let mut marker_b = false;
-    // Frames de musique jouées (position). Pas incrémenté en pause.
-    let mut frames_played: u64 = 0;
-
-    // Tampon de silence DoP pré-généré (payload idle 0x69), marqueurs posés au vol.
-    let silence_payload = dop_silence_payload();
+    let mut payload = vec![0i32; BLOC * ch];
+    let mut buf: Vec<i32> = Vec::with_capacity(BLOC * ch);
 
     // Écrit `buf` (interleavé, déjà marqué) en gérant les XRUN.
     let write_all = |pcm: &PCM, buf: &[i32]| -> Result<(), String> {
@@ -206,7 +177,6 @@ pub fn run_alsa_dop_playback(
             match io.writei(&buf[off..]) {
                 Ok(frames) => off += frames * ch,
                 Err(e) => {
-                    // Underrun / suspend → tenter de récupérer puis réécrire.
                     if pcm.recover(e.errno(), true).is_err() {
                         return Err(format!("writei: {e}"));
                     }
@@ -216,71 +186,73 @@ pub fn run_alsa_dop_playback(
         Ok(())
     };
 
-    'track: loop {
-        if ctl.is_stopped.load(Ordering::Relaxed) {
-            return Ok(false);
-        }
-
-        // ─── Seek ───
-        let seek_bits = ctl.seek_position.load(Ordering::Relaxed);
-        if seek_bits != u64::MAX {
-            ctl.seek_position.store(u64::MAX, Ordering::Relaxed);
-            let total = f64::from_bits(ctl.total_duration.load(Ordering::Relaxed)).max(0.0);
-            let secs = f64::from_bits(seek_bits).clamp(0.0, total);
-            if let Ok(actual) = decoder.seek_to_seconds(secs) {
-                encoder.reset();
-                frames_played = (actual * carrier_rate as f64) as u64;
-                ctl.current_position.store(actual.to_bits(), Ordering::Relaxed);
-                let _ = pcm.prepare(); // repart proprement après le drain implicite
-            }
-            continue;
-        }
-
-        // ─── Pause : silence DoP pour garder le lock DSD ───
-        if ctl.is_paused.load(Ordering::Relaxed) {
-            let mut buf = Vec::with_capacity(SILENCE_FRAMES * ch);
-            for _ in 0..SILENCE_FRAMES {
-                let s = stamp_marker(silence_payload, marker_b);
-                for _ in 0..ch {
-                    buf.push(s);
-                }
-                marker_b = !marker_b;
-            }
-            write_all(&pcm, &buf)?;
-            continue;
-        }
-
-        // ─── Décode + encode + joue ───
-        let blocks = match decoder.read_next_blocks() {
-            Ok(Some(b)) => b,
-            Ok(None) => break 'track, // EOF
-            Err(e) => return Err(format!("décodage DSD: {e:?}")),
-        };
-        let payload = encoder.encode_blocks(&blocks); // interleavé, sans marqueur
-        if payload.is_empty() {
-            continue;
-        }
-        let frames = payload.len() / ch;
-
-        // Poser le marqueur DoP trame par trame (même marqueur pour tous les
-        // canaux d'une trame, alternance à chaque trame).
-        let mut buf = Vec::with_capacity(payload.len());
-        for f in 0..frames {
-            let base = f * ch;
-            for c in 0..ch {
-                buf.push(stamp_marker(payload[base + c], marker_b));
-            }
+    // Compose un bloc : `musique` trames du payload, le reste en silence DoP.
+    let mut composer = |payload: &[i32], musique: usize, buf: &mut Vec<i32>| {
+        buf.clear();
+        for f in 0..BLOC {
+            let marker = marker_b;
             marker_b = !marker_b;
+            if f < musique {
+                for c in 0..ch {
+                    buf.push(stamp_marker(payload[f * ch + c], marker));
+                }
+            } else {
+                let s = stamp_marker(silence, marker);
+                buf.extend(std::iter::repeat_n(s, ch));
+            }
+        }
+    };
+
+    // Pré-remplissage : le DAC verrouille sur du silence DoP valide dès la 1re trame.
+    for _ in 0..2 {
+        composer(&payload[..], 0, &mut buf);
+        write_all(&pcm, &buf)?;
+    }
+    ctl.started_ok.store(true, Ordering::Relaxed);
+    log::info!("🎚️  Stream ALSA DoP ouvert : {hw_id} @ {carrier_rate} Hz / {channels} ch (S32_LE, moteur persistant)");
+
+    let warmup_frames = (carrier_rate as f64 * PRECHAUFFAGE_S) as usize;
+    let mut warmed = 0usize;
+
+    loop {
+        if ctl.render_stop.load(Ordering::Relaxed) {
+            // Un peu de silence avant de couper : le DAC quitte le DSD proprement.
+            for _ in 0..2 {
+                composer(&payload[..], 0, &mut buf);
+                let _ = write_all(&pcm, &buf);
+            }
+            let _ = pcm.drain();
+            break;
         }
 
-        write_all(&pcm, &buf)?;
+        let mut musique = 0usize;
+        // Vidage et saut d'abord, warm-up compris (sinon le début de la piste
+        // déjà bufferisé serait jeté à la fin du warm-up).
+        if ctl.drain_request.load(Ordering::Acquire) {
+            consumer.clear();
+            ctl.drain_request.store(false, Ordering::Release);
+        } else if ctl.seek_flush.load(Ordering::Acquire) {
+            consumer.clear();
+            ctl.seek_flush.store(false, Ordering::Release);
+        } else if warmed < warmup_frames {
+            warmed += BLOC;
+            if warmed >= warmup_frames {
+                ctl.audio_started.store(true, Ordering::Relaxed);
+                log::debug!("🎚️  [DoP ALSA] Warm-up terminé — lecture musique");
+            }
+        } else if !ctl.is_paused.load(Ordering::Relaxed) {
+            // Trames entières seulement : l'appariement canal/échantillon tient.
+            let dispo = (consumer.occupied_len() / ch).min(BLOC);
+            musique = consumer.pop_slice(&mut payload[..dispo * ch]) / ch;
+        }
 
-        frames_played += frames as u64;
-        let pos = frames_played as f64 / carrier_rate as f64;
-        ctl.current_position.store(pos.to_bits(), Ordering::Relaxed);
+        composer(&payload[..], musique, &mut buf);
+        write_all(&pcm, &buf)?;
+        if musique > 0 {
+            ctl.music_frames_played.fetch_add(musique, Ordering::Relaxed);
+        }
     }
 
-    // Fin naturelle : vider le buffer ALSA (laisse jouer la fin).
-    let _ = pcm.drain();
-    Ok(true)
+    log::info!("⏹  ALSA DoP : stream fermé ({hw_id})");
+    Ok(())
 }

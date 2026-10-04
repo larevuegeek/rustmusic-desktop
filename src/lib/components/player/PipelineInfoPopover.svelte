@@ -1,18 +1,15 @@
 <script lang="ts">
   // Détail de la chaîne audio, du fichier au DAC, dans le style du menu Sortie.
+  import { volume } from "$lib/stores/player/volume.store";
   import Icon from "@iconify/svelte";
   import { t, currentLocale } from "$lib/i18n";
   import { pipelineMode, type PlaybackPipelineInfo } from "$lib/stores/player/playbackPipeline.store";
-  import { CHAINE } from "$lib/helper/audio/chaineAudio";
+  import { CHAINE, messageRepli, frequenceLisible } from "$lib/helper/audio/chaineAudio";
   import { decrireSortie } from "$lib/helper/audio/deviceLabel";
 
   let { info }: { info: PlaybackPipelineInfo } = $props();
 
-  const nombre = $derived(new Intl.NumberFormat($currentLocale, { maximumFractionDigits: 2 }));
-  function frequence(hz: number): string {
-    if (hz >= 1_000_000) return `${nombre.format(hz / 1_000_000)} MHz`;
-    return hz >= 1_000 ? `${nombre.format(hz / 1_000)} kHz` : `${hz} Hz`;
-  }
+  const frequence = (hz: number) => frequenceLisible(hz, $currentLocale);
 
   const CANAUX: Record<number, string> = { 3: "3.0", 4: "4.0", 5: "5.0", 6: "5.1", 7: "6.1", 8: "7.1" };
   function canaux(n: number): string {
@@ -26,12 +23,14 @@
   );
 
   const etat = $derived.by(() => {
-    const m = pipelineMode(info);
+    const m = pipelineMode(info, $volume);
     return m ? CHAINE[m] : null;
   });
   const dsd = $derived(info.intermediate_pcm_rate != null);
   const dop = $derived((info.backend ?? "").endsWith("DoP"));
-  const moteur = $derived(dop ? $t("pipeline.dop_backend") : info.backend ?? "CPAL shared");
+  // « WASAPI DoP » → « WASAPI · DoP (DSD natif) » ; idem ALSA et CoreAudio.
+  const moteur = $derived(dop ? `${info.backend.replace(/ DoP$/, "")} · ${$t("pipeline.dop_backend")}` : info.backend ?? "CPAL shared");
+  const repli = $derived(messageRepli(info, $t, frequence));
 
   type Etape = { icone: string; titre: string; valeur: string; detail?: string; mono?: boolean; ton?: string };
   const AMBRE = "bg-amber-500/14 text-amber-700 dark:text-amber-300";
@@ -94,6 +93,11 @@
     {/if}
   </div>
   {#if etat}<p class="px-2.5 pb-2.5 text-[11.5px] leading-snug text-(--lc-mu)">{$t(etat.desc)}</p>{/if}
+  {#if repli}
+    <p class="mx-1 mb-2.5 flex gap-2 px-2.5 py-2 rounded-[10px] text-[11.5px] leading-snug bg-amber-500/12 text-amber-800 dark:text-amber-200">
+      <Icon icon="material-symbols:warning-outline-rounded" width="15" class="shrink-0 mt-px text-amber-600 dark:text-amber-400" />{repli}
+    </p>
+  {/if}
 
   <!-- Étapes reliées, du fichier au DAC. -->
   <ol class="px-2.5 pt-1">

@@ -80,8 +80,13 @@ async function attachListeners() {
   unlistenCommand = await listen<string>("smtc-command", (event) => {
     const cmd = event.payload;
     switch (cmd) {
+      // Un bureau peut envoyer « pause » au verrouillage ou à la veille : une bascule relançait alors la musique.
       case "play":
+        if (get(player).status !== "playing") playerService.handleTogglePlay();
+        break;
       case "pause":
+        if (get(player).status === "playing") playerService.pauseFile();
+        break;
       case "toggle":
         playerService.handleTogglePlay();
         break;

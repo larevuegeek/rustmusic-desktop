@@ -12,6 +12,10 @@ export interface Playlist {
   position: number;
   /** Vrai si le contenu se calcule à partir de règles au lieu d'être rangé. */
   is_smart: boolean;
+  /** Un mix : playlist auto tirée au hasard chaque jour, rangée sur la page Mix. */
+  is_mix: boolean;
+  /** Affichée dans la barre latérale. */
+  pinned: boolean;
   created_at: string;
   updated_at: string | null;
 }

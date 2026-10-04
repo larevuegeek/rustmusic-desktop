@@ -22,10 +22,15 @@
   import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
   import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
   import type { LibraryDir } from "$lib/types/db/library/LibraryDir";
+  import SelectionToggle from "$lib/components/ui/selection/SelectionToggle.svelte";
+  import SelectionCheck from "$lib/components/ui/selection/SelectionCheck.svelte";
+  import { selectionStore } from "$lib/stores/ui/selection.store";
+  import { cleGroupe, toggleGroupSelection } from "$lib/helper/tools/selectionGroups";
 
   type DirEntry = {
     name: string; path: string; is_dir: boolean; size: number; extension: string | null;
     title: string | null; artist: string | null; duration: number | null; thumbnail_path: string | null;
+    track_id: string | null;
   };
 
   const libraryId = $derived(Number(page.params.library_id));
@@ -82,6 +87,29 @@
   }
 
   const fichiers = $derived(entries.filter((e) => !e.is_dir));
+
+  // ─── Sélection : un fichier est une piste, un dossier apporte toutes les siennes ───
+  const selection = $derived($selectionStore);
+  const idFichier = (e: DirEntry) => e.track_id ?? e.path;
+  const commePiste = (e: DirEntry) => ({ id: idFichier(e), path: e.path, title: e.title ?? e.name, artist: e.artist, duration: e.duration, thumbnail_path: e.thumbnail_path });
+  const cocheEntree = (e: DirEntry) => (e.is_dir ? selection.groupes.has(cleGroupe("path", libraryId, e.path)) : selection.ids.has(idFichier(e)));
+  const cocheRacine = (d: LibraryDir) => selection.groupes.has(cleGroupe("folder", libraryId, d.id));
+
+  // Maj + clic : la plage suit l'ordre affiché des fichiers.
+  $effect(() => {
+    selectionStore.setOrder(visibles.filter((e) => !e.is_dir).map((e) => ({ id: idFichier(e), track: commePiste(e) })));
+  });
+
+  function ouvrirEntree(entry: DirEntry, e: MouseEvent) {
+    if (!selection.active) return entry.is_dir ? navigateTo(entry.path, entry.name) : lireFichier(entry);
+    if (entry.is_dir) toggleGroupSelection("path", libraryId, entry.path);
+    else if (e.shiftKey) selectionStore.selectRange(idFichier(entry));
+    else selectionStore.toggle(idFichier(entry), commePiste(entry));
+  }
+  function ouvrirRacine(dir: LibraryDir) {
+    if (selection.active) toggleGroupSelection("folder", libraryId, dir.id);
+    else navigateTo(dir.path, dir.name);
+  }
   const dirCount = $derived(entries.length - fichiers.length);
 
   function lireFichier(entry: DirEntry) {
@@ -173,9 +201,10 @@
 </script>
 
 <!-- Icône d'une entrée : dossier en ambre, fichier audio en vert. -->
-{#snippet icone(estDossier: boolean, taille: string, largeur: number)}
-  <span class="{tuileDossier} {taille} {estDossier ? 'bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-am)' : 'bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)'}">
+{#snippet icone(estDossier: boolean, taille: string, largeur: number, coche: boolean | null = null)}
+  <span class="relative {tuileDossier} {taille} {estDossier ? 'bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-am)' : 'bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)'}">
     <Icon icon={estDossier ? "material-symbols:folder-outline-rounded" : "material-symbols:music-note-rounded"} width={largeur} />
+    {#if coche !== null}<SelectionCheck {coche} class="absolute -top-1.5 -left-1.5" />{/if}
   </span>
 {/snippet}
 
@@ -205,6 +234,7 @@
                     onchange={(v) => (tri = v as typeof tri)} labelClass="@max-xl:hidden" menuClass="w-55" />
 
         <ViewModeSwitch />
+        <SelectionToggle />
       </div>
 
       <!-- Fil d'Ariane : racine › dossiers ouverts ; à droite, le contenu du niveau. -->
@@ -259,10 +289,11 @@
               {#each racines as dir (dir.id)}
                 {@const etat = etatDe(dir)}
                 <button type="button"
-                        class="group relative grid grid-cols-[48px_minmax(0,1fr)_100px_90px_150px_40px] max-[900px]:grid-cols-[48px_minmax(0,1fr)_90px_40px] items-center gap-4 py-2 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors hover:bg-(--rg-carte)
+                        class="group relative grid grid-cols-[48px_minmax(0,1fr)_100px_90px_150px_40px] max-[900px]:grid-cols-[48px_minmax(0,1fr)_90px_40px] items-center gap-4 py-2 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors
+                               {cocheRacine(dir) ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-carte)'}
                                before:absolute before:left-18 before:right-3 before:top-0 before:h-px [button+&]:before:bg-(--rg-line) hover:before:opacity-0 [&:hover+button]:before:opacity-0"
-                        onclick={() => navigateTo(dir.path, dir.name)}>
-                  {@render icone(true, "w-12 h-12", 22)}
+                        onclick={() => ouvrirRacine(dir)}>
+                  {@render icone(true, "w-12 h-12", 22, selection.active ? cocheRacine(dir) : null)}
                   <span class="min-w-0">
                     <span class="block truncate text-base font-semibold text-(--rg-tx)">{dir.name}</span>
                     <span class="block mt-0.5 truncate font-mono text-xs text-(--rg-mu)" title={dir.path}>{dir.path}</span>
@@ -284,10 +315,11 @@
               {#each racines as dir (dir.id)}
                 {@const etat = etatDe(dir)}
                 <button type="button"
-                        class="group flex flex-col gap-3.5 p-4 rounded-2xl border text-left cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)"
-                        onclick={() => navigateTo(dir.path, dir.name)}>
+                        class="group flex flex-col gap-3.5 p-4 rounded-2xl border text-left cursor-pointer transition-colors
+                               {cocheRacine(dir) ? 'bg-(--rg-creux-on) border-(--rg-g)' : 'bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)'}"
+                        onclick={() => ouvrirRacine(dir)}>
                   <span class="flex items-start justify-between gap-3">
-                    {@render icone(true, "w-12 h-12", 24)}
+                    {@render icone(true, "w-12 h-12", 24, selection.active ? cocheRacine(dir) : null)}
                     <span class="flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap {etat.classes}">
                       <span class="w-1.5 h-1.5 rounded-full bg-current"></span>{$t(etat.cle)}
                     </span>
@@ -320,10 +352,11 @@
           <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pt-3">
             {#each visibles as entry (entry.path)}
               <button type="button"
-                      class="group flex flex-col items-center gap-2.5 p-4 rounded-2xl border text-center cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)"
-                      onclick={() => (entry.is_dir ? navigateTo(entry.path, entry.name) : lireFichier(entry))}
+                      class="group flex flex-col items-center gap-2.5 p-4 rounded-2xl border text-center cursor-pointer transition-colors
+                             {cocheEntree(entry) ? 'bg-(--rg-creux-on) border-(--rg-g)' : 'bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)'}"
+                      onclick={(e) => ouvrirEntree(entry, e)}
                       oncontextmenu={(e) => { if (!entry.is_dir) { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, entry }; } }}>
-                {@render icone(entry.is_dir, "w-14 h-14", 26)}
+                {@render icone(entry.is_dir, "w-14 h-14", 26, selection.active ? cocheEntree(entry) : null)}
                 <span class="w-full min-w-0">
                   <span class="block truncate text-sm font-semibold text-(--rg-tx)" title={entry.name}>{entry.name}</span>
                   <span class="block mt-0.5 text-[11px] text-(--rg-mu)">
@@ -339,11 +372,12 @@
           <div class="flex flex-col pt-2">
             {#each visibles as entry (entry.path)}
               <button type="button"
-                      class="group relative grid grid-cols-[40px_minmax(0,1fr)_70px_90px_40px] items-center gap-4 py-1.5 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors hover:bg-(--rg-carte)
+                      class="group relative grid grid-cols-[40px_minmax(0,1fr)_70px_90px_40px] items-center gap-4 py-1.5 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors
+                             {cocheEntree(entry) ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-carte)'}
                              before:absolute before:left-16 before:right-3 before:top-0 before:h-px [button+&]:before:bg-(--rg-line) hover:before:opacity-0 [&:hover+button]:before:opacity-0"
-                      onclick={() => (entry.is_dir ? navigateTo(entry.path, entry.name) : lireFichier(entry))}
+                      onclick={(e) => ouvrirEntree(entry, e)}
                       oncontextmenu={(e) => { if (!entry.is_dir) { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, entry }; } }}>
-                {@render icone(entry.is_dir, "w-10 h-10", 19)}
+                {@render icone(entry.is_dir, "w-10 h-10", 19, selection.active ? cocheEntree(entry) : null)}
                 <span class="min-w-0 truncate text-sm {entry.is_dir ? 'font-semibold text-(--rg-tx)' : 'text-(--rg-tx2)'}" title={entry.name}>{entry.name}</span>
                 <span class="justify-self-end">
                   {#if entry.extension}

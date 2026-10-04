@@ -1,6 +1,6 @@
 [package]
 name = "rustmusic"
-version = "0.2.7"
+version = "0.2.8"
 description = "Audiophile-grade desktop music player with native DSD playback, multichannel SACD support, DLNA server, synced lyrics, and OS media controls."
 authors = ["LaRevueGeeK <contact@rustmusic.dev>"]
 edition = "2021"
@@ -35,9 +35,13 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.150"
 base64 = "0.22.1"
 cpal = "0.18.1"
-# 0.6 : flac/wav/vorbis/pcm sont dans les features par défaut ; isomp4 ajoute
-# le conteneur MP4/M4A (sans lui le codec AAC ne sert à rien en pratique).
-symphonia = { version = "0.6.0", features = ["mp3", "flac", "wav", "vorbis", "aac", "isomp4"] }
+# 0.6 : flac/wav/vorbis/pcm/ogg sont dans les features par défaut ; isomp4 ajoute
+# le conteneur MP4/M4A (AAC et ALAC), aiff le conteneur AIFF.
+symphonia = { version = "0.6.0", features = ["mp3", "flac", "wav", "vorbis", "aac", "isomp4", "aiff", "alac"] }
+# Opus : absent de Symphonia ; libopus (référence) compilé avec le projet — cmake requis au build.
+symphonia-adapter-libopus = "0.3"
+# Magic cookie ALAC : la profondeur d'un ALAC n'est déclarée que là (même version que Symphonia).
+symphonia-common = "0.6"
 rubato = "3.0.0"
 lazy_static = "1.5.0"
 log = "0.4.33"
@@ -85,7 +89,7 @@ tauri-plugin-window-state = "2.4.1"
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.23"
 # Même version que celle de `wasapi` : bus de l'adaptateur d'une sortie (USB, HDMI…).
-windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties"] }
+windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties", "Win32_System_Power"] }
 
 # CoreAudio direct pour le DoP bit-perfect sur macOS. On ne réimplémente PAS
 # le stream (CPAL suffit : son unité HAL règle déjà le rate nominal du device et

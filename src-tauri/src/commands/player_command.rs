@@ -89,6 +89,12 @@ pub async fn play_file(
     }
 }
 
+/// Empêche la mise en veille automatique tant que la musique joue (l'écran peut s'éteindre).
+#[tauri::command]
+pub fn set_veille_bloquee(bloquer: bool) {
+    crate::core::veille::bloquer(bloquer);
+}
+
 #[tauri::command]
 pub async fn pause_play() {
     log::debug!("Demande de pause");

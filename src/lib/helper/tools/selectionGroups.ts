@@ -17,7 +17,8 @@ import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
  * album ou un artiste, pas sur la bibliothèque.
  */
 
-export type GroupKind = "album" | "artist" | "genre" | "folder";
+/** `folder` : dossier importé (par id) ; `path` : n'importe quel sous-dossier (par chemin). */
+export type GroupKind = "album" | "artist" | "genre" | "folder" | "path";
 
 /** Commande et paramètres qui rendent les pistes d'un groupe. */
 function requete(kind: GroupKind, libraryId: number, id: string) {
@@ -30,6 +31,8 @@ function requete(kind: GroupKind, libraryId: number, id: string) {
       return ["get_tracks_by_genre", { libraryId, genre: id }] as const;
     case "folder":
       return ["get_tracks_by_dir", { libraryId, dirId: id }] as const;
+    case "path":
+      return ["get_tracks_under_path", { libraryId, path: id }] as const;
   }
 }
 

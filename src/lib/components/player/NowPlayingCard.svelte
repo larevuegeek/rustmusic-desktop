@@ -4,6 +4,7 @@ import { player } from "$lib/stores/player/player.store";
 import { queueState } from "$lib/stores/queue/queueState.store";
 import { formatTime } from "$lib/helper/tools/dateTools";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+import { t } from "$lib/i18n";
 
 type Variant = "default" | "blur";
 
@@ -74,7 +75,7 @@ let glowClasses = $derived(
                 ></span>
             </div>
             <h3 class="text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400">
-                Lecture en cours
+                {$t("home.now_playing")}
             </h3>
         </div>
 

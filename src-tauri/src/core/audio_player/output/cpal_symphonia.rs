@@ -13,7 +13,7 @@
 use std::sync::atomic::Ordering;
 
 use cpal::traits::{DeviceTrait, StreamTrait};
-use ringbuf::traits::{Consumer, Observer};
+use ringbuf::traits::Consumer;
 
 use super::traits::{AudioOutput, AudioOutputError};
 use super::types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
@@ -40,6 +40,8 @@ impl CpalSymphoniaOutput {
         mut consumer: C,
         atomics: PlaybackAtomics,
         shared: SymphoniaSharedState,
+        // `MARGE_PARTAGEE` en partagé ; 1.0 sous le hog mode macOS (bit-perfect).
+        marge: f32,
     ) -> Result<Self, AudioOutputError>
     where
         C: Consumer<Item = f32> + Send + 'static,
@@ -153,15 +155,7 @@ impl CpalSymphoniaOutput {
                     // --- Volume + Replay Gain + clipping + fade-in post-seek ---
                     let vol: f32 = volume.load(Ordering::Relaxed) as f32 / 100.0
                         * crate::core::audio_player::replay_gain::current_factor();
-                    for s in output.iter_mut() {
-                        let fade = if fade_in_samples > 0 {
-                            fade_in_samples -= 1;
-                            (2048 - fade_in_samples) as f32 / 2048.0
-                        } else {
-                            1.0
-                        };
-                        *s = (*s * vol * fade * 0.98).clamp(-1.0, 1.0);
-                    }
+                    super::echantillons::appliquer_gain(output, vol, &mut fade_in_samples, marge);
                 },
                 {
                     // Throttle des erreurs CPAL : 1ère, puis 1 sur 100, puis 1

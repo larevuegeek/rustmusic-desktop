@@ -32,7 +32,7 @@
 use ringbuf::traits::Consumer;
 
 use super::cpal_symphonia::CpalSymphoniaOutput;
-use super::dop_coreaudio::{nominal_rate, resolve_device_id, supports_nominal_rate, HogGuard};
+use super::dop_coreaudio::{nominal_rate, physical_bit_depth, resolve_device_id, supports_nominal_rate, HogGuard};
 use super::traits::{AudioOutput, AudioOutputError};
 use super::types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
 
@@ -105,6 +105,7 @@ impl CoreAudioExclusiveOutput {
             consumer,
             atomics,
             shared,
+            1.0,
         )?;
 
         Ok(Self {
@@ -147,6 +148,10 @@ impl AudioOutput for CoreAudioExclusiveOutput {
 
     fn output_sample_rate(&self) -> u32 {
         self.inner.output_sample_rate()
+    }
+
+    fn bits_exacts(&self) -> u32 {
+        physical_bit_depth(self.device_id).map(|b| b.min(24)).unwrap_or(16)
     }
 
     fn output_channels(&self) -> u16 {

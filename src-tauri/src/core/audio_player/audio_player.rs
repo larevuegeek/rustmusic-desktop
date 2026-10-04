@@ -254,7 +254,7 @@ impl AudioPlayer {
 
         // Chemin PCM (Symphonia) : on n'est PLUS en DSD → fermer le moteur DoP
         // s'il tournait encore (libère le DAC, qui repasse en PCM).
-        #[cfg(target_os = "windows")]
+        #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
         crate::core::audio_player::output::dop_engine::teardown_engine();
 
         log::debug!("Fichier sélectionné : {:?}", file_path);
@@ -414,7 +414,9 @@ impl AudioPlayer {
         log::debug!("Output device: {:?}", device.description());
 
         let output_config: cpal::SupportedStreamConfig = device.default_output_config()?;
+        startup.mark("recherche du périphérique");
         let mut output_sample_rate: u32 = output_config.sample_rate();
+        #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut output_channels: u16 = output_config.channels();
         log::info!(
             "🔊 CPAL device negotiated : {} Hz × {} ch · sample format {:?} · buffer config {:?}",
@@ -473,6 +475,19 @@ impl AudioPlayer {
                     }
                 }
             }
+        }
+
+        startup.mark("négociation exclusive");
+
+        // ─── Pré-négociation ALSA / CoreAudio : même raison que WASAPI ───
+        // La sortie exclusive ouvre le DAC au rate source ; le décodeur doit le produire.
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        if crate::core::audio_player::output::exclusif_au_rate_source(&device_name, source_sample_rate, output_channels) {
+            log::info!(
+                "🎚️  Exclusif pré-négocié : décodeur piloté à {} Hz / {} ch (au lieu de {} Hz)",
+                source_sample_rate, output_channels, output_sample_rate
+            );
+            output_sample_rate = source_sample_rate;
         }
 
         // CPAL buffer size : sur VM / Minimal profile on demande un buffer
@@ -591,7 +606,9 @@ impl AudioPlayer {
         // Extraits pour la pipeline info émise après audio_output.start() —
         // codec_params est déplacé dans le thread décodeur juste après.
         let pipeline_codec = codec_params.codec;
-        let pipeline_source_bits = codec_params.bits_per_sample.unwrap_or(16);
+        // Inconnue : affichée 16, mais jamais comptée bit-perfect.
+        let profondeur = crate::core::audio_player::pipeline_info::profondeur_source(&codec_params);
+        let pipeline_source_bits = profondeur.unwrap_or(16);
 
         let decoder_handle: JoinHandle<Result<(), String>> = std::thread::spawn(move || {
             decode_thread(
@@ -680,6 +697,7 @@ impl AudioPlayer {
 
             let _ = app_handle.emit("playback-preparing", false);
         } else {
+            startup.mark("lancement du décodeur");
             log::debug!("⏳ Attente du premier bloc audio...");
             let start_wait: std::time::Instant = std::time::Instant::now();
 
@@ -720,12 +738,18 @@ impl AudioPlayer {
             output_channels,
         };
 
-        startup.mark("préparation du décodeur");
+        startup.mark("premier bloc décodé");
 
-        let mut audio_output = output::create_symphonia_output(
+        // Windows renégocie depuis les canaux source ; ailleurs, la sortie exclusive
+        // ouvre ceux que produit le décodeur (pré-négociés plus haut).
+        #[cfg(target_os = "windows")]
+        let canaux_sortie = channels as u16;
+        #[cfg(not(target_os = "windows"))]
+        let canaux_sortie = output_channels;
+        let (mut audio_output, repli) = output::create_symphonia_output(
             output::current_preference(),
             source_sample_rate,
-            channels as u16,
+            canaux_sortie,
             device,
             config,
             device_name.clone(),
@@ -758,8 +782,15 @@ impl AudioPlayer {
         let effective_output_channels = audio_output.output_channels();
         let effective_device_name = audio_output.device_name().to_string();
         let backend_label = audio_output.backend().display_name().to_string();
+        // Bit-perfect : exclusif au rate et aux canaux source, source entière sans perte, Replay Gain neutre.
+        // Le volume, lui, est vérifié par l'interface.
+        let canaux_source = channels as u16;
         let bit_perfect = audio_output.backend().is_bit_perfect_capable()
-            && effective_output_rate == source_sample_rate;
+            && effective_output_rate == source_sample_rate
+            && (effective_output_channels == canaux_source || (canaux_source == 1 && effective_output_channels == 2))
+            && crate::core::audio_player::pipeline_info::est_entier_sans_perte(pipeline_codec)
+            && profondeur.is_some_and(|b| b <= audio_output.bits_exacts())
+            && crate::core::audio_player::replay_gain::current_factor() == 1.0;
         crate::core::audio_player::pipeline_info::PlaybackPipelineInfo {
             source_format: crate::core::audio_player::pipeline_info::symphonia_format_label(
                 pipeline_codec,
@@ -778,6 +809,7 @@ impl AudioPlayer {
             quality_profile: format!("{:?}", profile_for_pipeline).to_lowercase(),
             backend: backend_label,
             bit_perfect,
+            repli,
         }
         .emit(&app_handle);
 
@@ -1120,6 +1152,14 @@ impl AudioPlayer {
                 .ok_or("Pas de périphérique audio")?
         };
 
+        // Le DSD (DoP ou converti) ne passe pas par le moteur PCM exclusif : il rend le DAC.
+        #[cfg(target_os = "windows")]
+        crate::core::audio_player::output::fermer_moteur();
+
+        // DoP voulu mais refusé : l'interface le dira.
+        #[allow(unused_mut)]
+        let mut repli_dop: Option<crate::core::audio_player::pipeline_info::Repli> = None;
+
         // ─── Décision DSD natif (DoP) — Windows uniquement ───
         // DoP si : préférence activée + WASAPI exclusive actif + profil non
         // Minimal + le DAC accepte le format porteur (24-bit au rate DSD/16).
@@ -1171,6 +1211,8 @@ impl AudioPlayer {
                     let lsb_first = ext == "dsf";
                     return Self::run_dsd_dop_thread(
                         app_handle,
+                        output::dop_engine::CibleDop::Wasapi { device_name: device_full_name.clone() },
+                        "WASAPI DoP",
                         decoder,
                         file_path,
                         lsb_first,
@@ -1192,6 +1234,7 @@ impl AudioPlayer {
                         "🎚️  DoP non supporté par le DAC au porteur {} Hz, fallback DSD2PCM",
                         carrier
                     );
+                    repli_dop = Some(crate::core::audio_player::pipeline_info::Repli::DopRefuse);
                 }
             }
         }
@@ -1233,12 +1276,18 @@ impl AudioPlayer {
                     .or_else(|| output::dop_alsa::resolve_hw_id(&device_full_name));
 
                 if let Some(hw_id) = hw_id {
+                    // Moteur compatible : on l'enchaîne. Sinon on le ferme avant réservation et sonde (`hw:` occupé).
+                    let reutilise = output::dop_engine::moteur_compatible(carrier, channel_count as u16, &device_full_name);
+                    if !reutilise {
+                        output::dop_engine::teardown_engine();
+                    }
                     // Réserver la carte via D-Bus AVANT la probe : PipeWire/Pulse
                     // relâche le `hw:` (sinon ouverture exclusive = EBUSY). La
-                    // réservation est gardée vivante pendant toute la lecture et
-                    // relâchée à la fin (→ PipeWire reprend la carte).
-                    let reservation = output::device_reservation::card_index_from_hw_id(&hw_id)
-                        .and_then(|idx| {
+                    // réservation vit avec le moteur (relâchée à sa fermeture).
+                    let reservation = if reutilise {
+                        None
+                    } else {
+                        output::device_reservation::card_index_from_hw_id(&hw_id).and_then(|idx| {
                             match output::device_reservation::DeviceReservation::acquire(idx) {
                                 Ok(r) => Some(r),
                                 Err(e) => {
@@ -1246,26 +1295,29 @@ impl AudioPlayer {
                                     None
                                 }
                             }
-                        });
+                        })
+                    };
 
-                    if output::dop_alsa::dop_format_supported(&hw_id, carrier, channel_count as u16) {
+                    if reutilise || output::dop_alsa::dop_format_supported(&hw_id, carrier, channel_count as u16) {
                         log::info!(
-                            "🎚️  DSD natif (DoP) ALSA activé : {} → porteur {} Hz sur '{}' ({})",
+                            "🎚️  DSD natif (DoP) ALSA activé : {} → porteur {} Hz sur '{}' ({}){}",
                             crate::core::audio_player::pipeline_info::dsd_label(dsd_rate),
                             carrier,
                             device_full_name,
-                            hw_id
+                            hw_id,
+                            if reutilise { " — moteur réutilisé" } else { "" }
                         );
                         let lsb_first = ext == "dsf";
-                        return Self::run_dsd_dop_alsa_thread(
+                        return Self::run_dsd_dop_thread(
                             app_handle,
+                            output::dop_engine::CibleDop::Alsa { hw_id, reservation },
+                            "ALSA DoP",
                             decoder,
                             file_path,
                             lsb_first,
                             dsd_rate,
                             channel_count,
                             carrier,
-                            hw_id,
                             device_full_name,
                             duration,
                             is_paused,
@@ -1275,7 +1327,6 @@ impl AudioPlayer {
                             current_position,
                             total_duration,
                             seek_position,
-                            reservation,
                         );
                     } else {
                         log::warn!(
@@ -1283,12 +1334,14 @@ impl AudioPlayer {
                             carrier
                         );
                         // `reservation` est droppée ici → PipeWire reprend la carte.
+                        repli_dop = Some(crate::core::audio_player::pipeline_info::Repli::DopRefuse);
                     }
                 } else {
                     log::debug!(
                         "🎚️  Aucun hw: ALSA résolu pour '{}', fallback DSD2PCM",
                         device_full_name
                     );
+                    repli_dop = Some(crate::core::audio_player::pipeline_info::Repli::AppareilIntrouvable);
                 }
             }
         }
@@ -1332,30 +1385,38 @@ impl AudioPlayer {
                     .or_else(|| output::dop_coreaudio::resolve_device_id(&device_full_name));
 
                 if let Some(device_id) = device_id {
-                    if output::dop_coreaudio::dop_format_supported(
+                    // Moteur vivant et compatible : on l'enchaîne (gapless). Sinon on le
+                    // ferme avant de sonder le DAC (le hog mode est alors relâché).
+                    let reutilise = output::dop_engine::moteur_compatible(carrier, channel_count as u16, &device_full_name);
+                    if !reutilise {
+                        output::dop_engine::teardown_engine();
+                    }
+                    if reutilise || output::dop_coreaudio::dop_format_supported(
                         device_id,
                         carrier,
                         channel_count as u16,
                     ) {
                         log::info!(
-                            "🎚️  DSD natif (DoP) CoreAudio activé : {} → porteur {} Hz sur '{}' (device {})",
+                            "🎚️  DSD natif (DoP) CoreAudio activé : {} → porteur {} Hz sur '{}' (device {}){}",
                             crate::core::audio_player::pipeline_info::dsd_label(dsd_rate),
                             carrier,
                             device_full_name,
-                            device_id
+                            device_id,
+                            if reutilise { " — moteur réutilisé" } else { "" }
                         );
                         let lsb_first = ext == "dsf";
-                        return Self::run_dsd_dop_coreaudio_thread(
+                        return Self::run_dsd_dop_thread(
                             app_handle,
+                            output::dop_engine::CibleDop::CoreAudio { device: device.clone(), device_id },
+                            "CoreAudio DoP",
                             decoder,
                             file_path,
                             lsb_first,
                             dsd_rate,
                             channel_count,
                             carrier,
-                            device.clone(),
-                            device_id,
                             device_full_name,
+                            duration,
                             is_paused,
                             is_playing,
                             is_stopped,
@@ -1371,19 +1432,21 @@ impl AudioPlayer {
                             "🎚️  DoP CoreAudio non supporté au porteur {} Hz, fallback DSD2PCM",
                             carrier
                         );
+                        repli_dop = Some(crate::core::audio_player::pipeline_info::Repli::DopRefuse);
                     }
                 } else {
                     log::debug!(
                         "🎚️  Aucun AudioDeviceID résolu pour '{}', fallback DSD2PCM",
                         device_full_name
                     );
+                    repli_dop = Some(crate::core::audio_player::pipeline_info::Repli::Indisponible);
                 }
             }
         }
 
         // On ne joue PAS ce DSD en DoP (toggle off, format non supporté, ou
         // Minimal) → fermer un éventuel moteur DoP vivant (le DAC repasse en PCM).
-        #[cfg(target_os = "windows")]
+        #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
         crate::core::audio_player::output::dop_engine::teardown_engine();
 
         let output_config = device.default_output_config()?;
@@ -1443,6 +1506,7 @@ impl AudioPlayer {
                 .display_name()
                 .to_string(),
             bit_perfect: false,
+            repli: repli_dop,
         }
         .emit(&app_handle);
 
@@ -1852,15 +1916,13 @@ impl AudioPlayer {
         Ok(())
     }
 
-    /// Chemin **DSD natif (DoP)** — Windows uniquement.
-    ///
-    /// Décode les octets DSD → encode en trames DoP → ring buffer i32 → backend
-    /// WASAPI DoP qui écrit verbatim au DAC (DSD natif, bit-perfect). Aucun
-    /// resampling, aucune conversion PCM, volume logiciel inopérant.
-    #[cfg(target_os = "windows")]
+    /// DSD natif (DoP) : trames DoP vers le render persistant de l'OS (`cible`), écrites telles quelles au DAC.
+    #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
     #[allow(clippy::too_many_arguments)]
     fn run_dsd_dop_thread(
         app_handle: AppHandle,
+        cible: crate::core::audio_player::output::dop_engine::CibleDop,
+        backend: &'static str,
         decoder: Box<dyn DsdContainerReader + Send>,
         file_path: PathBuf,
         lsb_first: bool,
@@ -1890,6 +1952,7 @@ impl AudioPlayer {
             carrier_rate,
             channels,
             device_full_name.clone(),
+            cible,
             is_paused.clone(),
             decoder,
             lsb_first,
@@ -1919,8 +1982,9 @@ impl AudioPlayer {
             device_name: device_full_name.clone(),
             resampler_active: false,
             quality_profile: format!("{:?}", profile).to_lowercase(),
-            backend: "WASAPI DoP".to_string(),
+            backend: backend.to_string(),
             bit_perfect: true,
+            repli: None,
         }
         .emit(&app_handle);
 
@@ -1996,213 +2060,6 @@ impl AudioPlayer {
 
         Ok(())
     }
-
-    /// Thread de lecture DSD natif (DoP) via ALSA hw exclusif — Linux, per-track.
-    ///
-    /// Décode les octets DSD → encode en trames DoP → écrit verbatim au DAC via
-    /// ALSA `hw:` (bit-perfect, aucun resampling ni conversion PCM, volume
-    /// logiciel inopérant). Bloquant jusqu'à EOF ou stop utilisateur.
-    #[cfg(target_os = "linux")]
-    #[allow(clippy::too_many_arguments)]
-    fn run_dsd_dop_alsa_thread(
-        app_handle: AppHandle,
-        decoder: Box<dyn DsdContainerReader + Send>,
-        file_path: PathBuf,
-        lsb_first: bool,
-        dsd_rate: u32,
-        channel_count: u8,
-        carrier_rate: u32,
-        hw_id: String,
-        device_full_name: String,
-        duration: f64,
-        is_paused: Arc<AtomicBool>,
-        is_playing: Arc<AtomicBool>,
-        is_stopped: Arc<AtomicBool>,
-        is_stream_alive: Arc<AtomicBool>,
-        current_position: Arc<AtomicU64>,
-        total_duration: Arc<AtomicU64>,
-        seek_position: Arc<AtomicU64>,
-        // Réservation D-Bus de la carte (PipeWire l'a relâchée). Gardée vivante
-        // pendant toute la lecture ; droppée au retour → PipeWire reprend la carte.
-        reservation: Option<crate::core::audio_player::output::device_reservation::DeviceReservation>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        use crate::core::audio_player::output::dop_alsa::{
-            run_alsa_dop_playback, AlsaDopControl,
-        };
-
-        let _reservation = reservation; // maintient la carte réservée jusqu'à la fin
-        let _ = duration; // (position dérivée des frames écrites, pas de la durée)
-        let profile = crate::core::audio_quality::current_profile();
-
-        // ─── Pipeline info (DoP ALSA) ───
-        crate::core::audio_player::pipeline_info::PlaybackPipelineInfo {
-            source_format: crate::core::audio_player::pipeline_info::dsd_label(dsd_rate),
-            source_sample_rate: dsd_rate,
-            source_bits: 1,
-            source_channels: channel_count,
-            intermediate_pcm_rate: None,
-            dsd_filter_taps: None,
-            dsd_decimation: None,
-            output_sample_rate: carrier_rate,
-            output_channels: channel_count,
-            device_name: device_full_name.clone(),
-            resampler_active: false,
-            quality_profile: format!("{:?}", profile).to_lowercase(),
-            backend: "ALSA DoP".to_string(),
-            bit_perfect: true,
-        }
-        .emit(&app_handle);
-
-        // Le DAC peut se muter ~1-2 s le temps d'acquérir le lock DSD.
-        let _ = app_handle.emit("playback-preparing", false);
-        is_playing.store(true, Ordering::SeqCst);
-        is_stream_alive.store(true, Ordering::SeqCst);
-
-        let ctl = AlsaDopControl {
-            is_paused,
-            is_stopped: is_stopped.clone(),
-            current_position: current_position.clone(),
-            seek_position,
-            total_duration,
-        };
-
-        let result = run_alsa_dop_playback(
-            &hw_id,
-            carrier_rate,
-            channel_count as u16,
-            decoder,
-            lsb_first,
-            ctl,
-        );
-
-        is_stream_alive.store(false, Ordering::SeqCst);
-
-        let natural_end = match result {
-            Ok(natural) => natural,
-            Err(e) => {
-                log::error!("❌ [DoP ALSA] {e}");
-                false
-            }
-        };
-
-        // playback-ended seulement sur fin naturelle (→ le frontend enchaîne).
-        if natural_end {
-            if let Err(e) =
-                app_handle.emit("playback-ended", file_path.to_string_lossy().to_string())
-            {
-                log::error!("❌ Erreur d'envoi de l'event Tauri : {}", e);
-            }
-        }
-
-        is_stopped.store(false, Ordering::SeqCst);
-        is_playing.store(false, Ordering::SeqCst);
-        current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
-
-        log::debug!("✅ [DoP ALSA] Fin de piste (natural_end={natural_end})");
-        Ok(())
-    }
-
-    /// Thread de lecture DSD natif (DoP) via CoreAudio — macOS, per-track.
-    ///
-    /// Décode les octets DSD → encode en trames DoP → sort verbatim au DAC via
-    /// un stream CoreAudio en hog mode (bit-perfect : le rate device est figé
-    /// sur le porteur, aucun rééchantillonnage, volume logiciel inopérant).
-    /// Bloquant jusqu'à EOF ou stop utilisateur.
-    #[cfg(target_os = "macos")]
-    #[allow(clippy::too_many_arguments)]
-    fn run_dsd_dop_coreaudio_thread(
-        app_handle: AppHandle,
-        decoder: Box<dyn DsdContainerReader + Send>,
-        file_path: PathBuf,
-        lsb_first: bool,
-        dsd_rate: u32,
-        channel_count: u8,
-        carrier_rate: u32,
-        device: cpal::Device,
-        device_id: u32,
-        device_full_name: String,
-        is_paused: Arc<AtomicBool>,
-        is_playing: Arc<AtomicBool>,
-        is_stopped: Arc<AtomicBool>,
-        is_stream_alive: Arc<AtomicBool>,
-        current_position: Arc<AtomicU64>,
-        total_duration: Arc<AtomicU64>,
-        seek_position: Arc<AtomicU64>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        use crate::core::audio_player::output::dop_coreaudio::{
-            run_coreaudio_dop_playback, CoreAudioDopControl,
-        };
-
-        let profile = crate::core::audio_quality::current_profile();
-
-        // ─── Pipeline info (DoP CoreAudio) ───
-        crate::core::audio_player::pipeline_info::PlaybackPipelineInfo {
-            source_format: crate::core::audio_player::pipeline_info::dsd_label(dsd_rate),
-            source_sample_rate: dsd_rate,
-            source_bits: 1,
-            source_channels: channel_count,
-            intermediate_pcm_rate: None,
-            dsd_filter_taps: None,
-            dsd_decimation: None,
-            output_sample_rate: carrier_rate,
-            output_channels: channel_count,
-            device_name: device_full_name.clone(),
-            resampler_active: false,
-            quality_profile: format!("{:?}", profile).to_lowercase(),
-            backend: "CoreAudio DoP".to_string(),
-            bit_perfect: true,
-        }
-        .emit(&app_handle);
-
-        // Le DAC peut se muter ~1-2 s le temps d'acquérir le lock DSD.
-        let _ = app_handle.emit("playback-preparing", false);
-        is_playing.store(true, Ordering::SeqCst);
-        is_stream_alive.store(true, Ordering::SeqCst);
-
-        let ctl = CoreAudioDopControl {
-            is_paused,
-            is_stopped: is_stopped.clone(),
-            current_position: current_position.clone(),
-            seek_position,
-            total_duration,
-        };
-
-        let result = run_coreaudio_dop_playback(
-            &device,
-            device_id,
-            carrier_rate,
-            channel_count as u16,
-            decoder,
-            lsb_first,
-            ctl,
-        );
-
-        is_stream_alive.store(false, Ordering::SeqCst);
-
-        let natural_end = match result {
-            Ok(natural) => natural,
-            Err(e) => {
-                log::error!("❌ [DoP CoreAudio] {e}");
-                false
-            }
-        };
-
-        // playback-ended seulement sur fin naturelle (→ le frontend enchaîne).
-        if natural_end {
-            if let Err(e) =
-                app_handle.emit("playback-ended", file_path.to_string_lossy().to_string())
-            {
-                log::error!("❌ Erreur d'envoi de l'event Tauri : {}", e);
-            }
-        }
-
-        is_stopped.store(false, Ordering::SeqCst);
-        is_playing.store(false, Ordering::SeqCst);
-        current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
-
-        log::debug!("✅ [DoP CoreAudio] Fin de piste (natural_end={natural_end})");
-        Ok(())
-    }
 }
 
 // ===============
@@ -2232,7 +2089,7 @@ where
 {
     log::debug!("🧵 Decoder thread démarré");
 
-    let mut decoder: Box<dyn AudioDecoder> = symphonia::default::get_codecs()
+    let mut decoder: Box<dyn AudioDecoder> = crate::core::audio_player::codecs::registre()
         .make_audio_decoder(&codec_params, &AudioDecoderOptions::default())
         .map_err(|e| format!("Erreur création decoder: {:?}", e))?;
 

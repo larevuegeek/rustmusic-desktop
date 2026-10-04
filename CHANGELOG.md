@@ -1,5 +1,121 @@
 # Changelog
 
+## [0.2.8] - 2026-10-04
+
+Le son tient enfin sa promesse de bit-perfect, la bibliothèque s'explore par
+années, par mix et par playlists, et l'application explique ses termes
+techniques.
+
+### Audio
+- **Bit-perfect réel en mode exclusif**, sous Windows, Linux et macOS. La
+  sortie baissait le son de 2 % même en exclusif, et la conversion vers le DAC
+  n'était pas l'exacte réciproque du décodage. À volume 100 % et sans Replay
+  Gain, chaque échantillon arrive désormais intact, vérifié par des tests sur
+  des fichiers étalons 16 et 24 bits.
+- La pastille « Bit-perfect » ne l'affirme plus à tort : il faut aussi les
+  mêmes canaux, une source sans perte et un Replay Gain neutre. Une pastille
+  « Exclusif » indique un DAC réservé dont le son est tout de même modifié.
+- **Mode exclusif sous Windows : plus d'attente entre les morceaux.** Le DAC
+  restait muet 2 à 4 secondes à chaque changement de morceau, le temps de le
+  rouvrir. Il reste désormais ouvert tant que le format ne change pas : le
+  morceau suivant démarre en 30 ms.
+- **AIFF, ALAC et Opus sont lus.** Ils étaient annoncés sans être décodés. Les
+  extensions en majuscules sont reconnues ; WMA et APE, jamais lus, sont
+  retirés.
+- **DSD natif (DoP) sans coupure sous Linux et macOS**, comme sous Windows.
+  Sous Windows, le début du premier morceau DSD n'est plus coupé.
+- Mode exclusif sous Linux et macOS : le morceau ne joue plus trop vite ou trop
+  lentement quand le DAC refuse la fréquence du fichier.
+- **Quand le mode exclusif ou le DSD natif n'aboutit pas, l'app dit pourquoi** :
+  format refusé, DAC occupé, sortie sans accès direct, DoP refusé, fréquence
+  convertie. Le motif apparaît dans le détail de la chaîne audio, sur la
+  pastille du lecteur et dans Réglages → Audio.
+- **Pas de mise en veille pendant la lecture** (réglage, activé par défaut).
+  Sous Linux, la lecture se met en pause proprement quand l'ordinateur
+  s'endort.
+- Les commandes multimédia du système ne s'inversent plus (lecture qui
+  devenait pause).
+- **Un anneau tourne autour du bouton lecture** tant que le son n'a pas
+  démarré : on ne croit plus à un plantage pendant l'ouverture du DAC.
+
+### Comprendre le son
+- **Bulles d'explication** : DAC, DSD, DoP, PCM, bit-perfect,
+  rééchantillonnage… sont soulignés, un clic en donne la définition. Elles se
+  désactivent dans Apparence.
+- **Nouvelle page « Comprendre le son »** dans les réglages : le trajet du son
+  en mode partagé et exclusif, ce que disent les pastilles du lecteur, et un
+  glossaire.
+- Les textes de Réglages → Audio disent plus clairement ce que fait chaque
+  mode.
+
+### Années
+- **Onglet Années** : un déroulé par décennie, la plus récente d'abord, avec
+  toute la décennie ou l'une de ses années, et le mix de l'époque.
+- **Page d'une décennie ou d'une année** : ses albums, ses morceaux ou ses
+  artistes.
+- « Toutes les années » sur l'accueil.
+
+### Mix
+- **Page Mix** : les mix du jour, un mix par genre, par décennie, et les
+  vôtres.
+- **Créer un mix** : une recette (genres, notes, jamais écoutés, Hi-Res…) dont
+  RustMusic tire chaque jour 30, 50 ou 100 titres. À la différence d'une
+  playlist auto, qui contient tous les titres de ses règles.
+- **Des mix variés** : un genre ne fait un mix que s'il réunit au moins
+  5 artistes et 30 titres, et un artiste n'y place pas plus de 3 titres
+  environ, mix créés compris. Fini les mix d'un seul artiste.
+- « Pour vous » change de genres chaque jour, parmi les six plus fournis.
+- Éditeur de mix et de playlist auto refait : aperçu de la vignette, recettes
+  en cartes, nombre de titres trouvés en direct.
+- Sur chaque mix : nouveau tirage, et « Garder en playlist » pour figer celui
+  du jour.
+- Sur l'accueil : « Tous les mix » et « Vos mix ».
+
+### Playlists
+- **Page Playlists** : toutes les playlists, avec recherche, filtre
+  classiques / auto, tri, grille ou liste.
+- **La barre latérale ne montre que les playlists épinglées**, comme les albums
+  et artistes. Toutes le sont à la mise à jour, et une nouvelle l'est d'office.
+  On épingle depuis la punaise d'une carte, le clic droit ou la page de la
+  playlist ; le titre « Playlists » de la barre mène à la page.
+- « Vos playlists » sur l'accueil.
+- « Ajouter à une playlist » ne propose plus les playlists auto, qui ne
+  recevaient rien.
+
+### Navigation
+- Onglets dans l'ordre Morceaux, Artistes, Albums, Genres, Années, Dossiers,
+  Mix, Playlists. Années, Mix et Playlists se cochent dans Apparence.
+- Mode « onglets en haut » : Accueil ouvre la barre du haut, et la barre
+  latérale n'a plus de tuiles. « Les deux » est exactement la somme des deux.
+
+### Bibliothèque
+- Les colonnes hors de l'écran à droite ne sont plus vides. Seule la liste
+  défile horizontalement, avec sa barre en bas ; les en-têtes suivent.
+- Cases de sélection dans Dossiers et dans toutes les listes de morceaux.
+  Maj+clic ne surligne plus le texte.
+- **Pochettes et portraits** : la récupération s'annule, ne se lance pas deux
+  fois, ne retélécharge plus tout, et une panne réseau ne marque plus un
+  artiste « introuvable ». Les images trop lourdes sont allégées, et
+  « Nettoyer le cache des images » (Stockage) supprime celles qui ne servent
+  plus. Les tags des fichiers ne sont jamais touchés.
+- Fiche d'un morceau : pochette et portrait de l'artiste même quand le fichier
+  n'en contient pas.
+- **Fiche d'un genre refaite**, dans le style des autres fiches.
+- Mode clair : sélecteur de profil, menus des playlists et des onglets, page
+  Commentaires enfin lisibles.
+- Panneau « Ensuite » : la vignette d'un morceau sans pochette intégrée
+  reprend celle de l'album.
+- Un nom de fichier long ne passe plus sous les pastilles du lecteur.
+- Les liens « mailto » ouvrent la messagerie au lieu d'un message d'erreur.
+
+### DLNA
+- Les menus (Artistes, Albums, Dossiers) s'affichent dans la langue de l'app
+  sur l'ampli, et plus toujours en français.
+
+### Divers
+- L'export des réglages conserve les playlists auto, les mix et l'épinglage.
+- Le nettoyage du cache d'images épargne les pochettes de playlists.
+
 ## [0.2.7] - 2026-10-01
 
 L'application change de visage d'un bout à l'autre : accueil, barre latérale,

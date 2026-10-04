@@ -5,6 +5,7 @@
   import { queueState } from "$lib/stores/queue/queueState.store";
   import { playerService } from "$lib/services/player/player.service";
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
+  import { playlistsRangees } from "$lib/stores/playlist/couvertures.store";
   import { invoke } from "@tauri-apps/api/core";
   import { toasts } from "$lib/stores/ui/toast.store";
   import type { Playlist } from "$lib/types/db/playlist/Playlist";
@@ -20,7 +21,7 @@
 
   let selection = $derived($selectionStore);
   let showPlaylistMenu = $state(false);
-  let playlists = $derived($playlistStore.playlists);
+  let playlists = $derived($playlistsRangees);
 
   /** « 1 morceau » / « n morceaux », nombre au format de la langue. */
   function count(n: number, one: string, many: string): string {

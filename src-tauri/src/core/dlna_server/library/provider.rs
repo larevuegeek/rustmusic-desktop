@@ -140,4 +140,9 @@ pub trait LibraryProvider: Send + Sync {
         library_id: i64,
         path: &str,
     ) -> Result<FolderEntries, DlnaError>;
+
+    /// Langue de l'app (fr, en, es, de, it) pour les titres des menus ; français par défaut, comme l'app.
+    async fn language(&self) -> String {
+        "fr".to_string()
+    }
 }

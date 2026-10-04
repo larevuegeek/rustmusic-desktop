@@ -36,27 +36,26 @@ export type PlaybackPipelineInfo = {
   quality_profile: string;
   /** Effective audio backend : "CPAL shared" | "WASAPI exclusive". */
   backend: string;
-  /** True when the whole chain is bit-perfect (WASAPI exclusive + no resampling). */
+  /** Chaîne intacte à volume 100 % (exclusif, rate et canaux source, sans perte, Replay Gain neutre). */
   bit_perfect: boolean;
+  /** Sortie exclusive ou DoP demandés mais non obtenus : le motif. */
+  repli?: Repli | null;
 };
 
-/**
- * Derived flag describing the pipeline mode for the UI badge.
- *  - "dop"         : native DSD sent to the DAC via DoP (DSD over PCM), no conversion
- *  - "bit-perfect" : WASAPI exclusive + no resampling — samples untouched to the DAC
- *  - "resampled"   : a resampler is in the chain (rate conversion)
- *  - "dsd"         : DSD source is decoded to PCM (always involves DSP)
- *  - "shared"      : CPAL / WASAPI shared — no resampling but the OS mixer touches samples
- */
-export type PipelineMode = "dop" | "bit-perfect" | "resampled" | "dsd" | "shared";
+export type Repli = "format_refuse" | "appareil_occupe" | "appareil_introuvable" | "indisponible" | "dop_refuse";
 
-export function pipelineMode(info: PlaybackPipelineInfo | null): PipelineMode | null {
+/** L'état de la chaîne pour la pastille du lecteur (voir `CHAINE`). */
+export type PipelineMode = "dop" | "bit-perfect" | "exclusive" | "resampled" | "dsd" | "shared";
+
+export function pipelineMode(info: PlaybackPipelineInfo | null, volume = 100): PipelineMode | null {
   if (!info) return null;
-  // DoP : DSD natif au DAC (backend renvoyé par le chemin DoP).
-  if (info.backend === "WASAPI DoP") return "dop";
+  // DoP : DSD natif au DAC (« WASAPI DoP », « ALSA DoP », « CoreAudio DoP »).
+  if (info.backend.endsWith("DoP")) return "dop";
   if (info.intermediate_pcm_rate != null) return "dsd";
   if (info.resampler_active) return "resampled";
-  if (info.bit_perfect) return "bit-perfect";
+  // Le volume logiciel recalcule chaque échantillon : bit-perfect à 100 % seulement.
+  if (info.bit_perfect && volume >= 100) return "bit-perfect";
+  if (info.backend.includes("exclusive")) return "exclusive";
   return "shared";
 }
 

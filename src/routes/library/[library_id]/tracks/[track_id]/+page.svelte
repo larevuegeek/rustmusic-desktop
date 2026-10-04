@@ -13,6 +13,8 @@ import { popinStore } from "$lib/stores/ui/popin.store";
 import { queueState } from "$lib/stores/queue/queueState.store";
 import { dataCache } from "$lib/stores/cache/dataCache.store";
 import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
+import { artistImageReadyStore } from "$lib/stores/library/artistImageReady.store";
+import { settingsStore } from "$lib/stores/settings/settings.store";
 import { loadTrack, loadTracksByAlbum } from "$lib/services/library/library.service";
 import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
 import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
@@ -115,6 +117,27 @@ const courante = $derived(rang >= 0 ? ordreAlbum[rang] : null);
 const album = $derived(track?.album_id ? ($libraryContentStore.albums.find((a) => a.id === track!.album_id) ?? null) : null);
 const artisteId = $derived(courante?.artist_id ?? credits[0]?.artist_id ?? null);
 const artiste = $derived(artisteId ? ($libraryContentStore.artists.find((a) => a.id === artisteId) ?? null) : null);
+
+// Sans pochette embarquée dans le fichier, celle de l'album (Deezer, choisie à la main) : l'en-tête n'est plus vide.
+const pochette = $derived(track?.thumbnail_path ?? album?.cover_url ?? courante?.thumbnail_path ?? null);
+
+// Portrait : connu, arrivé pendant la visite, sinon demandé à Deezer comme sur la fiche artiste.
+let portraitCharge = $state<{ id: string; url: string | null } | null>(null);
+const portrait = $derived(artisteId
+  ? (artistImageReadyStore.get(artisteId, $artistImageReadyStore) ?? artiste?.thumbnail_path ?? (portraitCharge?.id === artisteId ? portraitCharge.url : null))
+  : null);
+$effect(() => {
+  const ida = artisteId;
+  const nom = artiste?.name ?? credits[0]?.name ?? track?.artist ?? null;
+  if (!ida || !nom || untrack(() => portrait) || $settingsStore.auto_download_artist_images === "false") return;
+  untrack(() => {
+    if (portraitCharge?.id === ida) return;
+    portraitCharge = { id: ida, url: null };
+    invoke<string | null>("fetch_artist_image", { artistId: ida, artistName: nom })
+      .then((url) => { if (portraitCharge?.id === ida) portraitCharge = { id: ida, url }; })
+      .catch(() => {});
+  });
+});
 
 // Tags complets : compositeur, totaux de pistes et de disques, label.
 const tags = $derived.by(() => {
@@ -222,11 +245,11 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
   <PageState icon="material-symbols:music-note-rounded" message={$t("track_view.error")} lien={{ href: `/library/${libraryId}/tracks`, label: $t("track_view.back") }} />
 
 {:else}
-<DetailPage bind:defilement image={track.thumbnail_path} retourHref={`/library/${libraryId}/tracks`} retourLabel={$t("track_view.back")}
+<DetailPage bind:defilement image={pochette} retourHref={`/library/${libraryId}/tracks`} retourLabel={$t("track_view.back")}
             playLabel={$t("track_view.play")} onplay={lire}>
   {#snippet mini()}
     <span class="w-8.5 h-8.5 shrink-0 rounded-[7px] overflow-hidden bg-(--rg-s2)">
-      {#if track?.thumbnail_path}<CoverImg path={track.thumbnail_path} alt="" size="1x" class="w-full h-full object-cover" />{/if}
+      {#if pochette}<CoverImg path={pochette} alt="" size="1x" class="w-full h-full object-cover" />{/if}
     </span>
     <b class="truncate text-[15px] text-(--rg-tx)">{track?.title}</b>
     <span class="shrink-0 text-[13px] text-(--rg-mu) max-sm:hidden">{track?.artist ?? ""}</span>
@@ -246,9 +269,9 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
     <!-- ─── En-tête ─── -->
     <div class="relative flex flex-wrap items-end gap-8 pt-3 pb-7">
       <div class="relative w-58 @max-[760px]:w-45 aspect-square shrink-0 rounded-[14px] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
-        {#if track.thumbnail_path}
-          <ImgZoom path={track.thumbnail_path} alt={track.title}>
-            <CoverImg path={track.thumbnail_path} alt={track.title} class="w-full h-full object-cover" />
+        {#if pochette}
+          <ImgZoom path={pochette} alt={track.title}>
+            <CoverImg path={pochette} alt={track.title} class="w-full h-full object-cover" />
           </ImgZoom>
         {:else}
           <div class="w-full h-full flex items-center justify-center text-(--rg-mu2) shadow-[inset_0_0_0_1px_var(--rg-bd)]
@@ -423,7 +446,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
           <a href={`/library/${libraryId}/artists/${artisteId}`}
              class="group flex items-center gap-4 min-w-0 py-3.5 pl-3.5 pr-4 rounded-2xl border transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2) hover:bg-(--rg-hover)">
             <span class="w-16 h-16 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-(--rg-s2) text-(--rg-mu)">
-              {#if artiste?.thumbnail_path}<CoverImg path={artiste.thumbnail_path} alt="" size="1x" class="w-full h-full object-cover" />{:else}<Icon icon="material-symbols:person-rounded" width="30" />{/if}
+              {#if portrait}<CoverImg path={portrait} alt="" size="1x" class="w-full h-full object-cover" />{:else}<Icon icon="material-symbols:person-rounded" width="30" />{/if}
             </span>
             <span class="flex-1 min-w-0">
               <small class="block text-[11px] font-bold tracking-widest uppercase text-(--rg-mu)">{$t("artist_view.kicker")}</small>

@@ -4,7 +4,7 @@
   import { settingsStore } from "$lib/stores/settings/settings.store";
   import {
     ONGLETS_BIBLIOTHEQUE,
-    ONGLETS_PAR_DEFAUT,
+    ORDRE_ONGLETS,
     lireOnglets,
     lirePlacement,
     type LibraryTabKey,
@@ -25,7 +25,7 @@
   function basculer(cle: LibraryTabKey) {
     const suivant = retenus.includes(cle)
       ? retenus.filter((c) => c !== cle)
-      : ONGLETS_PAR_DEFAUT.filter((c) => c === cle || retenus.includes(c));
+      : ORDRE_ONGLETS.filter((c) => c === cle || retenus.includes(c));
     if (suivant.length === 0) return;
     settingsStore.set('library_tabs', JSON.stringify(suivant));
   }

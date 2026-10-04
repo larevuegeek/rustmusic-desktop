@@ -1,6 +1,8 @@
 <script lang="ts">
   // Mini-lecteur : fenêtre compacte teintée par la pochette, file et paroles en onglets repliables.
   import Icon from "@iconify/svelte";
+  import AnneauAttente from "$lib/components/ui/loader/AnneauAttente.svelte";
+  import { volume } from "$lib/stores/player/volume.store";
   import { fade } from "svelte/transition";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
@@ -28,6 +30,7 @@
   const pathFile = $derived($player?.pathFile ?? null);
   const hasTrack = $derived(!!pathFile);
   const isPlaying = $derived($player?.status === "playing");
+  const enAttente = $derived(isPlaying && !!$player?.isPreparing);
   const trackTitle = $derived(displayTitle(audioTags?.title, pathFile, $t("common.unknown_title")));
   const coverSrc = $derived(audioTags?.attached_images?.[0]?.image_src ?? null);
   const duration = $derived($player?.duration ?? 0);
@@ -47,7 +50,7 @@
     return audioFile?.bits_per_sample ? `${audioFile.bits_per_sample}/${khz}` : `${khz} kHz`;
   });
   const chaine = $derived.by(() => {
-    const m = pipelineMode($playbackPipelineStore);
+    const m = pipelineMode($playbackPipelineStore, $volume);
     return m ? CHAINE[m] : null;
   });
 
@@ -243,10 +246,11 @@
         <button type="button" class={ib} title={$t("player.prev")} aria-label={$t("player.prev")} onclick={() => playerService.prevTrack()}>
           <Icon icon="material-symbols:skip-previous-rounded" width="28" />
         </button>
-        <button type="button" class="lecteur-lecture w-11.5 h-11.5 flex items-center justify-center rounded-full cursor-pointer transition-transform hover:scale-105 active:scale-95 bg-(--lc-play) text-(--lc-play-tx)"
-                title={isPlaying ? $t("player.pause") : $t("player.play")} aria-label={isPlaying ? $t("player.pause") : $t("player.play")}
-                onclick={() => playerService.handleTogglePlay()}>
+        <button type="button" class="lecteur-lecture relative w-11.5 h-11.5 flex items-center justify-center rounded-full cursor-pointer transition-transform hover:scale-105 active:scale-95 bg-(--lc-play) text-(--lc-play-tx)"
+                title={enAttente ? $t("player.preparing") : isPlaying ? $t("player.pause") : $t("player.play")} aria-label={isPlaying ? $t("player.pause") : $t("player.play")}
+                aria-busy={enAttente} onclick={() => playerService.handleTogglePlay()}>
           <Icon icon={isPlaying ? "material-symbols:pause-rounded" : "material-symbols:play-arrow-rounded"} width="28" />
+          <AnneauAttente actif={enAttente} />
         </button>
         <button type="button" class={ib} title={$t("player.next")} aria-label={$t("player.next")} onclick={() => playerService.nextTrack()}>
           <Icon icon="material-symbols:skip-next-rounded" width="28" />

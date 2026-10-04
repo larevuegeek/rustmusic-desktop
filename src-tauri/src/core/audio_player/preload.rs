@@ -40,7 +40,7 @@ use symphonia::core::formats::probe::Hint;
 use symphonia::core::formats::{FormatOptions, FormatReader};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
-use symphonia::default::{get_codecs, get_probe};
+use symphonia::default::get_probe;
 
 use crate::core::audio_player::audio_utils::{adapt_channels, convert_audio_buffer_to_interleaved};
 use crate::core::audio_player::replay_gain;
@@ -323,7 +323,7 @@ fn decode_track(
         return Ok(None);
     }
 
-    let mut decoder: Box<dyn AudioDecoder> = get_codecs()
+    let mut decoder: Box<dyn AudioDecoder> = crate::core::audio_player::codecs::registre()
         .make_audio_decoder(&codec_params, &AudioDecoderOptions::default())
         .map_err(|e| format!("création décodeur : {e:?}"))?;
 

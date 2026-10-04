@@ -99,7 +99,8 @@
     "decade_kind": "Albums sortis entre {a} et {b}",
     "my_libraries": "Mes bibliothèques",
     "new_library": "Nouvelle bibliothèque",
-    "no_library_desc": "Crée ta première bibliothèque pour commencer à organiser ta musique."
+    "no_library_desc": "Crée ta première bibliothèque pour commencer à organiser ta musique.",
+    "all_years": "Toutes les années"
   },
   "player": {
     "no_track": "Aucun titre",
@@ -217,7 +218,9 @@
     "year_prev": "Année précédente",
     "year_next": "Année suivante",
     "year_clear": "Toutes les années",
-    "year_none": "Aucun album daté de {y}"
+    "year_none": "Aucun album daté de {y}",
+    "years": "Années",
+    "mixes": "Mix"
   },
   "playlist_page": {
     "collection": "Collection",
@@ -478,7 +481,7 @@
     "wasapi_exclusive_desc": "Bypass le mixer Windows pour envoyer le son directement à ton DAC sans resampling ni effets système. Sortie bit-perfect, format natif du fichier.",
     "wasapi_exclusive_warning": "En mode exclusif, RustMusic prend possession totale du périphérique audio : aucune autre application (navigateur, jeu, notifications système) ne pourra émettre de son tant qu’une lecture est en cours.",
     "dsd_dop": "DSD natif (DoP)",
-    "dsd_dop_desc": "Envoie les fichiers DSD au DAC sans conversion PCM. Le volume logiciel est désactivé : réglez-le sur l'ampli ou le DAC. Si le DAC refuse, repli automatique en PCM.",
+    "dsd_dop_desc": "Envoie les fichiers [[dsd|DSD]] tels quels au DAC grâce au [[dop|DoP]], sans conversion en [[pcm|PCM]]. Le volume se règle alors sur le DAC ou l'ampli. Si le DAC ne l'accepte pas, conversion automatique en PCM.",
     "dsd_dop_warning": "Le DSD est transmis tel quel au DAC (DoP) qui le décode nativement. Le volume logiciel est désactivé (bit-perfect) : règle le volume sur ton ampli/DAC. Si le DAC refuse le format, repli automatique sur la conversion PCM.",
     "auto_download_artist_images": "Téléchargement des portraits d'artistes",
     "auto_download_artist_images_desc": "Interroger Deezer à l'ouverture d'une fiche artiste sans portrait. La récupération groupée reste possible à la demande.",
@@ -561,7 +564,7 @@
     "lists_group_hint": "Où apparaissent les listes automatiques",
     "liked_needs_favorites": "Masquée tant que le bouton favori est désactivé",
     "library_nav": "Navigation de la bibliothèque",
-    "library_nav_hint": "Où placer Morceaux, Albums, Artistes, Genres, Dossiers",
+    "library_nav_hint": "Où placer l'accueil et les sections de la bibliothèque",
     "library_nav_sidebar": "Barre latérale",
     "library_nav_top": "Onglets en haut",
     "library_nav_both": "Les deux",
@@ -579,12 +582,12 @@
     "beta_badge": "BÊTA",
     "output_shared": "Partagé",
     "output_exclusive": "Exclusif · bit-perfect",
-    "output_shared_desc_windows": "Passe par le mixeur Windows. Les autres applications restent audibles.",
-    "output_shared_desc_linux": "Passe par PipeWire ou PulseAudio. Les autres applications restent audibles.",
-    "output_shared_desc_macos": "Passe par le mixeur de macOS. Les autres applications restent audibles.",
-    "output_exclusive_desc_windows": "WASAPI exclusif : le fichier arrive intact au DAC, sans rééchantillonnage.",
-    "output_exclusive_desc_linux": "ALSA hw: direct : le fichier arrive intact au DAC, sans PipeWire ni PulseAudio.",
-    "output_exclusive_desc_macos": "Mode exclusif (hog) : le DAC prend la fréquence du fichier, sans rééchantillonnage.",
+    "output_shared_desc_windows": "Le son passe par le mixer de Windows, avec celui des autres applications. Il peut être [[resampling|rééchantillonné]], souvent vers 48 kHz. Idéal au quotidien.",
+    "output_shared_desc_linux": "Le son passe par PipeWire ou PulseAudio, avec celui des autres applications. Il peut être [[resampling|rééchantillonné]], souvent vers 48 kHz. Idéal au quotidien.",
+    "output_shared_desc_macos": "Le son passe par le mixer de macOS, avec celui des autres applications. Il peut être [[resampling|rééchantillonné]]. Idéal au quotidien.",
+    "output_exclusive_desc_windows": "RustMusic parle directement au [[dac|DAC]] (WASAPI exclusif) et le règle sur la fréquence de chaque morceau : le son arrive intact, [[bit_perfect|bit-perfect]].",
+    "output_exclusive_desc_linux": "RustMusic parle directement au [[dac|DAC]] (ALSA hw:), sans PipeWire ni PulseAudio, et le règle sur la fréquence de chaque morceau : le son arrive intact, [[bit_perfect|bit-perfect]].",
+    "output_exclusive_desc_macos": "RustMusic réserve le [[dac|DAC]] (hog mode) et le règle sur la fréquence de chaque morceau : le son arrive intact, [[bit_perfect|bit-perfect]].",
     "output_exclusive_warning": "Pendant la lecture, RustMusic réserve l'appareil : navigateur, jeux et notifications n'auront plus de son. Si le DAC refuse un format, repli automatique sur le mode partagé.",
     "dsd_dop_needs_exclusive": "Demande le mode exclusif.",
     "dac_test": "Tester le DAC",
@@ -625,7 +628,7 @@
     "storage_libraries_group": "Bibliothèques",
     "storage_libraries_group_hint": "Sur toutes vos bibliothèques",
     "storage_artist_images": "Portraits d'artistes",
-    "storage_artist_images_desc": "Récupère sur Deezer les portraits de tous les artistes.",
+    "storage_artist_images_desc": "Récupère sur Deezer les portraits manquants, et relance les artistes restés sans portrait.",
     "backup_group": "Sauvegarde",
     "backup_group_hint": "Réglages, profils, playlists et titres aimés",
     "export_title": "Exporter réglages et playlists",
@@ -690,7 +693,22 @@
     "reset_item_settings": "Tous les {b} personnalisés",
     "reset_item_settings_b": "paramètres",
     "reset_item_thumbnails": "Les {b} et le cache audio",
-    "reset_item_thumbnails_b": "miniatures"
+    "reset_item_thumbnails_b": "miniatures",
+    "prevent_sleep": "Pas de mise en veille pendant la lecture",
+    "prevent_sleep_desc": "L'ordinateur reste éveillé tant que la musique joue ; l'écran, lui, peut s'éteindre",
+    "clean_images": "Nettoyer le cache des images",
+    "clean_images_desc": "Supprime les pochettes et portraits que plus rien n'utilise, et allège les images les plus lourdes.",
+    "clean_images_btn": "Nettoyer",
+    "clean_images_done": "{n} fichiers supprimés · {m} allégés · {size} libérés",
+    "clean_images_none": "Rien à nettoyer",
+    "help_bubbles": "Bulles d'explication",
+    "help_bubbles_desc": "Souligne les termes techniques (DAC, DSD, bit-perfect…) ; un clic en donne la définition.",
+    "guide": "Comprendre le son",
+    "guide_hint": "Glossaire et explications",
+    "guide_desc": "Les notions utiles pour régler la sortie audio, expliquées simplement.",
+    "output_mode_learn": "Partagé ou exclusif ? Comprendre la différence",
+    "output_last_track": "Dernier morceau :",
+    "nav_help": "Aide"
   },
   "about": {
     "title": "À propos",
@@ -736,7 +754,7 @@
     "badge_dsd_pcm": "DSD→PCM",
     "badge_shared": "Standard",
     "badge_dop": "DSD natif",
-    "bit_perfect_desc": "Le fichier arrive intact au DAC, sans rééchantillonnage ni mixer système.",
+    "bit_perfect_desc": "Chaque échantillon arrive intact au DAC : sortie exclusive, fréquence et profondeur d'origine, volume à 100 %.",
     "resampled_desc": "La fréquence est convertie pour la sortie : le signal est recalculé.",
     "dsd_pcm_desc": "Le DSD est converti en PCM avant d'être envoyé au DAC.",
     "shared_desc": "Le son passe par le mixer du système, qui peut le modifier.",
@@ -744,7 +762,16 @@
     "dop_title": "DSD natif vers le DAC",
     "dop_desc": "Le flux DSD est transmis tel quel au DAC (DoP) qui le décode nativement — aucune conversion PCM.",
     "dop_transport_hint": "Encapsulation DoP : le DAC affiche « DSD » et décode le 1-bit d'origine.",
-    "dop_backend": "WASAPI · DoP (DSD natif)"
+    "dop_backend": "DoP (DSD natif)",
+    "badge_exclusive": "Exclusif",
+    "exclusive_desc": "Le DAC est en accès exclusif, mais le volume logiciel, le Replay Gain ou la profondeur de sortie modifient les échantillons. Pour du bit-perfect : volume à 100 %, Replay Gain désactivé.",
+    "learn": "Comprendre la chaîne audio",
+    "fallback_format_refuse": "Le DAC refuse ce format en mode exclusif : lecture en mode partagé.",
+    "fallback_appareil_occupe": "Une autre application occupe le DAC : lecture en mode partagé.",
+    "fallback_appareil_introuvable": "Pas d'accès direct à cette sortie : lecture en mode partagé. Choisissez le DAC lui-même dans la liste des sorties.",
+    "fallback_indisponible": "Le mode exclusif n'a pas pu s'ouvrir : lecture en mode partagé.",
+    "fallback_dop_refuse": "Le DAC n'accepte pas le DSD natif (DoP) : le DSD est converti en PCM.",
+    "fallback_rate": "Le DAC n'accepte pas {source} en mode exclusif : le son est converti en {output}."
   },
   "feedback": {
     "title": "Feedback",
@@ -1239,7 +1266,18 @@
     "folders_one": "dossier",
     "folders_n": "dossiers",
     "files_one": "fichier",
-    "files_n": "fichiers"
+    "files_n": "fichiers",
+    "fetch_running": "Une récupération est déjà en cours",
+    "fetch_stopped": "Récupération arrêtée : {n} trouvées",
+    "fetch_retry": " · {n} à réessayer plus tard",
+    "decades_one": "décennie",
+    "decades_n": "décennies",
+    "undated_one": "album sans année",
+    "undated_n": "albums sans année",
+    "mixes_one": "mix",
+    "mixes_n": "mix",
+    "own_mixes_one": "mix créé",
+    "own_mixes_n": "mix créés"
   },
   "albums_view": {
     "filter": "Filtrer {n} albums…",
@@ -1638,7 +1676,10 @@
     "shown": "{n} affichés",
     "summary_between": "{field} entre {a} et {b}",
     "tracks_sorted_by": "morceaux, triés par",
-    "value": "valeur"
+    "value": "valeur",
+    "icon": "Icône",
+    "rules": "Règles",
+    "create_cta": "Créer la playlist"
   },
   "forms": {
     "color": "Couleur",
@@ -1765,6 +1806,208 @@
     "task_thumbnails": "Migration des miniatures",
     "time_left": "~{time} restant",
     "tracks_added_n": "{n} pistes ajoutées",
-    "tracks_added_one": "{n} piste ajoutée"
+    "tracks_added_one": "{n} piste ajoutée",
+    "task_album_covers": "Pochettes d'albums"
+  },
+  "genre_view": {
+    "back": "Genres",
+    "kicker": "Genre",
+    "loading": "Chargement du genre…",
+    "error": "Impossible de charger ce genre",
+    "albums": "Albums",
+    "artists": "Artistes",
+    "artists_desc": "Les plus présents dans ce genre",
+    "artist_title": "Voir l'artiste",
+    "sort_artist": "Artiste",
+    "sort_added": "Ajoutés",
+    "empty": "Aucun titre dans ce genre.",
+    "show_more": "Afficher {n} de plus"
+  },
+  "glossary": {
+    "more": "En savoir plus",
+    "dac": {
+      "name": "DAC",
+      "short": "Le convertisseur qui transforme le son numérique en signal électrique pour le casque ou l'ampli. L'ordinateur en a un ; un DAC USB externe est souvent meilleur.",
+      "long": "Tout son numérique doit passer par un DAC (Digital-to-Analog Converter, convertisseur numérique-analogique) pour devenir audible. La carte son de l'ordinateur en contient un, souvent modeste ; un DAC externe, branché en USB, a en général moins de bruit de fond et accepte des fréquences plus élevées. C'est lui qui décide des formats acceptés en [[exclusive|mode exclusif]] et en [[dop|DoP]]."
+    },
+    "pcm": {
+      "name": "PCM",
+      "short": "La forme standard du son numérique : une suite de mesures de l'onde, prises des milliers de fois par seconde. FLAC, ALAC, WAV et MP3 deviennent du PCM à la lecture.",
+      "long": "Le PCM (Pulse Code Modulation) décrit le son comme une suite de nombres : à intervalles réguliers, on mesure la hauteur de l'onde. Deux valeurs le caractérisent : la [[sample_rate|fréquence d'échantillonnage]], le nombre de mesures par seconde, et la [[bit_depth|profondeur]], la précision de chaque mesure. Presque toute la musique arrive au [[dac|DAC]] sous cette forme."
+    },
+    "sample_rate": {
+      "name": "Fréquence d'échantillonnage",
+      "short": "Le nombre de mesures du son par seconde : 44,1 kHz pour un CD, 96 ou 192 kHz pour la haute résolution.",
+      "long": "Exprimée en kHz, elle indique combien de fois par seconde l'onde est mesurée. 44,1 kHz, la fréquence du CD, couvre déjà toutes les fréquences audibles ; les fréquences plus élevées, dites « Hi-Res », laissent plus de marge aux filtres du [[dac|DAC]]. Si la sortie ne fonctionne pas à la fréquence du fichier, le son est [[resampling|rééchantillonné]]."
+    },
+    "bit_depth": {
+      "name": "Profondeur (bits)",
+      "short": "La précision de chaque mesure : 16 bits pour un CD, 24 bits pour la haute résolution.",
+      "long": "La profondeur fixe le nombre de valeurs possibles pour chaque mesure : 65 536 en 16 bits, plus de 16 millions en 24 bits. Elle détermine l'écart possible entre le son le plus faible et le plus fort : environ 96 dB en 16 bits, 144 dB en 24 bits. Un DAC 24 bits restitue un fichier 16 bits sans rien perdre ; l'inverse n'est pas possible sans arrondir."
+    },
+    "dsd": {
+      "name": "DSD",
+      "short": "Un autre format de son numérique, venu du SACD : un seul bit par mesure, mais des millions de mesures par seconde. Ce sont les fichiers .dsf et .dff.",
+      "long": "Le DSD (Direct Stream Digital) n'enregistre pas la hauteur de l'onde mais sa direction : elle monte ou elle descend, 2,8 millions de fois par seconde en DSD64, deux fois plus en DSD128, et ainsi de suite. Peu de DAC le décodent eux-mêmes : avec un DAC compatible, RustMusic l'envoie tel quel grâce au [[dop|DoP]] ; sinon, il le convertit en [[pcm|PCM]], ce qui reste d'excellente qualité."
+    },
+    "dop": {
+      "name": "DoP",
+      "short": "« DSD over PCM » : une astuce pour faire passer du DSD intact par une liaison prévue pour le PCM. Le DAC le reconnaît et décode le DSD lui-même.",
+      "long": "Beaucoup de liaisons audio ne savent transporter que du [[pcm|PCM]]. Le DoP range le flux [[dsd|DSD]] dans des trames PCM marquées ; un [[dac|DAC]] compatible repère ce marquage, affiche « DSD » et décode le flux d'origine. Un DAC non compatible ne produirait que du bruit : RustMusic vérifie donc d'abord que le DAC l'accepte, et convertit sinon en PCM. Le volume logiciel ne peut pas agir sur ce flux : le volume se règle sur le DAC ou l'ampli."
+    },
+    "shared": {
+      "name": "Mode partagé",
+      "short": "Le son passe par le mixer du système, qui mélange toutes les applications. Pratique au quotidien ; la fréquence peut être convertie au passage.",
+      "long": "C'est le fonctionnement normal d'un ordinateur : chaque application envoie son son au mixer du système (Windows, PipeWire ou CoreAudio), qui les mélange et les transmet au [[dac|DAC]] à une fréquence fixe, souvent 48 kHz. Un morceau à 44,1 kHz est alors [[resampling|rééchantillonné]]. La différence s'entend rarement, mais le son n'est plus [[bit_perfect|bit-perfect]]."
+    },
+    "exclusive": {
+      "name": "Mode exclusif",
+      "short": "RustMusic s'adresse directement au DAC, sans le mixer du système. Les autres applications n'ont plus de son pendant la lecture.",
+      "long": "En mode exclusif (WASAPI sous Windows, ALSA hw: sous Linux, hog mode sous macOS), RustMusic réserve le [[dac|DAC]] et le règle à la fréquence de chaque morceau. C'est la condition du [[bit_perfect|bit-perfect]] et du [[dsd|DSD]] natif. En contrepartie, navigateur, jeux et notifications restent muets tant que RustMusic joue. Si le DAC refuse un format, RustMusic repasse en [[shared|mode partagé]] et l'indique dans le détail de la chaîne audio."
+    },
+    "resampling": {
+      "name": "Rééchantillonnage",
+      "short": "Convertir le son d'une fréquence à une autre, par exemple de 44,1 kHz vers 48 kHz, quand la sortie n'accepte pas celle du fichier.",
+      "long": "Quand la [[sample_rate|fréquence]] du fichier et celle de la sortie diffèrent, le son doit être recalculé à la nouvelle fréquence. RustMusic utilise pour cela un rééchantillonneur de haute qualité, mais c'est un [[dsp|traitement]] : le son n'est plus [[bit_perfect|bit-perfect]]. En [[exclusive|mode exclusif]], RustMusic règle le DAC sur la fréquence du fichier pour l'éviter."
+    },
+    "dsp": {
+      "name": "DSP",
+      "short": "Tout traitement qui recalcule le son : changement de fréquence, volume logiciel, Replay Gain. Utile, mais le son n'est plus identique au fichier.",
+      "long": "Le DSP (Digital Signal Processing, traitement numérique du signal) regroupe les calculs appliqués au son : [[resampling|rééchantillonnage]], volume logiciel, [[replay_gain|Replay Gain]]. Bien faits, ils s'entendent à peine ; mais dès qu'il y en a un, la sortie n'est plus [[bit_perfect|bit-perfect]]. La pastille « DSP » du lecteur signale qu'un traitement est actif."
+    },
+    "replay_gain": {
+      "name": "Replay Gain",
+      "short": "Égalise le volume entre les morceaux ou les albums, d'après une mesure enregistrée dans les tags. Plus besoin de toucher au volume d'un titre à l'autre.",
+      "long": "Les morceaux ne sont pas tous masterisés au même niveau. Le Replay Gain lit dans les tags une mesure du volume perçu et corrige chaque morceau (mode Par morceau) ou chaque album d'un bloc, en gardant ses nuances (mode Par album). C'est une modification du volume, donc un [[dsp|traitement]] : quand une correction s'applique, la sortie n'est plus [[bit_perfect|bit-perfect]]."
+    },
+    "bit_perfect": {
+      "name": "Bit-perfect",
+      "short": "Le DAC reçoit exactement les nombres contenus dans le fichier, sans aucun recalcul. Il faut le mode exclusif, la fréquence d'origine et le volume à 100 %.",
+      "long": "Bit-perfect signifie qu'aucun bit n'est modifié entre le fichier et le [[dac|DAC]]. Il faut pour cela le [[exclusive|mode exclusif]], sans mixer du système ; la [[sample_rate|fréquence]] et la [[bit_depth|profondeur]] d'origine, sans [[resampling|rééchantillonnage]] ; et aucun [[dsp|traitement]] : volume logiciel à 100 %, pas de correction [[replay_gain|Replay Gain]]. La pastille « Bit-perfect » du lecteur le confirme morceau par morceau."
+    }
+  },
+  "guide": {
+    "path_title": "Le trajet du son",
+    "path_hint": "Du fichier jusqu'à vos oreilles",
+    "path_intro": "Entre le fichier et vos oreilles, le son traverse cinq étapes. Choisissez un mode, puis une étape pour voir ce qui s'y passe.",
+    "step_file_title": "Le fichier",
+    "step_file_desc": "FLAC, ALAC, MP3, DSD… : la musique telle qu'elle est stockée sur le disque.",
+    "step_decode_title": "Le décodage",
+    "step_decode_desc": "RustMusic décompresse le fichier en [[pcm|PCM]], sans aucune perte pour le FLAC, l'ALAC ou le WAV. Le [[dsd|DSD]] peut aussi partir tel quel, en [[dop|DoP]].",
+    "step_dsp_title": "Les traitements",
+    "step_dsp_desc": "Volume logiciel, [[replay_gain|Replay Gain]], [[resampling|rééchantillonnage]] : chaque [[dsp|traitement]] recalcule le son. Aucun n'est obligatoire.",
+    "step_mixer_title": "Le mixer du système",
+    "step_mixer_desc": "En [[shared|mode partagé]], le système mélange RustMusic avec les autres applications. En [[exclusive|mode exclusif]], cette étape disparaît.",
+    "step_dac_title": "Le DAC",
+    "step_dac_desc": "Le [[dac|DAC]] transforme les nombres en signal électrique pour le casque, les enceintes ou l'ampli.",
+    "modes_title": "Partagé ou exclusif ?",
+    "modes_hint": "Deux bons choix, pour deux usages",
+    "mode_shared_for": "Pour écouter en gardant les sons de l'ordinateur : vidéos, appels, notifications. La qualité reste excellente ; la fréquence peut être convertie au passage.",
+    "mode_exclusive_for": "Pour un son strictement identique au fichier, ou pour le DSD natif, de préférence avec un DAC externe. Les autres applications sont muettes pendant la lecture.",
+    "modes_action": "Régler la sortie",
+    "badges_title": "La pastille du lecteur",
+    "badges_hint": "Ce qu'elle dit, en bas du lecteur",
+    "badges_intro": "En bas du lecteur, une pastille résume ce qui arrive au son ; un clic dessus ouvre cette page. Survolez le format du morceau, à gauche, pour voir le détail de la chaîne audio. Un triangle orange signale que la sortie demandée n'a pas pu être obtenue.",
+    "glossary_title": "Glossaire",
+    "glossary_hint": "Les mots du son, en clair",
+    "step_file_short": "Sur le disque",
+    "step_decode_short": "Décompressé en PCM",
+    "step_dsp_short": "Volume, Replay Gain…",
+    "step_mixer_short": "Mélange les applications",
+    "step_mixer_bypassed": "Contourné",
+    "step_dac_short": "Vers le casque",
+    "step_mixer_desc_exclusive": "En [[exclusive|mode exclusif]], RustMusic contourne le mixer : le son va directement au [[dac|DAC]], réglé sur la fréquence du fichier. Les autres applications sont muettes pendant la lecture.",
+    "result": "Résultat",
+    "result_shared": "Le son rejoint celui des autres applications, à la fréquence du système.",
+    "result_exclusive": "Le DAC reçoit le fichier tel quel, à sa fréquence d'origine.",
+    "mode_shared_pro1": "Tous les sons de l'ordinateur restent audibles",
+    "mode_shared_pro2": "Fonctionne avec n'importe quelle sortie",
+    "mode_shared_con1": "La fréquence peut être convertie, souvent vers 48 kHz",
+    "mode_exclusive_pro1": "Son identique au fichier, bit‑perfect",
+    "mode_exclusive_pro2": "Fréquence d'origine et DSD natif",
+    "mode_exclusive_con1": "Les autres applications sont muettes pendant la lecture",
+    "mode_exclusive_con2": "Le DAC doit accepter le format, sinon retour au partagé"
+  },
+  "years_view": {
+    "all": "Tout",
+    "mix_decade": "Mix des années {d}",
+    "mix_year": "Mix de {y}",
+    "newest_first": "Plus récentes d'abord",
+    "oldest_first": "Plus anciennes d'abord",
+    "jump": "Aller à la décennie",
+    "year_albums": "{n} albums",
+    "year_album": "1 album",
+    "year_empty": "Aucun album",
+    "see_year": "Tous les albums de {y}",
+    "empty": "Aucun album daté",
+    "empty_desc": "Les années viennent des tags des fichiers. Renseignez-les pour explorer la bibliothèque par époque."
+  },
+  "period_view": {
+    "kicker_decade": "Décennie",
+    "kicker_year": "Année",
+    "back": "Années",
+    "loading": "Chargement de la période…",
+    "error": "Impossible de charger cette période",
+    "empty": "Aucun titre pour cette période.",
+    "explore": "Explorer",
+    "explore_title": "Albums, morceaux et artistes de la période",
+    "see_albums": "Voir les {n} albums",
+    "artists_desc": "Les plus présents sur la période",
+    "sort_year": "Année",
+    "sort_title": "Titre",
+    "sort_artist": "Artiste"
+  },
+  "playlists_view": {
+    "all": "Toutes les playlists",
+    "kicker": "Votre profil",
+    "count_one": "playlist",
+    "count_n": "playlists",
+    "pinned_one": "dans la barre latérale",
+    "pinned_n": "dans la barre latérale",
+    "new_smart": "Playlist auto",
+    "filter": "Filtrer {n} playlists…",
+    "kind": "Sorte",
+    "kind_all": "Toutes",
+    "kind_classic": "Classiques",
+    "kind_smart": "Auto",
+    "sort_recent": "Créées récemment",
+    "sort_name": "Nom A→Z",
+    "sort_size": "Nombre de titres",
+    "sort_sidebar": "Ordre de la barre",
+    "no_match": "Aucune playlist ne correspond",
+    "empty_desc": "Pas encore de playlist. Créez-en une, ou une playlist auto qui se remplit d'après vos règles.",
+    "smart_badge": "Auto",
+    "home_title": "Vos playlists",
+    "home_desc": "Les vôtres et celles qui se remplissent seules"
+  },
+  "mix_view": {
+    "all": "Tous les mix",
+    "actions": "Actions du mix",
+    "redraw": "Nouveau tirage",
+    "redraw_all": "Nouveaux tirages",
+    "keep": "Garder en playlist",
+    "kept": "{n} titres gardés dans « {name} »",
+    "keep_name": "{name} · {date}",
+    "edit": "Modifier le mix",
+    "delete": "Supprimer le mix",
+    "deleted": "Mix supprimé",
+    "yours": "Vos mix",
+    "yours_desc": "Tirés chaque jour dans vos recettes",
+    "for_you_desc": "Renouvelés chaque jour",
+    "create": "Créer un mix",
+    "create_desc": "Choisissez des ingrédients : RustMusic en tire chaque jour une sélection.",
+    "custom_kind": "Votre mix",
+    "new": "Nouveau mix",
+    "explain_mix": "Un mix tire chaque jour une sélection au hasard parmi les titres qui suivent vos règles. Elle change chaque jour ; « Garder en playlist » la fige.",
+    "explain_smart": "Une playlist auto contient tous les titres qui suivent vos règles, et se met à jour avec la bibliothèque.",
+    "size": "Taille du tirage",
+    "drawn": "{n} tirés chaque jour",
+    "empty_pool": "Aucun titre ne suit ces règles pour l'instant.",
+    "name_placeholder": "Nom du mix",
+    "create_cta": "Créer le mix",
+    "by_genre": "Par genre",
+    "by_genre_desc": "Les genres de votre bibliothèque qui réunissent plusieurs artistes",
+    "genre_kind": "Genre",
+    "genre_desc": "Tiré parmi {n} artistes"
   }
 }

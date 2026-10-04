@@ -50,7 +50,7 @@
 
 use std::ffi::c_void;
 use std::ptr::{null, NonNull};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -68,13 +68,12 @@ use objc2_core_audio::{
 use objc2_core_audio::kAudioStreamPropertyAvailablePhysicalFormats;
 use objc2_core_audio_types::{AudioBufferList, AudioStreamBasicDescription, AudioValueRange};
 use objc2_core_foundation::{CFRetained, CFString};
-use ringbuf::traits::{Consumer, Observer, Producer, Split};
-use ringbuf::HeapRb;
+use ringbuf::traits::{Consumer, Observer};
+use ringbuf::HeapCons;
 
-use crate::core::audio_decoder::dsd::dop_encoder::{
-    dop_silence_payload, stamp_marker, DopEncoder,
-};
-use crate::core::audio_decoder::dsd::dsd_container::DsdContainerReader;
+use super::dop_engine::{DopRenderCtl, PRECHAUFFAGE_S};
+
+use crate::core::audio_decoder::dsd::dop_encoder::{dop_silence_payload, stamp_marker};
 
 // ===========================================================================
 // Helpers CoreAudio (API `AudioObject*`)
@@ -210,7 +209,7 @@ pub(super) fn nominal_rate(id: AudioDeviceID) -> Option<f64> {
 /// C'est ce format-là qui part réellement sur le câble USB : le HAL y convertit
 /// notre `f32`. Un mot DoP occupant 24 bits significatifs, un format physique
 /// plus court tronquerait les marqueurs — donc bruit blanc à fort niveau.
-fn physical_bit_depth(id: AudioDeviceID) -> Option<u32> {
+pub(super) fn physical_bit_depth(id: AudioDeviceID) -> Option<u32> {
     let streams_addr = prop(
         kAudioDevicePropertyStreams,
         kAudioObjectPropertyScopeOutput,
@@ -499,20 +498,6 @@ impl Drop for HogGuard {
 // Lecture
 // ===========================================================================
 
-/// Pilotage du render DoP par le thread de lecture (miroir de `AlsaDopControl`).
-pub struct CoreAudioDopControl {
-    /// Pause globale : on écrit du silence DSD (le DAC reste locké).
-    pub is_paused: Arc<AtomicBool>,
-    /// Arrêt demandé : la boucle sort dès que possible.
-    pub is_stopped: Arc<AtomicBool>,
-    /// Position courante en secondes (bits f64). Dérivée des trames jouées.
-    pub current_position: Arc<AtomicU64>,
-    /// Seek demandé en secondes (bits f64) ; `u64::MAX` = aucun.
-    pub seek_position: Arc<AtomicU64>,
-    /// Durée totale en secondes (bits f64), pour clamper le seek.
-    pub total_duration: Arc<AtomicU64>,
-}
-
 /// Convertit un échantillon DoP 24-bit cadré `[marqueur][hi][lo][0]` en `f32`.
 ///
 /// `>> 8` ramène le mot DoP sur 24 bits signés (exactement représentable dans
@@ -524,55 +509,34 @@ fn dop_to_f32(sample: i32) -> f32 {
     (sample >> 8) as f32 / 8_388_608.0
 }
 
-/// Durée du pré-roll de silence DoP avant la musique. Le DAC mute pendant
-/// qu'il acquiert le lock DSD ; sans ce pré-roll les premières notes sont
-/// avalées.
-const WARMUP: Duration = Duration::from_millis(800);
-
-/// Ouvre le stream CoreAudio et joue la piste DSD en DoP jusqu'à EOF ou stop.
-///
-/// Le **marqueur DoP est posé dans le callback audio**, sur chaque trame,
-/// musique comme silence, avec un compteur unique et continu : c'est la seule
-/// façon de garantir l'alternance `0x05`/`0xFA` ininterrompue à la jonction
-/// silence↔musique (deux compteurs séparés se désynchroniseraient → le DAC
-/// perdrait le lock). Le ring buffer ne transporte donc que le *payload*.
-///
-/// Retour : `Ok(true)` = fin naturelle (EOF), `Ok(false)` = stop utilisateur.
-pub fn run_coreaudio_dop_playback(
+/// Render persistant du moteur DoP (hog mode, rate porteur) jusqu'au `render_stop`.
+/// Marqueur posé sur chaque trame, musique ou silence : le DAC reste verrouillé.
+pub fn run_coreaudio_dop_render(
     device: &cpal::Device,
     device_id: AudioDeviceID,
     carrier_rate: u32,
     channels: u16,
-    mut decoder: Box<dyn DsdContainerReader + Send>,
-    lsb_first: bool,
-    ctl: CoreAudioDopControl,
-) -> Result<bool, String> {
+    mut consumer: HeapCons<i32>,
+    ctl: DopRenderCtl,
+) -> Result<(), String> {
     let ch = channels as usize;
     if ch == 0 {
         return Err("nombre de canaux nul".into());
     }
 
-    // Exclusivité d'abord : si une autre app tient le device, autant le savoir
-    // avant d'ouvrir le stream. Relâché automatiquement au retour de la fonction.
+    // Exclusivité tenue aussi longtemps que le moteur (relâchée au retour).
     let _hog = HogGuard::acquire(device_id);
 
-    // ─── Ring buffer de PAYLOAD DoP (sans marqueur) ───
-    // ~500 ms : assez pour absorber les hoquets du décodeur DSD, assez court
-    // pour que pause/seek réagissent sans latence perceptible.
-    let capacity = (carrier_rate as usize / 2) * ch;
-    let (mut producer, mut consumer) = HeapRb::<i32>::new(capacity).split();
+    let cb = ctl.clone();
+    // Arrêt demandé : le callback ne joue plus que du silence le temps de couper proprement.
+    let silence_seul = Arc::new(AtomicBool::new(false));
+    let cb_silence = silence_seul.clone();
 
-    let flush = Arc::new(AtomicBool::new(false));
-    let frames_played = Arc::new(AtomicU64::new(0));
-
-    let cb_flush = flush.clone();
-    let cb_played = frames_played.clone();
-    let cb_paused = ctl.is_paused.clone();
-
-    // État propre au callback.
     let silence = dop_silence_payload();
     let mut marker_b = false;
     let mut scratch: Vec<i32> = Vec::new();
+    let warmup_frames = (carrier_rate as f64 * PRECHAUFFAGE_S) as usize;
+    let mut warmed = 0usize;
 
     let config = cpal::StreamConfig {
         channels,
@@ -585,68 +549,52 @@ pub fn run_coreaudio_dop_playback(
             config,
             move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                 let frames = data.len() / ch;
+                let mut musique = 0usize;
 
-                // Seek : le producteur a repositionné le décodeur, on jette ce
-                // qui restait de l'ancienne position.
-                if cb_flush.swap(false, Ordering::Acquire) {
+                // Vidage et saut d'abord, warm-up compris (sinon le début de la
+                // piste déjà bufferisé serait jeté à la fin du warm-up).
+                if cb.drain_request.swap(false, Ordering::AcqRel) {
                     consumer.clear();
+                } else if cb.seek_flush.swap(false, Ordering::AcqRel) {
+                    consumer.clear();
+                } else if warmed < warmup_frames {
+                    warmed += frames;
+                    if warmed >= warmup_frames {
+                        cb.audio_started.store(true, Ordering::Relaxed);
+                    }
+                } else if !cb.is_paused.load(Ordering::Relaxed) && !cb_silence.load(Ordering::Relaxed) {
+                    // Trames entières seulement : l'appariement canal/échantillon tient.
+                    let dispo = (consumer.occupied_len() / ch).min(frames);
+                    if scratch.len() < dispo * ch {
+                        scratch.resize(dispo * ch, 0);
+                    }
+                    musique = consumer.pop_slice(&mut scratch[..dispo * ch]) / ch;
                 }
 
-                // En pause on ne consomme rien : le ring garde son contenu
-                // (reprise instantanée) et on émet du silence DoP pour que le
-                // DAC conserve son lock DSD.
-                let ready_frames = if cb_paused.load(Ordering::Relaxed) {
-                    0
-                } else {
-                    consumer.occupied_len() / ch
-                };
-
-                let music_frames = ready_frames.min(frames);
-                let mut done_frames = 0usize;
-
-                if music_frames > 0 {
-                    let wanted = music_frames * ch;
-                    if scratch.len() < wanted {
-                        scratch.resize(wanted, 0);
-                    }
-                    // Le producteur ne pousse que des trames entières et on a
-                    // vérifié `occupied_len >= wanted` → `pop_slice` rend tout.
-                    let popped = consumer.pop_slice(&mut scratch[..wanted]);
-                    done_frames = popped / ch;
-
-                    for f in 0..done_frames {
-                        let marker = marker_b;
-                        marker_b = !marker_b;
-                        let base = f * ch;
+                for f in 0..frames {
+                    let marker = marker_b;
+                    marker_b = !marker_b;
+                    let base = f * ch;
+                    if f < musique {
                         for c in 0..ch {
                             data[base + c] = dop_to_f32(stamp_marker(scratch[base + c], marker));
                         }
-                    }
-                    cb_played.fetch_add(done_frames as u64, Ordering::Relaxed);
-                }
-
-                // Trames non couvertes (pause, sous-alimentation, pré-roll) :
-                // silence DoP avec le MÊME compteur de marqueur.
-                for f in done_frames..frames {
-                    let marker = marker_b;
-                    marker_b = !marker_b;
-                    let s = dop_to_f32(stamp_marker(silence, marker));
-                    let base = f * ch;
-                    for c in 0..ch {
-                        data[base + c] = s;
+                    } else {
+                        data[base..base + ch].fill(dop_to_f32(stamp_marker(silence, marker)));
                     }
                 }
-
                 // Reliquat si `data.len()` n'est pas un multiple des canaux.
-                let covered = frames * ch;
-                if covered < data.len() {
-                    let s = dop_to_f32(stamp_marker(silence, marker_b));
-                    data[covered..].fill(s);
+                let couvert = frames * ch;
+                if couvert < data.len() {
+                    data[couvert..].fill(dop_to_f32(stamp_marker(silence, marker_b)));
+                }
+                if musique > 0 {
+                    cb.music_frames_played.fetch_add(musique, Ordering::Relaxed);
                 }
             },
             {
                 // Même throttling que le chemin CPAL classique : un DAC en
-                // exclusive peut cracher des centaines d'erreurs/s sans que la
+                // exclusif peut cracher des centaines d'erreurs/s sans que la
                 // lecture soit réellement compromise.
                 let errors = Arc::new(AtomicUsize::new(0));
                 move |err| {
@@ -674,120 +622,35 @@ pub fn run_coreaudio_dop_playback(
                 "rate appliqué {actual} Hz ≠ porteur {carrier_rate} Hz (rééchantillonnage)"
             ));
         }
-        None => {
-            return Err("rate nominal du device illisible".into());
-        }
+        None => return Err("rate nominal du device illisible".into()),
     }
 
     // Second garde-fou : le format physique doit porter au moins les 24 bits
-    // d'un mot DoP. En dessous, les marqueurs seraient tronqués → bruit blanc
-    // à niveau élevé. On refuse plutôt que d'envoyer ça dans des enceintes.
+    // d'un mot DoP. En dessous, les marqueurs seraient tronqués → bruit blanc.
     match physical_bit_depth(device_id) {
-        Some(bits) if bits >= 24 => {
-            log::debug!("🎚️  DoP CoreAudio : format physique {bits} bits");
-        }
-        Some(bits) => {
-            return Err(format!(
-                "format physique {bits} bits < 24 bits requis par le DoP"
-            ));
-        }
+        Some(bits) if bits >= 24 => log::debug!("🎚️  DoP CoreAudio : format physique {bits} bits"),
+        Some(bits) => return Err(format!("format physique {bits} bits < 24 bits requis par le DoP")),
         // Illisible : on ne bloque pas (certains devices agrégés n'exposent pas
         // leurs flux), le garde-fou sur le rate reste actif.
         None => log::warn!("🎚️  DoP CoreAudio : profondeur du format physique illisible"),
     }
 
+    ctl.started_ok.store(true, Ordering::Relaxed);
     log::info!(
         "🎚️  Stream CoreAudio DoP ouvert : device {device_id} @ {carrier_rate} Hz / \
-         {channels} ch (f32 → 24-bit exact, bit-perfect)"
+         {channels} ch (f32 → 24-bit exact, moteur persistant)"
     );
 
-    // Pré-roll : le callback tourne déjà et émet du silence DoP, ce qui laisse
-    // au DAC le temps d'acquérir le lock DSD avant la première note.
-    let warmup_deadline = std::time::Instant::now() + WARMUP;
-    while std::time::Instant::now() < warmup_deadline {
-        if ctl.is_stopped.load(Ordering::Relaxed) {
-            return Ok(false);
-        }
+    while !ctl.render_stop.load(Ordering::Relaxed) {
         std::thread::sleep(Duration::from_millis(20));
     }
 
-    // ─── Boucle producteur : décode → encode → pousse ───
-    let mut encoder = DopEncoder::new(channels as u8, lsb_first);
-    let mut pending: Vec<i32> = Vec::new();
-    let mut pending_off = 0usize;
-
-    // Seules sorties de la boucle : `break` sur EOF, ou `return` sur stop /
-    // erreur de décodage. Franchir le `break` signifie donc fin naturelle.
-    loop {
-        if ctl.is_stopped.load(Ordering::Relaxed) {
-            return Ok(false);
-        }
-
-        // ─── Seek ───
-        let seek_bits = ctl.seek_position.load(Ordering::Relaxed);
-        if seek_bits != u64::MAX {
-            ctl.seek_position.store(u64::MAX, Ordering::Relaxed);
-            let total = f64::from_bits(ctl.total_duration.load(Ordering::Relaxed)).max(0.0);
-            let secs = f64::from_bits(seek_bits).clamp(0.0, total);
-            if let Ok(actual) = decoder.seek_to_seconds(secs) {
-                encoder.reset();
-                pending.clear();
-                pending_off = 0;
-                frames_played.store((actual * carrier_rate as f64) as u64, Ordering::Relaxed);
-                ctl.current_position.store(actual.to_bits(), Ordering::Relaxed);
-                // Après le compteur, sinon le callback pourrait créditer des
-                // trames de l'ancienne position par-dessus la nouvelle base.
-                flush.store(true, Ordering::Release);
-            }
-            continue;
-        }
-
-        // Position : source de vérité = trames réellement consommées par le
-        // callback (et non poussées), donc alignée sur ce qu'on entend.
-        let pos = frames_played.load(Ordering::Relaxed) as f64 / carrier_rate as f64;
-        ctl.current_position.store(pos.to_bits(), Ordering::Relaxed);
-
-        // ─── Décodage à la demande ───
-        if pending_off >= pending.len() {
-            match decoder.read_next_blocks() {
-                Ok(Some(blocks)) => {
-                    pending = encoder.encode_blocks(&blocks);
-                    pending_off = 0;
-                }
-                Ok(None) => break, // EOF
-                Err(e) => return Err(format!("décodage DSD: {e:?}")),
-            }
-            if pending.is_empty() {
-                continue;
-            }
-        }
-
-        // ─── Push par TRAMES ENTIÈRES ───
-        // Pousser une trame partielle décalerait l'appariement canal/échantillon
-        // dans le callback pour tout le reste de la piste.
-        let free_frames = producer.vacant_len() / ch;
-        let want = ((pending.len() - pending_off) / ch).min(free_frames) * ch;
-        if want == 0 {
-            std::thread::sleep(Duration::from_millis(5));
-            continue;
-        }
-        pending_off += producer.push_slice(&pending[pending_off..pending_off + want]);
-    }
-
-    // ─── Fin naturelle : laisser le ring puis le buffer matériel se vider ───
-    while producer.occupied_len() >= ch {
-        if ctl.is_stopped.load(Ordering::Relaxed) {
-            return Ok(false);
-        }
-        let pos = frames_played.load(Ordering::Relaxed) as f64 / carrier_rate as f64;
-        ctl.current_position.store(pos.to_bits(), Ordering::Relaxed);
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    // Le callback a tout consommé mais le DAC a encore quelques trames en vol :
-    // on laisse passer avant de couper le stream.
-    std::thread::sleep(Duration::from_millis(150));
-
-    Ok(true)
+    // Un peu de silence avant de couper : le DAC quitte le DSD proprement.
+    silence_seul.store(true, Ordering::Relaxed);
+    std::thread::sleep(Duration::from_millis(60));
+    drop(stream);
+    log::info!("⏹  CoreAudio DoP : stream fermé (device {device_id})");
+    Ok(())
 }
 
 #[cfg(test)]

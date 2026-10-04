@@ -3,7 +3,9 @@
   import { onMount } from "svelte";
   import { settingsStore } from "$lib/stores/settings/settings.store";
   import { audioDevicesStore } from "$lib/stores/audio/audioDevices.store";
-  import { t } from "$lib/i18n";
+  import { t, currentLocale } from "$lib/i18n";
+  import { playbackPipelineStore } from "$lib/stores/player/playbackPipeline.store";
+  import { messageRepli, frequenceLisible } from "$lib/helper/audio/chaineAudio";
   import { detectOS } from "$lib/helper/tools/osDetection";
   import OptionGroup from "$lib/components/ui/input/OptionGroup.svelte";
   import OptionItem from "$lib/components/ui/input/OptionItem.svelte";
@@ -39,6 +41,12 @@
   const dop = $derived($settingsStore.dsd_dop === "true");
   // Sous Windows, le DoP passe par WASAPI exclusif ; ailleurs il a son propre chemin.
   const dopDisponible = $derived(!surWindows || exclusif);
+  // Ce qui n'a pas marché au dernier morceau : exclusif ou DoP refusés.
+  const repli = $derived(
+    $playbackPipelineStore && (exclusif || dop)
+      ? messageRepli($playbackPipelineStore, $t, (hz) => frequenceLisible(hz, $currentLocale))
+      : null,
+  );
 
   // ─── Qualité de décodage ───
   let audioQuality = $state<AudioQualityStatus | null>(null);
@@ -179,11 +187,21 @@
         onclick={() => settingsStore.set("wasapi_exclusive", "true")}
       />
     </div>
+    <a href="/settings/guide" class="self-start flex items-center gap-1.5 px-1 text-[13px] font-semibold text-(--rg-gtx) hover:underline">
+      <Icon icon="material-symbols:school-outline-rounded" width="17" />{$t("settings.output_mode_learn")}<span aria-hidden="true">→</span>
+    </a>
     {#if exclusif}
       <div class="flex gap-2.5 px-3.5 py-3 rounded-[10px] border text-[13px] leading-normal
                   bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-amtx)">
         <Icon icon="material-symbols:warning-outline-rounded" width="18" class="shrink-0 text-(--rg-am)" />
         <span>{$t("settings.output_exclusive_warning")}</span>
+      </div>
+    {/if}
+    {#if repli}
+      <div class="flex gap-2.5 px-3.5 py-3 rounded-[10px] border text-[13px] leading-normal
+                  bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-amtx)" role="status">
+        <Icon icon="material-symbols:error-outline-rounded" width="18" class="shrink-0 text-(--rg-am)" />
+        <span><b class="font-semibold">{$t("settings.output_last_track")}</b> {repli}</span>
       </div>
     {/if}
   </OptionBlock>

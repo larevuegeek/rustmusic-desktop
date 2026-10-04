@@ -68,6 +68,17 @@ pub struct ExportPlaylist {
     pub icon: String,
     pub position: i64,
     pub tracks: Vec<ExportTrackRef>,
+    /// Playlist auto : ses règles (JSON).
+    #[serde(default)]
+    pub rules: Option<String>,
+    #[serde(default)]
+    pub is_mix: bool,
+    #[serde(default = "vrai")]
+    pub pinned: bool,
+}
+
+fn vrai() -> bool {
+    true
 }
 
 /// Une piste, désignée de façon à rester reconnaissable ailleurs.
@@ -127,8 +138,10 @@ async fn collect_playlists(
     pool: &SqlitePool,
     profil_id: i64,
 ) -> Result<Vec<ExportPlaylist>, sqlx::Error> {
-    let listes: Vec<(i64, String, Option<String>, String, String, i64)> = sqlx::query_as(
-        "SELECT id, name, description, color, icon, position
+    #[allow(clippy::type_complexity)]
+    let listes: Vec<(i64, String, Option<String>, String, String, i64, Option<String>, bool, bool)> = sqlx::query_as(
+        "SELECT id, name, description, color, icon, position,
+                CASE WHEN is_smart = 1 THEN rules END, is_mix, pinned
            FROM playlists
           WHERE profil_id = ?
        ORDER BY position, id",
@@ -139,7 +152,7 @@ async fn collect_playlists(
 
     let mut sortie = Vec::with_capacity(listes.len());
 
-    for (id, name, description, color, icon, position) in listes {
+    for (id, name, description, color, icon, position, rules, is_mix, pinned) in listes {
         // L'ordre des pistes dans une playlist est une donnée à part entière :
         // `sort_index` le porte, et le perdre reviendrait à exporter un sac.
         let pistes: Vec<(String, Option<String>, Option<String>, Option<String>, Option<f64>)> =
@@ -165,6 +178,9 @@ async fn collect_playlists(
             color,
             icon,
             position,
+            rules,
+            is_mix,
+            pinned,
             tracks: pistes
                 .into_iter()
                 .map(|(path, title, artist, album, duration)| ExportTrackRef {
@@ -243,6 +259,9 @@ mod tests {
                 bio: None,
                 role: "admin".into(),
                 playlists: vec![ExportPlaylist {
+                    rules: None,
+                    is_mix: false,
+                    pinned: true,
                     name: "Grunge".into(),
                     description: None,
                     color: "#8b5cf6".into(),

@@ -12,6 +12,7 @@ use crate::entity::library::dir_entry::DirEntry;
 use crate::entity::library::library::{Library, LibraryCreate};
 use crate::entity::library::library_cache::{LibraryCache, LibraryCacheCreate};
 use crate::helper::library::thumbnail_helper::{thumbnail_saver, save_artist_image, resolve_thumbnail};
+use crate::helper::library::recuperation_images::{alleger, chercher, telecharger, POCHETTES, PORTRAITS};
 use crate::mapper::library::album::album_detail_view::AlbumDetailView;
 use crate::mapper::library::album::album_list_view::AlbumListView;
 use crate::mapper::library::artist::artist_detail_view::ArtistDetailView;
@@ -231,12 +232,25 @@ pub async fn get_tracks_by_dir(
         .map_err(|e| format!("Failed to get tracks by dir: {}", e))
 }
 
+/// Pistes sous un sous-dossier quelconque (sélection d'un dossier dans la vue Dossiers).
+#[tauri::command]
+pub async fn get_tracks_under_path(
+    state: State<'_, AppState>,
+    library_id: i64,
+    path: String,
+) -> Result<Vec<TrackListView>, String> {
+    LibraryTrackRepository::find_tracks_under_path(&state.pool, library_id, &path)
+        .await
+        .map_err(|e| format!("Failed to get tracks under path: {}", e))
+}
+
 // ============================================================================
 // EXPLORATEUR DE FICHIERS (restreint aux dossiers importés)
 // ============================================================================
 
 const AUDIO_EXTENSIONS: &[&str] = &[
-    "mp3", "flac", "wav", "ogg", "m4a", "aac", "wma", "opus", "aiff", "alac", "ape", "dsf", "dff"
+    // Ce que le lecteur sait décoder (ALAC est dans le .m4a ; WMA et APE ne se lisent pas).
+    "mp3", "flac", "wav", "ogg", "m4a", "aac", "opus", "aiff", "aif", "dsf", "dff"
 ];
 
 #[tauri::command]
@@ -307,6 +321,7 @@ pub async fn list_directory(
                 artist: None,
                 duration: None,
                 thumbnail_path: None,
+                track_id: None,
             });
         } else if file_type.is_file() {
             let ext = entry_path.extension()
@@ -327,6 +342,7 @@ pub async fn list_directory(
                         artist: None,
                         duration: None,
                         thumbnail_path: None,
+                        track_id: None,
                     });
                 }
             }
@@ -351,6 +367,7 @@ pub async fn list_directory(
             e.artist = f.artist;
             e.duration = f.duration;
             e.thumbnail_path = f.thumbnail_path;
+            e.track_id = f.track_id;
         }
     }
 
@@ -947,115 +964,86 @@ pub async fn get_similar_artists(
         .map_err(|e| format!("Failed to get similar artists: {}", e))
 }
 
-/// Vérifie si une URL Deezer est une image par défaut (pas de vraie photo)
-/// Pattern : /artist//500x500 (double slash = hash vide)
-fn is_deezer_default_image(url: &str) -> bool {
-    url.contains("/artist//") || url.contains("/artist/d41d8cd98f00b204e9800998ecf8427e/")
+fn dossier_portraits() -> PathBuf {
+    let mut dossier = dirs::data_dir().unwrap_or_default();
+    dossier.push("com.larevuegeek.rustmusic");
+    dossier.push("covers");
+    dossier.push("artists");
+    dossier
 }
 
-/// Récupère l'image d'un artiste via Deezer API (lazy loading + cache DB)
-/// - Si image_url est déjà en DB → retourne directement
-/// - Si NULL → fetch Deezer, stocke en DB, retourne l'URL
-/// - Si "" → déjà cherché, pas trouvé → retourne None
+fn client_deezer(secondes: u64) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(secondes))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))
+}
+
+const CHAMPS_PORTRAIT: &[&str] = &["picture_xl", "picture_big", "picture_medium"];
+
+/// Ce qu'une passe de récupération rapporte à l'interface.
+#[derive(Serialize)]
+pub struct BilanRecuperation {
+    pub found: u32,
+    /// Pannes passagères (réseau, quota) : ces éléments seront recherchés à la prochaine passe.
+    pub errors: u32,
+    pub cancelled: bool,
+}
+
+/// Portrait Deezer d'un artiste. En base : chemin = trouvé, "" = introuvable, NULL = à chercher.
 #[tauri::command]
 pub async fn fetch_artist_image(
     state: State<'_, AppState>,
     artist_id: String,
     artist_name: String,
 ) -> Result<Option<String>, String> {
-
-    // 1. Vérifier le cache DB
-    let existing = ArtistRepository::get_image_url(&state.pool, &artist_id)
+    match ArtistRepository::get_image_url(&state.pool, &artist_id)
         .await
-        .map_err(|e| format!("DB error: {}", e))?;
-
-    match existing {
-        Some(url) if !url.is_empty() => return Ok(Some(url)), // Déjà en cache
-        Some(_) => return Ok(None), // "" = déjà cherché, pas trouvé
-        None => {} // NULL = jamais cherché
+        .map_err(|e| format!("DB error: {}", e))?
+    {
+        Some(url) if !url.is_empty() => return Ok(Some(url)),
+        Some(_) => return Ok(None),
+        None => {}
     }
 
-    // 2. Fetch Deezer API (timeout 3s)
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(3))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
-
-    let encoded_name = urlencoding::encode(&artist_name);
-    let url = format!("https://api.deezer.com/search/artist?q={}&limit=1", encoded_name);
-
-    let deezer_url = match client.get(&url).send().await {
-        Ok(resp) => {
-            if let Ok(json) = resp.json::<serde_json::Value>().await {
-                // Prendre la plus grande image disponible (ignorer les images par défaut)
-                json["data"][0]["picture_xl"]
-                    .as_str()
-                    .or_else(|| json["data"][0]["picture_big"].as_str())
-                    .or_else(|| json["data"][0]["picture_medium"].as_str())
-                    .filter(|url| !is_deezer_default_image(url))
-                    .map(|s| s.to_string())
-            } else {
-                None
-            }
+    let client = client_deezer(3)?;
+    let url = format!("https://api.deezer.com/search/artist?q={}&limit=1", urlencoding::encode(&artist_name));
+    let image = match chercher(&client, &url, CHAMPS_PORTRAIT).await {
+        Ok(Some(image)) => image,
+        Ok(None) => {
+            ArtistRepository::update_image_url(&state.pool, &artist_id, "")
+                .await
+                .map_err(|e| format!("Failed to update artist image: {}", e))?;
+            return Ok(None);
         }
         Err(e) => {
-            log::error!("Deezer API error for '{}': {}", artist_name, e);
-            None
+            log::warn!("[portraits] '{}' : {}", artist_name, e);
+            return Ok(None);
         }
     };
 
-    log::info!("Deezer image pour '{}': {:?}", artist_name, deezer_url);
-
-    // 3. Télécharger l'image en local si trouvée
-    let local_path = if let Some(ref img_url) = deezer_url {
-        match client.get(img_url).send().await {
-            Ok(resp) => {
-                if let Ok(bytes) = resp.bytes().await {
-                    let mut artists_dir = dirs::data_dir().unwrap_or_default();
-                    artists_dir.push("com.larevuegeek.rustmusic");
-                    artists_dir.push("covers");
-                    artists_dir.push("artists");
-
-                    let filename = format!("artist_{}.jpg", artist_id.replace("-", ""));
-
-                    match save_artist_image(&artists_dir, &filename, &bytes) {
-                        Ok(full_path) => Some(full_path),
-                        Err(e) => {
-                            log::warn!("Sauvegarde image artiste échouée: {}", e);
-                            Some(img_url.clone())
-                        }
-                    }
-                } else {
-                    Some(img_url.clone())
-                }
-            }
-            Err(_) => Some(img_url.clone())
-        }
-    } else {
-        None
-    };
-
-    // 4. Stocker en DB (chemin local ou "" si pas trouvé)
-    let store_value = local_path.as_deref().unwrap_or("");
-    ArtistRepository::update_image_url(&state.pool, &artist_id, store_value)
+    // Téléchargement raté : rien d'enregistré, la prochaine visite réessaiera.
+    let Some(octets) = telecharger(&client, &image).await else { return Ok(None) };
+    let nom = format!("artist_{}.jpg", artist_id.replace('-', ""));
+    let chemin = save_artist_image(&dossier_portraits(), &nom, &octets)?;
+    ArtistRepository::update_image_url(&state.pool, &artist_id, &chemin)
         .await
         .map_err(|e| format!("Failed to update artist image: {}", e))?;
-
-    Ok(local_path)
+    Ok(Some(chemin))
 }
 
-/// Fetch toutes les images artistes manquantes via Deezer (batch)
-/// Émet des events de progression au frontend
+/// Portraits manquants, en lot, avec progression. `force` : relance aussi les artistes
+/// restés sans résultat — les portraits déjà trouvés ne sont pas retéléchargés.
 #[tauri::command]
 pub async fn fetch_all_artist_images(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     force: Option<bool>,
-) -> Result<u32, String> {
+) -> Result<BilanRecuperation, String> {
+    let Some(jeton) = PORTRAITS.demarrer() else { return Err("deja_en_cours".into()) };
 
-    // Si force=true, on reset toutes les URLs pour re-télécharger
     if force.unwrap_or(false) {
-        ArtistRepository::reset_all_image_urls(&state.pool)
+        ArtistRepository::reset_not_found_images(&state.pool)
             .await
             .map_err(|e| format!("DB error reset: {}", e))?;
     }
@@ -1063,99 +1051,60 @@ pub async fn fetch_all_artist_images(
     let artists = ArtistRepository::find_without_image(&state.pool)
         .await
         .map_err(|e| format!("DB error: {}", e))?;
-
     let total = artists.len();
     if total == 0 {
-        return Ok(0);
+        return Ok(BilanRecuperation { found: 0, errors: 0, cancelled: false });
     }
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| format!("HTTP error: {}", e))?;
-
+    let client = client_deezer(5)?;
+    let dossier = dossier_portraits();
     let mut found: u32 = 0;
+    let mut erreurs: u32 = 0;
 
     for (i, artist) in artists.iter().enumerate() {
-        // Progression
-        if let Err(e) = app.emit("artist-image-progress", serde_json::json!({
-            "current": i + 1,
-            "total": total,
-            "name": artist.name,
-        })) {
-            log::warn!("emit artist-image-progress failed: {}", e);
+        if jeton.annule() {
+            break;
         }
+        let _ = app.emit("artist-image-progress", serde_json::json!({ "current": i + 1, "total": total, "name": artist.name }));
 
-        let encoded = urlencoding::encode(&artist.name);
-        let url = format!("https://api.deezer.com/search/artist?q={}&limit=1", encoded);
-
-        let deezer_url = match client.get(&url).send().await {
-            Ok(resp) => {
-                if let Ok(json) = resp.json::<serde_json::Value>().await {
-                    json["data"][0]["picture_xl"]
-                        .as_str()
-                        .or_else(|| json["data"][0]["picture_big"].as_str())
-                        .or_else(|| json["data"][0]["picture_medium"].as_str())
-                        .filter(|url| !is_deezer_default_image(url))
-                        .map(|s| s.to_string())
-                } else { None }
+        let url = format!("https://api.deezer.com/search/artist?q={}&limit=1", urlencoding::encode(&artist.name));
+        match chercher(&client, &url, CHAMPS_PORTRAIT).await {
+            Ok(None) => {
+                let _ = ArtistRepository::update_image_url(&state.pool, &artist.id, "").await;
             }
-            Err(_) => None,
-        };
-
-        let store_value = if let Some(ref img_url) = deezer_url {
-            match client.get(img_url).send().await {
-                Ok(resp) => {
-                    if let Ok(bytes) = resp.bytes().await {
-                        let mut artists_dir = dirs::data_dir().unwrap_or_default();
-                        artists_dir.push("com.larevuegeek.rustmusic");
-                        artists_dir.push("covers");
-                        artists_dir.push("artists");
-
-                        let filename = format!("artist_{}.jpg", artist.id.replace("-", ""));
-
-                        match save_artist_image(&artists_dir, &filename, &bytes) {
-                            Ok(full_path) => {
-                                found += 1;
-                                full_path
-                            }
-                            Err(e) => {
-                                log::warn!("Sauvegarde image artiste échouée: {}", e);
-                                img_url.clone()
-                            }
-                        }
-                    } else { img_url.clone() }
+            Ok(Some(image)) => {
+                let nom = format!("artist_{}.jpg", artist.id.replace('-', ""));
+                let enregistre = match telecharger(&client, &image).await {
+                    Some(octets) => save_artist_image(&dossier, &nom, &octets).ok(),
+                    None => None,
+                };
+                match enregistre {
+                    Some(chemin) => {
+                        found += 1;
+                        let _ = ArtistRepository::update_image_url(&state.pool, &artist.id, &chemin).await;
+                        let _ = app.emit("artist-image-ready", serde_json::json!({ "artist_id": artist.id, "image_url": chemin }));
+                    }
+                    None => erreurs += 1,
                 }
-                Err(_) => img_url.clone(),
             }
-        } else {
-            String::new()
-        };
-
-        if let Err(e) = ArtistRepository::update_image_url(&state.pool, &artist.id, &store_value).await {
-            log::error!("Failed to update artist image for {}: {}", artist.name, e);
+            Err(e) => {
+                // Laissé à NULL : il sera recherché à la prochaine passe.
+                erreurs += 1;
+                log::warn!("[portraits] '{}' : {}", artist.name, e);
+                if e.contains("Quota") {
+                    jeton.patienter(5000).await;
+                }
+            }
         }
 
-        // Notifier le frontend que l'image est prête (fadeIn)
-        if !store_value.is_empty() {
-            let _ = app.emit("artist-image-ready", serde_json::json!({
-                "artist_id": artist.id,
-                "image_url": store_value,
-            }));
-        }
-
-        // Délai entre chaque requête pour ne pas surcharger Deezer
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        // Une respiration entre deux artistes : Deezer limite le débit.
+        jeton.patienter(500).await;
     }
 
-    if let Err(e) = app.emit("artist-image-complete", serde_json::json!({
-        "found": found,
-        "total": total,
-    })) {
-        log::warn!("emit artist-image-complete failed: {}", e);
-    }
-
-    Ok(found)
+    let _ = app.emit("artist-image-complete", serde_json::json!({
+        "found": found, "total": total, "errors": erreurs, "cancelled": jeton.annule(),
+    }));
+    Ok(BilanRecuperation { found, errors: erreurs, cancelled: jeton.annule() })
 }
 
 // ============================================================================
@@ -1180,7 +1129,6 @@ pub async fn set_album_cover(
     let mut covers_dir = dirs::data_dir().unwrap_or_default();
     covers_dir.push("com.larevuegeek.rustmusic");
     covers_dir.push("covers");
-    covers_dir.push("albums");
 
     let saved_path = crate::helper::library::thumbnail_helper::thumbnail_saver(&covers_dir, &image_data, false)
         .map_err(|e| format!("Failed to save cover: {}", e))?;
@@ -1265,7 +1213,6 @@ pub async fn apply_deezer_cover(
     let mut covers_dir = dirs::data_dir().unwrap_or_default();
     covers_dir.push("com.larevuegeek.rustmusic");
     covers_dir.push("covers");
-    covers_dir.push("albums");
 
     let saved_path = crate::helper::library::thumbnail_helper::thumbnail_saver(&covers_dir, &bytes.to_vec(), false)
         .map_err(|e| format!("Save error: {}", e))?;
@@ -1277,7 +1224,16 @@ pub async fn apply_deezer_cover(
     Ok(saved_path)
 }
 
-/// Fetch la cover d'un album via Deezer API
+fn dossier_covers() -> PathBuf {
+    let mut dossier = dirs::data_dir().unwrap_or_default();
+    dossier.push("com.larevuegeek.rustmusic");
+    dossier.push("covers");
+    dossier
+}
+
+const CHAMPS_POCHETTE: &[&str] = &["cover_xl", "cover_big", "cover_medium"];
+
+/// Pochette d'un album via Deezer.
 #[tauri::command]
 pub async fn fetch_album_cover(
     state: State<'_, AppState>,
@@ -1285,166 +1241,177 @@ pub async fn fetch_album_cover(
     album_title: String,
     artist_name: Option<String>,
 ) -> Result<Option<String>, String> {
-
-    // Fetch Deezer (toujours, même si une cover existe déjà)
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(3))
-        .build()
-        .map_err(|e| format!("HTTP error: {}", e))?;
-
-    let query = if let Some(ref artist) = artist_name {
-        format!("{} {}", artist, album_title)
-    } else {
-        album_title.clone()
+    let client = client_deezer(3)?;
+    let requete = match artist_name {
+        Some(ref artiste) => format!("{} {}", artiste, album_title),
+        None => album_title.clone(),
     };
-    let encoded = urlencoding::encode(&query);
-    let url = format!("https://api.deezer.com/search/album?q={}&limit=1", encoded);
-
-    let deezer_url = match client.get(&url).send().await {
-        Ok(resp) => {
-            if let Ok(json) = resp.json::<serde_json::Value>().await {
-                json["data"][0]["cover_xl"]
-                    .as_str()
-                    .or_else(|| json["data"][0]["cover_big"].as_str())
-                    .or_else(|| json["data"][0]["cover_medium"].as_str())
-                    .map(|s| s.to_string())
-            } else { None }
-        }
+    let url = format!("https://api.deezer.com/search/album?q={}&limit=1", urlencoding::encode(&requete));
+    let image = match chercher(&client, &url, CHAMPS_POCHETTE).await {
+        Ok(Some(image)) => image,
+        Ok(None) => return Ok(None),
         Err(e) => {
-            log::error!("Deezer album API error for '{}': {}", album_title, e);
-            None
+            log::warn!("[pochettes] '{}' : {}", album_title, e);
+            return Ok(None);
         }
     };
-
-    // 3. Télécharger et sauvegarder
-    let local_path = if let Some(ref img_url) = deezer_url {
-        match client.get(img_url).send().await {
-            Ok(resp) => {
-                if let Ok(bytes) = resp.bytes().await {
-                    let mut covers_dir = dirs::data_dir().unwrap_or_default();
-                    covers_dir.push("com.larevuegeek.rustmusic");
-                    covers_dir.push("covers");
-                    covers_dir.push("albums");
-
-                    match crate::helper::library::thumbnail_helper::thumbnail_saver(&covers_dir, &bytes.to_vec(), false) {
-                        Ok(full_path) => Some(full_path),
-                        Err(e) => {
-                            log::warn!("Save album cover failed: {}", e);
-                            Some(img_url.clone())
-                        }
-                    }
-                } else { Some(img_url.clone()) }
-            }
-            Err(_) => Some(img_url.clone()),
-        }
-    } else { None };
-
-    // 4. Update DB
-    let store_value = local_path.as_deref().unwrap_or("");
-    if !store_value.is_empty() {
-        LibraryAlbumRepository::update_cover_url_by_id(&state.pool, &album_id, store_value)
-            .await
-            .map_err(|e| format!("Failed to update album cover: {}", e))?;
-    }
-
-    Ok(local_path)
+    let Some(octets) = telecharger(&client, &image).await else { return Ok(None) };
+    let chemin = crate::helper::library::thumbnail_helper::thumbnail_saver(&dossier_covers(), &octets, false)?;
+    LibraryAlbumRepository::update_cover_url_by_id(&state.pool, &album_id, &chemin)
+        .await
+        .map_err(|e| format!("Failed to update album cover: {}", e))?;
+    Ok(Some(chemin))
 }
 
-/// Fetch toutes les covers albums manquantes via Deezer (batch)
+/// Pochettes manquantes d'une bibliothèque, en lot, avec progression ; annulable.
 #[tauri::command]
 pub async fn fetch_all_album_covers(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     library_id: i64,
-) -> Result<u32, String> {
+) -> Result<BilanRecuperation, String> {
+    let Some(jeton) = POCHETTES.demarrer() else { return Err("deja_en_cours".into()) };
+
     let albums = LibraryAlbumRepository::find_albums_without_cover(&state.pool, library_id)
         .await
         .map_err(|e| format!("DB error: {}", e))?;
-
     let total = albums.len();
-    if total == 0 { return Ok(0); }
+    if total == 0 {
+        return Ok(BilanRecuperation { found: 0, errors: 0, cancelled: false });
+    }
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| format!("HTTP error: {}", e))?;
-
+    let client = client_deezer(5)?;
+    let dossier = dossier_covers();
     let mut found: u32 = 0;
+    let mut erreurs: u32 = 0;
 
     for (i, album) in albums.iter().enumerate() {
-        let _ = app.emit("album-cover-progress", serde_json::json!({
-            "current": i + 1,
-            "total": total,
-            "name": album.title,
-        }));
+        if jeton.annule() {
+            break;
+        }
+        let _ = app.emit("album-cover-progress", serde_json::json!({ "current": i + 1, "total": total, "name": album.title }));
 
-        // On cherche par artiste_id → nom
-        let artist: Option<String> =
-            ArtistRepository::find_name_by_id(&state.pool, &album.artist_id)
-                .await
-                .ok()
-                .flatten();
-
-        let query = if let Some(ref a) = artist {
-            format!("{} {}", a, album.title)
-        } else {
-            album.title.clone()
+        let artiste: Option<String> = ArtistRepository::find_name_by_id(&state.pool, &album.artist_id).await.ok().flatten();
+        let requete = match artiste {
+            Some(ref a) => format!("{} {}", a, album.title),
+            None => album.title.clone(),
         };
-        let encoded = urlencoding::encode(&query);
-        let url = format!("https://api.deezer.com/search/album?q={}&limit=1", encoded);
-
-        let deezer_url = match client.get(&url).send().await {
-            Ok(resp) => {
-                if let Ok(json) = resp.json::<serde_json::Value>().await {
-                    json["data"][0]["cover_xl"]
-                        .as_str()
-                        .or_else(|| json["data"][0]["cover_big"].as_str())
-                        .map(|s| s.to_string())
-                } else { None }
-            }
-            Err(_) => None,
-        };
-
-        let store_value = if let Some(ref img_url) = deezer_url {
-            match client.get(img_url).send().await {
-                Ok(resp) => {
-                    if let Ok(bytes) = resp.bytes().await {
-                        let mut covers_dir = dirs::data_dir().unwrap_or_default();
-                        covers_dir.push("com.larevuegeek.rustmusic");
-                        covers_dir.push("covers");
-                        covers_dir.push("albums");
-
-                        match crate::helper::library::thumbnail_helper::thumbnail_saver(&covers_dir, &bytes.to_vec(), false) {
-                            Ok(full_path) => {
-                                found += 1;
-                                full_path
-                            }
-                            Err(_) => img_url.clone(),
-                        }
-                    } else { img_url.clone() }
+        let url = format!("https://api.deezer.com/search/album?q={}&limit=1", urlencoding::encode(&requete));
+        match chercher(&client, &url, CHAMPS_POCHETTE).await {
+            Ok(None) => {}
+            Ok(Some(image)) => {
+                let enregistre = match telecharger(&client, &image).await {
+                    Some(octets) => crate::helper::library::thumbnail_helper::thumbnail_saver(&dossier, &octets, false).ok(),
+                    None => None,
+                };
+                match enregistre {
+                    Some(chemin) => {
+                        found += 1;
+                        let _ = LibraryAlbumRepository::update_cover_url_by_id(&state.pool, &album.id, &chemin).await;
+                        let _ = app.emit("album-cover-ready", serde_json::json!({ "album_id": album.id, "cover_url": chemin }));
+                    }
+                    None => erreurs += 1,
                 }
-                Err(_) => img_url.clone(),
             }
-        } else { String::new() };
-
-        if !store_value.is_empty() {
-            let _ = LibraryAlbumRepository::update_cover_url_by_id(&state.pool, &album.id, &store_value).await;
-
-            let _ = app.emit("album-cover-ready", serde_json::json!({
-                "album_id": album.id,
-                "cover_url": store_value,
-            }));
+            Err(e) => {
+                erreurs += 1;
+                log::warn!("[pochettes] '{}' : {}", album.title, e);
+                if e.contains("Quota") {
+                    jeton.patienter(5000).await;
+                }
+            }
         }
 
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        jeton.patienter(500).await;
     }
 
     let _ = app.emit("album-cover-complete", serde_json::json!({
-        "found": found,
-        "total": total,
+        "found": found, "total": total, "errors": erreurs, "cancelled": jeton.annule(),
     }));
+    Ok(BilanRecuperation { found, errors: erreurs, cancelled: jeton.annule() })
+}
 
-    Ok(found)
+/// Arrête une récupération en cours (barre d'état) ; vrai si une passe tournait.
+#[tauri::command]
+pub fn cancel_task(task_id: String) -> bool {
+    match task_id.as_str() {
+        "album-covers" => POCHETTES.annuler(),
+        "artist-images" => PORTRAITS.annuler(),
+        _ => false,
+    }
+}
+
+#[derive(Serialize)]
+pub struct BilanNettoyage {
+    pub supprimes: u32,
+    pub alleges: u32,
+    pub liberes: u64,
+}
+
+/// Supprime les images que rien ne cite et allège les trop lourdes ; épargne celles de moins d'une heure (scan en cours).
+#[tauri::command]
+pub async fn clean_image_cache(state: State<'_, AppState>) -> Result<BilanNettoyage, String> {
+    let mut cites: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for sql in [
+        "SELECT cover_url FROM library_albums",
+        "SELECT thumbnail_path FROM library_cache",
+        "SELECT image_url FROM artists",
+        "SELECT cover FROM queue_tracks",
+        "SELECT cover FROM playlists",
+    ] {
+        let lignes: Vec<Option<String>> = sqlx::query_scalar(sql)
+            .fetch_all(&state.pool)
+            .await
+            .map_err(|e| format!("DB error: {}", e))?;
+        for chemin in lignes.into_iter().flatten() {
+            // Par nom de fichier : hachage md5 ou id d'artiste, uniques — et insensible
+            // à un dossier de données déplacé.
+            if let Some(nom) = std::path::Path::new(&chemin.replace('\\', "/")).file_name() {
+                cites.insert(nom.to_string_lossy().to_lowercase());
+            }
+        }
+    }
+    if cites.is_empty() {
+        return Err("Aucune image référencée : nettoyage annulé par prudence".into());
+    }
+
+    let racine = dossier_covers();
+    tokio::task::spawn_blocking(move || balayer_images(&racine, &cites))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+fn balayer_images(racine: &std::path::Path, cites: &std::collections::HashSet<String>) -> BilanNettoyage {
+    let mut bilan = BilanNettoyage { supprimes: 0, alleges: 0, liberes: 0 };
+    let recent = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+    for base in [racine.join("albums"), racine.join("albums").join("albums"), racine.join("artists")] {
+        for taille in ["full", "1x", "2x"] {
+            let Ok(entrees) = std::fs::read_dir(base.join(taille)) else { continue };
+            for entree in entrees.flatten() {
+                let chemin = entree.path();
+                let Ok(meta) = entree.metadata() else { continue };
+                if !meta.is_file() || meta.modified().map(|m| m > recent).unwrap_or(true) {
+                    continue;
+                }
+                let nom = entree.file_name().to_string_lossy().to_lowercase();
+                if !cites.contains(&nom) {
+                    if std::fs::remove_file(&chemin).is_ok() {
+                        bilan.supprimes += 1;
+                        bilan.liberes += meta.len();
+                    }
+                } else if taille == "full" {
+                    let Ok(octets) = std::fs::read(&chemin) else { continue };
+                    if let Some(leger) = alleger(&octets) {
+                        if std::fs::write(&chemin, &leger).is_ok() {
+                            bilan.alleges += 1;
+                            bilan.liberes += (octets.len() - leger.len()) as u64;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    bilan
 }
 
 // ============================================================================
@@ -1560,9 +1527,10 @@ pub async fn get_mix_tracks(
     kind: String,
     genre: Option<String>,
     decennie: Option<i64>,
+    annee: Option<i64>,
     limit: i64,
 ) -> Result<Vec<TrackListView>, String> {
-    LibraryTrackRepository::find_mix_tracks(&state.pool, library_id, &kind, genre.as_deref(), decennie, limit.clamp(1, 200))
+    LibraryTrackRepository::find_mix_tracks(&state.pool, library_id, &kind, genre.as_deref(), decennie, annee, limit.clamp(1, 200))
         .await
         .map_err(|e| format!("get_mix_tracks: {}", e))
 }
@@ -1576,6 +1544,46 @@ pub async fn get_tracks_by_genre(
     LibraryTrackRepository::find_tracks_by_genre(&state.pool, library_id, &genre)
         .await
         .map_err(|e| format!("get_tracks_by_genre: {}", e))
+}
+
+/// Les titres d'une période (une décennie, ou une année quand `debut == fin`).
+#[tauri::command]
+pub async fn get_tracks_by_years(
+    state: State<'_, AppState>,
+    library_id: i64,
+    debut: i64,
+    fin: i64,
+) -> Result<Vec<TrackListView>, String> {
+    LibraryTrackRepository::find_tracks_by_years(&state.pool, library_id, debut, fin)
+        .await
+        .map_err(|e| format!("get_tracks_by_years: {}", e))
+}
+
+/// Un genre de la bibliothèque assez varié pour faire un mix.
+#[derive(serde::Serialize)]
+pub struct GenreMix {
+    pub nom: String,
+    pub titres: i64,
+    pub artistes: i64,
+}
+
+/// Les genres qui font un vrai mix (assez d'artistes et de titres), les plus fournis d'abord.
+#[tauri::command]
+pub async fn get_mix_genres(state: State<'_, AppState>, library_id: i64) -> Result<Vec<GenreMix>, String> {
+    use crate::core::variete::{MIN_ARTISTES, MIN_TITRES};
+    let lignes = sqlx::query_as::<_, (String, i64, i64)>(
+        "SELECT lc.genre, COUNT(*) n, COUNT(DISTINCT lt.artist_id) FROM library_tracks lt
+         JOIN library_cache lc ON lc.id = lt.cache_id
+         WHERE lt.library_id = ? AND lc.genre IS NOT NULL AND lc.genre != ''
+         GROUP BY lc.genre HAVING n >= ? AND COUNT(DISTINCT lt.artist_id) >= ? ORDER BY n DESC",
+    )
+    .bind(library_id)
+    .bind(MIN_TITRES)
+    .bind(MIN_ARTISTES)
+    .fetch_all(&state.pool)
+    .await
+    .map_err(|e| format!("get_mix_genres: {e}"))?;
+    Ok(lignes.into_iter().map(|(nom, titres, artistes)| GenreMix { nom, titres, artistes }).collect())
 }
 
 #[tauri::command]

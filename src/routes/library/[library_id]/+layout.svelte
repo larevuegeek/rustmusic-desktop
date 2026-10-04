@@ -59,10 +59,10 @@ let { children } = $props();
  * L'atelier porte déjà son propre en-tête, avec son titre, sa source et son
  * bouton de retour.
  */
-// Les pages d'un album, d'un artiste ou d'un morceau ont leur propre barre (retour) : pas d'en-tête de bibliothèque non plus.
-let isFocusedView = $derived(page.url.pathname.endsWith("/tags") || /^\/library\/\d+\/(albums|artists|tracks)\/[^/]+\/?$/.test(page.url.pathname));
-// Albums, Morceaux et Artistes ont leur propre barre d'outils : pas de rangée de commandes vide au-dessus.
-const pageAlbums = $derived(/^\/library\/\d+\/(albums|tracks|artists|genres|folders)\/?$/.test(page.url.pathname));
+// Les fiches (album, artiste, morceau, période) ont leur propre barre de retour : pas d'en-tête de bibliothèque.
+let isFocusedView = $derived(page.url.pathname.endsWith("/tags") || /^\/library\/\d+\/(albums|artists|tracks|years)\/[^/]+\/?$/.test(page.url.pathname));
+// Les pages de liste ont leur propre barre d'outils : pas de rangée de commandes vide au-dessus.
+const avecSaBarre = $derived(/^\/library\/\d+\/(albums|tracks|artists|genres|years|mixes|folders)\/?$/.test(page.url.pathname));
 
 const placementOnglets = $derived(lirePlacement($settingsStore.library_tabs_position));
 
@@ -121,7 +121,7 @@ async function importer(chemins: string[]) {
 
   <!-- Seulement en mode « à gauche » : ailleurs l'en-tête général porte déjà
        les sections et les commandes. -->
-  {#if placementOnglets === 'sidebar' && !pageAlbums}
+  {#if placementOnglets === 'sidebar' && !avecSaBarre}
     <div class="shrink-0">
       <LibraryTabBar />
     </div>

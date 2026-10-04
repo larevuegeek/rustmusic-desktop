@@ -46,12 +46,16 @@ pub async fn handle_browse(
     request: &BrowseRequest,
 ) -> Result<BrowseResponse, DlnaError> {
     if request.browse_flag == BrowseFlag::BrowseMetadata {
-        return Ok(metadata_for(&request.object_id, server_base_url));
+        let langue = provider.language().await;
+        return Ok(metadata_for(&request.object_id, server_base_url, &langue));
     }
 
     match parse_object_id(&request.object_id) {
-        ObjectId::Root => browse_root(provider, server_base_url).await,
-        ObjectId::Library(lib) => Ok(browse_library_root(lib, server_base_url)),
+        ObjectId::Root => {
+            let langue = provider.language().await;
+            browse_root(provider, server_base_url, &langue).await
+        }
+        ObjectId::Library(lib) => Ok(browse_library_root(lib, server_base_url, &provider.language().await)),
         ObjectId::Artists(lib) => browse_artists(provider, server_base_url, lib, request).await,
         ObjectId::Artist(lib, id) => {
             browse_artist_albums(provider, server_base_url, lib, &id, request).await
@@ -79,13 +83,14 @@ pub async fn handle_browse(
 async fn browse_root(
     provider: Arc<dyn LibraryProvider>,
     server_base_url: &str,
+    langue: &str,
 ) -> Result<BrowseResponse, DlnaError> {
     let libs = provider.list_libraries().await?;
 
     let mut didl = DidlBuilder::new(server_base_url.to_string());
 
     if libs.len() == 1 {
-        emit_library_children(&mut didl, libs[0].id, "0");
+        emit_library_children(&mut didl, libs[0].id, "0", langue);
         return Ok(fixed_response(didl.build(), 3));
     }
 
@@ -96,37 +101,64 @@ async fn browse_root(
 }
 
 /// Browse a specific library's root : Artists / Albums / Folders.
-fn browse_library_root(library_id: i64, server_base_url: &str) -> BrowseResponse {
+fn browse_library_root(library_id: i64, server_base_url: &str, langue: &str) -> BrowseResponse {
     let parent = format!("0/lib/{}", library_id);
     let mut didl = DidlBuilder::new(server_base_url.to_string());
-    emit_library_children(&mut didl, library_id, &parent);
+    emit_library_children(&mut didl, library_id, &parent, langue);
     fixed_response(didl.build(), 3)
 }
 
 /// Helper : emit Artists / Albums / Folders sub-containers for a given library
 /// under `parent_id`. Used for both library roots and the auto-collapsed root.
-fn emit_library_children(didl: &mut DidlBuilder, library_id: i64, parent_id: &str) {
+fn emit_library_children(didl: &mut DidlBuilder, library_id: i64, parent_id: &str, langue: &str) {
     didl.add_container(
         &format!("0/lib/{}/artists", library_id),
         parent_id,
-        "Artistes",
+        titre(Menu::Artistes, langue),
         0,
         "object.container",
     );
     didl.add_container(
         &format!("0/lib/{}/albums", library_id),
         parent_id,
-        "Albums",
+        titre(Menu::Albums, langue),
         0,
         "object.container",
     );
     didl.add_container(
         &format!("0/lib/{}/folders", library_id),
         parent_id,
-        "Dossiers",
+        titre(Menu::Dossiers, langue),
         0,
         "object.container.storageFolder",
     );
+}
+
+#[derive(Clone, Copy)]
+enum Menu {
+    Artistes,
+    Albums,
+    Dossiers,
+}
+
+/// Titre d'un menu dans la langue de l'app ; anglais pour une langue inconnue.
+fn titre(menu: Menu, langue: &str) -> &'static str {
+    match (menu, langue) {
+        (Menu::Artistes, "fr") => "Artistes",
+        (Menu::Artistes, "es") => "Artistas",
+        (Menu::Artistes, "de") => "Künstler",
+        (Menu::Artistes, "it") => "Artisti",
+        (Menu::Artistes, _) => "Artists",
+        (Menu::Albums, "es") => "Álbumes",
+        (Menu::Albums, "de") => "Alben",
+        (Menu::Albums, "it") => "Album",
+        (Menu::Albums, _) => "Albums",
+        (Menu::Dossiers, "fr") => "Dossiers",
+        (Menu::Dossiers, "es") => "Carpetas",
+        (Menu::Dossiers, "de") => "Ordner",
+        (Menu::Dossiers, "it") => "Cartelle",
+        (Menu::Dossiers, _) => "Folders",
+    }
 }
 
 // ─── Paginated browsers ───────────────────────────────────────────────
@@ -312,15 +344,15 @@ fn empty_response(server_base_url: &str) -> BrowseResponse {
 
 /// Minimal `BrowseMetadata` response : describe the queried object as a
 /// generic container. Sufficient for most amps' probe step.
-fn metadata_for(object_id: &str, server_base_url: &str) -> BrowseResponse {
+fn metadata_for(object_id: &str, server_base_url: &str, langue: &str) -> BrowseResponse {
     let title = if object_id == "0" || object_id.is_empty() {
         "RustMusic"
     } else if object_id.ends_with("/artists") {
-        "Artistes"
+        titre(Menu::Artistes, langue)
     } else if object_id.ends_with("/albums") {
-        "Albums"
+        titre(Menu::Albums, langue)
     } else if object_id.ends_with("/folders") {
-        "Dossiers"
+        titre(Menu::Dossiers, langue)
     } else {
         "Container"
     };
@@ -334,4 +366,18 @@ fn metadata_for(object_id: &str, server_base_url: &str) -> BrowseResponse {
     let mut didl = DidlBuilder::new(server_base_url.to_string());
     didl.add_container(object_id, &parent, title, 0, "object.container");
     fixed_response(didl.build(), 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn menus_dans_la_langue_de_l_app() {
+        assert_eq!(titre(Menu::Artistes, "fr"), "Artistes");
+        assert_eq!(titre(Menu::Dossiers, "en"), "Folders");
+        assert_eq!(titre(Menu::Albums, "de"), "Alben");
+        // Langue inconnue : anglais.
+        assert_eq!(titre(Menu::Dossiers, "pt"), "Folders");
+    }
 }

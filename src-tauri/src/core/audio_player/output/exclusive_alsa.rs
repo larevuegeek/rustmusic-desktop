@@ -34,11 +34,15 @@ use std::thread::JoinHandle;
 
 use alsa::pcm::{Access, Format, HwParams, PCM};
 use alsa::{Direction, ValueOr};
-use ringbuf::traits::{Consumer, Observer};
+use ringbuf::traits::Consumer;
 
 use super::device_reservation::{card_index_from_hw_id, DeviceReservation};
 use super::traits::{AudioOutput, AudioOutputError};
+use crate::core::audio_player::pipeline_info::Repli;
 use super::types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
+
+/// Début du message quand la carte reste occupée.
+const OCCUPE: &str = "device toujours occupé";
 
 /// Formats tentés, dans l'ordre de préférence.
 const CANDIDATE_FORMATS: [Format; 2] = [Format::S32LE, Format::S16LE];
@@ -62,7 +66,7 @@ fn open_hw_pcm(hw_id: &str) -> Result<PCM, String> {
             }
         }
     }
-    Err(format!("device toujours occupé après attente : {last}"))
+    Err(format!("{OCCUPE} après attente : {last}"))
 }
 
 /// Applique les `HwParams` PCM et renvoie la taille de période obtenue.
@@ -114,7 +118,7 @@ pub struct AlsaNegotiation {
 ///
 /// Ouvre puis referme le `hw:` — appelé **avant** que le `Consumer` du ring
 /// buffer ne soit consommé, pour que le repli sur CPAL reste possible.
-pub fn probe(hw_id: &str, rate: u32, channels: u16) -> Option<AlsaNegotiation> {
+pub fn probe(hw_id: &str, rate: u32, channels: u16) -> Result<AlsaNegotiation, Repli> {
     // La réservation ne vit que le temps du probe ; le thread de rendu la
     // reprendra. Fenêtre de re-capture par PipeWire couverte par le réessai
     // EBUSY de `open_hw_pcm`.
@@ -129,7 +133,7 @@ pub fn probe(hw_id: &str, rate: u32, channels: u16) -> Option<AlsaNegotiation> {
         Err(e) => {
             log::info!("🎚️  ALSA exclusive : ouverture de {hw_id} impossible ({e}) → CPAL partagé");
             drop(reservation);
-            return None;
+            return Err(if e.starts_with(OCCUPE) { Repli::AppareilOccupe } else { Repli::Indisponible });
         }
     };
 
@@ -142,7 +146,7 @@ pub fn probe(hw_id: &str, rate: u32, channels: u16) -> Option<AlsaNegotiation> {
                 );
                 drop(pcm);
                 drop(reservation);
-                return Some(AlsaNegotiation {
+                return Ok(AlsaNegotiation {
                     format,
                     period_frames,
                 });
@@ -156,7 +160,7 @@ pub fn probe(hw_id: &str, rate: u32, channels: u16) -> Option<AlsaNegotiation> {
     );
     drop(pcm);
     drop(reservation);
-    None
+    Err(Repli::FormatRefuse)
 }
 
 /// Sortie ALSA exclusive : un thread de rendu bloquant sur `writei`.
@@ -169,6 +173,7 @@ pub struct AlsaExclusiveOutput {
     device_name: String,
     sample_rate: u32,
     channels: u16,
+    bits_exacts: u32,
 }
 
 impl AlsaExclusiveOutput {
@@ -192,6 +197,7 @@ impl AlsaExclusiveOutput {
         let is_stopped = atomics.is_stopped.clone();
         let started = Arc::new(AtomicBool::new(false));
         let started_thread = started.clone();
+        let bits_exacts = if matches!(negotiation.format, Format::S16LE) { 16 } else { 24 };
 
         let handle = std::thread::Builder::new()
             .name("rustmusic-alsa-render".into())
@@ -218,6 +224,7 @@ impl AlsaExclusiveOutput {
             device_name,
             sample_rate: rate,
             channels,
+            bits_exacts,
         })
     }
 }
@@ -247,6 +254,10 @@ impl AudioOutput for AlsaExclusiveOutput {
 
     fn output_sample_rate(&self) -> u32 {
         self.sample_rate
+    }
+
+    fn bits_exacts(&self) -> u32 {
+        self.bits_exacts
     }
 
     fn output_channels(&self) -> u16 {
@@ -399,17 +410,10 @@ where
         }
 
         // ─── Volume + Replay Gain + fade-in post-seek + clipping ───
+        // Exclusif : pas de marge — volume 100 % et gain neutre laissent les échantillons intacts.
         let vol = atomics.volume.load(Ordering::Relaxed) as f32 / 100.0
             * crate::core::audio_player::replay_gain::current_factor();
-        for s in scratch.iter_mut() {
-            let fade = if fade_in_samples > 0 {
-                fade_in_samples -= 1;
-                (2048 - fade_in_samples) as f32 / 2048.0
-            } else {
-                1.0
-            };
-            *s = (*s * vol * fade * 0.98).clamp(-1.0, 1.0);
-        }
+        super::echantillons::appliquer_gain(&mut scratch, vol, &mut fade_in_samples, 1.0);
 
         write_chunk(
             &pcm,
@@ -443,8 +447,7 @@ fn write_chunk(
             buf_i32.extend(
                 samples
                     .iter()
-                    // 2^31-1 : même mise à l'échelle que le chemin WASAPI.
-                    .map(|s| (*s * 2_147_483_647.0).clamp(-2_147_483_648.0, 2_147_483_647.0) as i32),
+                    .map(|s| super::echantillons::vers_i32(*s)),
             );
             let io = pcm.io_i32().map_err(|e| format!("io_i32: {e}"))?;
             let mut off = 0usize;
@@ -464,7 +467,7 @@ fn write_chunk(
             buf_i16.extend(
                 samples
                     .iter()
-                    .map(|s| (*s * 32_767.0).clamp(-32_768.0, 32_767.0) as i16),
+                    .map(|s| super::echantillons::vers_i16(*s)),
             );
             let io = pcm.io_i16().map_err(|e| format!("io_i16: {e}"))?;
             let mut off = 0usize;

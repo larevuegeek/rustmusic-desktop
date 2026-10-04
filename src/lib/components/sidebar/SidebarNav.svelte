@@ -7,8 +7,8 @@ import { libraryStore } from "$lib/stores/library/library.store";
 import { settingsStore } from "$lib/stores/settings/settings.store";
 import { sidebarStore } from "$lib/stores/ui/sidebar.store";
 import {
-  dernierOnglet,
   lireOnglets,
+  lienOnglet,
   lirePlacement,
   memoriserOnglet,
   ongletCourant,
@@ -23,8 +23,10 @@ const pathname = $derived(page.url.pathname);
 const ouvert = $derived(ongletCourant(pathname));
 const libraryId = $derived($libraryStore.librarySelected?.id ?? null);
 
-// Sections en haut : une seule tuile « Bibliothèque », sinon doublon.
+// « Les deux » = barre latérale + onglets en haut. En haut seul, l'accueil et les
+// sections sont dans la barre d'onglets : plus aucune tuile ici.
 const tuiles = $derived.by((): Tuile[] => {
+  if (lirePlacement($settingsStore.library_tabs_position) === "top") return [];
   const accueil: Tuile = {
     cle: "home", label: $t("nav.home"), icone: "material-symbols:home-outline-rounded",
     actif: pathname === "/", aller: () => nav("/"),
@@ -32,16 +34,9 @@ const tuiles = $derived.by((): Tuile[] => {
   const id = libraryId;
   if (id == null) return [accueil];
 
-  if (lirePlacement($settingsStore.library_tabs_position) === "top") {
-    return [accueil, {
-      cle: "library", label: $t("nav.library"), icone: "material-symbols:library-music-outline-rounded",
-      actif: ouvert !== null, aller: () => nav(`/library/${id}/${dernierOnglet(id)}`),
-    }];
-  }
-
   return [accueil, ...resoudreOnglets(lireOnglets($settingsStore.library_tabs)).map((o) => ({
     cle: o.key, label: $t(o.labelKey), icone: o.icon, actif: ouvert === o.key,
-    aller: () => { memoriserOnglet(id, o.key); nav(`/library/${id}/${o.key}`); },
+    aller: () => { memoriserOnglet(id, o.key); nav(lienOnglet(id, o.key)); },
   }))];
 });
 
@@ -51,6 +46,7 @@ function nav(path: string) {
 }
 </script>
 
+{#if tuiles.length > 0}
 <nav class="grid {replie ? 'grid-cols-[48px] gap-1.5 justify-center' : 'grid-cols-3 gap-1.5'}">
   {#each tuiles as tuile (tuile.cle)}
     <button
@@ -71,3 +67,4 @@ function nav(path: string) {
     </button>
   {/each}
 </nav>
+{/if}

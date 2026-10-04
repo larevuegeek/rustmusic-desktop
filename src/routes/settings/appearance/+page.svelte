@@ -17,7 +17,7 @@
   import WindowControlsPreview from "$lib/components/settings/WindowControlsPreview.svelte";
   import {
     ONGLETS_BIBLIOTHEQUE,
-    ONGLETS_PAR_DEFAUT,
+    ORDRE_ONGLETS,
     lireOnglets,
     lirePlacement,
     type LibraryTabKey,
@@ -76,7 +76,7 @@
   function basculerOnglet(cle: LibraryTabKey) {
     const suivant = ongletsRetenus.includes(cle)
       ? ongletsRetenus.filter((c) => c !== cle)
-      : ONGLETS_PAR_DEFAUT.filter((c) => c === cle || ongletsRetenus.includes(c));
+      : ORDRE_ONGLETS.filter((c) => c === cle || ongletsRetenus.includes(c));
 
     // Le bouton est déjà désactivé, mais un réglage importé peut arriver vide.
     if (suivant.length === 0) return;
@@ -161,6 +161,18 @@
       ]}
       label={$t("settings.contrast")}
       onchange={(v) => settingsStore.set("contrast", v)}
+    />
+  </OptionItem>
+  <OptionItem
+    title={$t("settings.help_bubbles")}
+    desc={$t("settings.help_bubbles_desc")}
+    keywords="aide help glossary dac dsd"
+    onclick={() => settingsStore.toggle("show_help_bubbles")}
+  >
+    <ToggleSwitch
+      checked={$settingsStore.show_help_bubbles !== "false"}
+      label={$t("settings.help_bubbles")}
+      onclick={() => settingsStore.toggle("show_help_bubbles")}
     />
   </OptionItem>
 </OptionGroup>

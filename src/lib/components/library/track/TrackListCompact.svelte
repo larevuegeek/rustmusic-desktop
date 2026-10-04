@@ -5,6 +5,7 @@ import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
 import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import { liked } from "$lib/stores/playlist/like.store";
 import { selectionStore } from "$lib/stores/ui/selection.store";
+import SelectionCheck from "$lib/components/ui/selection/SelectionCheck.svelte";
 import { settingsStore } from "$lib/stores/settings/settings.store";
 import Icon from "@iconify/svelte";
 import { t } from "$lib/i18n";
@@ -63,31 +64,14 @@ function handleClick(e?: MouseEvent) {
          `flex-1` reste porté par le titre : c'est lui qui absorbe la place
          restante. S'il est masqué, un remplissage prend le relais — sans quoi
          les colonnes s'étaleraient jusqu'au bord. -->
+    {#if selection.active}<SelectionCheck coche={isSelected} />{/if}
     {#each columns as col (col.key)}
       {@const w = largeurDe(col, largeurs)}
       {#if col.widget === 'index'}
-        {#if selection.active}
-          <button
-            type="button"
-            class="w-5 h-5 rounded shrink-0 flex items-center justify-center cursor-pointer
-                   transition-all duration-150
-                   {isSelected
-                     ? 'bg-emerald-500 text-white'
-                     : 'bg-white dark:bg-white/5 border border-neutral-300 dark:border-white/15 text-transparent hover:border-emerald-500 dark:hover:border-emerald-500/40'}"
-            onclick={(e) => { e.stopPropagation(); selectionStore.toggle(track.id, track); }}
-          >
-            {#if isSelected}
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-                <path d="m4.5 12.75 6 6 9-13.5"/>
-              </svg>
-            {/if}
-          </button>
-        {:else}
           <div class="text-[10px] text-neutral-400 text-right shrink-0 tabular-nums"
                style="width: {w}px">
             {track.track_number ?? '—'}
           </div>
-        {/if}
 
       {:else if col.widget === 'cover'}
         <button type="button" class="shrink-0 cursor-pointer" style="width: {w}px">

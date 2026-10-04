@@ -23,6 +23,7 @@
     positions = false,
     groupes = null,
     enteteGroupe,
+    barreHorizontale = false,
   }: {
     libraryId: number;
     tracks: TrackListView[];
@@ -41,7 +42,32 @@
     /** Lignes regroupées (par album) sous un seul en-tête de colonnes ; `tracks` reste la file de lecture. */
     groupes?: { cle: string; pistes: TrackListView[]; ouvert: boolean }[] | null;
     enteteGroupe?: Snippet<[string]>;
+    /** Dans une page qui défile : la largeur en trop défile seule, par une barre collée en bas, sans emporter la page. */
+    barreHorizontale?: boolean;
   } = $props();
+
+  // ─── Défilement horizontal propre au tableau ───
+  // `overflow-x: clip` ne crée pas de zone de défilement : les en-têtes collants suivent toujours la page.
+  let largeurVue = $state(0);
+  let largeurContenu = $state(0);
+  let decalage = $state(0);
+  let barre = $state<HTMLDivElement | null>(null);
+  let cadre = $state<HTMLDivElement | null>(null);
+  const deborde = $derived(barreHorizontale && largeurContenu > largeurVue + 1);
+  const decalageEffectif = $derived(deborde ? Math.min(decalage, largeurContenu - largeurVue) : 0);
+
+  // Molette horizontale ou Maj+molette : la barre défile, la page non.
+  $effect(() => {
+    if (!cadre || !deborde) return;
+    const roue = (e: WheelEvent) => {
+      const dx = e.shiftKey ? e.deltaY || e.deltaX : Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : 0;
+      if (!dx || !barre) return;
+      e.preventDefault();
+      barre.scrollLeft += dx;
+    };
+    cadre.addEventListener("wheel", roue, { passive: false });
+    return () => cadre?.removeEventListener("wheel", roue);
+  });
 
   const visibles = $derived(groupes ? groupes.flatMap((g) => (g.ouvert ? g.pistes : [])) : tracks);
 
@@ -113,7 +139,11 @@
   }
 </script>
 
-<div style="--eq: var(--rg-g); {variables}">
+<div bind:this={cadre} bind:clientWidth={largeurVue} class={barreHorizontale ? "overflow-x-clip" : ""}>
+<!-- Aussi large que ses colonnes : une ligne plus étroite rognerait celles de droite (content-visibility). -->
+<!-- --tx / --vue : décalage et largeur visible, pour qu'un en-tête de groupe reste en place. -->
+<div class="w-max min-w-full" bind:offsetWidth={largeurContenu} style="--eq: var(--rg-g); {variables}; {deborde ? `--tx: ${decalageEffectif}px; --vue: ${largeurVue}px;` : ''}"
+     style:transform={decalageEffectif ? `translateX(${-decalageEffectif}px)` : undefined}>
   <!-- En-tête collant, fond opaque : les lignes passent dessous. -->
   <div bind:this={ligneEntete} style:top={colle === null ? undefined : `${colle}px`} class="{colle === null ? '' : 'sticky'} z-10 flex items-center gap-3.5 h-9.5 px-2.5 border-b border-(--rg-bd)
               bg-(--c-fond) dark:bg-zinc-950 text-[11px] font-bold uppercase tracking-[0.08em] text-(--rg-mu2)">
@@ -171,4 +201,10 @@
       {/each}
     {/if}
   </div>
+</div>
+{#if deborde}
+  <div bind:this={barre} onscroll={() => (decalage = barre?.scrollLeft ?? 0)} class="sticky bottom-0 z-10 overflow-x-auto scrollbar-app" aria-hidden="true">
+    <div class="h-px" style:width="{largeurContenu}px"></div>
+  </div>
+{/if}
 </div>

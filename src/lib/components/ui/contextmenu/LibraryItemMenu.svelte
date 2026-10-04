@@ -90,27 +90,27 @@
   tabindex="-1"
   oncontextmenu={(e) => e.preventDefault()}
   class="fixed z-[9999] w-58 py-1.5
-         bg-neutral-950/95 backdrop-blur-xl
-         border border-white/10
-         rounded-xl shadow-2xl shadow-black/30
+         bg-(--rg-carte) dark:bg-(--rg-s2) 
+         border border-(--rg-bd) dark:border-[#2a312d]
+         rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] 
          overflow-hidden"
   style={menuStyle}
 >
-  <p class="px-3.5 pt-1 pb-1.5 text-[10px] uppercase tracking-widest text-neutral-500 truncate">{title}</p>
+  <p class="px-3.5 pt-1 pb-1.5 text-[10px] uppercase tracking-widest text-(--rg-mu) truncate">{title}</p>
 
-  <button class="{ligne} text-neutral-200 hover:bg-green-500/15 hover:text-green-400" onclick={lire}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx)" onclick={lire}>
     <Icon icon="lucide:play" width="14" class="opacity-60" />
     {$t('sidebar.play')}
   </button>
 
-  <button class="{ligne} text-neutral-200 hover:bg-white/5" onclick={ouvrir}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={ouvrir}>
     <Icon icon="lucide:arrow-up-right" width="14" class="opacity-60" />
     {$t('sidebar.open')}
   </button>
 
-  <div class="h-px mx-2 my-1 bg-white/6"></div>
+  <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
-  <button class="{ligne} text-neutral-200 hover:bg-white/5" onclick={basculer}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={basculer}>
     <Icon icon={epingle ? 'material-symbols:keep-off-outline-rounded' : 'material-symbols:keep-outline-rounded'} width="15" class="opacity-60" />
     {$t(epingle ? 'sidebar.unpin' : 'sidebar.pin')}
   </button>

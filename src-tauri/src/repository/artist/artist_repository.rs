@@ -163,14 +163,14 @@ impl ArtistRepository {
         .await
     }
 
-    /// Reset toutes les image_url à NULL (pour forcer un re-fetch)
-    pub async fn reset_all_image_urls<'e, E>(
+    /// Remet en recherche les artistes restés sans portrait ("") ; les portraits trouvés restent.
+    pub async fn reset_not_found_images<'e, E>(
         exec: E,
     ) -> Result<(), sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
-        sqlx::query("UPDATE artists SET image_url = NULL WHERE image_url IS NOT NULL")
+        sqlx::query("UPDATE artists SET image_url = NULL WHERE image_url = ''")
             .execute(exec)
             .await?;
         Ok(())

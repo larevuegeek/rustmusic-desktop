@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+fn vrai() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Playlist {
     pub id: i64,
@@ -19,6 +23,12 @@ pub struct Playlist {
     /// règles plutôt que le retrait d'un morceau.
     #[serde(default)]
     pub is_smart: bool,
+    /// Playlist auto tirée au hasard chaque jour : un mix, pas une playlist.
+    #[serde(default)]
+    pub is_mix: bool,
+    /// Affichée dans la barre latérale (épinglée).
+    #[serde(default = "vrai")]
+    pub pinned: bool,
     pub created_at: String,
     pub updated_at: Option<String>,
 }

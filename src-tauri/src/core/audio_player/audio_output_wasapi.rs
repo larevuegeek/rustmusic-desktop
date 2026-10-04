@@ -20,12 +20,14 @@
 
 #![cfg(target_os = "windows")]
 
+use crate::core::audio_player::output::echantillons;
+use crate::core::audio_player::output::dop_engine::{DopRenderCtl, PRECHAUFFAGE_S};
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-use ringbuf::traits::{Consumer, Observer};
+use ringbuf::traits::Consumer;
 use wasapi::{
     Direction, DeviceEnumerator, SampleType, ShareMode, StreamMode, WaveFormat,
     initialize_mta,
@@ -365,7 +367,7 @@ pub fn probe_device_capabilities(device_id: String) -> Result<WasapiCapabilities
 // ============================================================================
 
 /// Format audio négocié et accepté par le device en mode exclusive.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NegotiatedFormat {
     pub sample_rate: u32,
     pub channels: u16,
@@ -440,6 +442,9 @@ fn resolve_wasapi_device(
         .map_err(|e| format!("get_default_device: {e:?}"))
 }
 
+/// Début du message quand le DAC n'accepte aucun format exclusif.
+pub const AUCUN_FORMAT: &str = "Aucun format exclusive trouvé";
+
 pub fn try_negotiate_exclusive_format(
     source_rate: u32,
     channels: u16,
@@ -493,7 +498,7 @@ pub fn try_negotiate_exclusive_format(
             }
         }
         Err(format!(
-            "Aucun format exclusive trouvé pour {channels} canaux (essayés : {} Hz × 24/16-bit)",
+            "{AUCUN_FORMAT} pour {channels} canaux (essayés : {} Hz × 24/16-bit)",
             candidates_rates
                 .iter()
                 .map(u32::to_string)
@@ -525,95 +530,73 @@ pub struct WasapiSymphoniaState {
     pub output_channels: u16,
 }
 
-/// Boucle de rendu WASAPI exclusive. À spawn dans un thread dédié.
-///
-/// Cette fonction :
-/// 1. Ouvre l'AudioClient en exclusive mode avec le format négocié
-/// 2. Crée un event handle (timing event-driven, CPU-friendly vs polling)
-/// 3. Démarre le stream
-/// 4. Boucle : attend l'event → pop des samples du ring buffer → écrit au DAC
-/// 5. Réagit à `is_stopped` / `is_paused` / `volume`
-///
-/// Le `Consumer<f32>` est le côté lecture du même ring buffer alimenté par
-/// le decoder thread. Pour rester drop-in avec CPAL, on consomme exactement
-/// `available_frames * channels` samples par cycle.
-pub fn run_wasapi_playback<C>(
-    format: NegotiatedFormat,
-    consumer: C,
-    is_paused: Arc<AtomicBool>,
-    is_stopped: Arc<AtomicBool>,
-    volume: Arc<AtomicU8>,
-    current_position_frames: Arc<AtomicUsize>,
-    seek_flush: Arc<AtomicBool>,
-    preferred_device_name: Option<String>,
-    sym: WasapiSymphoniaState,
-    stream_ready: Arc<AtomicBool>,
-) -> Result<(), WasapiPlayerError>
-where
-    C: Consumer<Item = f32>,
-{
-    // Le signal est levé quoi qu'il arrive.
-    //
-    // L'initialisation du flux compte une demi-douzaine de sorties d'erreur —
-    // périphérique occupé, format refusé, poignée d'événement indisponible.
-    // Chacune quittait la fonction sans lever le drapeau, et l'appelant
-    // attendait alors son délai complet : cinq secondes de gel pour une panne
-    // connue dès la première milliseconde.
-    //
-    // L'enveloppe le garantit sur **toutes** les portes de sortie, y compris
-    // celles qu'on ajoutera plus tard.
-    let outcome = run_wasapi_playback_inner(
-        format,
-        consumer,
-        is_paused,
-        is_stopped,
-        volume,
-        current_position_frames,
-        seek_flush,
-        preferred_device_name,
-        sym,
-        stream_ready.clone(),
-    );
-    stream_ready.store(true, Ordering::Release);
-    outcome
+/// Lecture d'une piste dans l'anneau du décodeur (le type concret varie selon l'appelant).
+pub trait SourcePcm: Send {
+    fn lire(&mut self, sortie: &mut [f32]) -> usize;
+    fn vider(&mut self);
 }
 
-fn run_wasapi_playback_inner<C>(
+impl<C: Consumer<Item = f32> + Send> SourcePcm for C {
+    fn lire(&mut self, sortie: &mut [f32]) -> usize {
+        self.pop_slice(sortie)
+    }
+    fn vider(&mut self) {
+        let n = self.occupied_len();
+        self.skip(n);
+    }
+}
+
+/// Une piste confiée au moteur exclusif : sa source et ses signaux.
+pub struct FluxPiste {
+    pub source: Box<dyn SourcePcm>,
+    pub is_paused: Arc<AtomicBool>,
+    pub is_stopped: Arc<AtomicBool>,
+    /// Propre à la piste : `is_stopped` est commun au lecteur et repasse à faux.
+    pub fin: Arc<AtomicBool>,
+    pub volume: Arc<AtomicU8>,
+    pub current_position_frames: Arc<AtomicUsize>,
+    pub seek_flush: Arc<AtomicBool>,
+    pub sym: WasapiSymphoniaState,
+    /// Levé au premier tampon de cette piste réellement écrit au DAC.
+    pub stream_ready: Arc<AtomicBool>,
+}
+
+/// Sans piste depuis ce délai, le moteur rend le DAC (aux autres applications).
+const INACTIVITE: Duration = Duration::from_secs(5);
+
+/// Moteur WASAPI exclusif persistant : le DAC reste ouvert d'une piste à l'autre tant que
+/// le format ne change pas — l'ouverture coûte 1,5 à 2,5 s sur un DAC USB. Les pistes
+/// arrivent par `prochaine` ; entre deux, du silence.
+pub fn run_moteur_exclusif(
     format: NegotiatedFormat,
-    mut consumer: C,
-    is_paused: Arc<AtomicBool>,
-    is_stopped: Arc<AtomicBool>,
-    volume: Arc<AtomicU8>,
-    current_position_frames: Arc<AtomicUsize>,
-    seek_flush: Arc<AtomicBool>,
     preferred_device_name: Option<String>,
-    sym: WasapiSymphoniaState,
-    // Levé au **premier tampon réellement écrit au périphérique**. Pas à
-    // l'ouverture du flux : en mode exclusif, `start_stream` rend la main bien
-    // avant que le DAC se soit verrouillé sur la fréquence. Entre les deux il
-    // s'écoule une à deux secondes pendant lesquelles rien ne sort — et c'est
-    // précisément l'intervalle où l'interface croyait la lecture commencée.
-    stream_ready: Arc<AtomicBool>,
-) -> Result<(), WasapiPlayerError>
-where
-    C: Consumer<Item = f32>,
-{
-    // À appeler depuis un thread dédié au playback. Si ce thread est dans STA
-    // (par ex. accidentellement réutilisé), l'init MTA va échouer ici proprement.
-    // Chronomètre interne au fil de rendu.
-    //
-    // Vu du dehors, l'ouverture du périphérique prend deux millisecondes : ce
-    // n'est que le lancement de ce fil. Tout le délai réel — près de deux
-    // secondes mesurées — se passe ici, et il fallait le découper pour savoir
-    // laquelle de ces six étapes le porte.
+    prochaine: Arc<std::sync::Mutex<Option<FluxPiste>>>,
+    arret: Arc<AtomicBool>,
+) -> Result<(), WasapiPlayerError> {
+    let mut piste: Option<FluxPiste> = None;
+    let issue = moteur_inner(format, preferred_device_name, &prochaine, &arret, &mut piste);
+    // Personne n'attend un signal qui ne viendra plus.
+    if let Some(p) = piste.take() {
+        p.stream_ready.store(true, Ordering::Release);
+    }
+    if let Some(p) = prochaine.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        p.stream_ready.store(true, Ordering::Release);
+    }
+    issue
+}
+
+fn moteur_inner(
+    format: NegotiatedFormat,
+    preferred_device_name: Option<String>,
+    prochaine: &std::sync::Mutex<Option<FluxPiste>>,
+    arret: &AtomicBool,
+    piste: &mut Option<FluxPiste>,
+) -> Result<(), WasapiPlayerError> {
     let mut phases = crate::core::audio_player::startup_timer::StartupTimer::new();
 
     ensure_com_initialized_current_thread().map_err(WasapiPlayerError::ComInit)?;
     phases.mark("init COM");
 
-    // ─── 1. Ouvrir le device + AudioClient ───
-    // On cible le device sélectionné par l'utilisateur si possible (matching
-    // par friendly_name substring), sinon fallback sur le default Windows.
     let enumerator = DeviceEnumerator::new()
         .map_err(|e| WasapiPlayerError::NoDevice(format!("DeviceEnumerator: {e:?}")))?;
     let device = resolve_wasapi_device(&enumerator, preferred_device_name.as_deref())
@@ -621,10 +604,8 @@ where
     let mut audio_client = device
         .get_iaudioclient()
         .map_err(|e| WasapiPlayerError::NoDevice(format!("get_iaudioclient: {e:?}")))?;
-
     phases.mark("ouverture du device");
 
-    // ─── 2. WaveFormat exclusive ───
     let (storage_bits, valid_bits) = if format.bits_per_sample == 24 {
         (32, 24)
     } else {
@@ -640,82 +621,72 @@ where
     );
     let bytes_per_frame = wave_fmt.get_blockalign() as usize;
 
-    // ─── 3. Période device ───
-    // En exclusive event-driven, period_hns = buffer_duration. On vise ~20 ms
-    // (équilibre entre latence et stabilité). calculate_aligned_period_near
-    // ajuste à la période minimale supportée + alignement bytes (souvent 128
-    // bytes pour Intel HD Audio).
-    let desired_period_hns: i64 = 200_000; // 20 ms en unités de 100 ns
+    // Période visée ~20 ms, alignée sur ce que le pilote accepte.
     let period_hns = audio_client
-        .calculate_aligned_period_near(desired_period_hns, Some(128), &wave_fmt)
+        .calculate_aligned_period_near(200_000, Some(128), &wave_fmt)
         .map_err(|e| WasapiPlayerError::InitFailed(format!("calculate_aligned_period: {e:?}")))?;
-
     phases.mark("format et période");
 
-    // ─── 4. Initialize en exclusive event-driven ───
-    let stream_mode = StreamMode::EventsExclusive { period_hns };
     audio_client
-        .initialize_client(&wave_fmt, &Direction::Render, &stream_mode)
+        .initialize_client(&wave_fmt, &Direction::Render, &StreamMode::EventsExclusive { period_hns })
         .map_err(|e| WasapiPlayerError::InitFailed(format!(
             "initialize_client (likely device busy or format rejected): {e:?}"
         )))?;
-
-    // C'est ici que Windows reprend l'endpoint à son mixeur : s'il est déjà
-    // ouvert en mode partagé par une autre application, il faut d'abord l'en
-    // déloger.
+    // Le pilote reprend l'endpoint et règle le DAC : c'est l'étape qui coûte.
     phases.mark("prise exclusive du périphérique");
 
-    // ─── 5. Event handle + render client + démarrage ───
     let event_handle = audio_client
         .set_get_eventhandle()
         .map_err(|e| WasapiPlayerError::InitFailed(format!("set_get_eventhandle: {e:?}")))?;
     let render_client = audio_client
         .get_audiorenderclient()
         .map_err(|e| WasapiPlayerError::InitFailed(format!("get_audiorenderclient: {e:?}")))?;
-
     audio_client
         .start_stream()
         .map_err(|e| WasapiPlayerError::InitFailed(format!("start_stream: {e:?}")))?;
-
     phases.mark("démarrage du flux");
 
     log::info!(
-        "▶️  WASAPI exclusive: stream démarré ({} Hz, {}-bit, {} ch, period {} ms)",
+        "▶️  WASAPI exclusive: moteur démarré ({} Hz, {}-bit, {} ch, period {} ms)",
         format.sample_rate,
         format.bits_per_sample,
         format.channels,
         period_hns / 10_000
     );
 
-    // ─── 6. Boucle de rendu ───
     let mut interleaved_f32: Vec<f32> = Vec::new();
     let mut output_bytes: Vec<u8> = Vec::new();
-    let mut fade_in_samples: usize = 0; // fade-in post-seek (anti-clic)
-
-    // Diagnostic (premières ~2 s) : compteurs pour comprendre un éventuel
-    // silence. On log une synthèse après ~100 cycles puis on arrête.
-    let mut first_buffer_written = false;
-    let mut diag_cycles: u32 = 0;
-    let mut diag_frames_written: u64 = 0;
-    let mut diag_underruns: u32 = 0;
-    let mut diag_peak: f32 = 0.0;
-    let mut diag_done = false;
+    let mut fade_in_samples: usize = 0;
+    let mut premier_tampon = false;
+    let mut chrono_rendu = true;
+    let mut libre_depuis = std::time::Instant::now();
 
     loop {
-        // Sortie propre si l'utilisateur stop la lecture
-        if is_stopped.load(Ordering::Relaxed) {
+        if arret.load(Ordering::Relaxed) {
             break;
         }
 
-        // Attend que le DAC réclame des samples (timeout 100 ms pour permettre
-        // le check de is_stopped). Quand l'event est signalé, on a typiquement
-        // ~20 ms (= period) pour remplir le buffer.
-        if event_handle.wait_for_event(100).is_err() {
-            // Timeout ou event invalidé → on re-check les flags et on continue
-            continue;
+        // Une nouvelle piste remplace la courante (passage direct, sans rouvrir le DAC).
+        if let Some(nouvelle) = prochaine.lock().unwrap_or_else(|e| e.into_inner()).take() {
+            if let Some(ancienne) = piste.replace(nouvelle) {
+                ancienne.stream_ready.store(true, Ordering::Release);
+            }
+            premier_tampon = false;
+            fade_in_samples = 0;
+        }
+        if piste.as_ref().is_some_and(|p| p.fin.load(Ordering::Relaxed) || p.is_stopped.load(Ordering::Relaxed)) {
+            if let Some(p) = piste.take() {
+                p.stream_ready.store(true, Ordering::Release);
+            }
+            libre_depuis = std::time::Instant::now();
+        }
+        if piste.is_none() && libre_depuis.elapsed() >= INACTIVITE {
+            break;
         }
 
-        // Combien de frames le DAC est prêt à accepter ?
+        if event_handle.wait_for_event(100).is_err() {
+            continue;
+        }
         let available = match audio_client.get_available_space_in_frames() {
             Ok(n) => n as usize,
             Err(e) => {
@@ -727,41 +698,31 @@ where
             continue;
         }
 
-        let needed_samples = available * format.channels as usize;
-
-        // En pause : on remplit avec du silence pour maintenir la stream
-        // vivante (sinon le DAC peut nous virer). Les samples décodés
-        // s'accumulent dans le ring buffer en attendant.
-        if is_paused.load(Ordering::Relaxed) {
+        // Sans piste ou en pause : du silence, le DAC reste verrouillé.
+        let Some(p) = piste.as_mut().filter(|p| !p.is_paused.load(Ordering::Relaxed)) else {
             output_bytes.clear();
             output_bytes.resize(available * bytes_per_frame, 0);
             if let Err(e) = render_client.write_to_device(available, &output_bytes, None) {
                 log::warn!("write silence: {e:?}");
             }
             continue;
-        }
+        };
+        let needed_samples = available * format.channels as usize;
 
-        // --- Seek flush : drainer + repositionner + silence + fade-in ---
-        // Le decoder thread a déjà fait format.seek + resampler.reset. Ici
-        // on jette le ring buffer, on repositionne le curseur FullBuffer
-        // depuis pending_seek_frames (comme CPAL), puis silence + fade-in.
-        if seek_flush.load(Ordering::Acquire) {
-            let to_skip = consumer.occupied_len();
-            consumer.skip(to_skip);
-
-            let target = sym.pending_seek_frames.load(Ordering::Acquire);
+        // Saut : on vide l'anneau, on repositionne le FullBuffer, silence puis fondu.
+        if p.seek_flush.load(Ordering::Acquire) {
+            p.source.vider();
+            let target = p.sym.pending_seek_frames.load(Ordering::Acquire);
             let new_frames = if target != usize::MAX {
-                sym.pending_seek_frames.store(usize::MAX, Ordering::Relaxed);
-                current_position_frames.store(target, Ordering::Relaxed);
+                p.sym.pending_seek_frames.store(usize::MAX, Ordering::Relaxed);
+                p.current_position_frames.store(target, Ordering::Relaxed);
                 target
             } else {
-                current_position_frames.load(Ordering::Relaxed)
+                p.current_position_frames.load(Ordering::Relaxed)
             };
-            let new_cursor = new_frames * sym.output_channels as usize;
-            sym.full_buffer_cursor.store(new_cursor, Ordering::Relaxed);
-
-            seek_flush.store(false, Ordering::Release);
-            fade_in_samples = 2048;
+            p.sym.full_buffer_cursor.store(new_frames * p.sym.output_channels as usize, Ordering::Relaxed);
+            p.seek_flush.store(false, Ordering::Release);
+            fade_in_samples = echantillons::FONDU;
             output_bytes.clear();
             output_bytes.resize(available * bytes_per_frame, 0);
             if let Err(e) = render_client.write_to_device(available, &output_bytes, None) {
@@ -770,123 +731,56 @@ where
             continue;
         }
 
-        // --- Lecture des samples selon le mode source (comme CPAL) ---
-        // source==0 : LiveDecode (ring buffer). source==1 : FullBuffer (le
-        // décodeur y bascule après pré-remplissage — c'est le mode nominal).
+        // LiveDecode (anneau) ou FullBuffer (piste décodée en RAM).
         interleaved_f32.clear();
         interleaved_f32.resize(needed_samples, 0.0);
-        let source_mode = sym.current_source.load(Ordering::Relaxed);
+        let source_mode = p.sym.current_source.load(Ordering::Relaxed);
         let popped: usize = if source_mode == 0 {
-            // LiveDecode : consomme le ring buffer.
-            let n = consumer.pop_slice(&mut interleaved_f32);
-            if n < needed_samples {
-                for s in interleaved_f32[n..].iter_mut() {
-                    *s = 0.0;
-                }
-            }
-            n
-        } else {
-            // FullBuffer : lit dans full_buffer_data[cursor..].
-            if sym.is_full_buffer_ready.load(Ordering::Relaxed) {
-                if let Ok(fb) = sym.full_buffer_data.read() {
-                    let cursor = sym.full_buffer_cursor.load(Ordering::Relaxed);
-                    let available_samples = fb.len().saturating_sub(cursor);
-                    let n = available_samples.min(needed_samples);
+            p.source.lire(&mut interleaved_f32)
+        } else if p.sym.is_full_buffer_ready.load(Ordering::Relaxed) {
+            match p.sym.full_buffer_data.read() {
+                Ok(fb) => {
+                    let cursor = p.sym.full_buffer_cursor.load(Ordering::Relaxed);
+                    let n = fb.len().saturating_sub(cursor).min(needed_samples);
                     if n > 0 {
                         interleaved_f32[..n].copy_from_slice(&fb[cursor..cursor + n]);
-                        sym.full_buffer_cursor.fetch_add(n, Ordering::Relaxed);
-                    }
-                    if n < needed_samples {
-                        for s in interleaved_f32[n..].iter_mut() {
-                            *s = 0.0;
-                        }
+                        p.sym.full_buffer_cursor.fetch_add(n, Ordering::Relaxed);
                     }
                     n
-                } else {
-                    0
                 }
-            } else {
-                0
+                Err(_) => 0,
             }
+        } else {
+            0
         };
+        interleaved_f32[popped..].fill(0.0);
 
-        // Mise à jour de la position (source-aware) — voir plus bas.
         if popped > 0 {
             if source_mode == 1 {
-                // FullBuffer : la position dérive du curseur (source de vérité).
-                let cursor = sym.full_buffer_cursor.load(Ordering::Relaxed);
-                current_position_frames
-                    .store(cursor / sym.output_channels as usize, Ordering::Relaxed);
-            }
-        }
-
-        // --- Diagnostic silence (premiers cycles) ---
-        if !diag_done {
-            diag_cycles += 1;
-            diag_frames_written += available as u64;
-            if popped == 0 {
-                diag_underruns += 1;
-            }
-            for s in interleaved_f32.iter().take(popped) {
-                let a = s.abs();
-                if a > diag_peak {
-                    diag_peak = a;
-                }
-            }
-            if diag_cycles >= 100 {
-                log::info!(
-                    "🔍 WASAPI diag: {} cycles, {} frames écrites, {} underruns, peak amplitude {:.4}, vol={}, available/cycle≈{}",
-                    diag_cycles,
-                    diag_frames_written,
-                    diag_underruns,
-                    diag_peak,
-                    volume.load(Ordering::Relaxed),
-                    available,
-                );
-                diag_done = true;
-            }
-        }
-
-        // Mise à jour position en LiveDecode uniquement (le FullBuffer a déjà
-        // mis à jour depuis le curseur plus haut).
-        if popped > 0 && source_mode == 0 {
-            let frames_played = popped / format.channels as usize;
-            current_position_frames.fetch_add(frames_played, Ordering::Relaxed);
-        }
-
-        // Applique volume + Replay Gain + fade-in post-seek + clipping.
-        // NB : ce chemin PCM applique déjà le volume logiciel ; le Replay Gain
-        // suit la même règle. La voie DoP (plus bas) n'applique ni l'un ni
-        // l'autre et reste bit-perfect.
-        let vol = volume.load(Ordering::Relaxed) as f32 / 100.0
-            * crate::core::audio_player::replay_gain::current_factor();
-        for s in interleaved_f32.iter_mut() {
-            let fade = if fade_in_samples > 0 {
-                fade_in_samples -= 1;
-                (2048 - fade_in_samples) as f32 / 2048.0
+                let cursor = p.sym.full_buffer_cursor.load(Ordering::Relaxed);
+                p.current_position_frames.store(cursor / p.sym.output_channels as usize, Ordering::Relaxed);
             } else {
-                1.0
-            };
-            *s = (*s * vol * fade * 0.98).clamp(-1.0, 1.0);
+                p.current_position_frames.fetch_add(popped / format.channels as usize, Ordering::Relaxed);
+            }
         }
 
-        // Convertit f32 → format cible (Int 16 ou 24-stored-on-32)
+        // Volume, Replay Gain et fondu ; neutres, ils laissent les échantillons intacts.
+        let vol = p.volume.load(Ordering::Relaxed) as f32 / 100.0
+            * crate::core::audio_player::replay_gain::current_factor();
+        echantillons::appliquer_gain(&mut interleaved_f32, vol, &mut fade_in_samples, 1.0);
+
         output_bytes.clear();
         output_bytes.reserve(available * bytes_per_frame);
         match (format.bits_per_sample, format.sample_type) {
             (16, WasapiSampleType::Int) => {
                 for s in &interleaved_f32 {
-                    let v = (*s * 32767.0).clamp(-32768.0, 32767.0) as i16;
-                    output_bytes.extend_from_slice(&v.to_le_bytes());
+                    output_bytes.extend_from_slice(&echantillons::vers_i16(*s).to_le_bytes());
                 }
             }
             (24, WasapiSampleType::Int) => {
-                // Stockage 32-bit, valid bits = 24. On shift de 8 pour mettre
-                // les 24 bits significatifs dans les bits hauts du i32.
+                // 24 bits utiles dans les bits hauts d'un mot de 32.
                 for s in &interleaved_f32 {
-                    let v = (*s * 8_388_607.0).clamp(-8_388_608.0, 8_388_607.0) as i32;
-                    let v32 = v << 8;
-                    output_bytes.extend_from_slice(&v32.to_le_bytes());
+                    output_bytes.extend_from_slice(&(echantillons::vers_i24(*s) << 8).to_le_bytes());
                 }
             }
             _ => {
@@ -899,28 +793,24 @@ where
 
         match render_client.write_to_device(available, &output_bytes, None) {
             Ok(()) => {
-                // Le premier tampon est parti : à cet instant, et pas avant, la
-                // lecture a réellement commencé.
-                if !first_buffer_written {
-                    first_buffer_written = true;
-                    stream_ready.store(true, Ordering::Release);
-                    phases.mark("attente du premier événement");
-                    phases.finish("fil de rendu WASAPI");
+                if !premier_tampon {
+                    premier_tampon = true;
+                    p.stream_ready.store(true, Ordering::Release);
+                    if chrono_rendu {
+                        chrono_rendu = false;
+                        phases.mark("attente du premier événement");
+                        phases.finish("fil de rendu WASAPI");
+                    }
                 }
             }
             Err(e) => log::warn!("write_to_device: {e:?}"),
         }
     }
 
-    // ─── 7. Arrêt propre ───
     if let Err(e) = audio_client.stop_stream() {
         log::warn!("stop_stream: {e:?}");
     }
-    log::info!("⏹  WASAPI exclusive: stream arrêté");
-
-    // Best-effort drain pour ne pas laisser des samples coincés en buffer.
-    std::thread::sleep(Duration::from_millis(50));
-
+    log::info!("⏹  WASAPI exclusive: moteur arrêté, DAC rendu");
     Ok(())
 }
 
@@ -974,26 +864,6 @@ fn write_dop_block(
 ///
 /// Le volume logiciel est donc inopérant en DoP : le réglage se fait
 /// physiquement sur le DAC/ampli (bit-perfect obligatoire).
-/// Contrôle partagé du render DoP persistant (moteur gapless).
-#[derive(Clone)]
-pub struct DopRenderCtl {
-    pub is_paused: Arc<AtomicBool>,
-    /// Arrête le render → teardown du moteur (DAC déverrouille). PAS un
-    /// changement de piste (celui-ci utilise `drain_request`).
-    pub render_stop: Arc<AtomicBool>,
-    /// Frames de musique jouées (position). Remis à 0 par le moteur au début
-    /// de chaque piste ; le render l'incrémente au fil de la lecture.
-    pub music_frames_played: Arc<AtomicUsize>,
-    pub seek_flush: Arc<AtomicBool>,
-    /// Jeter la queue du ring buffer (changement de piste) sans couper le stream.
-    pub drain_request: Arc<AtomicBool>,
-    /// `true` quand le warm-up (lock DSD) est fini et la musique démarre.
-    pub audio_started: Arc<AtomicBool>,
-    /// `true` dès que le stream WASAPI a démarré (init réussi). Sert au moteur
-    /// pour confirmer que `new()` a bien ouvert le device.
-    pub started_ok: Arc<AtomicBool>,
-}
-
 pub fn run_wasapi_dop_playback<C>(
     carrier_rate: u32,
     channels: u16,
@@ -1085,7 +955,7 @@ where
     // consommée qu'ensuite → aucun début perdu. Pendant ce temps le compteur
     // reste figé (le thread orchestrateur garde `playback-preparing: true`
     // jusqu'à ce que `audio_started` passe à true).
-    let warmup_frames: usize = (carrier_rate as f64 * 2.5) as usize; // ~2.5 s (lock DAC)
+    let warmup_frames: usize = (carrier_rate as f64 * PRECHAUFFAGE_S) as usize; // lock DAC
     let mut warmed: usize = 0;
 
     loop {
@@ -1120,6 +990,24 @@ where
         }
         let needed = available * channels as usize;
 
+        // Drain (changement de piste) traité avant le warm-up : sinon le début de la piste, déjà bufferisé, était jeté.
+        if drain_request.load(Ordering::Acquire) {
+            let to_skip = consumer.occupied_len();
+            consumer.skip(to_skip);
+            drain_request.store(false, Ordering::Release);
+            write_dop_block(&render_client, &mut output_bytes, &[], channels as usize, &mut marker_b, available);
+            continue;
+        }
+
+        // Seek flush : drainer + silence le temps du re-remplissage.
+        if seek_flush.load(Ordering::Acquire) {
+            let to_skip = consumer.occupied_len();
+            consumer.skip(to_skip);
+            seek_flush.store(false, Ordering::Release);
+            write_dop_block(&render_client, &mut output_bytes, &[], channels as usize, &mut marker_b, available);
+            continue;
+        }
+
         // Warm-up : silence DSD tant que le DAC n'a pas verrouillé. On ne
         // consomme PAS la musique → le début n'est pas perdu. `audio_started`
         // signale la fin du warm-up (dé-fige le compteur côté frontend).
@@ -1135,25 +1023,6 @@ where
 
         // Pause : silence DoP (le DAC reste locké en DSD).
         if is_paused.load(Ordering::Relaxed) {
-            write_dop_block(&render_client, &mut output_bytes, &[], channels as usize, &mut marker_b, available);
-            continue;
-        }
-
-        // Drain (changement de piste) : jeter la queue de la piste précédente,
-        // écrire du silence. Le stream reste vivant (DAC locké).
-        if drain_request.load(Ordering::Acquire) {
-            let to_skip = consumer.occupied_len();
-            consumer.skip(to_skip);
-            drain_request.store(false, Ordering::Release);
-            write_dop_block(&render_client, &mut output_bytes, &[], channels as usize, &mut marker_b, available);
-            continue;
-        }
-
-        // Seek flush : drainer + silence le temps du re-remplissage.
-        if seek_flush.load(Ordering::Acquire) {
-            let to_skip = consumer.occupied_len();
-            consumer.skip(to_skip);
-            seek_flush.store(false, Ordering::Release);
             write_dop_block(&render_client, &mut output_bytes, &[], channels as usize, &mut marker_b, available);
             continue;
         }

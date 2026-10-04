@@ -3,6 +3,8 @@
   // (interrupteur) ; masquée quand la recherche des réglages ne la trouve pas.
   import type { Snippet } from "svelte";
   import { correspond, rechercheReglages } from "$lib/stores/ui/settingsSearch.store";
+  import { texteBrut } from "$lib/helper/tools/texteAide";
+  import TexteAide from "$lib/components/ui/aide/TexteAide.svelte";
 
   let {
     title,
@@ -28,7 +30,7 @@
     children?: Snippet;
   } = $props();
 
-  const visible = $derived(correspond($rechercheReglages, title, desc, keywords));
+  const visible = $derived(correspond($rechercheReglages, title, desc && texteBrut(desc), keywords));
 </script>
 
 <!-- La ligne double l'interrupteur à la souris ; au clavier, c'est lui qui a le focus. -->
@@ -43,7 +45,7 @@
   {#if lead}{@render lead()}{/if}
   <div class="flex-1 min-w-0">
     <p class="text-[15px] font-semibold text-(--rg-tx)">{title}</p>
-    {#if desc}<p class="mt-0.75 text-[13px] leading-[1.25] text-(--rg-mu) text-pretty">{desc}</p>{/if}
+    {#if desc}<p class="mt-0.75 text-[13px] leading-[1.25] text-(--rg-mu) text-pretty"><TexteAide texte={desc} /></p>{/if}
     {#if value}<p class="mt-1.5 font-mono text-xs text-(--rg-mu2) truncate" title={value}>{value}</p>{/if}
   </div>
   {#if children}

@@ -24,6 +24,7 @@ export type AppSettings = {
   dsd_dop: string;                   // 'true' | 'false' — DSD natif (DoP) via WASAPI exclusive
   gapless: string;                   // 'true' | 'false' — enchaînement sans blanc entre pistes
   resume_playback: string;           // 'true' | 'false' — Lecture reprend à la position enregistrée
+  prevent_sleep: string;             // 'true' | 'false' — pas de veille automatique pendant la lecture
   theme: string;                     // 'auto' | 'light' | 'dark'
   contrast: string;                  // 'normal' | 'high' — lisibilité renforcée
   window_controls_style: string;     // 'auto' | 'macos' | 'windows'
@@ -60,6 +61,8 @@ export type AppSettings = {
   show_pinned_artists: string;
   // 'true' | 'false' — pied de la barre réduit à une ligne, par sa languette.
   sidebar_footer_collapsed: string;
+  // 'true' | 'false' — termes techniques soulignés, expliqués au clic.
+  show_help_bubbles: string;
 };
 
 export const settingsDefaults: AppSettings = {
@@ -77,6 +80,7 @@ export const settingsDefaults: AppSettings = {
   dsd_dop: 'false',
   gapless: 'true',
   resume_playback: 'true',
+  prevent_sleep: 'true',
   theme: 'dark',
   contrast: 'normal',
   window_controls_style: 'auto',
@@ -89,13 +93,14 @@ export const settingsDefaults: AppSettings = {
   show_open_buttons: 'false',
   show_favorites: 'true',
   library_tabs_position: 'both',
-  library_tabs: '["tracks","albums","artists","genres","folders"]',
+  library_tabs: '["tracks","artists","albums","genres","folders"]',
   track_columns: '["artist","album","rating","duration"]',
   track_column_widths: '{}',
   sidebar_collapsed: 'false',
   show_pinned_albums: 'true',
   show_pinned_artists: 'true',
   sidebar_footer_collapsed: 'false',
+  show_help_bubbles: 'true',
 };
 
 // Actions spéciales par clé — exécutées APRÈS la sauvegarde en BDD

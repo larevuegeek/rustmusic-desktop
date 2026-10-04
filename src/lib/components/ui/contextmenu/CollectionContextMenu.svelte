@@ -4,6 +4,7 @@
   import { toasts } from "$lib/stores/ui/toast.store";
   import { toQueueTracks, type TrackLike } from "$lib/helper/tools/queueTools";
   import { playlistStore } from "$lib/stores/playlist/playlist.store";
+  import { playlistsRangees } from "$lib/stores/playlist/couvertures.store";
   import { invoke } from "@tauri-apps/api/core";
   import { t, currentLocale } from "$lib/i18n";
   import { open } from "@tauri-apps/plugin-dialog";
@@ -98,7 +99,7 @@
     }
   }
 
-  let playlists = $derived($playlistStore.playlists);
+  let playlists = $derived($playlistsRangees);
 
   let menuStyle = $derived.by(() => {
     const menuWidth = 220;
@@ -218,20 +219,20 @@
   tabindex="-1"
   oncontextmenu={(e) => e.preventDefault()}
   class="fixed z-[9999] w-55 py-1.5
-         bg-neutral-950/95 backdrop-blur-xl
-         border border-white/10
-         rounded-xl shadow-2xl shadow-black/30
+         bg-(--rg-carte) dark:bg-(--rg-s2) 
+         border border-(--rg-bd) dark:border-[#2a312d]
+         rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] 
          overflow-hidden"
   style={menuStyle}
 >
   <!-- Header -->
   <div class="px-3.5 py-1.5 mb-1">
-    <p class="text-[10px] uppercase tracking-widest text-neutral-500 truncate">{title}</p>
+    <p class="text-[10px] uppercase tracking-widest text-(--rg-mu) truncate">{title}</p>
   </div>
 
   <button
     class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-           text-neutral-200 hover:bg-green-500/15 hover:text-green-400 transition-colors
+           text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx) transition-colors
            disabled:opacity-50"
     onclick={handlePlayAll}
     disabled={loading}
@@ -242,7 +243,7 @@
 
   <button
     class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-           text-neutral-200 hover:bg-white/10 transition-colors
+           text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors
            disabled:opacity-50"
     onclick={handleAddAllNext}
     disabled={loading}
@@ -253,7 +254,7 @@
 
   <button
     class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-           text-neutral-200 hover:bg-white/10 transition-colors
+           text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors
            disabled:opacity-50"
     onclick={handleAddAllToQueue}
     disabled={loading}
@@ -263,10 +264,10 @@
   </button>
 
   {#if onedittags}
-    <div class="h-px mx-3 my-1 bg-white/6"></div>
+    <div class="h-px mx-3 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
     <button
       class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-             text-neutral-200 hover:bg-white/10 transition-colors"
+             text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
       onclick={() => { onclose(); onedittags(); }}
     >
       <Icon icon="lucide:table-properties" width="14" class="opacity-60" />
@@ -275,12 +276,12 @@
   {/if}
 
   <!-- Séparateur -->
-  <div class="h-px mx-3 my-1 bg-white/6"></div>
+  <div class="h-px mx-3 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
   <!-- Ajouter à une playlist -->
   <button
     class="w-full flex items-center justify-between px-3.5 py-2 text-sm text-left cursor-pointer
-           text-neutral-200 hover:bg-white/10 transition-colors"
+           text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
     onclick={() => showPlaylistSub = !showPlaylistSub}
   >
     <span class="flex items-center gap-2.5">
@@ -291,20 +292,20 @@
   </button>
 
   {#if showPlaylistSub}
-    <div class="border-t border-white/5 bg-white/2">
+    <div class="border-t border-(--rg-bd) dark:border-white/6 bg-(--rg-hover)">
       {#if playlists.length === 0}
         <div class="flex flex-col items-center py-4 px-3">
-          <Icon icon="lucide:list-music" width="16" class="text-neutral-600 mb-1.5" />
-          <p class="text-[11px] text-neutral-500">{$t("menu.no_playlist")}</p>
+          <Icon icon="lucide:list-music" width="16" class="text-(--rg-mu2) mb-1.5" />
+          <p class="text-[11px] text-(--rg-mu)">{$t("menu.no_playlist")}</p>
         </div>
       {:else}
         {#each playlists as pl, i (pl.id)}
           {#if i > 0}
-            <div class="h-px mx-2 bg-white/4"></div>
+            <div class="h-px mx-2 bg-(--rg-bd) dark:bg-white/8"></div>
           {/if}
           <button
             class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-[12px] text-left cursor-pointer
-                   text-neutral-300 hover:bg-white/8 transition-colors
+                   text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors
                    disabled:opacity-50"
             onclick={() => handleAddToPlaylist(pl)}
             disabled={loading}
@@ -312,7 +313,7 @@
             <Icon icon={pl.icon ?? "lucide:list-music"} width="13"
                   style="color: {pl.color ?? '#22c55e'};" class="opacity-70" />
             <span class="truncate">{pl.name}</span>
-            <span class="ml-auto text-[10px] text-neutral-600">{pl.track_count}</span>
+            <span class="ml-auto text-[10px] text-(--rg-mu2)">{pl.track_count}</span>
           </button>
         {/each}
       {/if}
@@ -321,12 +322,12 @@
 
   {#if type === 'album' && albumId}
     <!-- Séparateur -->
-    <div class="h-px mx-3 my-1 bg-white/6"></div>
+    <div class="h-px mx-3 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
     {#if libraryId != null}
       <button
         class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
-               text-neutral-200 hover:bg-white/10 transition-colors"
+               text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
         onclick={handleTogglePin}
       >
         <Icon icon={epingle ? "material-symbols:keep-off-outline-rounded" : "material-symbols:keep-outline-rounded"} width="15" class="opacity-60" />
@@ -336,7 +337,7 @@
 
     <button
       class="w-full flex items-center justify-between px-3.5 py-2 text-sm text-left cursor-pointer
-             text-neutral-200 hover:bg-white/10 transition-colors"
+             text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
       onclick={() => showCoverSub = !showCoverSub}
     >
       <span class="flex items-center gap-2.5">
@@ -347,10 +348,10 @@
     </button>
 
     {#if showCoverSub}
-      <div class="border-t border-white/5 bg-white/2">
+      <div class="border-t border-(--rg-bd) dark:border-white/6 bg-(--rg-hover)">
         <button
           class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-[12px] text-left cursor-pointer
-                 text-neutral-300 hover:bg-white/8 transition-colors
+                 text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors
                  disabled:opacity-50"
           onclick={handleFetchCover}
           disabled={loading}
@@ -359,22 +360,22 @@
           {$t("menu.cover_from_deezer")}
         </button>
 
-        <div class="h-px mx-2 bg-white/4"></div>
+        <div class="h-px mx-2 bg-(--rg-bd) dark:bg-white/8"></div>
 
         <button
           class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-[12px] text-left cursor-pointer
-                 text-neutral-300 hover:bg-white/8 transition-colors"
+                 text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
           onclick={() => { showDeezerSearch = true; }}
         >
           <Icon icon="lucide:search" width="13" class="opacity-60" />
           {$t("menu.cover_search_deezer")}
         </button>
 
-        <div class="h-px mx-2 bg-white/4"></div>
+        <div class="h-px mx-2 bg-(--rg-bd) dark:bg-white/8"></div>
 
         <button
           class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-[12px] text-left cursor-pointer
-                 text-neutral-300 hover:bg-white/8 transition-colors
+                 text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors
                  disabled:opacity-50"
           onclick={handleChooseCover}
           disabled={loading}

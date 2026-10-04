@@ -28,23 +28,35 @@ pub async fn get_playlist_tracks_view(
     // identifiants, puis on les remplit. Deux requêtes plutôt qu'une, mais le
     // moteur de règles reste seul maître de la sélection — le dupliquer ici
     // ferait diverger les deux vues de la même playlist.
-    let regles: Option<String> =
-        sqlx::query_scalar("SELECT rules FROM playlists WHERE id = ? AND is_smart = 1")
+    let regles: Option<(Option<String>, bool)> =
+        sqlx::query_as("SELECT rules, is_mix FROM playlists WHERE id = ? AND is_smart = 1")
             .bind(playlist_id)
             .fetch_optional(&state.pool)
             .await
-            .map_err(|e| format!("Lecture de la playlist : {e}"))?
-            .flatten();
+            .map_err(|e| format!("Lecture de la playlist : {e}"))?;
 
-    if let Some(json) = regles {
-        let rules: crate::core::smart_playlist::rules::SmartRules =
+    if let Some((Some(json), is_mix)) = regles {
+        let mut rules: crate::core::smart_playlist::rules::SmartRules =
             serde_json::from_str(&json).map_err(|e| format!("Règles illisibles : {e}"))?;
+
+        // Un mix tire large, puis garde de la variété : quelques titres par artiste.
+        let taille = rules.limit.as_ref().and_then(|l| l.count).unwrap_or(50).max(1);
+        if is_mix {
+            if let Some(l) = rules.limit.as_mut() {
+                l.count = Some((taille * 6).min(1200));
+            }
+        }
 
         let calculees =
             crate::core::smart_playlist::engine::evaluate(&state.pool, playlist_id, &rules).await?;
 
         let ids: Vec<String> = calculees.into_iter().map(|t| t.library_track_id).collect();
-        return remplir_dans_l_ordre(&state.pool, &ids).await;
+        let pistes = remplir_dans_l_ordre(&state.pool, &ids).await?;
+        return Ok(if is_mix {
+            crate::core::variete::diversifier(pistes, taille as usize, |p| p.artist_id.clone())
+        } else {
+            pistes
+        });
     }
 
     let sql = format!(

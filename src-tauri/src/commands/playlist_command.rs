@@ -197,6 +197,25 @@ pub async fn update_playlist(
     Ok(playlist)
 }
 
+/// Épingle la playlist dans la barre latérale, ou l'en retire.
+#[tauri::command]
+pub async fn set_playlist_pinned(
+    state: State<'_, AppState>,
+    playlist_id: i64,
+    pinned: bool,
+) -> Result<(), String> {
+    let r = sqlx::query("UPDATE playlists SET pinned = ? WHERE id = ? AND is_mix = 0")
+        .bind(pinned)
+        .bind(playlist_id)
+        .execute(&state.pool)
+        .await
+        .map_err(|e| format!("set_playlist_pinned: {e}"))?;
+    if r.rows_affected() == 0 {
+        return Err(format!("set_playlist_pinned: playlist {playlist_id} introuvable"));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn delete_playlist(
     state: State<'_, AppState>,

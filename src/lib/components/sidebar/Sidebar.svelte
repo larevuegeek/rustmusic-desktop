@@ -1,6 +1,6 @@
 <script lang="ts">
+import { couverturesPlaylists } from "$lib/stores/playlist/couvertures.store";
 import Icon from "@iconify/svelte";
-import { invoke } from "@tauri-apps/api/core";
 import { t, currentLocale } from "$lib/i18n";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
@@ -20,7 +20,6 @@ import { pinsStore } from "$lib/stores/library/pins.store";
 import { recentCount } from "$lib/stores/recent/recent.store";
 import { sidebarStore } from "$lib/stores/ui/sidebar.store";
 import { settingsStore } from "$lib/stores/settings/settings.store";
-import { profilSelector } from "$lib/stores/profil/profil.store";
 import { handleClickOpenDirectory, handleClickOpenFile } from "$lib/actions/player/PlayerAction";
 import PlaylistItem from "./PlaylistItem.svelte";
 import SidebarBouton from "./SidebarBouton.svelte";
@@ -47,25 +46,6 @@ const raccourcisMasques = $derived(
   (favorisActifs && $settingsStore.show_liked_in_playlists === 'false' ? 1 : 0) +
   ($settingsStore.show_recent_in_playlists === 'false' ? 1 : 0)
 );
-
-// Les pochettes des vignettes, relues quand une collection change.
-let couvertures = $state<Record<string, string[]>>({});
-const profilId = $derived($profilSelector.profilSelected?.id ?? null);
-const empreinte = $derived([
-  profilId,
-  $playlistStore.playlists.map((p) => `${p.id}:${p.track_count}:${p.updated_at}`).join(','),
-  $likedCount,
-  $recentCount,
-].join('|'));
-
-$effect(() => {
-  void empreinte;
-  const id = profilId;
-  if (id == null) return;
-  invoke<{ key: string; covers: string[] }[]>('get_sidebar_covers', { profilId: id })
-    .then((liste) => { couvertures = Object.fromEntries(liste.map((c) => [c.key, c.covers])); })
-    .catch((e) => console.error("Pochettes de la barre :", e));
-});
 
 let menuZone = $state<{ x: number; y: number } | null>(null);
 let menuBibliotheque = $state<{ x: number; y: number } | null>(null);
@@ -177,7 +157,7 @@ onMount(() => {
              : 'flex-[1_0_140px] min-h-35 gap-0.5 -mx-2 px-2 pb-8 overflow-y-auto overflow-x-hidden smart-scroll sb-liste-fondu'}"
   >
     {#if !replie}
-      <SidebarTitre titre={$t('nav.playlists')}>
+      <SidebarTitre titre={$t('nav.playlists')} aide={$t('playlists_view.all')} onclick={() => nav('/playlists')}>
         {#snippet actions()}
           <SidebarBouton
             icon="material-symbols:auto-awesome-outline-rounded"
@@ -206,8 +186,8 @@ onMount(() => {
       </SidebarTitre>
     {/if}
 
-    {#each $playlistStore.playlists as playlist (playlist.id)}
-      <PlaylistItem {playlist} {replie} couvertures={couvertures[`playlist:${playlist.id}`] ?? []} />
+    {#each $playlistStore.playlists.filter((p) => p.pinned && !p.is_mix) as playlist (playlist.id)}
+      <PlaylistItem {playlist} {replie} couvertures={$couverturesPlaylists[`playlist:${playlist.id}`] ?? []} />
     {/each}
 
     {#if montrerLikes}
@@ -219,7 +199,7 @@ onMount(() => {
         onclick={() => nav('/playlist/liked')}
       >
         {#snippet vignette()}
-          <SidebarVignette couvertures={couvertures.liked ?? []} couleur="#f43f5e" icone="material-symbols:favorite-rounded" />
+          <SidebarVignette couvertures={$couverturesPlaylists.liked ?? []} couleur="#f43f5e" icone="material-symbols:favorite-rounded" />
         {/snippet}
       </SidebarLigne>
     {/if}
@@ -233,7 +213,7 @@ onMount(() => {
         onclick={() => nav('/playlist/recent')}
       >
         {#snippet vignette()}
-          <SidebarVignette couvertures={couvertures.recent ?? []} couleur="#0ea5e9" icone="material-symbols:history-rounded" />
+          <SidebarVignette couvertures={$couverturesPlaylists.recent ?? []} couleur="#0ea5e9" icone="material-symbols:history-rounded" />
         {/snippet}
       </SidebarLigne>
     {/if}

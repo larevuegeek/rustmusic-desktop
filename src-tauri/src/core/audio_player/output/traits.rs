@@ -71,4 +71,10 @@ pub trait AudioOutput: Send {
     /// Backend effectivement utilisé (peut différer du backend demandé en
     /// cas de fallback automatique).
     fn backend(&self) -> AudioBackend;
+
+    /// Bits par échantillon que la sortie transporte sans les altérer (une source
+    /// plus profonde y perd des bits). Le f32 en porte 24.
+    fn bits_exacts(&self) -> u32 {
+        24
+    }
 }

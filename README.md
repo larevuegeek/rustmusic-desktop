@@ -1,163 +1,170 @@
+<div align="center">
+
 # RustMusic
 
-> Lecteur de musique HD multi-plateforme. Lecture native **DSD** (DSF/DFF), résampling haute qualité, intégration **DLNA**, **paroles synchronisées**, intégration **système (SMTC / MPRIS / Now Playing)**.
+**Free, open-source Hi-Res music player for Windows, macOS and Linux.**
+Bit-perfect playback, native DSD, a beautiful library, no account, no ads, no tracking.
 
-**Site officiel** : [rustmusic.dev](https://rustmusic.dev)
-**Téléchargements** : [rustmusic.dev/downloads](https://rustmusic.dev/downloads)
+[![Latest release](https://img.shields.io/github/v/release/larevuegeek/rustmusic-desktop?label=release&color=22c55e)](https://rustmusic.dev/downloads)
+[![License: GPL-3.0](https://img.shields.io/github/license/larevuegeek/rustmusic-desktop?color=22c55e)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-22c55e)](https://rustmusic.dev/downloads)
+[![Website](https://img.shields.io/badge/website-rustmusic.dev-22c55e)](https://rustmusic.dev)
+
+[**Website**](https://rustmusic.dev) · [**Download**](https://rustmusic.dev/downloads) · [**Documentation**](https://rustmusic.dev/en/docs) · [**Guides**](https://rustmusic.dev/en/guides) · [**Changelog**](CHANGELOG.md)
+
+🇫🇷 [Lire en français](README.fr.md)
+
+<img src=".github/assets/home.webp" alt="RustMusic home screen: now playing, up next and mixes generated from the library" width="100%">
+
+</div>
 
 ---
 
-## Fonctionnalités
+## Why RustMusic
+
+- **Bit-perfect output.** Exclusive mode sends your files to the DAC untouched, at their original sample rate: WASAPI exclusive on Windows, direct ALSA on Linux, CoreAudio hog mode on macOS.
+- **Native DSD.** DSF and DFF files go to your DAC over DoP, which decodes them natively, with no conversion to PCM.
+- **The same app on all three systems.** One interface, one library, the same audio settings on Windows, macOS (Apple Silicon and Intel) and Linux.
+- **A library you enjoy browsing.** Album and artist pages, daily mixes, smart playlists, tag editing, synced lyrics.
+- **Respects you.** Free, GPL-3.0, no account, no ads, no telemetry. It plays your files, that's it.
+
+## Features
 
 ### Audio
-- Formats lus : **FLAC, WAV, AIFF, MP3, OGG, OPUS, AAC, M4A**
-- Lecture **DSD native** (DSF + DFF) en pur Rust, filtre Blackman-Harris 2048 taps qualité foobar2000
-- Resampler haute précision (FFT via [rubato](https://github.com/HEnquist/rubato))
-- Profils de qualité audio : **Auto / Qualité maximale / Équilibré / Compatibilité / Mode dégradé** (adapté aux VMs / CPU contraints)
-- Décodage parallèle DSD multicanal (SACD 5.0 / 5.1 sur multi-core)
-- Downmix multicanal correct vers stéréo (ITU-R BS.775)
-- Override mode de rendu Linux (Auto / GPU / Software) pour stabilité VM
+- Formats: **FLAC, ALAC, WAV, AIFF, MP3, AAC / M4A, OGG Vorbis, Opus, DSF, DFF**
+- **Exclusive · bit-perfect** output mode, with automatic fallback to shared mode if the DAC rejects a format
+- **Native DSD over DoP** (DSD64, DSD128, DSD256 depending on your DAC); DSD to PCM conversion when DoP isn't supported
+- Multichannel SACD decoding, with correct ITU-R BS.775 downmix to stereo
+- High-precision resampling ([rubato](https://github.com/HEnquist/rubato)) when the output can't take the file's rate
+- Decoding quality profiles: Auto, Maximum, Balanced, Compatibility, Degraded (for modest machines and VMs)
+- Gapless playback, ReplayGain (track or album, with pre-amp), playback resume
+- Audio chain shown in the player: format, bit depth, sample rate, bit-perfect / native DSD / output badges
 
-### Bibliothèque
-- Scan automatique de dossiers (rayon multi-thread)
-- Métadonnées extraites maison : ID3v2.3 / v2.4, DSF / DFF DITI, sidecars `.lrc`
-- Covers : extraction auto + récupération **Deezer** + ajout manuel
-- Filtres : sans pochette, sans tag, etc.
-- Tri persistant par contexte (localStorage)
-- Navigation alphabétique A-Z style ascenseur
-- Notation 0-5 étoiles (lecture/écriture POPM)
+### Library
+- Several libraries per profile, local folders, external drives and NAS (network paths are pre-loaded to avoid dropouts)
+- Fast incremental scan: thousands of files in seconds, only new or changed files on rescan
+- Albums, Artists, Genres, Years, Folders and Tracks views, with filters, sorting and A–Z navigation
+- Album pages (best quality, discs, label, similar albums) and artist pages (portrait, discography, "Appears on")
+- Instant search (Ctrl K), liked tracks, recently played, pinned albums and artists
+- Multiple profiles, each with its own libraries, playlists and favorites
 
-### Player & UI
-- File d'attente avec drag & drop
-- Mode shuffle / repeat
-- Paroles synchronisées (LRCLIB + sidecars `.lrc`)
-- Profils utilisateur multiples (chaque profil a sa bibliothèque, ses playlists, sa file)
-- Thèmes Clair / Sombre / Auto
-- Style de contrôles de fenêtre paramétrable (macOS / Windows / Linux / Auto)
-- Layout responsive sur 3 breakpoints
+### Tags, covers and lyrics
+- Tag editing for MP3, FLAC, DSF and DFF: single track, batch, or the spreadsheet-style **tag workshop**
+- Metadata and cover lookup through the public Deezer API (no account needed)
+- Covers from embedded art, `cover.jpg` / `folder.jpg`, Deezer or a file you pick
+- Synced lyrics from a `.lrc` file next to the track or from [LRCLIB](https://lrclib.net)
 
-### Réseau & système
-- **Serveur DLNA / UPnP** intégré (partage ta bibliothèque sur le réseau local)
-- **Notifications OS** au changement de morceau
-- **System Media Transport Controls** (SMTC Windows, MPRIS Linux, Now Playing macOS)
-  - Touches média clavier (play/pause/next/prev)
-  - Mini-player dans le volume flyout Windows
-  - Widget Now Playing macOS / KDE Plasma / GNOME
-- Auto-updater intégré
+### Playlists
+- Regular playlists, and **smart playlists** that build themselves from rules: 24 fields plus any tag in your files, nested AND/OR groups, limit and sorting, with the matching track count updated live
+- 8 ready-made presets: top rated, forgotten, high resolution, most played, never played, recently added, favorite artists, favorite styles
 
-### Internationalisation
-- 4 langues : **Français**, **English**, **Deutsch**, **Español**
+### Network and system
+- Built-in **DLNA / UPnP media server**: play your library on a network amplifier, a TV or a connected speaker, files sent untouched
+- System media controls (Windows SMTC, macOS Now Playing, Linux MPRIS) and keyboard media keys
+- Mini player with queue and synced lyrics, sleep timer, listening statistics
+- Dark, light and high-contrast themes, configurable window buttons
+- Interface in **English, French, Spanish, German and Italian**
+- Signed in-app updates
 
----
+## Screenshots
 
-## Téléchargement
+| | |
+|:---:|:---:|
+| <img src=".github/assets/albums.webp" alt="Albums view with filters and A–Z navigation"> | <img src=".github/assets/artist.webp" alt="Artist page"> |
+| Albums view | Artist page |
+| <img src=".github/assets/audio-settings.webp" alt="Audio settings: outputs, exclusive bit-perfect mode, native DSD"> | <img src=".github/assets/smart-playlist.webp" alt="Smart playlist editor with presets and rules"> |
+| Audio settings: exclusive mode and native DSD | Smart playlist editor |
 
-Pour les utilisateurs finaux, **télécharge les binaires signés** depuis [rustmusic.dev/downloads](https://rustmusic.dev/downloads) :
+<sub>Screenshots use a fictional demo library.</sub>
 
-- Windows : `.exe` (installer NSIS) ou `.msi`
-- macOS : `.dmg` (Intel + Apple Silicon)
-- Linux : `.deb` (Debian, Ubuntu, Mint) ou `.rpm` (Fedora, openSUSE) ou `.AppImage`
+## Download
 
----
+Get the latest version from **[rustmusic.dev/downloads](https://rustmusic.dev/downloads)** or the [GitHub releases](https://github.com/larevuegeek/rustmusic-desktop/releases).
 
-## Compiler depuis les sources
+| System | Package |
+|---|---|
+| Windows 10 / 11 (64-bit) | `.exe` installer |
+| macOS 10.15+ (Apple Silicon and Intel) | Universal `.dmg` |
+| Linux (64-bit) | `.deb` (Debian, Ubuntu, Mint), `.rpm` (Fedora, openSUSE), `.AppImage` |
 
-### Prérequis
+A glibc 2.35 compatibility build is available for older distributions (Ubuntu 22.04, Debian 12).
 
-- **Rust** ≥ 1.75 ([rustup.rs](https://rustup.rs))
-- **Node.js** ≥ 20 ([nvm](https://github.com/nvm-sh/nvm) recommandé)
+> The installers aren't signed with a commercial certificate, so Windows SmartScreen and macOS Gatekeeper show a warning on first launch. The [installation guide](https://rustmusic.dev/en/docs/installation) explains how to open the app. In-app updates are cryptographically signed and verified.
 
-#### Linux (Debian / Ubuntu)
+## Build from source
+
+### Requirements
+
+- [Rust](https://rustup.rs) (stable)
+- [Node.js](https://nodejs.org) 20 or later
+- [CMake](https://cmake.org) (used to build libopus for Opus playback)
+
+**Linux (Debian / Ubuntu)**
 
 ```bash
 sudo apt install -y \
-  build-essential curl wget file git pkg-config libssl-dev \
+  build-essential curl wget file git pkg-config cmake libssl-dev \
   libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
   libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev patchelf \
   libasound2-dev libpulse-dev libdbus-1-dev
 ```
 
-#### macOS
+**macOS**
 
 ```bash
 xcode-select --install
+brew install cmake
 ```
 
-#### Windows
+**Windows**
 
-Installer [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (workload "Desktop development with C++") et [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/).
+Install the [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) ("Desktop development with C++" workload), [CMake](https://cmake.org/download/) and [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (already present on up-to-date Windows 10 and 11).
 
 ### Build
 
 ```bash
-git clone https://github.com/<votre-user>/rustmusic.git
-cd rustmusic
+git clone https://github.com/larevuegeek/rustmusic-desktop.git
+cd rustmusic-desktop
 npm install
 npm run tauri build
 ```
 
-Les paquets seront dans `src-tauri/target/release/bundle/`.
+Packages are written to `src-tauri/target/release/bundle/`.
 
-### Dev
+### Development
 
 ```bash
 npm run tauri dev
 ```
 
----
-
 ## Architecture
 
 ```
-rust-music/
-├── src/                       # Frontend SvelteKit + TypeScript
-│   ├── lib/                   # Composants, stores, services, types, i18n
-│   ├── routes/                # Pages SvelteKit
+rustmusic-desktop/
+├── src/                       # Frontend: SvelteKit + TypeScript
+│   ├── lib/                   # Components, stores, services, types, i18n
+│   ├── routes/                # SvelteKit pages
 │   └── app.css                # Tailwind 4
-├── src-tauri/                 # Backend Rust + Tauri 2
+├── src-tauri/                 # Backend: Rust + Tauri 2
 │   ├── src/
-│   │   ├── core/              # Logique audio (player, decoder, resampler, DLNA)
-│   │   ├── commands/          # Commandes Tauri exposées au frontend
-│   │   ├── repository/        # Couche SQLite (sqlx)
-│   │   ├── mapper/            # Mapping entités ↔ DTO
-│   │   └── lib.rs             # Point d'entrée
+│   │   ├── core/              # Audio engine (player, decoders, resampler, DSD, DLNA)
+│   │   ├── commands/          # Tauri commands exposed to the frontend
+│   │   ├── repository/        # SQLite layer (sqlx)
+│   │   ├── mapper/            # Entity ↔ DTO mapping
+│   │   └── lib.rs             # Entry point
 │   ├── Cargo.toml
 │   └── tauri.conf.json
-└── CHANGELOG.md               # Historique des versions
+└── CHANGELOG.md
 ```
 
-### Stack
+**Stack:** SvelteKit and Svelte 5 (runes), TypeScript, Tailwind 4, Vite · Rust, Tauri 2, tokio, axum · CPAL, Symphonia, rubato, in-house DSD decoder · SQLite through sqlx with versioned migrations · souvlaki for system media controls.
 
-- **Frontend** : SvelteKit + Svelte 5 (runes) + TypeScript + Tailwind 4 + Vite
-- **Backend** : Rust + Tauri 2 + tokio + axum (DLNA + serveur cover SMTC)
-- **Audio** : CPAL + Symphonia + rubato + DSD2PCM maison
-- **BDD** : SQLite via sqlx avec migrations versionnées
-- **Intégration OS** : souvlaki (SMTC/MPRIS/Now Playing), tauri-plugin-notification
+## Contributing
 
----
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for code style, commit conventions and the pull request process. To report a bug or suggest a feature, [open an issue](https://github.com/larevuegeek/rustmusic-desktop/issues); for security issues, see [SECURITY.md](SECURITY.md).
 
-## Contribuer
+If RustMusic is useful to you, a ⭐ on the repository helps other people find it.
 
-Les contributions sont les bienvenues ! Lis [CONTRIBUTING.md](CONTRIBUTING.md) pour les détails sur le style de code, les conventions de commit, et le process de PR.
+## License
 
-Pour signaler un bug ou proposer une fonctionnalité, ouvre une [issue GitHub](https://github.com/<votre-user>/rustmusic/issues).
-
----
-
-## Licence
-
-RustMusic est distribué sous **GNU General Public License v3.0** — voir [LICENSE](LICENSE).
-
-En résumé :
-- ✅ Tu peux utiliser RustMusic gratuitement, à des fins personnelles ou commerciales
-- ✅ Tu peux étudier le code, le modifier, le redistribuer
-- ⚠️ Si tu redistribues une version modifiée, elle **doit aussi être sous GPL-3.0** et tu **dois publier ton code source**
-- ⚠️ Si tu redistribues un fork, merci de le **renommer** (pas "RustMusic" ou variante) et d'utiliser **un logo distinct** pour éviter la confusion avec le projet officiel
-
----
-
-## Crédits
-
-Développé avec passion par [LaRevueGeeK](https://rustmusic.dev). Icônes : [Lucide](https://lucide.dev), [Phosphor](https://phosphoricons.com), [Mynaui](https://mynaui.com).
-
-Merci aux projets open source utilisés : Tauri, SvelteKit, Symphonia, CPAL, rubato, souvlaki, sqlx, axum, et tant d'autres.
+RustMusic is released under the [GNU General Public License v3.0](LICENSE).

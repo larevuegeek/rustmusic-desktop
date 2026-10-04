@@ -28,7 +28,7 @@ pub async fn get_sidebar_covers(
     let mut sortie = Vec::new();
 
     let playlists: Vec<(i64, Option<String>)> = sqlx::query_as(
-        "SELECT id, CASE WHEN is_smart = 1 THEN rules END FROM playlists WHERE profil_id = ?",
+        "SELECT id, CASE WHEN is_smart = 1 THEN rules END FROM playlists WHERE profil_id = ? AND is_mix = 0",
     )
     .bind(profil_id)
     .fetch_all(pool)

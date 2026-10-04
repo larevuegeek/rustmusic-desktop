@@ -1,6 +1,7 @@
 pub mod audio_player {
     pub mod audio_player;
     pub mod audio_utils;
+    pub mod codecs;
     pub mod pipeline_info;
     pub mod preload;
     pub mod replay_gain;
@@ -101,6 +102,8 @@ pub mod gpu_sentinel;
 pub mod render_mode;
 pub mod system_detect;
 pub mod media_controls;
+pub mod veille;
+pub mod variete;
 
 pub mod dlna_server {
     pub mod server;

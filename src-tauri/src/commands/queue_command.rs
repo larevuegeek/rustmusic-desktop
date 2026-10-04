@@ -65,9 +65,11 @@ async fn reparer_pistes(pool: &SqlitePool, pistes: &mut [QueueTrack]) -> bool {
         }
     }
 
+    // L'image « pas de CD » de l'interface ne compte pas comme une pochette.
+    let sans_pochette = |c: &Option<String>| c.as_deref().is_none_or(|x| x.starts_with("/images/"));
     let incomplets: Vec<String> = pistes
         .iter()
-        .filter(|p| p.cover.is_none() || p.artist.is_none() || p.duration.is_none())
+        .filter(|p| sans_pochette(&p.cover) || p.artist.is_none() || p.duration.is_none())
         .map(|p| p.path.clone())
         .collect();
     if incomplets.is_empty() {
@@ -84,7 +86,7 @@ async fn reparer_pistes(pool: &SqlitePool, pistes: &mut [QueueTrack]) -> bool {
         }
         if p.artist.is_none() && f.artist.is_some() { p.artist = f.artist.clone(); change = true; }
         if p.duration.is_none() && f.duration.is_some() { p.duration = f.duration; change = true; }
-        if p.cover.is_none() && f.thumbnail_path.is_some() { p.cover = f.thumbnail_path.clone(); change = true; }
+        if sans_pochette(&p.cover) && f.thumbnail_path.is_some() { p.cover = f.thumbnail_path.clone(); change = true; }
     }
     change
 }

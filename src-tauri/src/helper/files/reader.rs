@@ -6,9 +6,11 @@ const AUDIO_EXTENSIONS: &[&str] = &[
     "dsf", "dff",
 ];
 
+// Insensible à la casse : « .FLAC » ou « .Mp3 » (vieux rips) étaient ignorés.
 fn is_audio(path: &Path) -> bool {
     path.extension()
-        .map_or(false, |ext| AUDIO_EXTENSIONS.contains(&ext.to_str().unwrap_or("")))
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| AUDIO_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()))
 }
 
 pub fn read_dir_deep(

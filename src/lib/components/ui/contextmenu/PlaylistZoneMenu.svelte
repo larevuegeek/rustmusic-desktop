@@ -37,7 +37,7 @@
   // latérale est contre le bord gauche.
   let menuStyle = $derived.by(() => {
     const largeur = 264;
-    const hauteur = 196;
+    const hauteur = 250;
     const posX = Math.max(8, Math.min(x - largeur + 16, window.innerWidth - largeur - 8));
     const posY = y + hauteur > window.innerHeight ? Math.max(8, y - hauteur) : y;
     return `left: ${posX}px; top: ${posY}px;`;
@@ -71,6 +71,19 @@
          shadow-xl shadow-black/10 dark:shadow-2xl dark:shadow-black/50"
   style={menuStyle}
 >
+  <button class={ligne} onclick={() => { onclose(); goto('/playlists'); }}>
+    <span class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center
+                 bg-emerald-500/12 border border-emerald-500/25">
+      <Icon icon="material-symbols:queue-music-rounded" width="15" class="text-emerald-600 dark:text-emerald-400" />
+    </span>
+    <span class="flex-1 text-[13px] font-semibold text-neutral-800 dark:text-neutral-100">
+      {$t('playlists_view.all')}
+    </span>
+    <Icon icon="lucide:chevron-right" width="13" class="text-neutral-300 dark:text-neutral-600 shrink-0" />
+  </button>
+
+  <div class="h-px mx-2 my-1.5 bg-neutral-200/80 dark:bg-white/8"></div>
+
   <p class="px-2.5 pt-1.5 pb-2 text-[10px] font-semibold uppercase tracking-widest
             text-neutral-400 dark:text-neutral-500">
     {$t('playlist.builtin')}

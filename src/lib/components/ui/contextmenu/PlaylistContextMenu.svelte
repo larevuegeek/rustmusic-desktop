@@ -25,7 +25,7 @@
 
   let menuStyle = $derived.by(() => {
     const largeur = 220;
-    const hauteur = 150;
+    const hauteur = 190;
 
     const posX = x + largeur > window.innerWidth ? window.innerWidth - largeur - 8 : x;
 
@@ -53,6 +53,11 @@
     } catch (e) {
       toasts.push({ type: 'error', title: $t('notify.error'), message: String(e) });
     }
+  }
+
+  async function epingler() {
+    onclose();
+    await playlistStore.setPinned(playlist.id, !playlist.pinned);
   }
 
   /** Le crayon de la barre latérale ouvre déjà cette distinction. */
@@ -103,25 +108,30 @@
   tabindex="-1"
   oncontextmenu={(e) => e.preventDefault()}
   class="fixed z-[9999] w-55 py-1.5
-         bg-neutral-950/95 backdrop-blur-xl
-         border border-white/10
-         rounded-xl shadow-2xl shadow-black/30
+         bg-(--rg-carte) dark:bg-(--rg-s2)
+         border border-(--rg-bd) dark:border-[#2a312d]
+         rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)]
          overflow-hidden"
   style={menuStyle}
 >
-  <button class="{ligne} text-neutral-200 hover:bg-green-500/15 hover:text-green-400" onclick={lire}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx)" onclick={lire}>
     <Icon icon="lucide:play" width="14" class="opacity-60" />
     {$t('playlist.play')}
   </button>
 
-  <button class="{ligne} text-neutral-200 hover:bg-white/5" onclick={modifier}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={modifier}>
     <Icon icon={playlist.is_smart ? 'lucide:sparkles' : 'lucide:pen-line'} width="14" class="opacity-60" />
     {playlist.is_smart ? $t('playlist.edit_rules') : $t('playlist.edit')}
   </button>
 
-  <div class="h-px mx-2 my-1 bg-white/6"></div>
+  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={epingler}>
+    <Icon icon={playlist.pinned ? 'material-symbols:keep-off-outline-rounded' : 'material-symbols:keep-outline-rounded'} width="15" class="opacity-60" />
+    {playlist.pinned ? $t('sidebar.unpin') : $t('sidebar.pin')}
+  </button>
 
-  <button class="{ligne} text-red-400 hover:bg-red-500/10" onclick={supprimer}>
+  <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
+
+  <button class="{ligne} text-red-600 dark:text-red-400 hover:bg-red-500/10" onclick={supprimer}>
     <Icon icon="lucide:trash-2" width="14" class="opacity-60" />
     {$t('playlist.delete')}
   </button>

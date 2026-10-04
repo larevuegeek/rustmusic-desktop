@@ -44,6 +44,11 @@ import MiniPlayer from "$lib/components/player/MiniPlayer.svelte";
 import { miniPlayerActive, assurerTailleNormale } from "$lib/stores/ui/miniPlayer.store";
 import SleepTimerButton from "$lib/components/player/SleepTimerButton.svelte";
 import { fade } from "svelte/transition";
+import { ouvrirLiensExternes } from "$lib/helper/tools/liensExternes";
+import { lecture } from "$lib/stores/player/lecture.store";
+import { listen } from "@tauri-apps/api/event";
+import { empecherSurlignageMaj } from "$lib/helper/tools/surlignageMaj";
+import { volume, chargerVolume, reglerVolume } from "$lib/stores/player/volume.store";
 
 // Affichage du bouton sleep timer dans le header (désactivable dans les réglages).
 let showSleepTimer = $derived($settingsStore.show_sleep_timer !== 'false');
@@ -65,6 +70,25 @@ const dansLaBibliotheque = $derived(page.url.pathname.startsWith('/library/'));
 // Les réglages gèrent eux-mêmes le fondu entre sections : leur navigation reste en place.
 // Dans une bibliothèque, son layout reste monté : le fondu des pages se fait dans ce layout.
 const cleTransition = $derived(isFullPageRoute ? '/settings' : dansLaBibliotheque ? `/library/${page.params.library_id}` : page.url.pathname);
+
+onMount(ouvrirLiensExternes);
+onMount(() => void chargerVolume());
+
+onMount(empecherSurlignageMaj);
+
+// Pas de veille automatique tant que la musique joue (réglage) ; l'écran peut s'éteindre.
+$effect(() => {
+  const bloquer = $lecture.status === "playing" && $settingsStore.prevent_sleep !== "false";
+  invoke("set_veille_bloquee", { bloquer }).catch(() => {});
+});
+
+// Mise en veille annoncée (Linux) : pause, pour ne pas laisser la sortie audio ouverte. Au réveil, on reste en pause.
+onMount(() => {
+  const fin = listen<boolean>("systeme-veille", (e) => {
+    if (e.payload && get(player).status === "playing") playerService.pauseFile();
+  });
+  return () => { fin.then((f) => f()); };
+});
 
 onMount(async () => {
   // Fermée en mode mini, la fenêtre rouvrirait toute petite : plancher et taille d'origine.
@@ -179,14 +203,14 @@ function handleKeydown(e: KeyboardEvent) {
       break;
     case 'ArrowUp':
       e.preventDefault();
-      invoke<number>('get_volume').then(v => invoke('set_volume', { volume: Math.min(100, v + 5) }));
+      reglerVolume(get(volume) + 5);
       break;
     case 'ArrowDown':
       e.preventDefault();
-      invoke<number>('get_volume').then(v => invoke('set_volume', { volume: Math.max(0, v - 5) }));
+      reglerVolume(get(volume) - 5);
       break;
     case 'KeyM':
-      invoke('mute');
+      invoke('mute').then(chargerVolume);
       break;
     case 'KeyF':
     case 'KeyK':
@@ -286,16 +310,13 @@ function handleKeydown(e: KeyboardEvent) {
     <!-- ═══ CONTENU PRINCIPAL ═══ -->
     <div class="grow overflow-hidden flex flex-col min-w-0">
 
-      <!-- Sections de la bibliothèque, en mode « en haut » seulement : la
-           gauche n'en propose alors aucune, et celles de la bibliothèque ne
-           s'affichent qu'une fois dedans. Les commandes de vue ne suivent que
-           dans la bibliothèque. -->
-      {#if tabsEnHaut && $libraryStore.librarySelected}
+      <!-- Accueil et sections en haut (« en haut » ou « les deux ») ; commandes de vue dans la bibliothèque seulement. -->
+      {#if tabsEnHaut}
         <div class="shrink-0 px-3 md:px-6 py-2
                     bg-neutral-100/50 dark:bg-white/2
                     border-y border-neutral-200/60 dark:border-white/6">
           <div class="flex items-center justify-between gap-2">
-            <LibraryTabs libraryId={$libraryStore.librarySelected.id as number} />
+            <LibraryTabs libraryId={($libraryStore.librarySelected?.id as number | undefined) ?? null} />
             {#if dansLaBibliotheque}
               <LibraryViewControls />
             {/if}

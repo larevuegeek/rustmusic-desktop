@@ -92,7 +92,7 @@ export const taskProgressStore = {
     );
 
     // ─── Images artistes ───
-    const u3 = await listen<{ current: number; total: number; artist_name: string }>(
+    const u3 = await listen<{ current: number; total: number; name: string }>(
       'artist-image-progress', (e) => {
         const pct = e.payload.total > 0 ? Math.round((e.payload.current * 100) / e.payload.total) : 0;
         upsertTask('artist-images', {
@@ -101,15 +101,27 @@ export const taskProgressStore = {
           current: e.payload.current,
           total: e.payload.total,
           percent: pct,
-          detail: e.payload.artist_name,
+          detail: e.payload.name,
         });
-
-        // Auto-complete quand current == total
-        if (e.payload.current >= e.payload.total) {
-          completeTask('artist-images');
-        }
       }
     );
+    // Fin ou arrêt : la passe le dit elle-même (la dernière progression n'est pas la fin du travail).
+    const u3b = await listen('artist-image-complete', () => completeTask('artist-images'));
+
+    // ─── Pochettes d'albums ───
+    const u3c = await listen<{ current: number; total: number; name: string }>(
+      'album-cover-progress', (e) => {
+        upsertTask('album-covers', {
+          label: get(t)("system.task_album_covers"),
+          icon: "lucide:image-down",
+          current: e.payload.current,
+          total: e.payload.total,
+          percent: e.payload.total > 0 ? Math.round((e.payload.current * 100) / e.payload.total) : 0,
+          detail: e.payload.name,
+        });
+      }
+    );
+    const u3d = await listen('album-cover-complete', () => completeTask('album-covers'));
 
     // ─── Rescan bibliothèque ───
     const u4 = await listen<{ library_name: string }>(
@@ -195,7 +207,7 @@ export const taskProgressStore = {
       },
     );
 
-    unlisteners = [u1, u2, u3, u4, u5, u5b, u6, u7, u8];
+    unlisteners = [u1, u2, u3, u3b, u3c, u3d, u4, u5, u5b, u6, u7, u8];
   },
 
   cancel: (id: string) => {

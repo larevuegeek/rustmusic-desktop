@@ -12,4 +12,6 @@ pub struct DirEntry {
     pub artist: Option<String>,
     pub duration: Option<f64>,
     pub thumbnail_path: Option<String>,
+    /// Piste de bibliothèque correspondante, pour la sélection multiple.
+    pub track_id: Option<String>,
 }

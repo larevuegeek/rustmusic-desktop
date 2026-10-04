@@ -55,7 +55,8 @@ pub fn thumbnail_saver(
         return Ok(cover_path.to_string_lossy().to_string());
     }
 
-    std::fs::write(&cover_path, &image_data)
+    let leger = super::recuperation_images::alleger(image_data);
+    std::fs::write(&cover_path, leger.as_deref().unwrap_or(image_data))
         .map_err(|e| e.to_string())?;
 
     Ok(cover_path.to_string_lossy().to_string())
@@ -167,7 +168,8 @@ pub fn save_artist_image(
 
     let full_path = artists_dir.join("full").join(filename);
 
-    std::fs::write(&full_path, image_data)
+    let leger = super::recuperation_images::alleger(image_data);
+    std::fs::write(&full_path, leger.as_deref().unwrap_or(image_data))
         .map_err(|e| format!("Erreur écriture image artiste: {}", e))?;
 
     // Générer les miniatures en background via le pool partagé

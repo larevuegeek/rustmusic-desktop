@@ -136,8 +136,8 @@
   closeOnOverlay={false}
   onclose={close}
   classes={{
-    overlay: 'bg-black/95',
-    content: 'bg-transparent border-none shadow-none',
+    overlay: 'bg-[#f6f4ef]/97! dark:bg-black/95!',
+    content: 'bg-transparent! border-none! shadow-none!',
     body: 'flex items-center justify-center min-h-screen'
   }}
 >
@@ -145,8 +145,8 @@
   <button
     type="button"
     class="fixed top-6 right-6 z-200 w-11 h-11 rounded-full flex items-center justify-center
-           bg-neutral-200/60 dark:bg-white/10 backdrop-blur-md border border-neutral-200 dark:border-white/10
-           text-neutral-500 dark:text-neutral-400 dark:text-white/50 hover:text-neutral-900 dark:hover:text-white hover:bg-white/20
+           bg-(--rg-carte) dark:bg-white/10 backdrop-blur-md border border-(--rg-bd) dark:border-white/10
+           text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-white/20
            transition-all duration-200 cursor-pointer"
     aria-label={$t("common.close")}
     onclick={close}
@@ -161,10 +161,10 @@
     <div class="flex flex-col items-center gap-12">
       <!-- Titre -->
       <div class="text-center space-y-3">
-        <h2 class="text-4xl font-bold text-neutral-900 dark:text-white tracking-tight">
+        <h2 class="text-4xl font-bold text-(--rg-tx) tracking-tight">
           {$t("profil.who_listens")}
         </h2>
-        <p class="text-sm text-neutral-500 dark:text-neutral-400 dark:text-white/35 max-w-md">
+        <p class="text-sm text-(--rg-mu) max-w-md">
           {$t("profil.select_desc")}
         </p>
       </div>
@@ -180,7 +180,7 @@
                      rounded-2xl overflow-hidden
                      {$profilSelector.profilSelected?.id === profil.id
                        ? 'scale-110 ring-[3px] ring-green-400 shadow-[0_0_40px_rgba(74,222,128,0.25)]'
-                       : 'hover:scale-108 hover:shadow-2xl ring-[3px] ring-transparent hover:ring-white/20'}"
+                       : 'hover:scale-108 hover:shadow-2xl ring-[3px] ring-transparent hover:ring-black/10 dark:hover:ring-white/20'}"
               onclick={() => selectProfil(profil)}
             >
               <Avatar
@@ -194,7 +194,7 @@
 
             <!-- Nom + badge -->
             <div class="flex flex-col items-center gap-1.5">
-              <span class="text-sm font-medium text-neutral-600 dark:text-white/60 group-hover:text-white
+              <span class="text-sm font-medium text-(--rg-tx2) group-hover:text-(--rg-tx)
                            transition-colors duration-200 text-center truncate w-32">
                 {profil.name}
               </span>
@@ -207,8 +207,8 @@
             <button
               type="button"
               class="flex items-center gap-1.5 px-3 py-1 rounded-full cursor-pointer
-                     text-[11px] font-medium text-neutral-600 dark:text-neutral-300 dark:text-white/20
-                     hover:text-neutral-500 dark:text-neutral-400 dark:text-white/50 hover:bg-neutral-100 dark:bg-white/5
+                     text-[11px] font-medium text-(--rg-mu2)
+                     hover:text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-white/5
                      transition-all duration-200"
               onclick={() => switchToEdit(profil)}
             >
@@ -225,18 +225,18 @@
           <button
             type="button"
             class="w-32 h-32 rounded-2xl cursor-pointer
-                   border-[3px] border-dashed border-neutral-200 dark:border-white/12
-                   hover:border-white/25 hover:bg-neutral-100 dark:bg-white/5
+                   border-[3px] border-dashed border-(--rg-bd2) dark:border-white/12
+                   hover:border-(--rg-mu2) dark:hover:border-white/25 hover:bg-(--rg-s2) dark:hover:bg-white/5
                    flex items-center justify-center
                    transition-all duration-300 ease-out hover:scale-105"
             aria-label={$t("profil.add_profil")}
             onclick={switchToCreate}
           >
-            <svg class="w-10 h-10 text-neutral-600 dark:text-neutral-300 dark:text-white/20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <svg class="w-10 h-10 text-(--rg-mu2)" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </button>
-          <span class="text-sm font-medium text-neutral-500 dark:text-neutral-400 dark:text-white/35">
+          <span class="text-sm font-medium text-(--rg-mu)">
             {$t("profil.add")}
           </span>
         </div>
@@ -247,8 +247,8 @@
     <!-- FORMULAIRE CREATE / EDIT PREMIUM -->
     {@const selectedHex = mode === 'edit' ? PALETTE[editIndex] : PALETTE[selectedColorIndex]}
     <div class="w-full max-w-lg">
-      <div class="relative rounded-3xl border border-neutral-200 dark:border-white/8 bg-neutral-100 dark:bg-white/3 backdrop-blur-2xl
-                  shadow-[0_8px_64px_rgba(0,0,0,0.6)] overflow-hidden">
+      <div class="relative rounded-3xl border border-(--rg-bd) dark:border-white/8 bg-(--rg-carte) dark:bg-white/3 backdrop-blur-2xl
+                  shadow-[0_8px_64px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_64px_rgba(0,0,0,0.6)] overflow-hidden">
 
         <!-- Glow supérieur dynamique -->
         <div
@@ -259,7 +259,7 @@
         <!-- Bouton retour -->
         <button
           type="button"
-          class="absolute top-5 left-6 z-10 text-neutral-500 dark:text-neutral-400 dark:text-white/25 hover:text-neutral-600 dark:text-white/60
+          class="absolute top-5 left-6 z-10 text-(--rg-mu) hover:text-(--rg-tx2)
                  transition-all duration-200 cursor-pointer flex items-center gap-1.5 text-xs font-medium
                  hover:gap-2"
           onclick={back}
@@ -289,38 +289,38 @@
           </div>
 
           <div class="text-center space-y-1">
-            <h2 class="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">
+            <h2 class="text-2xl font-bold text-(--rg-tx) tracking-tight">
               {mode === 'create' ? $t("profil.new_profil") : $t("profil.edit_profil")}
             </h2>
-            <p class="text-xs text-neutral-500 dark:text-neutral-400 dark:text-white/30">
+            <p class="text-xs text-(--rg-mu)">
               {mode === 'create' ? $t("profil.create_desc") : $t("profil.edit_desc")}
             </p>
           </div>
         </div>
 
         <!-- Séparateur subtil -->
-        <div class="mx-8 h-px bg-linear-to-r from-transparent via-white/10 to-transparent"></div>
+        <div class="mx-8 h-px bg-linear-to-r from-transparent via-(--rg-bd) to-transparent"></div>
 
         <!-- Body formulaire -->
         <div class="px-10 pb-10 pt-8 space-y-8">
 
           <!-- Champ nom -->
           <div class="space-y-2">
-            <label for="profil_name" class="block text-[11px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-400 dark:text-white/40 mb-1">
+            <label for="profil_name" class="block text-[11px] font-semibold uppercase tracking-widest text-(--rg-mu) mb-1">
               {$t("profil.name_label")}
             </label>
             <input
               id="profil_name"
               type="text"
               class="w-full rounded-xl px-5 py-3.5 text-sm font-medium
-                     bg-neutral-100 dark:bg-white/6 border border-neutral-200 dark:border-white/8
-                     text-neutral-900 dark:text-white placeholder-white/25
+                     bg-(--rg-champ) dark:bg-white/6 border border-(--rg-bd) dark:border-white/8
+                     text-(--rg-tx) placeholder:text-(--rg-mu2)
                      outline-none transition-all duration-200
-                     hover:bg-neutral-200/50 dark:bg-white/8 hover:border-neutral-200 dark:border-white/12
-                     focus:bg-neutral-200/50 dark:bg-white/8 focus:border-white/20 focus:ring-1
+                     hover:border-(--rg-bd2) dark:hover:border-white/12
+                     focus:border-(--rg-bd2) dark:focus:border-white/20 focus:ring-1
                      {errorName
                        ? 'border-red-400/50 focus:ring-red-400/30'
-                       : 'focus:ring-white/10'}"
+                       : 'focus:ring-(--rg-bd) dark:focus:ring-white/10'}"
               style={name ? `border-color: ${selectedHex}30; box-shadow: 0 0 0 1px ${selectedHex}20;` : ''}
               placeholder={$t("profil.name_placeholder")}
               bind:value={name}
@@ -328,7 +328,7 @@
               disabled={isSubmitting}
             />
             {#if errorName}
-              <p class="flex items-center gap-1.5 text-xs text-red-400/90 pt-0.5">
+              <p class="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400/90 pt-0.5">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" /><path d="M12 8v4m0 4h.01" stroke-linecap="round" />
                 </svg>
@@ -339,7 +339,7 @@
 
           <!-- Sélecteur de couleur -->
           <div class="space-y-2">
-            <span class="block text-[11px] font-semibold uppercase tracking-widest text-neutral-500 dark:text-neutral-400 dark:text-white/40 mb-4">
+            <span class="block text-[11px] font-semibold uppercase tracking-widest text-(--rg-mu) mb-4">
               {$t("profil.color_label")}
             </span>
             <div class="flex items-center gap-2.5">
@@ -379,7 +379,7 @@
                 {#if !showDeleteConfirm}
                   <button
                     type="button"
-                    class="flex items-center gap-1.5 text-sm text-red-400/40 hover:text-red-400
+                    class="flex items-center gap-1.5 text-sm text-red-600/60 hover:text-red-600 dark:text-red-400/40 dark:hover:text-red-400
                            transition-colors cursor-pointer"
                     onclick={() => showDeleteConfirm = true}
                     disabled={isSubmitting}
@@ -390,7 +390,7 @@
                     {$t("common.delete")}
                   </button>
                 {:else}
-                  <span class="text-xs text-red-400/60">{$t("profil.confirm_below")}</span>
+                  <span class="text-xs text-red-600/70 dark:text-red-400/60">{$t("profil.confirm_below")}</span>
                 {/if}
               {/if}
             </div>
@@ -399,7 +399,7 @@
             <div class="flex items-center gap-4">
               <button
                 type="button"
-                class="text-sm font-medium text-neutral-500 dark:text-neutral-400 dark:text-white/30 hover:text-neutral-600 dark:text-white/60
+                class="text-sm font-medium text-(--rg-mu) hover:text-(--rg-tx2)
                        transition-colors cursor-pointer disabled:opacity-50"
                 onclick={back}
                 disabled={isSubmitting}
@@ -409,7 +409,7 @@
 
               <button
                 type="button"
-                class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold text-neutral-900 dark:text-white
+                class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold text-white
                        transition-all duration-200 cursor-pointer
                        hover:brightness-110 hover:shadow-lg
                        active:scale-95
@@ -443,18 +443,18 @@
           {#if showDeleteConfirm}
             <div class="rounded-xl border border-red-500/15 bg-red-500/5 p-4 space-y-3">
               <div class="flex items-start gap-2.5">
-                <svg class="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126Z" />
                 </svg>
-                <p class="text-[11px] text-red-300/70 leading-relaxed">
-                  {avertissement[0]}<strong class="text-red-300">{motSuppression}</strong>{avertissement[1]}
+                <p class="text-[11px] text-red-700/80 dark:text-red-300/70 leading-relaxed">
+                  {avertissement[0]}<strong class="text-red-700 dark:text-red-300">{motSuppression}</strong>{avertissement[1]}
                 </p>
               </div>
 
               <input
                 type="text"
                 class="w-full rounded-lg px-3.5 py-2 text-xs
-                       bg-black/20 border border-red-500/15 text-neutral-900 dark:text-white placeholder-white/15
+                       bg-(--rg-champ) dark:bg-black/20 border border-red-500/20 text-(--rg-tx) placeholder:text-(--rg-mu2)
                        outline-none focus:border-red-400/40 focus:ring-1 focus:ring-red-400/15
                        transition-all duration-200"
                 placeholder={$t("profil.delete_placeholder").replace("{word}", motSuppression)}
@@ -468,7 +468,7 @@
                          transition-all duration-200
                          {deleteConfirmText.toLowerCase().trim() === motSuppression
                            ? 'bg-red-500 text-white hover:bg-red-600 active:scale-97'
-                           : 'bg-neutral-100 text-neutral-300 dark:bg-white/4 dark:text-white/15 cursor-not-allowed'}"
+                           : 'bg-(--rg-s2) text-(--rg-mu2) dark:bg-white/4 dark:text-white/15 cursor-not-allowed'}"
                   disabled={deleteConfirmText.toLowerCase().trim() !== motSuppression || isSubmitting}
                   onclick={() => editId && handleDelete(editId)}
                 >
@@ -476,8 +476,8 @@
                 </button>
                 <button
                   type="button"
-                  class="px-4 py-2 rounded-lg text-xs text-neutral-500 dark:text-neutral-400 dark:text-white/30 hover:text-neutral-600 dark:text-white/60
-                         hover:bg-neutral-100 dark:bg-white/5 transition-all duration-200 cursor-pointer"
+                  class="px-4 py-2 rounded-lg text-xs text-(--rg-mu) hover:text-(--rg-tx2)
+                         hover:bg-(--rg-s2) dark:hover:bg-white/5 transition-all duration-200 cursor-pointer"
                   onclick={() => { showDeleteConfirm = false; deleteConfirmText = ""; }}
                 >
                   {$t("common.cancel")}

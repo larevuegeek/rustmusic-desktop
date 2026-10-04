@@ -103,15 +103,20 @@ export async function handleTracksPlay(pistes: TrackListView[], melanger = false
   }
 }
 
-/** Cent titres tirés au hasard dans la bibliothèque. */
-export async function handleRandomMix(libraryId: number) {
+async function tirerEtJouer(args: Record<string, unknown>) {
   try {
-    const pistes = await invoke<TrackListView[]>("get_mix_tracks", { libraryId, kind: "hasard", limit: 100 });
-    if (!pistes?.length) return;
-    const file = toQueueTracks(pistes);
-    await queueState.loadTracks(file);
-    playerService.playFile(file[0]);
+    await handleTracksPlay((await invoke<TrackListView[]>("get_mix_tracks", { ...args, limit: 100 })) ?? []);
   } catch (e) {
     console.error("Impossible de lancer le mix", e);
   }
+}
+
+/** Un mix d'époque : une décennie entière, ou une seule année. */
+export function handlePeriodeMix(libraryId: number, decennie: number, annee: number | null = null) {
+  return tirerEtJouer(annee == null ? { libraryId, kind: "decennie", decennie } : { libraryId, kind: "annee", annee });
+}
+
+/** Cent titres tirés au hasard dans la bibliothèque. */
+export function handleRandomMix(libraryId: number) {
+  return tirerEtJouer({ libraryId, kind: "hasard" });
 }

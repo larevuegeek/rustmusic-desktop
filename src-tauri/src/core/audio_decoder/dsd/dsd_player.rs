@@ -19,7 +19,6 @@ use ringbuf::traits::Producer;
 
 use crate::core::audio_decoder::dsd::dsd_container::DsdContainerReader;
 use crate::core::audio_decoder::dsd::dsd_converter::DsdToPcmConverter;
-use crate::core::audio_decoder::dsd::dop_encoder::{dop_carrier_rate, DopEncoder};
 use crate::core::audio_decoder::error::DecodeError;
 use crate::core::audio_player::audio_utils::adapt_channels;
 use crate::core::audio_quality;
@@ -202,114 +201,5 @@ where
     }
 
     log::debug!("🧵 DSD playback thread terminé");
-    Ok(())
-}
-
-/// Run the DSD **DoP** (DSD over PCM) playback loop on the calling thread.
-///
-/// Contrairement à `run_dsd_playback` (qui convertit DSD→PCM), cette boucle
-/// **n'altère pas** le flux : elle lit les octets DSD bruts, les empaquette en
-/// trames DoP 24-bit, et pousse les `i32` déjà cadrés dans le ring buffer. Le
-/// backend WASAPI DoP les écrit verbatim → **DSD natif** au DAC.
-///
-/// Pas de resampler, pas d'adaptation de canaux : le DoP exige que le DAC
-/// accepte le format porteur (rate = dsd_rate/16, `channels` natifs). La
-/// vérification de compat se fait AVANT (côté appelant, cf. `dop_format_supported`).
-///
-/// `lsb_first` : `true` pour DSF (bits LSB-first → inversion), `false` pour DFF.
-#[allow(clippy::too_many_arguments)]
-pub fn run_dsd_dop_playback<P>(
-    mut decoder: Box<dyn DsdContainerReader + Send>,
-    lsb_first: bool,
-    mut producer: P,
-    is_stopped: Arc<AtomicBool>,
-    seek_position: Arc<AtomicU64>,
-    current_position_frames: Arc<AtomicUsize>,
-    total_duration: Arc<AtomicU64>,
-    seek_flush: Arc<AtomicBool>,
-) -> Result<(), DecodeError>
-where
-    P: Producer<Item = i32>,
-{
-    let dsd_rate = decoder.sample_rate();
-    let channels = decoder.channel_count();
-    let carrier_rate = dop_carrier_rate(dsd_rate);
-
-    log::info!(
-        "🧵 DSD DoP playback démarré ({} ch, DSD {} Hz → porteur DoP {} Hz, lsb_first={})",
-        channels, dsd_rate, carrier_rate, lsb_first
-    );
-
-    let mut encoder = DopEncoder::new(channels, lsb_first);
-
-    loop {
-        if is_stopped.load(Ordering::Relaxed) {
-            log::debug!("DoP: stop détecté");
-            break;
-        }
-
-        // ─── Seek ───
-        let seek_bits = seek_position.load(Ordering::Relaxed);
-        if seek_bits != u64::MAX {
-            seek_position.store(u64::MAX, Ordering::Relaxed);
-            let total_dur = f64::from_bits(total_duration.load(Ordering::Relaxed));
-            let seek_seconds = f64::from_bits(seek_bits).max(0.0).min(total_dur.max(0.0));
-
-            match decoder.seek_to_seconds(seek_seconds) {
-                Ok(actual_seconds) => {
-                    encoder.reset();
-                    // Position en frames porteuses (carrier_rate).
-                    let new_frames = (actual_seconds * carrier_rate as f64) as usize;
-                    current_position_frames.store(new_frames, Ordering::Relaxed);
-
-                    seek_flush.store(true, Ordering::Relaxed);
-                    let flush_start = std::time::Instant::now();
-                    while seek_flush.load(Ordering::Relaxed) {
-                        std::thread::sleep(std::time::Duration::from_millis(1));
-                        if flush_start.elapsed().as_millis() > 80 {
-                            seek_flush.store(false, Ordering::Relaxed);
-                            break;
-                        }
-                    }
-                    log::debug!("DoP seek à {:.1}s", actual_seconds);
-                }
-                Err(e) => log::error!("DoP seek failed: {:?}", e),
-            }
-            continue;
-        }
-
-        // ─── Read next DSD super-block ───
-        let blocks = match decoder.read_next_blocks()? {
-            Some(b) => b,
-            None => {
-                log::debug!("DoP: fin du fichier");
-                break;
-            }
-        };
-
-        // ─── Encode DoP (interleavé i32, prêt WASAPI 24-bit) ───
-        let dop_samples = encoder.encode_blocks(&blocks);
-        if dop_samples.is_empty() {
-            continue;
-        }
-
-        // ─── Push dans le ring buffer (block si plein, abandon sur stop/seek) ───
-        let mut offset = 0usize;
-        while offset < dop_samples.len() {
-            if is_stopped.load(Ordering::Relaxed) {
-                break;
-            }
-            if seek_position.load(Ordering::Relaxed) != u64::MAX {
-                break;
-            }
-            let written = producer.push_slice(&dop_samples[offset..]);
-            offset += written;
-            if written == 0 {
-                std::thread::sleep(std::time::Duration::from_millis(1));
-            }
-        }
-    }
-
-    log::debug!("🧵 DSD DoP playback thread terminé");
     Ok(())
 }

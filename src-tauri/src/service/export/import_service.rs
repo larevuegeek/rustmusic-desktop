@@ -300,6 +300,15 @@ pub async fn apply(
                     }
                 };
 
+                sqlx::query("UPDATE playlists SET is_smart = ?, rules = ?, is_mix = ?, pinned = ? WHERE id = ?")
+                    .bind(liste.rules.is_some())
+                    .bind(&liste.rules)
+                    .bind(liste.is_mix)
+                    .bind(liste.pinned)
+                    .bind(playlist_id)
+                    .execute(pool)
+                    .await?;
+
                 for (rang, track_id) in appariees.iter().enumerate() {
                     // `OR IGNORE` : une playlist exportée peut contenir deux
                     // fois le même morceau — par deux chemins différents qui
@@ -653,6 +662,9 @@ mod tests {
                 bio: None,
                 role: "admin".into(),
                 playlists: vec![ExportPlaylist {
+                    rules: None,
+                    is_mix: false,
+                    pinned: true,
                     name: "Grunge".into(),
                     description: None,
                     color: "#8b5cf6".into(),
