@@ -2,7 +2,7 @@
   // Champs groupés (morceau, album, extra) des deux éditeurs de tags, squelette compris.
   // Chaque éditeur fournit le rendu d'un champ et sa ligne piste / disque.
   import type { Snippet } from "svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import TagGroupTitle from "./TagGroupTitle.svelte";
 
   let {

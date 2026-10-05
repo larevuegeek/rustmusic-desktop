@@ -1,17 +1,17 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { queueState } from "$lib/stores/queue/queueState.store";
-  import { toasts } from "$lib/stores/ui/toast.store";
-  import { toQueueTracks, type TrackLike } from "$lib/helper/tools/queueTools";
-  import { playlistStore } from "$lib/stores/playlist/playlist.store";
-  import { playlistsRangees } from "$lib/stores/playlist/couvertures.store";
+  import { queueState } from "#lib/stores/queue/queueState.store";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import { toQueueTracks, type TrackLike } from "#lib/helper/tools/queueTools";
+  import { playlistStore } from "#lib/stores/playlist/playlist.store";
+  import { playlistsRangees } from "#lib/stores/playlist/couvertures.store";
   import { invoke } from "@tauri-apps/api/core";
-  import { t, currentLocale } from "$lib/i18n";
+  import { t, currentLocale } from "#lib/i18n";
   import { open } from "@tauri-apps/plugin-dialog";
-  import type { Playlist } from "$lib/types/db/playlist/Playlist";
-  import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-  import DeezerCoverSearchPopin from "$lib/components/library/common/popin/DeezerCoverSearchPopin.svelte";
-  import { pinsStore, isPinned } from "$lib/stores/library/pins.store";
+  import type { Playlist } from "#lib/types/db/playlist/Playlist";
+  import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+  import DeezerCoverSearchPopin from "#lib/components/library/common/popin/DeezerCoverSearchPopin.svelte";
+  import { pinsStore, isPinned } from "#lib/stores/library/pins.store";
 
   type Props = {
     title: string;

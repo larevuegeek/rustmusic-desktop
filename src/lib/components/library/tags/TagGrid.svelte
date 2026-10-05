@@ -12,7 +12,7 @@
   // saisie sans habillage tant qu'on ne la touche pas. L'objectif est de tenir
   // une trentaine de fichiers à l'écran, sinon autant garder un formulaire.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import {
     tagWorkshop,
     isDirty,
@@ -20,8 +20,8 @@
     valueOf,
     type WorkshopField,
     type WorkshopFile,
-  } from "$lib/stores/tags/tagWorkshop.store";
-  import { fileName } from "$lib/services/batch/batch.service";
+  } from "#lib/stores/tags/tagWorkshop.store";
+  import { fileName } from "#lib/services/batch/batch.service";
 
   const {
     columns,

@@ -1,17 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from '@tauri-apps/plugin-dialog';
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
-import type { ArtistListView } from "$lib/types/ui/library/artist/ArtistListView";
-import type { ArtistDetailView } from "$lib/types/ui/library/artist/ArtistDetailView";
-import type { AlbumDetailView } from "$lib/types/ui/library/album/AlbumDetailView";
-import type { TrackDetailView } from "$lib/types/ui/library/track/TrackDetailView";
-import type { Library } from "$lib/types/db/library/Library";
-import { toasts } from "$lib/stores/ui/toast.store";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
+import type { ArtistListView } from "#lib/types/ui/library/artist/ArtistListView";
+import type { ArtistDetailView } from "#lib/types/ui/library/artist/ArtistDetailView";
+import type { AlbumDetailView } from "#lib/types/ui/library/album/AlbumDetailView";
+import type { TrackDetailView } from "#lib/types/ui/library/track/TrackDetailView";
+import type { Library } from "#lib/types/db/library/Library";
+import { toasts } from "#lib/stores/ui/toast.store";
 import { goto } from "$app/navigation";
-import { libraryStore } from "$lib/stores/library/library.store";
+import { libraryStore } from "#lib/stores/library/library.store";
 import { get } from "svelte/store";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 
 /** La boîte de dialogue seule : les fichiers choisis, ou rien si l'on annule. */
 export async function choisirFichiers(): Promise<string[]> {

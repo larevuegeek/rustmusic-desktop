@@ -1,10 +1,10 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
-import { player } from "$lib/stores/player/player.store";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { formatTime } from "$lib/helper/tools/dateTools";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import { t } from "$lib/i18n";
+import { player } from "#lib/stores/player/player.store";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { formatTime } from "#lib/helper/tools/dateTools";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import { t } from "#lib/i18n";
 
 type Variant = "default" | "blur";
 

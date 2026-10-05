@@ -4,9 +4,9 @@ import {
   sendNotification,
 } from "@tauri-apps/plugin-notification";
 import { invoke } from "@tauri-apps/api/core";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
 
 // ============================================================================
 // SERVICE DE NOTIFICATION OS — CHANGEMENT DE MORCEAU

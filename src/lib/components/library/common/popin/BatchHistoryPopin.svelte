@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "$lib/helper/tools/errorTools";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
   // Historique des lots, et retour en arrière.
   //
   // # Pourquoi un écran et pas seulement le bouton du compte rendu
@@ -13,14 +13,14 @@
   // tout remis en place serait pire que ne rien proposer.
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { t, currentLocale } from "$lib/i18n";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { t, currentLocale } from "#lib/i18n";
   import {
     listBatchJournal,
     undoBatch,
     type JournalEntry,
     type MoveOutcome,
-  } from "$lib/services/tags/rename.service";
+  } from "#lib/services/tags/rename.service";
 
   /* eslint-disable svelte/valid-prop-names-in-kit-pages */
   const {

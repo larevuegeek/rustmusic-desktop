@@ -43,11 +43,6 @@ export default defineConfig(async () => ({
       adapter: adapter({
         fallback: "index.html",
       }),
-      // SvelteKit 3 ne fournit plus `$lib` (remplacé par `#lib`, qui impose
-      // des extensions dans les imports) : on le garde sous forme d'alias.
-      alias: {
-        $lib: "src/lib",
-      },
     }),
     stylesSvelteManquants,
   ],

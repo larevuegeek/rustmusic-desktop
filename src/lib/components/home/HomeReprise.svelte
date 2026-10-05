@@ -1,22 +1,22 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
-import { t, currentLocale } from "$lib/i18n";
-import { player } from "$lib/stores/player/player.store";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { recent } from "$lib/stores/recent/recent.store";
-import { liked } from "$lib/stores/playlist/like.store";
-import { playerService } from "$lib/services/player/player.service";
-import { openQueuePanel } from "$lib/stores/queue/queueUi.store";
-import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
-import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
-import { fileDeLAlbum } from "$lib/helper/library/trackLocation";
-import { formatTime, dateToYear, ilYA } from "$lib/helper/tools/dateTools";
-import { displayTitle } from "$lib/helper/tools/stringTools";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import PochetteFloue from "$lib/components/ui/image/PochetteFloue.svelte";
-import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+import { t, currentLocale } from "#lib/i18n";
+import { player } from "#lib/stores/player/player.store";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { recent } from "#lib/stores/recent/recent.store";
+import { liked } from "#lib/stores/playlist/like.store";
+import { playerService } from "#lib/services/player/player.service";
+import { openQueuePanel } from "#lib/stores/queue/queueUi.store";
+import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
+import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import { fileDeLAlbum } from "#lib/helper/library/trackLocation";
+import { formatTime, dateToYear, ilYA } from "#lib/helper/tools/dateTools";
+import { displayTitle } from "#lib/helper/tools/stringTools";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import PochetteFloue from "#lib/components/ui/image/PochetteFloue.svelte";
+import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
 let { onajouter, libraryId = null, ancreRecents = false }:
   { onajouter: () => void; libraryId?: number | null; ancreRecents?: boolean } = $props();

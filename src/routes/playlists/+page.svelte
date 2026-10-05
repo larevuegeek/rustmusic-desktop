@@ -1,26 +1,26 @@
 <script lang="ts">
 // Toutes les playlists du profil : la barre latérale n'en montre que les épinglées.
-import { couverturesPlaylists } from "$lib/stores/playlist/couvertures.store";
+import { couverturesPlaylists } from "#lib/stores/playlist/couvertures.store";
 import Icon from "@iconify/svelte";
-import { t, currentLocale } from "$lib/i18n";
-import { playlistStore } from "$lib/stores/playlist/playlist.store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import { likedCount } from "$lib/stores/playlist/like.store";
-import { recentCount } from "$lib/stores/recent/recent.store";
-import { popinStore } from "$lib/stores/ui/popin.store";
-import { viewMode } from "$lib/stores/ui/viewMode.store";
-import { lireLocal, ecrireLocal } from "$lib/helper/tools/stockage";
-import { cleTri, comparerNaturel } from "$lib/helper/library/cleTri";
-import SearchField from "$lib/components/ui/input/SearchField.svelte";
-import SegmentedControl from "$lib/components/ui/input/SegmentedControl.svelte";
-import MenuSelect from "$lib/components/ui/menu/MenuSelect.svelte";
-import ViewModeSwitch from "$lib/components/ui/input/ViewModeSwitch.svelte";
-import EmptyResult from "$lib/components/ui/feedback/EmptyResult.svelte";
-import PlaylistCard from "$lib/components/playlist/PlaylistCard.svelte";
-import PlaylistContextMenu from "$lib/components/ui/contextmenu/PlaylistContextMenu.svelte";
-import AddPlaylistPopin from "$lib/components/playlist/popin/AddPlaylistPopin.svelte";
-import SmartPlaylistPopin from "$lib/components/playlist/smart/SmartPlaylistPopin.svelte";
-import type { Playlist } from "$lib/types/db/playlist/Playlist";
+import { t, currentLocale } from "#lib/i18n";
+import { playlistStore } from "#lib/stores/playlist/playlist.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import { likedCount } from "#lib/stores/playlist/like.store";
+import { recentCount } from "#lib/stores/recent/recent.store";
+import { popinStore } from "#lib/stores/ui/popin.store";
+import { viewMode } from "#lib/stores/ui/viewMode.store";
+import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+import { cleTri, comparerNaturel } from "#lib/helper/library/cleTri";
+import SearchField from "#lib/components/ui/input/SearchField.svelte";
+import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
+import MenuSelect from "#lib/components/ui/menu/MenuSelect.svelte";
+import ViewModeSwitch from "#lib/components/ui/input/ViewModeSwitch.svelte";
+import EmptyResult from "#lib/components/ui/feedback/EmptyResult.svelte";
+import PlaylistCard from "#lib/components/playlist/PlaylistCard.svelte";
+import PlaylistContextMenu from "#lib/components/ui/contextmenu/PlaylistContextMenu.svelte";
+import AddPlaylistPopin from "#lib/components/playlist/popin/AddPlaylistPopin.svelte";
+import SmartPlaylistPopin from "#lib/components/playlist/smart/SmartPlaylistPopin.svelte";
+import type { Playlist } from "#lib/types/db/playlist/Playlist";
 
 // Les mix vivent sur leur page : ce ne sont pas des playlists.
 const playlists = $derived($playlistStore.playlists.filter((p) => !p.is_mix));

@@ -10,11 +10,11 @@
   import type { Snippet } from "svelte";
   import { tick } from "svelte";
   import { goto } from "$app/navigation";
-  import { rechercheReglages } from "$lib/stores/ui/settingsSearch.store";
-  import { t } from "$lib/i18n";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
-  import { portal } from "$lib/helper/portal";
-  import { lienTerme, type TermeId } from "$lib/config/glossaire";
+  import { rechercheReglages } from "#lib/stores/ui/settingsSearch.store";
+  import { t } from "#lib/i18n";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { portal } from "#lib/helper/portal";
+  import { lienTerme, type TermeId } from "#lib/config/glossaire";
 
   let { id, children }: { id: TermeId; children?: Snippet } = $props();
 

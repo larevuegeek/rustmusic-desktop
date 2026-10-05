@@ -1,5 +1,5 @@
-import type { Library } from "$lib/types/db/library/Library"
-import { profilSelector } from "$lib/stores/profil/profil.store";
+import type { Library } from "#lib/types/db/library/Library"
+import { profilSelector } from "#lib/stores/profil/profil.store";
 import { writable, get } from "svelte/store"
 import { invoke } from "@tauri-apps/api/core";
 

@@ -1,15 +1,15 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
-import { player } from "$lib/stores/player/player.store";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { lyricsPanelOpened, closeLyricsPanel } from "$lib/stores/lyrics/lyricsPanel.store";
-import { getLyrics, refreshLyrics, type Lyrics } from "$lib/services/lyrics/lyrics.service";
-import { parseLrc, findActiveLineIndex, type LrcLine } from "$lib/helper/lyrics/lrcParser";
-import { playerService } from "$lib/services/player/player.service";
-import { resolveCoverSrc } from "$lib/helper/tools/coverHelper";
-import PochetteFloue from "$lib/components/ui/image/PochetteFloue.svelte";
-import NowPlayingCard from "$lib/components/player/NowPlayingCard.svelte";
-import { t } from "$lib/i18n";
+import { player } from "#lib/stores/player/player.store";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { lyricsPanelOpened, closeLyricsPanel } from "#lib/stores/lyrics/lyricsPanel.store";
+import { getLyrics, refreshLyrics, type Lyrics } from "#lib/services/lyrics/lyrics.service";
+import { parseLrc, findActiveLineIndex, type LrcLine } from "#lib/helper/lyrics/lrcParser";
+import { playerService } from "#lib/services/player/player.service";
+import { resolveCoverSrc } from "#lib/helper/tools/coverHelper";
+import PochetteFloue from "#lib/components/ui/image/PochetteFloue.svelte";
+import NowPlayingCard from "#lib/components/player/NowPlayingCard.svelte";
+import { t } from "#lib/i18n";
 
 // Libellé de la source, comme le mini-lecteur.
 const SOURCES: Record<string, string> = { sidecar: "mini.src_sidecar", lrclib: "mini.src_lrclib", manual: "mini.src_manual" };

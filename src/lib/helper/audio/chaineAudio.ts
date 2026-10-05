@@ -1,4 +1,4 @@
-import type { PipelineMode, PlaybackPipelineInfo } from "$lib/stores/player/playbackPipeline.store";
+import type { PipelineMode, PlaybackPipelineInfo } from "#lib/stores/player/playbackPipeline.store";
 
 /** Teintes des pastilles du lecteur, indépendantes de la pochette. */
 export const TEINTE = {

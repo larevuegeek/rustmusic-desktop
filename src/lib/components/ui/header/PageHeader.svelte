@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t, currentLocale } from "$lib/i18n";
+  import { t, currentLocale } from "#lib/i18n";
   import Icon from "@iconify/svelte";
   import type { Snippet } from "svelte";
 

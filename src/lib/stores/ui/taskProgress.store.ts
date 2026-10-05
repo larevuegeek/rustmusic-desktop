@@ -1,7 +1,7 @@
 import { writable, derived, get } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { t, currentLocale } from "$lib/i18n";
-import { tailleLisible } from "$lib/helper/tools/sizeTools";
+import { t, currentLocale } from "#lib/i18n";
+import { tailleLisible } from "#lib/helper/tools/sizeTools";
 
 // ============================================================================
 // STORE GLOBAL DE TÂCHES EN COURS

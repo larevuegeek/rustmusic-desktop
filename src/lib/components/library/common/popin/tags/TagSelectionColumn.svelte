@@ -2,9 +2,9 @@
   // Colonne de l'éditeur par lot : pochette commune, fichiers visés et numérotation.
   // Purement affichage : la pochette et la numérotation appartiennent au parent.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import { fileName } from "$lib/services/batch/batch.service";
-  import { formatBytes, type PreparedImage } from "$lib/services/tags/tagEditor.service";
+  import { t } from "#lib/i18n";
+  import { fileName } from "#lib/services/batch/batch.service";
+  import { formatBytes, type PreparedImage } from "#lib/services/tags/tagEditor.service";
 
   let {
     cover,

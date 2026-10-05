@@ -2,7 +2,7 @@
   // Section titrée : carrousel de cartes (flèches dans l'en-tête) en grille, lignes en liste.
   import Icon from "@iconify/svelte";
   import type { Snippet } from "svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import Carousel from "./Carousel.svelte";
 
   let {

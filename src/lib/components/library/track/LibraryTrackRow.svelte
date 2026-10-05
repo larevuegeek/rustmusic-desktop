@@ -2,20 +2,20 @@
 // Ligne de l'onglet Morceaux : colonnes au choix, habillées comme la maquette (compact ou détaillé).
 import { goto } from "$app/navigation";
 import Icon from "@iconify/svelte";
-import { t, currentLocale } from "$lib/i18n";
-import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
-import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
-import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import StarRating from "$lib/components/ui/rating/StarRating.svelte";
-import { liked } from "$lib/stores/playlist/like.store";
-import { lecture } from "$lib/stores/player/lecture.store";
-import { selectionStore } from "$lib/stores/ui/selection.store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import type { TrackColumn } from "$lib/config/trackColumns";
-import { formatBitrate, formatCourt, palierPiste } from "$lib/helper/tools/audioFormatTools";
-import { minutesSecondes } from "$lib/helper/tools/dateTools";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+import { t, currentLocale } from "#lib/i18n";
+import { handleSelectTrack, handlePlayTrack } from "#lib/actions/player/PlayerAction";
+import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import StarRating from "#lib/components/ui/rating/StarRating.svelte";
+import { liked } from "#lib/stores/playlist/like.store";
+import { lecture } from "#lib/stores/player/lecture.store";
+import { selectionStore } from "#lib/stores/ui/selection.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import type { TrackColumn } from "#lib/config/trackColumns";
+import { formatBitrate, formatCourt, palierPiste } from "#lib/helper/tools/audioFormatTools";
+import { minutesSecondes } from "#lib/helper/tools/dateTools";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
 let {
     libraryId,

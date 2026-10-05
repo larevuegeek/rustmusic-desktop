@@ -1,4 +1,4 @@
-import type { UpdateState } from "$lib/stores/updater/updater.store";
+import type { UpdateState } from "#lib/stores/updater/updater.store";
 
 type Verification = "jamais" | "a-jour" | "maj" | "echec";
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import RuleGroup from "./RuleGroup.svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import type { FieldOption, Vocabulary, Node, Group } from "./types";
   import { operatorsFor, defaultRule, arityOf, libelleChamp, libelleOperateur } from "./types";
 

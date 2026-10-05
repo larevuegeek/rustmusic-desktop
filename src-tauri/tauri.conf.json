@@ -62,7 +62,8 @@
         "resizable": true,
         "title": "RustMusic",
         "width": 1280,
-        "decorations": false
+        "decorations": false,
+        "backgroundColor": "#0b0d0c"
       }
     ],
     "security": {

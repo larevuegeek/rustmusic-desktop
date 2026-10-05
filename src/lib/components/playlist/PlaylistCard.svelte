@@ -2,8 +2,8 @@
   // Carte d'une playlist : mosaïque, nom, nature et taille ; la punaise l'épingle dans la barre.
   import Icon from "@iconify/svelte";
   import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+  import { t } from "#lib/i18n";
+  import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 
   let {
     href,

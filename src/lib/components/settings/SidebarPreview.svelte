@@ -1,6 +1,6 @@
 <script lang="ts">
   // Barre latérale en miniature : ses sections suivent les interrupteurs voisins.
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   let { ouvrir, albums, artistes }: { ouvrir: boolean; albums: boolean; artistes: boolean } = $props();
 

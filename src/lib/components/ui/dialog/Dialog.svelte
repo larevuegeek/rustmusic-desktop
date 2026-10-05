@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { popinStore } from "$lib/stores/ui/popin.store";
+  import { popinStore } from "#lib/stores/ui/popin.store";
 
   let {
     message = "",

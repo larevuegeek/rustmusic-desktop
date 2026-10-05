@@ -1,9 +1,9 @@
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-import { formatBitrate, formatChannels, formatCourt, palierPiste } from "$lib/helper/tools/audioFormatTools";
-import { tailleLisible } from "$lib/helper/tools/sizeTools";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import { formatBitrate, formatChannels, formatCourt, palierPiste } from "#lib/helper/tools/audioFormatTools";
+import { tailleLisible } from "#lib/helper/tools/sizeTools";
 import { get } from "svelte/store";
 // `t` désigne une piste partout ici : la traduction prend un autre nom.
-import { t as tr, currentLocale } from "$lib/i18n";
+import { t as tr, currentLocale } from "#lib/i18n";
 
 /**
  * Les colonnes de la vue liste, définies une seule fois.

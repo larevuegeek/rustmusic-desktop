@@ -13,9 +13,9 @@
   // au renommage et au déplacement sans être touché.
   import Icon from "@iconify/svelte";
   import { fly } from "svelte/transition";
-  import { batchStore } from "$lib/stores/ui/batch.store";
-  import { cancelBatch, fileName, skipped } from "$lib/services/batch/batch.service";
-  import { t, currentLocale } from "$lib/i18n";
+  import { batchStore } from "#lib/stores/ui/batch.store";
+  import { cancelBatch, fileName, skipped } from "#lib/services/batch/batch.service";
+  import { t, currentLocale } from "#lib/i18n";
 
   let state = $derived($batchStore);
   let report = $derived(state.report);

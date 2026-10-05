@@ -1,35 +1,35 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
-  import { audioDevicesStore } from "$lib/stores/audio/audioDevices.store";
-  import { t, currentLocale } from "$lib/i18n";
-  import { playbackPipelineStore } from "$lib/stores/player/playbackPipeline.store";
-  import { messageRepli, frequenceLisible } from "$lib/helper/audio/chaineAudio";
-  import { detectOS } from "$lib/helper/tools/osDetection";
-  import OptionGroup from "$lib/components/ui/input/OptionGroup.svelte";
-  import OptionItem from "$lib/components/ui/input/OptionItem.svelte";
-  import OptionBlock from "$lib/components/ui/input/OptionBlock.svelte";
-  import ChoiceTile from "$lib/components/ui/input/ChoiceTile.svelte";
-  import SegmentedPanel from "$lib/components/ui/input/SegmentedPanel.svelte";
-  import ToggleSwitch from "$lib/components/ui/input/ToggleSwitch.svelte";
-  import GhostButton from "$lib/components/ui/button/GhostButton.svelte";
-  import Badge from "$lib/components/ui/text/Badge.svelte";
-  import AudioOutputList from "$lib/components/settings/AudioOutputList.svelte";
-  import DacTest from "$lib/components/settings/DacTest.svelte";
-  import { decrireSortie } from "$lib/helper/audio/deviceLabel";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { audioDevicesStore } from "#lib/stores/audio/audioDevices.store";
+  import { t, currentLocale } from "#lib/i18n";
+  import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
+  import { messageRepli, frequenceLisible } from "#lib/helper/audio/chaineAudio";
+  import { detectOS } from "#lib/helper/tools/osDetection";
+  import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
+  import OptionItem from "#lib/components/ui/input/OptionItem.svelte";
+  import OptionBlock from "#lib/components/ui/input/OptionBlock.svelte";
+  import ChoiceTile from "#lib/components/ui/input/ChoiceTile.svelte";
+  import SegmentedPanel from "#lib/components/ui/input/SegmentedPanel.svelte";
+  import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
+  import GhostButton from "#lib/components/ui/button/GhostButton.svelte";
+  import Badge from "#lib/components/ui/text/Badge.svelte";
+  import AudioOutputList from "#lib/components/settings/AudioOutputList.svelte";
+  import DacTest from "#lib/components/settings/DacTest.svelte";
+  import { decrireSortie } from "#lib/helper/audio/deviceLabel";
   import {
     getAudioQualityStatus,
     setAudioQualitySetting,
     type AudioQualityStatus,
     type AudioQualitySetting,
-  } from "$lib/services/audio/audioQuality.service";
+  } from "#lib/services/audio/audioQuality.service";
   import {
     getReplayGainSettings,
     setReplayGainSettings,
     type ReplayGainMode,
     type ReplayGainSettings,
-  } from "$lib/services/audio/replayGain.service";
+  } from "#lib/services/audio/replayGain.service";
 
   const os = detectOS();
   const surWindows = os === "windows";

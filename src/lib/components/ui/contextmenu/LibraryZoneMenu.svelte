@@ -1,8 +1,8 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import { portal } from "$lib/helper/portal";
+  import { t } from "#lib/i18n";
+  import { portal } from "#lib/helper/portal";
   import LibraryTabsOptions from "./LibraryTabsOptions.svelte";
 
   /** Les options de la zone Bibliothèque, sous le bouton « … ». */

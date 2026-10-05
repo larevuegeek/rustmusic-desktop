@@ -2,7 +2,7 @@
   // Option d'un choix exclusif décrit en toutes lettres : titre, coche, puis explication.
   // À placer dans un conteneur `role="radiogroup"`.
   import RadioCheck from "./RadioCheck.svelte";
-  import TexteAide from "$lib/components/ui/aide/TexteAide.svelte";
+  import TexteAide from "#lib/components/ui/aide/TexteAide.svelte";
 
   let {
     title,

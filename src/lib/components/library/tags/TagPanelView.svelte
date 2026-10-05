@@ -11,8 +11,8 @@
   // la sélection n'est qu'une écriture répétée — d'où la bascule sans perte :
   // ce qu'on corrige ici apparaît là-bas, et l'inverse.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import TagField from "$lib/components/ui/input/TagField.svelte";
+  import { t } from "#lib/i18n";
+  import TagField from "#lib/components/ui/input/TagField.svelte";
   import {
     tagWorkshop,
     isDirty,
@@ -21,8 +21,8 @@
     valueOf,
     WORKSHOP_FIELDS,
     type WorkshopField,
-  } from "$lib/stores/tags/tagWorkshop.store";
-  import { fileName } from "$lib/services/batch/batch.service";
+  } from "#lib/stores/tags/tagWorkshop.store";
+  import { fileName } from "#lib/services/batch/batch.service";
 
   let workshop = $derived($tagWorkshop);
   let targets = $derived(

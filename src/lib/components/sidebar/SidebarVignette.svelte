@@ -1,6 +1,6 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 
 /** Mosaïque dès quatre pochettes, une seule sinon, et à défaut un carré de la couleur. */
 let { couvertures = [], couleur, icone = null }: {

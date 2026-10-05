@@ -1,9 +1,9 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import TrackListCompact from "$lib/components/library/track/TrackListCompact.svelte";
-  import TrackColumnsPopin from "$lib/components/library/common/popin/TrackColumnsPopin.svelte";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
-  import { t } from "$lib/i18n";
+  import TrackListCompact from "#lib/components/library/track/TrackListCompact.svelte";
+  import TrackColumnsPopin from "#lib/components/library/common/popin/TrackColumnsPopin.svelte";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { t } from "#lib/i18n";
   import {
     libelleColonne,
     lireColonnes,
@@ -17,9 +17,9 @@
     LARGEUR_MAX,
     type SortDir,
     type TrackColumn,
-  } from "$lib/config/trackColumns";
-  import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-  import { selectionStore } from "$lib/stores/ui/selection.store";
+  } from "#lib/config/trackColumns";
+  import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+  import { selectionStore } from "#lib/stores/ui/selection.store";
 
   /**
    * La liste de pistes en tableau, colonnes au choix et tri par en-tête.

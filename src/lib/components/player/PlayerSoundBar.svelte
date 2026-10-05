@@ -3,16 +3,16 @@
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
   import Icon from "@iconify/svelte";
-  import { audioDevicesStore, type AudioDeviceInfo } from "$lib/stores/audio/audioDevices.store";
-  import AudioDeviceDetailsModal from "$lib/components/settings/AudioDeviceDetailsModal.svelte";
-  import ToggleSwitch from "$lib/components/ui/input/ToggleSwitch.svelte";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
-  import { detectOS } from "$lib/helper/tools/osDetection";
-  import { capacitesSortie, decrireSortie, palierQualite, PALIERS } from "$lib/helper/audio/deviceLabel";
-  import Badge from "$lib/components/ui/text/Badge.svelte";
-  import { t } from "$lib/i18n";
-  import { playbackPipelineStore } from "$lib/stores/player/playbackPipeline.store";
-  import { volume, chargerVolume, reglerVolume } from "$lib/stores/player/volume.store";
+  import { audioDevicesStore, type AudioDeviceInfo } from "#lib/stores/audio/audioDevices.store";
+  import AudioDeviceDetailsModal from "#lib/components/settings/AudioDeviceDetailsModal.svelte";
+  import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { detectOS } from "#lib/helper/tools/osDetection";
+  import { capacitesSortie, decrireSortie, palierQualite, PALIERS } from "#lib/helper/audio/deviceLabel";
+  import Badge from "#lib/components/ui/text/Badge.svelte";
+  import { t } from "#lib/i18n";
+  import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
+  import { volume, chargerVolume, reglerVolume } from "#lib/stores/player/volume.store";
 
   const surWindows = detectOS() === "windows";
   const wasapiExclusive = $derived($settingsStore.wasapi_exclusive === "true");

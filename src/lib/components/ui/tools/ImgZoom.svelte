@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import { fade, scale } from "svelte/transition";
-  import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+  import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 
   import type { Snippet } from "svelte";
 

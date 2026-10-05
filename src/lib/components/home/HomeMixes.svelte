@@ -1,15 +1,15 @@
 <script lang="ts">
 // Les mix de l'accueil : « Pour vous », vos mix, puis un par décennie. La page Mix les montre tous.
 import Icon from "@iconify/svelte";
-import { t } from "$lib/i18n";
-import { playlistStore } from "$lib/stores/playlist/playlist.store";
-import { renouveler } from "$lib/stores/mix/mix.store";
-import { mixPourVous, mixDecennies, mixCrees } from "$lib/config/mixes";
-import { actionsMix } from "$lib/actions/mix/MixAction";
-import Carousel from "$lib/components/ui/carousel/Carousel.svelte";
-import MixCard from "$lib/components/mix/MixCard.svelte";
-import type { GenreMix } from "$lib/types/ui/library/genre/GenreMix";
-import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
+import { t } from "#lib/i18n";
+import { playlistStore } from "#lib/stores/playlist/playlist.store";
+import { renouveler } from "#lib/stores/mix/mix.store";
+import { mixPourVous, mixDecennies, mixCrees } from "#lib/config/mixes";
+import { actionsMix } from "#lib/actions/mix/MixAction";
+import Carousel from "#lib/components/ui/carousel/Carousel.svelte";
+import MixCard from "#lib/components/mix/MixCard.svelte";
+import type { GenreMix } from "#lib/types/ui/library/genre/GenreMix";
+import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
 
 let { libraryId, genres, albums = [], hires }: { libraryId: number; genres: GenreMix[]; albums?: AlbumListView[]; hires: number } = $props();
 

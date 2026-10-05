@@ -1,17 +1,17 @@
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { listen } from "@tauri-apps/api/event";
-import { player } from "$lib/stores/player/player.store";
+import { player } from "#lib/stores/player/player.store";
 import { invoke } from "@tauri-apps/api/core";
 import { get } from "svelte/store";
-import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
-import type { AudioFile } from "$lib/types/db/audioFile/AudioFile";
-import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView";
-import { recent } from "$lib/stores/recent/recent.store";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import { sleepTimer } from "$lib/stores/player/sleepTimer.store";
+import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
+import type { AudioFile } from "#lib/types/db/audioFile/AudioFile";
+import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
+import { recent } from "#lib/stores/recent/recent.store";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import { sleepTimer } from "#lib/stores/player/sleepTimer.store";
 import { sendNotification, isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 
 let raf: number = 0;
 let basePos = 0;

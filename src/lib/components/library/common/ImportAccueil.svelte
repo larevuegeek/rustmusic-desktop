@@ -2,17 +2,17 @@
 // Point de départ d'un import : page /import, ou bibliothèque encore vide (`library`).
 // On choisit d'abord (annuler ne crée rien), puis la bibliothèque est créée si besoin.
 import Icon from "@iconify/svelte";
-import DisqueFiligrane from "$lib/components/ui/deco/DisqueFiligrane.svelte";
+import DisqueFiligrane from "#lib/components/ui/deco/DisqueFiligrane.svelte";
 import { goto } from "$app/navigation";
-import { t } from "$lib/i18n";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { profilSelector } from "$lib/stores/profil/profil.store";
-import { importProgressStore } from "$lib/stores/library/importProgress.store";
-import { choisirDossier, choisirFichiers } from "$lib/services/library/library.service";
-import { handleAddDirectory, handleAddFiles } from "$lib/actions/library/LibraryAction";
-import { ONGLETS_BIBLIOTHEQUE, memoriserOnglet } from "$lib/config/libraryTabs";
-import { messageErreur } from "$lib/helper/tools/errorTools";
-import type { Library } from "$lib/types/db/library/Library";
+import { t } from "#lib/i18n";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { profilSelector } from "#lib/stores/profil/profil.store";
+import { importProgressStore } from "#lib/stores/library/importProgress.store";
+import { choisirDossier, choisirFichiers } from "#lib/services/library/library.service";
+import { handleAddDirectory, handleAddFiles } from "#lib/actions/library/LibraryAction";
+import { ONGLETS_BIBLIOTHEQUE, memoriserOnglet } from "#lib/config/libraryTabs";
+import { messageErreur } from "#lib/helper/tools/errorTools";
+import type { Library } from "#lib/types/db/library/Library";
 
 let { section: cleSection = null, library = null }: { section?: string | null; library?: Library | null } = $props();
 

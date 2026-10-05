@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { messageErreur } from "$lib/helper/tools/errorTools";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { playlistStore } from "$lib/stores/playlist/playlist.store";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { playlistStore } from "#lib/stores/playlist/playlist.store";
   import { PLAYLIST_COLORS, PLAYLIST_ICONS } from "../playlistConfig";
-  import type { Playlist } from "$lib/types/db/playlist/Playlist";
+  import type { Playlist } from "#lib/types/db/playlist/Playlist";
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   /* eslint-disable svelte/valid-prop-names-in-kit-pages */
   const { playlist }: { playlist: Playlist } = $props();

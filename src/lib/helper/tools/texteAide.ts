@@ -1,4 +1,4 @@
-import { estTerme, type TermeId } from "$lib/config/glossaire";
+import { estTerme, type TermeId } from "#lib/config/glossaire";
 
 // Balisage des traductions : « [[dac|convertisseur]] » marque un terme expliqué.
 const BALISE = /\[\[([a-z_]+)\|([^\]]+)\]\]/g;

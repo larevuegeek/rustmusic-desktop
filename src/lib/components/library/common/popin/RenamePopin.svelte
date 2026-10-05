@@ -1,22 +1,22 @@
 <script lang="ts">
   // Renommer les fichiers d'après un motif : aperçu à blanc à la frappe, rien n'est écrit avant confirmation.
   // Le motif s'applique aux tags de l'atelier, modifications en attente comprises.
-  import PopinFooter from "$lib/components/ui/popin/PopinFooter.svelte";
-  import PopinError from "$lib/components/ui/popin/PopinError.svelte";
+  import PopinFooter from "#lib/components/ui/popin/PopinFooter.svelte";
+  import PopinError from "#lib/components/ui/popin/PopinError.svelte";
   import Icon from "@iconify/svelte";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { t } from "$lib/i18n";
-  import { messageErreur } from "$lib/helper/tools/errorTools";
-  import { lireLocal, ecrireLocal } from "$lib/helper/tools/stockage";
-  import { tagWorkshop, WORKSHOP_FIELDS } from "$lib/stores/tags/tagWorkshop.store";
-  import ConfirmBand from "$lib/components/ui/feedback/ConfirmBand.svelte";
-  import RenamePatternEditor from "$lib/components/library/common/popin/rename/RenamePatternEditor.svelte";
-  import RenamePreviewTable from "$lib/components/library/common/popin/rename/RenamePreviewTable.svelte";
-  import RenameOutcome from "$lib/components/library/common/popin/rename/RenameOutcome.svelte";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { t } from "#lib/i18n";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+  import { tagWorkshop, WORKSHOP_FIELDS } from "#lib/stores/tags/tagWorkshop.store";
+  import ConfirmBand from "#lib/components/ui/feedback/ConfirmBand.svelte";
+  import RenamePatternEditor from "#lib/components/library/common/popin/rename/RenamePatternEditor.svelte";
+  import RenamePreviewTable from "#lib/components/library/common/popin/rename/RenamePreviewTable.svelte";
+  import RenameOutcome from "#lib/components/library/common/popin/rename/RenameOutcome.svelte";
   import {
     applyRename, checkPattern, orderMoves, previewRename, undoBatch, libraryDirs, PRESETS, TREE_PRESETS,
     type LibraryDir, type MoveOutcome, type RenamePreview,
-  } from "$lib/services/tags/rename.service";
+  } from "#lib/services/tags/rename.service";
 
   /* eslint-disable svelte/valid-prop-names-in-kit-pages */
   const { libraryId = null, onapplied = () => {} }: {

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { writable } from "svelte/store";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-import { dureeEcoute } from "$lib/helper/tools/dateTools";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import { dureeEcoute } from "#lib/helper/tools/dateTools";
 
 /** D'où vient un mix : un tirage de la bibliothèque, ou un mix créé (playlist auto « mix »). */
 export type SourceMix =

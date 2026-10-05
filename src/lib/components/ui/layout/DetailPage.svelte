@@ -2,9 +2,9 @@
   // Charpente des pages de détail : lueur teintée par l'image, barre collante (retour, mini-fiche passé l'en-tête, commandes, lecture).
   import Icon from "@iconify/svelte";
   import type { Snippet } from "svelte";
-  import PlayButton from "$lib/components/ui/button/PlayButton.svelte";
-  import { resolveCoverSrc } from "$lib/helper/tools/coverHelper";
-  import { couleurPochette } from "$lib/helper/tools/couleurPochette";
+  import PlayButton from "#lib/components/ui/button/PlayButton.svelte";
+  import { resolveCoverSrc } from "#lib/helper/tools/coverHelper";
+  import { couleurPochette } from "#lib/helper/tools/couleurPochette";
 
   let {
     image = null,

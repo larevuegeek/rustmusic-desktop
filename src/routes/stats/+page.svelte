@@ -1,14 +1,14 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
-import { t, currentLocale } from "$lib/i18n";
+import { t, currentLocale } from "#lib/i18n";
 import { invoke } from "@tauri-apps/api/core";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { profilSelector } from "$lib/stores/profil/profil.store";
-import type { LibraryStats } from "$lib/types/ui/library/stats/LibraryStats";
-import { formatBitrate } from "$lib/helper/tools/audioFormatTools";
-import { tailleLisible } from "$lib/helper/tools/sizeTools";
-import { dureeEcoute } from "$lib/helper/tools/dateTools";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { profilSelector } from "#lib/stores/profil/profil.store";
+import type { LibraryStats } from "#lib/types/ui/library/stats/LibraryStats";
+import { formatBitrate } from "#lib/helper/tools/audioFormatTools";
+import { tailleLisible } from "#lib/helper/tools/sizeTools";
+import { dureeEcoute } from "#lib/helper/tools/dateTools";
 
 let stats: LibraryStats | null = $state(null);
 let isLoading = $state(true);

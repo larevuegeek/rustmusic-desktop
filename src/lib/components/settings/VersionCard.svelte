@@ -1,9 +1,9 @@
 <script lang="ts">
   // Pied de la navigation des réglages : version et mises à jour.
-  import { t } from "$lib/i18n";
-  import { derniereVerification, updaterState } from "$lib/stores/updater/updater.store";
-  import { checkForUpdate, downloadAndInstall } from "$lib/services/updater/updater.service";
-  import { libelleMiseAJour } from "$lib/helper/updater/updateStatus";
+  import { t } from "#lib/i18n";
+  import { derniereVerification, updaterState } from "#lib/stores/updater/updater.store";
+  import { checkForUpdate, downloadAndInstall } from "#lib/services/updater/updater.service";
+  import { libelleMiseAJour } from "#lib/helper/updater/updateStatus";
 
   const etat = $derived($updaterState);
 

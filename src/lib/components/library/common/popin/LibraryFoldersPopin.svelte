@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { tailleLisible } from "$lib/helper/tools/sizeTools";
+  import { tailleLisible } from "#lib/helper/tools/sizeTools";
   import Icon from "@iconify/svelte";
-  import { oublierLocalisations } from "$lib/helper/library/trackLocation";
+  import { oublierLocalisations } from "#lib/helper/library/trackLocation";
   import { invoke } from "@tauri-apps/api/core";
-  import { handleAddDirectory } from "$lib/actions/library/LibraryAction";
-  import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-  import { importProgressStore } from "$lib/stores/library/importProgress.store";
-  import { toasts } from "$lib/stores/ui/toast.store";
-  import { portal } from "$lib/helper/portal";
-  import { t, currentLocale } from "$lib/i18n";
-  import { depuisCourt } from "$lib/helper/tools/dateTools";
+  import { handleAddDirectory } from "#lib/actions/library/LibraryAction";
+  import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+  import { importProgressStore } from "#lib/stores/library/importProgress.store";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import { portal } from "#lib/helper/portal";
+  import { t, currentLocale } from "#lib/i18n";
+  import { depuisCourt } from "#lib/helper/tools/dateTools";
 
   type LibraryDir = {
     id: string;

@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import { lireLocal, ecrireLocal } from "$lib/helper/tools/stockage";
+import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
 
 export type ViewMode = "grid" | "list";
 

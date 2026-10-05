@@ -2,9 +2,9 @@
   // Ligne d'une carte `OptionGroup`. Avec `onclick`, toute la ligne agit
   // (interrupteur) ; masquée quand la recherche des réglages ne la trouve pas.
   import type { Snippet } from "svelte";
-  import { correspond, rechercheReglages } from "$lib/stores/ui/settingsSearch.store";
-  import { texteBrut } from "$lib/helper/tools/texteAide";
-  import TexteAide from "$lib/components/ui/aide/TexteAide.svelte";
+  import { correspond, rechercheReglages } from "#lib/stores/ui/settingsSearch.store";
+  import { texteBrut } from "#lib/helper/tools/texteAide";
+  import TexteAide from "#lib/components/ui/aide/TexteAide.svelte";
 
   let {
     title,

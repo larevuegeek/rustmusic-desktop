@@ -1,7 +1,7 @@
 <script lang="ts">
   // Grille ou liste, partagé par toutes les vues (store `viewMode`).
-  import { t } from "$lib/i18n";
-  import { viewMode, type ViewMode } from "$lib/stores/ui/viewMode.store";
+  import { t } from "#lib/i18n";
+  import { viewMode, type ViewMode } from "#lib/stores/ui/viewMode.store";
   import SegmentedControl from "./SegmentedControl.svelte";
 
   let { class: classes = "" }: { class?: string } = $props();

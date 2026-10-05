@@ -1,5 +1,5 @@
 import { writable, derived, get } from "svelte/store";
-import type { TrackLike } from "$lib/helper/tools/queueTools";
+import type { TrackLike } from "#lib/helper/tools/queueTools";
 
 /**
  * La sélection multiple, partagée par toute l'application.

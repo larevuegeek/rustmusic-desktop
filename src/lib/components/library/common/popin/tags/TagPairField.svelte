@@ -1,6 +1,6 @@
 <script lang="ts">
   // « n sur N » : un seul tag (« 7/12 »), donc deux saisies dans un seul bloc.
-  import TagField from "$lib/components/ui/input/TagField.svelte";
+  import TagField from "#lib/components/ui/input/TagField.svelte";
 
   let {
     label,

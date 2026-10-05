@@ -9,10 +9,15 @@
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    // Vite lit `imports` de package.json ; TypeScript, lui, ne devine pas l'extension derrière `#lib`.
+    "paths": {
+      "#lib": ["./src/lib"],
+      "#lib/*": ["./src/lib/*"]
+    }
   },
   // `$app/tsconfig` est généré par SvelteKit dans node_modules (`svelte-kit sync`).
-  // Les alias, dont `$lib`, viennent de l'option `alias` dans vite.config.js.
+  // `#lib` vient du champ `imports` de package.json.
   //
   // TypeScript ne fusionne pas include/exclude avec la config étendue : ceux-ci
   // sont ceux que SvelteKit recommande.

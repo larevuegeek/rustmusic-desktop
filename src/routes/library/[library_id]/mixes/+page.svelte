@@ -4,30 +4,34 @@ import { page } from "$app/state";
 import { onDestroy } from "svelte";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
-import { t } from "$lib/i18n";
-import { libraryHeader } from "$lib/stores/library/libraryHeader";
-import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import { playlistStore } from "$lib/stores/playlist/playlist.store";
-import { renouveler } from "$lib/stores/mix/mix.store";
-import { mixPourVous, mixGenres, mixDecennies, mixCrees, type SpecMix } from "$lib/config/mixes";
-import { actionsMix, nouveauMix } from "$lib/actions/mix/MixAction";
-import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
-import { importAffiche } from "$lib/stores/library/importProgress.store";
-import ToolbarButton from "$lib/components/ui/button/ToolbarButton.svelte";
-import MixCard from "$lib/components/mix/MixCard.svelte";
-import type { GenreMix } from "$lib/types/ui/library/genre/GenreMix";
-import type { LibraryStats } from "$lib/types/ui/library/stats/LibraryStats";
+import { t } from "#lib/i18n";
+import { libraryHeader } from "#lib/stores/library/libraryHeader";
+import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+import { playlistStore } from "#lib/stores/playlist/playlist.store";
+import { renouveler } from "#lib/stores/mix/mix.store";
+import { mixPourVous, mixGenres, mixDecennies, mixCrees, type SpecMix } from "#lib/config/mixes";
+import { actionsMix, nouveauMix } from "#lib/actions/mix/MixAction";
+import LibraryImportingLoader from "#lib/components/library/common/loader/LibraryImportingLoader.svelte";
+import { importAffiche } from "#lib/stores/library/importProgress.store";
+import ToolbarButton from "#lib/components/ui/button/ToolbarButton.svelte";
+import MixCard from "#lib/components/mix/MixCard.svelte";
+import type { GenreMix } from "#lib/types/ui/library/genre/GenreMix";
+import type { LibraryStats } from "#lib/types/ui/library/stats/LibraryStats";
 
 const libraryId = $derived(Number(page.params.library_id));
 
 let genres = $state<GenreMix[]>([]);
 let hires = $state(0);
+let charge = $state(false);
 $effect(() => {
   const id = libraryId;
   let perime = false;
   genres = [];
   hires = 0;
-  invoke<GenreMix[]>("get_mix_genres", { libraryId: id }).then((g) => { if (!perime) genres = g; }).catch(() => {});
+  charge = false;
+  invoke<GenreMix[]>("get_mix_genres", { libraryId: id })
+    .then((g) => { if (!perime) genres = g; }).catch(() => {})
+    .finally(() => { if (!perime) charge = true; });
   invoke<LibraryStats>("get_library_stats", { libraryId: id }).then((s) => { if (!perime) hires = s.quality_hires ?? 0; }).catch(() => {});
   return () => { perime = true; };
 });
@@ -61,6 +65,16 @@ const grille = "grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap
   </div>
 {/snippet}
 
+{#snippet attente(n: number)}
+  {#each Array(n) as _, i (i)}
+    <div class="flex flex-col gap-3" aria-hidden="true">
+      <div class="aspect-square rounded-2xl bg-neutral-200 dark:bg-white/6 animate-pulse"></div>
+      <div class="h-3.5 w-4/5 rounded bg-neutral-200 dark:bg-white/6 animate-pulse"></div>
+      <div class="h-3 w-2/5 rounded bg-neutral-200 dark:bg-white/6 animate-pulse"></div>
+    </div>
+  {/each}
+{/snippet}
+
 {#snippet cartes(liste: SpecMix[], variante: "carre" | "decennie")}
   {#each liste as s (s.cle)}
     <MixCard {libraryId} cle={s.cle} source={s.source} type={s.type} nom={s.nom} aide={s.aide} h={s.h}
@@ -80,7 +94,12 @@ const grille = "grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap
 
     <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16">
       <div class="@container flex flex-col gap-12 pt-3">
-        {#if pourVous.length > 0}
+        {#if !charge}
+          <section>
+            {@render titre($t("home.for_you"), $t("home.for_you_desc"))}
+            <div class={grille}>{@render attente(4)}</div>
+          </section>
+        {:else if pourVous.length > 0}
           <section>
             {@render titre($t("home.for_you"), $t("home.for_you_desc"))}
             <div class={grille}>{@render cartes(pourVous, "carre")}</div>
@@ -106,10 +125,10 @@ const grille = "grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap
           </div>
         </section>
 
-        {#if parGenre.length > 0}
+        {#if !charge || parGenre.length > 0}
           <section>
             {@render titre($t("mix_view.by_genre"), $t("mix_view.by_genre_desc"))}
-            <div class={grille}>{@render cartes(parGenre, "carre")}</div>
+            <div class={grille}>{#if charge}{@render cartes(parGenre, "carre")}{:else}{@render attente(6)}{/if}</div>
           </section>
         {/if}
 

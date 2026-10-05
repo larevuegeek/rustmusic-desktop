@@ -1,4 +1,4 @@
-import type { AudioFile } from "$lib/types/db/audioFile/AudioFile";
+import type { AudioFile } from "#lib/types/db/audioFile/AudioFile";
 import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, resolve } from "@tauri-apps/api/path";
 

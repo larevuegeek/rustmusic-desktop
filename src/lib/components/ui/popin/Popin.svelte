@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import Icon from "@iconify/svelte";
   import { fade, scale } from "svelte/transition";
-  import { popinStore, type PopinSize } from "$lib/stores/ui/popin.store";
+  import { popinStore, type PopinSize } from "#lib/stores/ui/popin.store";
 
   // Un clic sur le fond ferme la popin — mais un clic « commencé » dans le
   // panneau ne doit PAS fermer. C'est le cas quand on sélectionne du texte et

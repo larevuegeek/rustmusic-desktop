@@ -1,7 +1,7 @@
 
-import type { LibraryCache } from "$lib/types/db/library/LibraryCache";
-import type { RecentFile } from "$lib/types/db/recent/RecentFile";
-import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView";
+import type { LibraryCache } from "#lib/types/db/library/LibraryCache";
+import type { RecentFile } from "#lib/types/db/recent/RecentFile";
+import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
 
 export function mapRecentFile(view: RecentFileListView): RecentFile {
   let library: LibraryCache | null = null;

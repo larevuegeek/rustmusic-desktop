@@ -1,9 +1,9 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import { portal } from "$lib/helper/portal";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
+  import { t } from "#lib/i18n";
+  import { portal } from "#lib/helper/portal";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
 
   /** Les options de la zone des playlists, sous le bouton « … ». */
   let { x, y, onclose }: { x: number; y: number; onclose: () => void } = $props();

@@ -1,4 +1,4 @@
-import { maxSampleRate, type AudioDeviceInfo, type WasapiDeviceCapabilities } from "$lib/stores/audio/audioDevices.store";
+import { maxSampleRate, type AudioDeviceInfo, type WasapiDeviceCapabilities } from "#lib/stores/audio/audioDevices.store";
 
 export type LibelleSortie = { nom: string; detail: string; icone: string };
 

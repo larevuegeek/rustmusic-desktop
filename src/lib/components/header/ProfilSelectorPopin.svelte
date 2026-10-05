@@ -1,13 +1,13 @@
 <script lang="ts">
-  import type { Profil } from "$lib/types/db/profil/Profil";
-  import { messageErreur } from "$lib/helper/tools/errorTools";
-  import { profilSelector } from "$lib/stores/profil/profil.store";
-  import { profilPopinStore } from "$lib/stores/profil/profilPopin.store";
-  import { libraryStore } from "$lib/stores/library/library.store";
-  import { queueState } from "$lib/stores/queue/queueState.store";
-  import { liked } from "$lib/stores/playlist/like.store";
+  import type { Profil } from "#lib/types/db/profil/Profil";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { profilSelector } from "#lib/stores/profil/profil.store";
+  import { profilPopinStore } from "#lib/stores/profil/profilPopin.store";
+  import { libraryStore } from "#lib/stores/library/library.store";
+  import { queueState } from "#lib/stores/queue/queueState.store";
+  import { liked } from "#lib/stores/playlist/like.store";
   import { Modal, Avatar, Badge } from "@karbonjs/ui-svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   const PALETTE = [
     '#22c55e',

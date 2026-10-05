@@ -1,13 +1,13 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
-import { lecture } from "$lib/stores/player/lecture.store";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { queuePanelOpened, closeQueuePanel } from "$lib/stores/queue/queueUi.store";
-import { formatTime } from "$lib/helper/tools/dateTools";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import { playerService } from "$lib/services/player/player.service";
-import NowPlayingCard from "$lib/components/player/NowPlayingCard.svelte";
-import { t, currentLocale } from "$lib/i18n";
+import { lecture } from "#lib/stores/player/lecture.store";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { queuePanelOpened, closeQueuePanel } from "#lib/stores/queue/queueUi.store";
+import { formatTime } from "#lib/helper/tools/dateTools";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import { playerService } from "#lib/services/player/player.service";
+import NowPlayingCard from "#lib/components/player/NowPlayingCard.svelte";
+import { t, currentLocale } from "#lib/i18n";
 
 function onKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") closeQueuePanel();

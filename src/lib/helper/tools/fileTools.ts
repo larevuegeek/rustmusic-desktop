@@ -1,8 +1,8 @@
 // Chemins de fichiers : copier dans le presse-papiers, montrer dans l'explorateur.
 import { get } from "svelte/store";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { t } from "$lib/i18n";
-import { toasts } from "$lib/stores/ui/toast.store";
+import { t } from "#lib/i18n";
+import { toasts } from "#lib/stores/ui/toast.store";
 
 export async function copierChemin(chemin: string, message = chemin) {
   try {

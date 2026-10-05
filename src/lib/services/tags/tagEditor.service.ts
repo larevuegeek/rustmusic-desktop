@@ -3,11 +3,11 @@
  * Miroir de `src-tauri/src/commands/tag_command.rs`.
  */
 
-import { dataCache } from "$lib/stores/cache/dataCache.store";
+import { dataCache } from "#lib/stores/cache/dataCache.store";
 import { invoke } from "@tauri-apps/api/core";
 import { get } from "svelte/store";
-import { currentLocale } from "$lib/i18n";
-import { tailleLisible } from "$lib/helper/tools/sizeTools";
+import { currentLocale } from "#lib/i18n";
+import { tailleLisible } from "#lib/helper/tools/sizeTools";
 
 /**
  * Ce qu'on envoie au backend.

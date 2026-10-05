@@ -2,10 +2,10 @@
   // Un morceau apparié : sa ligne (fichier → piste Deezer) et son détail dépliable.
   import Icon from "@iconify/svelte";
   import { slide } from "svelte/transition";
-  import { t } from "$lib/i18n";
-  import { valueOf } from "$lib/stores/tags/tagWorkshop.store";
-  import { formatBytes } from "$lib/services/tags/tagEditor.service";
-  import { formatDuration } from "$lib/services/tags/metadata.service";
+  import { t } from "#lib/i18n";
+  import { valueOf } from "#lib/stores/tags/tagWorkshop.store";
+  import { formatBytes } from "#lib/services/tags/tagEditor.service";
+  import { formatDuration } from "#lib/services/tags/metadata.service";
   import SourceCellRow from "./SourceCellRow.svelte";
   import {
     cellKey,

@@ -2,13 +2,13 @@
   import Icon from "@iconify/svelte";
   import { fade, scale } from "svelte/transition";
   import { invoke } from "@tauri-apps/api/core";
-  import { t, currentLocale } from "$lib/i18n";
-  import { portal } from "$lib/helper/portal";
+  import { t, currentLocale } from "#lib/i18n";
+  import { portal } from "#lib/helper/portal";
   import {
     formatSampleRate,
     type AudioDeviceInfo,
     type WasapiDeviceCapabilities,
-  } from "$lib/stores/audio/audioDevices.store";
+  } from "#lib/stores/audio/audioDevices.store";
   import { onMount } from "svelte";
 
   let {

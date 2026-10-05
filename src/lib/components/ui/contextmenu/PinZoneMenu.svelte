@@ -1,11 +1,11 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import { portal } from "$lib/helper/portal";
-  import { toasts } from "$lib/stores/ui/toast.store";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
-  import { pinsStore, isPinned, type PinKind } from "$lib/stores/library/pins.store";
+  import { t } from "#lib/i18n";
+  import { portal } from "#lib/helper/portal";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { pinsStore, isPinned, type PinKind } from "#lib/stores/library/pins.store";
 
   /** Les options d'une section d'épinglés, sous son « … ». */
   let { kind, libraryId, enCours, x, y, onclose }: {

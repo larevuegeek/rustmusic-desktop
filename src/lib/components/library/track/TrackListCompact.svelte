@@ -1,17 +1,17 @@
 <script lang="ts">
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
-import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
-import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
-import { liked } from "$lib/stores/playlist/like.store";
-import { selectionStore } from "$lib/stores/ui/selection.store";
-import SelectionCheck from "$lib/components/ui/selection/SelectionCheck.svelte";
-import { settingsStore } from "$lib/stores/settings/settings.store";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import { handleSelectTrack, handlePlayTrack } from "#lib/actions/player/PlayerAction";
+import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
+import { liked } from "#lib/stores/playlist/like.store";
+import { selectionStore } from "#lib/stores/ui/selection.store";
+import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
+import { settingsStore } from "#lib/stores/settings/settings.store";
 import Icon from "@iconify/svelte";
-import { t } from "$lib/i18n";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import StarRating from "$lib/components/ui/rating/StarRating.svelte";
-import { largeurDe, estFlexible, styleCellule, type TrackColumn } from "$lib/config/trackColumns";
+import { t } from "#lib/i18n";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import StarRating from "#lib/components/ui/rating/StarRating.svelte";
+import { largeurDe, estFlexible, styleCellule, type TrackColumn } from "#lib/config/trackColumns";
 
 // Les colonnes viennent de la page : la ligne n'a pas à relire les réglages.
 let { libraryId, track, tracks = [], columns = [], largeurs = {} }:

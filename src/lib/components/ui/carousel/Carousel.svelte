@@ -2,7 +2,7 @@
   // Rangée défilante sans barre : flèches aux bords et fondu tant qu'il reste à voir.
   import Icon from "@iconify/svelte";
   import type { Snippet } from "svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   let {
     children,

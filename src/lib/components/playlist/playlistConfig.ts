@@ -1,5 +1,5 @@
 import { get } from "svelte/store";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 
 export const PLAYLIST_COLORS = [
   '#8b5cf6',

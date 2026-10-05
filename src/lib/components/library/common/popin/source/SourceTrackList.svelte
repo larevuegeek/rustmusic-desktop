@@ -2,8 +2,8 @@
   // Colonne des morceaux : outils de sélection, portée de l'appariement, une ligne par morceau.
   import Icon from "@iconify/svelte";
   import { slide } from "svelte/transition";
-  import { t } from "$lib/i18n";
-  import { valueOf } from "$lib/stores/tags/tagWorkshop.store";
+  import { t } from "#lib/i18n";
+  import { valueOf } from "#lib/stores/tags/tagWorkshop.store";
   import SourceTrackRow from "./SourceTrackRow.svelte";
   import { shortName, type SourceSelection } from "./sourceSelection.svelte.js";
 

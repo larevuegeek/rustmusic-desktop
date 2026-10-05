@@ -4,19 +4,19 @@
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { messageErreur } from "$lib/helper/tools/errorTools";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { batchStore } from "$lib/stores/ui/batch.store";
-  import { t } from "$lib/i18n";
-  import TagField from "$lib/components/ui/input/TagField.svelte";
-  import PopinError from "$lib/components/ui/popin/PopinError.svelte";
-  import PopinFooter from "$lib/components/ui/popin/PopinFooter.svelte";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { batchStore } from "#lib/stores/ui/batch.store";
+  import { t } from "#lib/i18n";
+  import TagField from "#lib/components/ui/input/TagField.svelte";
+  import PopinError from "#lib/components/ui/popin/PopinError.svelte";
+  import PopinFooter from "#lib/components/ui/popin/PopinFooter.svelte";
   import TagEditorLayout from "./tags/TagEditorLayout.svelte";
   import TagSelectionColumn from "./tags/TagSelectionColumn.svelte";
   import TagFieldsForm from "./tags/TagFieldsForm.svelte";
   import TagChangesSummary from "./tags/TagChangesSummary.svelte";
   import UnsavedChangesBar from "./tags/UnsavedChangesBar.svelte";
-  import { writeTagsBatch, writeTagsEach } from "$lib/services/batch/batch.service";
+  import { writeTagsBatch, writeTagsEach } from "#lib/services/batch/batch.service";
   import {
     buildBatchEdit,
     mergeTags,
@@ -27,7 +27,7 @@
     type CommonValue,
     type PreparedImage,
     type TagEditPayload,
-  } from "$lib/services/tags/tagEditor.service";
+  } from "#lib/services/tags/tagEditor.service";
 
   /* eslint-disable svelte/valid-prop-names-in-kit-pages */
   const {

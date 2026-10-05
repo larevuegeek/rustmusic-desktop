@@ -1,11 +1,11 @@
 <script lang="ts">
   // Détail de la chaîne audio, du fichier au DAC, dans le style du menu Sortie.
-  import { volume } from "$lib/stores/player/volume.store";
+  import { volume } from "#lib/stores/player/volume.store";
   import Icon from "@iconify/svelte";
-  import { t, currentLocale } from "$lib/i18n";
-  import { pipelineMode, type PlaybackPipelineInfo } from "$lib/stores/player/playbackPipeline.store";
-  import { CHAINE, messageRepli, frequenceLisible } from "$lib/helper/audio/chaineAudio";
-  import { decrireSortie } from "$lib/helper/audio/deviceLabel";
+  import { t, currentLocale } from "#lib/i18n";
+  import { pipelineMode, type PlaybackPipelineInfo } from "#lib/stores/player/playbackPipeline.store";
+  import { CHAINE, messageRepli, frequenceLisible } from "#lib/helper/audio/chaineAudio";
+  import { decrireSortie } from "#lib/helper/audio/deviceLabel";
 
   let { info }: { info: PlaybackPipelineInfo } = $props();
 

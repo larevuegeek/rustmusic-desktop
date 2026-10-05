@@ -2,14 +2,14 @@
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-  import { queueState } from "$lib/stores/queue/queueState.store";
-  import { playerService } from "$lib/services/player/player.service";
-  import { toQueueTracks } from "$lib/helper/tools/queueTools";
-  import { toasts } from "$lib/stores/ui/toast.store";
-  import { portal } from "$lib/helper/portal";
-  import { pinsStore, isPinned, type PinKind } from "$lib/stores/library/pins.store";
+  import { t } from "#lib/i18n";
+  import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+  import { queueState } from "#lib/stores/queue/queueState.store";
+  import { playerService } from "#lib/services/player/player.service";
+  import { toQueueTracks } from "#lib/helper/tools/queueTools";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import { portal } from "#lib/helper/portal";
+  import { pinsStore, isPinned, type PinKind } from "#lib/stores/library/pins.store";
 
   /** Les actions d'un album ou d'un artiste : lire, ouvrir, épingler. */
   let { kind, id, title, libraryId, x, y, onclose }: {

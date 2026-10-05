@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { Playlist } from "$lib/types/db/playlist/Playlist";
+  import type { Playlist } from "#lib/types/db/playlist/Playlist";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { t, currentLocale } from "$lib/i18n";
-  import { sidebarStore } from "$lib/stores/ui/sidebar.store";
-  import PlaylistContextMenu from "$lib/components/ui/contextmenu/PlaylistContextMenu.svelte";
+  import { t, currentLocale } from "#lib/i18n";
+  import { sidebarStore } from "#lib/stores/ui/sidebar.store";
+  import PlaylistContextMenu from "#lib/components/ui/contextmenu/PlaylistContextMenu.svelte";
   import SidebarLigne from "./SidebarLigne.svelte";
   import SidebarVignette from "./SidebarVignette.svelte";
 

@@ -174,6 +174,12 @@ de se marcher dessus.
   sur l'ampli, et plus toujours en français.
 
 ### Fenêtre
+- **Plus d'écran blanc au lancement** : la fenêtre s'ouvre aussitôt sur un
+  écran de chargement aux couleurs du thème, qui s'efface en fondu quand
+  l'application est prête.
+- Une bibliothèque s'affiche dès qu'on y entre, sans page vide le temps de la
+  relire en base. La page Mix montre ses cartes en attente au lieu de sections
+  qui apparaissent l'une après l'autre.
 - **macOS : le bouton vert passe en plein écran**, comme dans les autres
   applications ; ⌥ + clic garde l'agrandissement. Le mini-lecteur sait en
   sortir et y revenir.
@@ -204,6 +210,8 @@ de se marcher dessus.
   été relues une à une.
 - Les réglages de la base (journal, cache) valent pour toutes ses connexions,
   et plus seulement pour la première.
+- Les imports internes passent de `$lib` à `#lib`, comme le veut SvelteKit 3 :
+  fin des avertissements au lancement.
 
 ## [0.2.7] - 2026-10-01
 

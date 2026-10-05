@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 </script>
 
 <div class="h-full overflow-y-auto scrollbar-app py-6 px-4 md:px-10">

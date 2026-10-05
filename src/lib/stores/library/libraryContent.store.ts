@@ -17,12 +17,12 @@
  *   3. Si pas de cache → on charge normalement (avec loader)
  */
 
-import { loadAlbums, loadArtists } from "$lib/services/library/library.service";
-import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
-import type { ArtistListView } from "$lib/types/ui/library/artist/ArtistListView";
+import { loadAlbums, loadArtists } from "#lib/services/library/library.service";
+import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
+import type { ArtistListView } from "#lib/types/ui/library/artist/ArtistListView";
 import { get, writable } from "svelte/store";
 import { libraryStore } from "./library.store";
-import { dataCache } from "$lib/stores/cache/dataCache.store";
+import { dataCache } from "#lib/stores/cache/dataCache.store";
 
 // ─── Types ───
 

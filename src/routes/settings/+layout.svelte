@@ -9,12 +9,12 @@
   import { page } from "$app/state";
   import { afterNavigate, goto } from "$app/navigation";
   import { fade } from "svelte/transition";
-  import { t } from "$lib/i18n";
-  import { settingsSections } from "$lib/config/settingsSections";
-  import { lireOnglets } from "$lib/config/libraryTabs";
-  import { settingsDefaults, settingsStore } from "$lib/stores/settings/settings.store";
-  import { rechercheReglages } from "$lib/stores/ui/settingsSearch.store";
-  import VersionCard from "$lib/components/settings/VersionCard.svelte";
+  import { t } from "#lib/i18n";
+  import { settingsSections } from "#lib/config/settingsSections";
+  import { lireOnglets } from "#lib/config/libraryTabs";
+  import { settingsDefaults, settingsStore } from "#lib/stores/settings/settings.store";
+  import { rechercheReglages } from "#lib/stores/ui/settingsSearch.store";
+  import VersionCard from "#lib/components/settings/VersionCard.svelte";
   import type { Snippet } from "svelte";
 
   let { children }: { children: Snippet } = $props();

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { settingsStore, type AppSettings } from "$lib/stores/settings/settings.store";
-  import { t } from "$lib/i18n";
-  import { detectOS } from "$lib/helper/tools/osDetection";
-  import OptionGroup from "$lib/components/ui/input/OptionGroup.svelte";
-  import OptionItem from "$lib/components/ui/input/OptionItem.svelte";
-  import SelectField from "$lib/components/ui/input/SelectField.svelte";
-  import ToggleSwitch from "$lib/components/ui/input/ToggleSwitch.svelte";
+  import { settingsStore, type AppSettings } from "#lib/stores/settings/settings.store";
+  import { t } from "#lib/i18n";
+  import { detectOS } from "#lib/helper/tools/osDetection";
+  import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
+  import OptionItem from "#lib/components/ui/input/OptionItem.svelte";
+  import SelectField from "#lib/components/ui/input/SelectField.svelte";
+  import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
 
   type Interrupteur = { cle: keyof AppSettings; titre: string; desc: string; motsCles?: string };
 

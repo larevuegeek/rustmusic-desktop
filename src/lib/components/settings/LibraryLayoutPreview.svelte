@@ -1,6 +1,6 @@
 <script lang="ts">
   // Schéma de la fenêtre : où apparaissent les sections de la bibliothèque (en vert).
-  import type { PlacementOnglets } from "$lib/config/libraryTabs";
+  import type { PlacementOnglets } from "#lib/config/libraryTabs";
 
   let { placement }: { placement: PlacementOnglets } = $props();
 

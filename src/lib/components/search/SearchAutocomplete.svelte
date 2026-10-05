@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { detectOS } from "$lib/helper/tools/osDetection";
+  import { detectOS } from "#lib/helper/tools/osDetection";
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+  import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
   import { goto } from "$app/navigation";
-  import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
-  import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
-  import { sidebarStore } from "$lib/stores/ui/sidebar.store";
-  import { t } from "$lib/i18n";
+  import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
+  import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+  import { sidebarStore } from "#lib/stores/ui/sidebar.store";
+  import { t } from "#lib/i18n";
 
   type SearchResult = {
     id: string;

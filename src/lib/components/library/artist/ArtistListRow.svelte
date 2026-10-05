@@ -1,15 +1,15 @@
 <script lang="ts">
 // Ligne d'artiste de la liste : portrait (lecture au survol), nom, albums, titres, durée, actions.
-import type { ArtistListView } from "$lib/types/ui/library/artist/ArtistListView";
+import type { ArtistListView } from "#lib/types/ui/library/artist/ArtistListView";
 import Icon from "@iconify/svelte";
-import { t } from "$lib/i18n";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import LibraryItemMenu from "$lib/components/ui/contextmenu/LibraryItemMenu.svelte";
-import { handleArtistAddToQueue, handleArtistPlay } from "$lib/actions/queue/QueueAction";
-import { artistImageReadyStore } from "$lib/stores/library/artistImageReady.store";
-import { selectionStore } from "$lib/stores/ui/selection.store";
-import { cleGroupe, toggleGroupSelection } from "$lib/helper/tools/selectionGroups";
-import { dureeEcoute } from "$lib/helper/tools/dateTools";
+import { t } from "#lib/i18n";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import LibraryItemMenu from "#lib/components/ui/contextmenu/LibraryItemMenu.svelte";
+import { handleArtistAddToQueue, handleArtistPlay } from "#lib/actions/queue/QueueAction";
+import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
+import { selectionStore } from "#lib/stores/ui/selection.store";
+import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+import { dureeEcoute } from "#lib/helper/tools/dateTools";
 
 let { libraryId, artist }: { libraryId: number; artist: ArtistListView } = $props();
 

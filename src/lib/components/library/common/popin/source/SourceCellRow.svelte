@@ -2,7 +2,7 @@
   // Une valeur dans le détail d'un morceau : ce qui diffère se coche, le reste se constate.
   // `absent` reste distinct de `same` : Deezer ne confirme pas ce qu'il ignore.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import type { Cell } from "./sourceSelection.svelte.js";
 
   const { cell, on, ontoggle }: { cell: Cell; on: boolean; ontoggle: () => void } = $props();

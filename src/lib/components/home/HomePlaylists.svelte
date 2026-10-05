@@ -1,11 +1,11 @@
 <script lang="ts">
 // Vos playlists sur l'accueil : les épinglées d'abord, puis les plus récentes.
-import { couverturesPlaylists } from "$lib/stores/playlist/couvertures.store";
-import { t, currentLocale } from "$lib/i18n";
-import { playlistStore } from "$lib/stores/playlist/playlist.store";
-import Carousel from "$lib/components/ui/carousel/Carousel.svelte";
-import PlaylistCard from "$lib/components/playlist/PlaylistCard.svelte";
-import type { Playlist } from "$lib/types/db/playlist/Playlist";
+import { couverturesPlaylists } from "#lib/stores/playlist/couvertures.store";
+import { t, currentLocale } from "#lib/i18n";
+import { playlistStore } from "#lib/stores/playlist/playlist.store";
+import Carousel from "#lib/components/ui/carousel/Carousel.svelte";
+import PlaylistCard from "#lib/components/playlist/PlaylistCard.svelte";
+import type { Playlist } from "#lib/types/db/playlist/Playlist";
 
 
 const MAX = 12;

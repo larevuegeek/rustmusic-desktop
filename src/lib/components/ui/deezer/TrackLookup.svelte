@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "$lib/helper/tools/errorTools";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
   // Recherche d'une piste sur Deezer, pour un seul fichier.
   //
   // # Ce que ce composant ne fait pas
@@ -12,14 +12,14 @@
   // album, puis quelle piste — quand le titre en suffit d'une.
   import Icon from "@iconify/svelte";
   import { untrack } from "svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import {
     formatDuration,
     searchTracks,
     trackValues,
     type TrackHit,
     type TrackValues,
-  } from "$lib/services/tags/metadata.service";
+  } from "#lib/services/tags/metadata.service";
 
   const {
     initialQuery = "",

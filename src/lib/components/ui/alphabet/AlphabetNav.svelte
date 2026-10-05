@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fly } from "svelte/transition";
-  import { alphabetNavVisible } from "$lib/stores/ui/alphabetNav.store";
+  import { alphabetNavVisible } from "#lib/stores/ui/alphabetNav.store";
 
   let {
     availableLetters = new Set<string>(),

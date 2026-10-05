@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { get } from "svelte/store";
-import { t, currentLocale } from "$lib/i18n";
-import { toasts } from "$lib/stores/ui/toast.store";
-import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import { tailleLisible } from "$lib/helper/tools/sizeTools";
+import { t, currentLocale } from "#lib/i18n";
+import { toasts } from "#lib/stores/ui/toast.store";
+import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+import { tailleLisible } from "#lib/helper/tools/sizeTools";
 
 type Bilan = { found: number; errors: number; cancelled: boolean };
 

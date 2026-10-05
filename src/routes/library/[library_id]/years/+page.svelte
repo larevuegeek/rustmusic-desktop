@@ -3,19 +3,19 @@
 import { page } from "$app/state";
 import { onDestroy } from "svelte";
 import Icon from "@iconify/svelte";
-import { t, currentLocale } from "$lib/i18n";
-import { libraryHeader } from "$lib/stores/library/libraryHeader";
-import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import { handlePeriodeMix, handleRandomMix } from "$lib/actions/queue/QueueAction";
-import { lireLocal, ecrireLocal } from "$lib/helper/tools/stockage";
-import LibraryImportingLoader from "$lib/components/library/common/loader/LibraryImportingLoader.svelte";
-import { importAffiche } from "$lib/stores/library/importProgress.store";
-import AlbumListItem from "$lib/components/library/album/AlbumListItem.svelte";
-import Carousel from "$lib/components/ui/carousel/Carousel.svelte";
-import MenuSelect from "$lib/components/ui/menu/MenuSelect.svelte";
-import YearChips from "$lib/components/ui/input/YearChips.svelte";
-import { estDatee, decennieDe, courtDecennie as court, teinteDecennie as teinteDe } from "$lib/helper/library/periode";
-import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
+import { t, currentLocale } from "#lib/i18n";
+import { libraryHeader } from "#lib/stores/library/libraryHeader";
+import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+import { handlePeriodeMix, handleRandomMix } from "#lib/actions/queue/QueueAction";
+import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+import LibraryImportingLoader from "#lib/components/library/common/loader/LibraryImportingLoader.svelte";
+import { importAffiche } from "#lib/stores/library/importProgress.store";
+import AlbumListItem from "#lib/components/library/album/AlbumListItem.svelte";
+import Carousel from "#lib/components/ui/carousel/Carousel.svelte";
+import MenuSelect from "#lib/components/ui/menu/MenuSelect.svelte";
+import YearChips from "#lib/components/ui/input/YearChips.svelte";
+import { estDatee, decennieDe, courtDecennie as court, teinteDecennie as teinteDe } from "#lib/helper/library/periode";
+import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
 
 const libraryId = $derived(Number(page.params.library_id));
 

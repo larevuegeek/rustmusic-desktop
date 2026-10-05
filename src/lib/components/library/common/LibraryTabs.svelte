@@ -2,9 +2,9 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import Icon from "@iconify/svelte";
-import { t } from "$lib/i18n";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import { sidebarStore } from "$lib/stores/ui/sidebar.store";
+import { t } from "#lib/i18n";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import { sidebarStore } from "#lib/stores/ui/sidebar.store";
 import {
   lienOnglet,
   lireOnglets,
@@ -12,7 +12,7 @@ import {
   ongletCourant,
   resoudreOnglets,
   type LibraryTabKey,
-} from "$lib/config/libraryTabs";
+} from "#lib/config/libraryTabs";
 
 // Accueil puis les sections cochées ; sans bibliothèque, Playlists seule (elle n'en dépend pas).
 let { libraryId }: { libraryId: number | null } = $props();

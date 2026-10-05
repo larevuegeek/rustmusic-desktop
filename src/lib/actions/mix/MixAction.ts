@@ -1,17 +1,17 @@
 import { get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
-import { profilSelector } from "$lib/stores/profil/profil.store";
-import { handleTracksPlay } from "$lib/actions/queue/QueueAction";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-import { t, currentLocale } from "$lib/i18n";
-import { popinStore } from "$lib/stores/ui/popin.store";
-import { playlistStore } from "$lib/stores/playlist/playlist.store";
-import { toasts } from "$lib/stores/ui/toast.store";
-import { renouveler } from "$lib/stores/mix/mix.store";
-import { PLAYLIST_COLORS } from "$lib/components/playlist/playlistConfig";
-import SmartPlaylistPopin from "$lib/components/playlist/smart/SmartPlaylistPopin.svelte";
-import type { ActionMix } from "$lib/components/mix/MixCard.svelte";
-import type { SpecMix } from "$lib/config/mixes";
+import { profilSelector } from "#lib/stores/profil/profil.store";
+import { handleTracksPlay } from "#lib/actions/queue/QueueAction";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import { t, currentLocale } from "#lib/i18n";
+import { popinStore } from "#lib/stores/ui/popin.store";
+import { playlistStore } from "#lib/stores/playlist/playlist.store";
+import { toasts } from "#lib/stores/ui/toast.store";
+import { renouveler } from "#lib/stores/mix/mix.store";
+import { PLAYLIST_COLORS } from "#lib/components/playlist/playlistConfig";
+import SmartPlaylistPopin from "#lib/components/playlist/smart/SmartPlaylistPopin.svelte";
+import type { ActionMix } from "#lib/components/mix/MixCard.svelte";
+import type { SpecMix } from "#lib/config/mixes";
 
 /** Le menu d'un mix : nouveau tirage, le garder ; et pour un mix créé, le modifier ou le supprimer. */
 export function actionsMix(spec: SpecMix, libraryId: number): ActionMix[] {

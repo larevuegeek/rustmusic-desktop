@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import Icon from "@iconify/svelte";
-  import { viewMode } from "$lib/stores/ui/viewMode.store";
-  import { alphabetNavVisible } from "$lib/stores/ui/alphabetNav.store";
+  import { viewMode } from "#lib/stores/ui/viewMode.store";
+  import { alphabetNavVisible } from "#lib/stores/ui/alphabetNav.store";
 
   let { showAlphabet = false }: { showAlphabet?: boolean } = $props();
 </script>

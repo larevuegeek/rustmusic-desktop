@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
+  import { t } from "#lib/i18n";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
   import {
     ONGLETS_BIBLIOTHEQUE,
     ORDRE_ONGLETS,
@@ -9,7 +9,7 @@
     lirePlacement,
     type LibraryTabKey,
     type PlacementOnglets,
-  } from "$lib/config/libraryTabs";
+  } from "#lib/config/libraryTabs";
 
   /** Où et quelles sections de la bibliothèque proposer. Partagé par deux menus de la barre. */
   const placement = $derived(lirePlacement($settingsStore.library_tabs_position));

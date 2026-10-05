@@ -1,9 +1,9 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { get } from "svelte/store";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 
-import { derniereVerification, updaterState } from "$lib/stores/updater/updater.store";
+import { derniereVerification, updaterState } from "#lib/stores/updater/updater.store";
 
 // ============================================================================
 // SERVICE D'AUTO-UPDATE

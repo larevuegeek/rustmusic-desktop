@@ -1,11 +1,11 @@
 // Appariement retenu et valeurs cochées, par fichier et par champ.
 import { untrack } from "svelte";
-import { messageErreur } from "$lib/helper/tools/errorTools";
-import { valueOf, type WorkshopFile } from "$lib/stores/tags/tagWorkshop.store";
+import { messageErreur } from "#lib/helper/tools/errorTools";
+import { valueOf, type WorkshopFile } from "#lib/stores/tags/tagWorkshop.store";
 import {
   prepareImageFromUrl,
   type DownloadedImage,
-} from "$lib/services/tags/tagEditor.service";
+} from "#lib/services/tags/tagEditor.service";
 import {
   proposedValues,
   SOURCE_FIELDS,
@@ -13,7 +13,7 @@ import {
   type MatchProposal,
   type SourceField,
   type TrackMatch,
-} from "$lib/services/tags/metadata.service";
+} from "#lib/services/tags/metadata.service";
 
 // La pochette se désigne comme un champ sans en être un (écrite via `ImagePlan::SetCover`).
 export const COVER = "cover";

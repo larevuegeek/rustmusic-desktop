@@ -1,6 +1,6 @@
 <script lang="ts">
   // Puces « Tout » + les dix années d'une décennie ; une année sans album est grisée.
-  import { t, currentLocale } from "$lib/i18n";
+  import { t, currentLocale } from "#lib/i18n";
 
   let {
     decennie,

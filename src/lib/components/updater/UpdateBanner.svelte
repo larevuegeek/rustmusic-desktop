@@ -1,12 +1,12 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { t, currentLocale } from "$lib/i18n";
-  import { tailleLisible } from "$lib/helper/tools/sizeTools";
-  import { updaterState } from "$lib/stores/updater/updater.store";
+  import { t, currentLocale } from "#lib/i18n";
+  import { tailleLisible } from "#lib/helper/tools/sizeTools";
+  import { updaterState } from "#lib/stores/updater/updater.store";
   import {
     downloadAndInstall,
     dismissUpdate,
-  } from "$lib/services/updater/updater.service";
+  } from "#lib/services/updater/updater.service";
 
   // ─── Composant Banner mise à jour ──────────────────────────────────────
   // Position : fixed bottom-right, au-dessus du player.

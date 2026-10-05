@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { messageErreur } from "$lib/helper/tools/errorTools";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { playlistStore } from "$lib/stores/playlist/playlist.store";
-  import { profilSelector } from "$lib/stores/profil/profil.store";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { playlistStore } from "#lib/stores/playlist/playlist.store";
+  import { profilSelector } from "#lib/stores/profil/profil.store";
   import { PLAYLIST_COLORS, PLAYLIST_ICONS } from "../playlistConfig";
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import type { Playlist } from "$lib/types/db/playlist/Playlist";
+  import { t } from "#lib/i18n";
+  import type { Playlist } from "#lib/types/db/playlist/Playlist";
 
   /** Appelé avec la playlist créée — sert à y verser aussitôt un morceau. */
   let { apresCreation }: { apresCreation?: (pl: Playlist) => void } = $props();

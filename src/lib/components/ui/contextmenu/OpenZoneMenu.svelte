@@ -1,9 +1,9 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import { portal } from "$lib/helper/portal";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
+  import { t } from "#lib/i18n";
+  import { portal } from "#lib/helper/portal";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
   import LibraryTabsOptions from "./LibraryTabsOptions.svelte";
 
   /** Sous le « … » de la rangée Fichier / Dossier : sections de la bibliothèque, puis la rangée elle-même. */

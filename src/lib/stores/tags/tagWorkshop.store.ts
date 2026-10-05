@@ -20,8 +20,8 @@
  */
 
 import { writable, get } from "svelte/store";
-import { readWorkshopTracks } from "$lib/services/tags/tagEditor.service";
-import type { TagEditItem } from "$lib/services/batch/batch.service";
+import { readWorkshopTracks } from "#lib/services/tags/tagEditor.service";
+import type { TagEditItem } from "#lib/services/batch/batch.service";
 
 /** Les champs que l'atelier sait travailler, dans l'ordre des colonnes. */
 export const WORKSHOP_FIELDS = [

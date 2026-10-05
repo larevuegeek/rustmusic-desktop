@@ -2,8 +2,8 @@
   // Compte rendu du lot ; l'annulation vit ici, seul moment où l'on sait ce qu'on vient de faire.
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
-  import { t } from "$lib/i18n";
-  import type { MoveOutcome } from "$lib/services/tags/rename.service";
+  import { t } from "#lib/i18n";
+  import type { MoveOutcome } from "#lib/services/tags/rename.service";
 
   const {
     outcome,

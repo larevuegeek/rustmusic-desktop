@@ -1,9 +1,9 @@
-import type { Playlist } from "$lib/types/db/playlist/Playlist";
-import { profilSelector } from "$lib/stores/profil/profil.store";
+import type { Playlist } from "#lib/types/db/playlist/Playlist";
+import { profilSelector } from "#lib/stores/profil/profil.store";
 import { writable, get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
-import { toasts } from "$lib/stores/ui/toast.store";
-import { t } from "$lib/i18n";
+import { toasts } from "#lib/stores/ui/toast.store";
+import { t } from "#lib/i18n";
 
 export type PlaylistState = {
   playlists: Playlist[],

@@ -8,7 +8,7 @@
  */
 
 import { get } from "svelte/store";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 
 export type FieldKind = "text" | "number" | "date" | "bool";
 

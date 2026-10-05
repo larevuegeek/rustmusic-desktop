@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { selectionStore } from "$lib/stores/ui/selection.store";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+import { selectionStore } from "#lib/stores/ui/selection.store";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
 /**
  * Cocher un album, un artiste, un genre ou un dossier.

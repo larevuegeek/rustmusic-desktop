@@ -1,14 +1,14 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import OptionGroup from "$lib/components/ui/input/OptionGroup.svelte";
-  import OptionItem from "$lib/components/ui/input/OptionItem.svelte";
-  import OptionBlock from "$lib/components/ui/input/OptionBlock.svelte";
-  import GhostButton from "$lib/components/ui/button/GhostButton.svelte";
-  import Badge from "$lib/components/ui/text/Badge.svelte";
-  import { derniereVerification, updaterState } from "$lib/stores/updater/updater.store";
-  import { checkForUpdate, downloadAndInstall } from "$lib/services/updater/updater.service";
-  import { libelleMiseAJour } from "$lib/helper/updater/updateStatus";
+  import { t } from "#lib/i18n";
+  import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
+  import OptionItem from "#lib/components/ui/input/OptionItem.svelte";
+  import OptionBlock from "#lib/components/ui/input/OptionBlock.svelte";
+  import GhostButton from "#lib/components/ui/button/GhostButton.svelte";
+  import Badge from "#lib/components/ui/text/Badge.svelte";
+  import { derniereVerification, updaterState } from "#lib/stores/updater/updater.store";
+  import { checkForUpdate, downloadAndInstall } from "#lib/services/updater/updater.service";
+  import { libelleMiseAJour } from "#lib/helper/updater/updateStatus";
 
   let licenceOuverte = $state(false);
 

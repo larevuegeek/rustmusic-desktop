@@ -1,7 +1,7 @@
 import { get, writable } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { profilSelector } from "../profil/profil.store";
-import type { TrackLikedView } from "$lib/types/ui/like/trackLikedView";
+import type { TrackLikedView } from "#lib/types/ui/like/trackLikedView";
 
 type LikedState = {
   paths: Set<string>;

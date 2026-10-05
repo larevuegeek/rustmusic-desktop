@@ -1,4 +1,4 @@
-import type { AppSettings } from "$lib/stores/settings/settings.store";
+import type { AppSettings } from "#lib/stores/settings/settings.store";
 
 export type SettingsSection = {
   id: string;

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { profilSelector } from "$lib/stores/profil/profil.store";
-  import { profilPopinStore } from "$lib/stores/profil/profilPopin.store";
+  import { profilSelector } from "#lib/stores/profil/profil.store";
+  import { profilPopinStore } from "#lib/stores/profil/profilPopin.store";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { goto } from "$app/navigation";
   import Icon from "@iconify/svelte";
   import { scale } from "svelte/transition";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   let isOpen = $state(false);
   let menuEl: HTMLElement | null = $state(null);

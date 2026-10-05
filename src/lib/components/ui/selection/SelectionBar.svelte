@@ -1,23 +1,23 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { selectionStore } from "$lib/stores/ui/selection.store";
-  import { toQueueTracks } from "$lib/helper/tools/queueTools";
-  import { queueState } from "$lib/stores/queue/queueState.store";
-  import { playerService } from "$lib/services/player/player.service";
-  import { playlistStore } from "$lib/stores/playlist/playlist.store";
-  import { playlistsRangees } from "$lib/stores/playlist/couvertures.store";
+  import { selectionStore } from "#lib/stores/ui/selection.store";
+  import { toQueueTracks } from "#lib/helper/tools/queueTools";
+  import { queueState } from "#lib/stores/queue/queueState.store";
+  import { playerService } from "#lib/services/player/player.service";
+  import { playlistStore } from "#lib/stores/playlist/playlist.store";
+  import { playlistsRangees } from "#lib/stores/playlist/couvertures.store";
   import { invoke } from "@tauri-apps/api/core";
-  import { toasts } from "$lib/stores/ui/toast.store";
-  import type { Playlist } from "$lib/types/db/playlist/Playlist";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import type { Playlist } from "#lib/types/db/playlist/Playlist";
   import { fade, fly } from "svelte/transition";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { batchStore } from "$lib/stores/ui/batch.store";
-  import { canWriteTags } from "$lib/services/tags/tagEditor.service";
-  import { t, currentLocale } from "$lib/i18n";
-  import EditTagsBatchPopin from "$lib/components/library/common/popin/EditTagsBatchPopin.svelte";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { batchStore } from "#lib/stores/ui/batch.store";
+  import { canWriteTags } from "#lib/services/tags/tagEditor.service";
+  import { t, currentLocale } from "#lib/i18n";
+  import EditTagsBatchPopin from "#lib/components/library/common/popin/EditTagsBatchPopin.svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { tagWorkshop } from "$lib/stores/tags/tagWorkshop.store";
+  import { tagWorkshop } from "#lib/stores/tags/tagWorkshop.store";
 
   let selection = $derived($selectionStore);
   let showPlaylistMenu = $state(false);

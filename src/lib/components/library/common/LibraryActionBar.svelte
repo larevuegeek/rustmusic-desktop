@@ -1,22 +1,22 @@
 <script lang="ts">
-import { recupererPochettes, recupererPortraits } from "$lib/actions/library/ImageAction";
+import { recupererPochettes, recupererPortraits } from "#lib/actions/library/ImageAction";
 // « Ajouter un dossier » et le menu « Gérer » : scan, dossiers, pochettes, import, suppression.
 import { goto } from "$app/navigation";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
-import { t, currentLocale } from "$lib/i18n";
-import { oublierLocalisations } from "$lib/helper/library/trackLocation";
-import { tailleLisible } from "$lib/helper/tools/sizeTools";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import { popinStore } from "$lib/stores/ui/popin.store";
-import { handleAddDirectory, handleAddFiles } from "$lib/actions/library/LibraryAction";
-import Dialog from "$lib/components/ui/dialog/Dialog.svelte";
-import Menu from "$lib/components/ui/menu/Menu.svelte";
-import LibraryFoldersPopin from "$lib/components/library/common/popin/LibraryFoldersPopin.svelte";
-import type { Library } from "$lib/types/db/library/Library";
-import type { LibraryDir } from "$lib/types/db/library/LibraryDir";
-import type { ActionEntete } from "$lib/stores/library/libraryHeader";
+import { t, currentLocale } from "#lib/i18n";
+import { oublierLocalisations } from "#lib/helper/library/trackLocation";
+import { tailleLisible } from "#lib/helper/tools/sizeTools";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+import { popinStore } from "#lib/stores/ui/popin.store";
+import { handleAddDirectory, handleAddFiles } from "#lib/actions/library/LibraryAction";
+import Dialog from "#lib/components/ui/dialog/Dialog.svelte";
+import Menu from "#lib/components/ui/menu/Menu.svelte";
+import LibraryFoldersPopin from "#lib/components/library/common/popin/LibraryFoldersPopin.svelte";
+import type { Library } from "#lib/types/db/library/Library";
+import type { LibraryDir } from "#lib/types/db/library/LibraryDir";
+import type { ActionEntete } from "#lib/stores/library/libraryHeader";
 
 let { library, dirs = [], onchange, action: principale = null }: {
   library: Library;

@@ -2,11 +2,11 @@
   // Récupération Deezer : recherche, puis comparaison avec la piste retenue.
   // Pleine largeur : la comparaison montre deux colonnes de valeurs et deux pochettes.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import TrackLookup from "$lib/components/ui/deezer/TrackLookup.svelte";
-  import TrackCompare from "$lib/components/ui/deezer/TrackCompare.svelte";
-  import type { TrackHit, TrackValues } from "$lib/services/tags/metadata.service";
-  import type { DownloadedImage, MediaSlot } from "$lib/services/tags/tagEditor.service";
+  import { t } from "#lib/i18n";
+  import TrackLookup from "#lib/components/ui/deezer/TrackLookup.svelte";
+  import TrackCompare from "#lib/components/ui/deezer/TrackCompare.svelte";
+  import type { TrackHit, TrackValues } from "#lib/services/tags/metadata.service";
+  import type { DownloadedImage, MediaSlot } from "#lib/services/tags/tagEditor.service";
 
   let {
     form,

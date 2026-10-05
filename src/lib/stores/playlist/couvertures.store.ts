@@ -2,8 +2,8 @@ import { derived, get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { playlistStore } from "./playlist.store";
 import { likedCount } from "./like.store";
-import { profilSelector } from "$lib/stores/profil/profil.store";
-import { recentCount } from "$lib/stores/recent/recent.store";
+import { profilSelector } from "#lib/stores/profil/profil.store";
+import { recentCount } from "#lib/stores/recent/recent.store";
 
 // Relu quand une playlist, les titres aimés ou les récents changent.
 const empreinte = derived([profilSelector, playlistStore, likedCount, recentCount], ([$p, $pl, $l, $r]) =>

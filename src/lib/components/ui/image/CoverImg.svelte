@@ -1,5 +1,5 @@
 <script lang="ts">
-import { resolveCoverSrc, type CoverSize } from "$lib/helper/tools/coverHelper";
+import { resolveCoverSrc, type CoverSize } from "#lib/helper/tools/coverHelper";
 import FadeImg from "./FadeImg.svelte";
 import type { HTMLImgAttributes } from "svelte/elements";
 

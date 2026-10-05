@@ -1,12 +1,12 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import Icon from "@iconify/svelte";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
-  import { toggleMiniPlayer } from "$lib/stores/ui/miniPlayer.store";
-  import { t } from "$lib/i18n";
-  import { detectOS } from "$lib/helper/tools/osDetection";
-  import LogoRustMusic from "$lib/components/ui/logo/LogoRustMusic.svelte";
-  import SidebarBouton from "$lib/components/sidebar/SidebarBouton.svelte";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { toggleMiniPlayer } from "#lib/stores/ui/miniPlayer.store";
+  import { t } from "#lib/i18n";
+  import { detectOS } from "#lib/helper/tools/osDetection";
+  import LogoRustMusic from "#lib/components/ui/logo/LogoRustMusic.svelte";
+  import SidebarBouton from "#lib/components/sidebar/SidebarBouton.svelte";
   import type { Snippet } from "svelte";
 
   /**

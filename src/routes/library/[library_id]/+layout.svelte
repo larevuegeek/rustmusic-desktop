@@ -1,23 +1,24 @@
 <script lang="ts">
 import { page } from "$app/state";
+import { untrack } from "svelte";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { fade } from "svelte/transition";
-import { profilSelector } from "$lib/stores/profil/profil.store";
-import type { Library } from "$lib/types/db/library/Library";
-import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import { loadLibrary } from "$lib/services/library/library.service";
-import LibraryErrorLoading from "$lib/components/library/common/error/LibraryErrorLoading.svelte";
+import { profilSelector } from "#lib/stores/profil/profil.store";
+import type { Library } from "#lib/types/db/library/Library";
+import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+import { loadLibrary } from "#lib/services/library/library.service";
+import LibraryErrorLoading from "#lib/components/library/common/error/LibraryErrorLoading.svelte";
 import Icon from "@iconify/svelte";
-import LibraryHeader from "$lib/components/library/common/LibraryHeader.svelte";
-import LibraryTabBar from "$lib/components/library/common/LibraryTabBar.svelte";
-import ImportAccueil from "$lib/components/library/common/ImportAccueil.svelte";
-import { importAffiche } from "$lib/stores/library/importProgress.store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import { lirePlacement, ongletCourant } from "$lib/config/libraryTabs";
+import LibraryHeader from "#lib/components/library/common/LibraryHeader.svelte";
+import LibraryTabBar from "#lib/components/library/common/LibraryTabBar.svelte";
+import ImportAccueil from "#lib/components/library/common/ImportAccueil.svelte";
+import { importAffiche } from "#lib/stores/library/importProgress.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import { lirePlacement, ongletCourant } from "#lib/config/libraryTabs";
 import { invoke } from "@tauri-apps/api/core";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { toasts } from "$lib/stores/ui/toast.store";
-import { t } from "$lib/i18n";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { toasts } from "#lib/stores/ui/toast.store";
+import { t } from "#lib/i18n";
 
 let library: Library | null = $state(null);
 // Clé de traduction, traduite à l'affichage.
@@ -32,7 +33,8 @@ let currentTag = 0;
 $effect(() => {
     const id = libraryId;
     const p = profil;
-    library = null;
+    // Déjà connue de la liste : on l'affiche tout de suite, la base confirme ensuite.
+    library = untrack(() => $libraryStore.libraries.find((l) => l.id === id)) ?? null;
     error = null;
 
     if (!p) { error = "system.no_profile_selected"; return; }

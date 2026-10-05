@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "$lib/helper/tools/errorTools";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
   // Règles de nettoyage.
   //
   // # Rien ne s'applique d'office
@@ -13,14 +13,14 @@
   // et le journal le rattrape si l'on s'est trompé.
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { t } from "$lib/i18n";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { t } from "#lib/i18n";
   import {
     tagWorkshop,
     WORKSHOP_FIELDS,
     type WorkshopField,
-  } from "$lib/stores/tags/tagWorkshop.store";
-  import { cleanTags, CLEAN_RULES, type CleanRule } from "$lib/services/tags/rename.service";
+  } from "#lib/stores/tags/tagWorkshop.store";
+  import { cleanTags, CLEAN_RULES, type CleanRule } from "#lib/services/tags/rename.service";
 
   /* eslint-disable svelte/valid-prop-names-in-kit-pages */
   const {} = $props();

@@ -1,7 +1,7 @@
-import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
-import { profilSelector } from "$lib/stores/profil/profil.store";
+import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
+import { profilSelector } from "#lib/stores/profil/profil.store";
 import { get } from "svelte/store";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 
 /**
  * Interface minimale qu'un objet track doit satisfaire

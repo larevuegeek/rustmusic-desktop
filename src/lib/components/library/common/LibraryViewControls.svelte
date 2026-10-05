@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 import { page } from "$app/state";
 import Icon from "@iconify/svelte";
-import ViewModeToggle from "$lib/components/ui/input/ViewModeToggle.svelte";
-import { selectionStore } from "$lib/stores/ui/selection.store";
+import ViewModeToggle from "#lib/components/ui/input/ViewModeToggle.svelte";
+import { selectionStore } from "#lib/stores/ui/selection.store";
 
 // Extraites de la barre d'onglets pour la suivre quand elle remonte dans
 // l'en-tête général : seules, elles y laissaient un bandeau vide.

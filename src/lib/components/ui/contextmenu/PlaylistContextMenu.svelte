@@ -2,18 +2,18 @@
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import type { Playlist } from "$lib/types/db/playlist/Playlist";
-  import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { playlistStore } from "$lib/stores/playlist/playlist.store";
-  import { queueState } from "$lib/stores/queue/queueState.store";
-  import { playerService } from "$lib/services/player/player.service";
-  import { toQueueTracks } from "$lib/helper/tools/queueTools";
-  import { toasts } from "$lib/stores/ui/toast.store";
-  import { portal } from "$lib/helper/portal";
-  import EditPlaylistPopin from "$lib/components/playlist/popin/EditPlaylistPopin.svelte";
-  import SmartPlaylistPopin from "$lib/components/playlist/smart/SmartPlaylistPopin.svelte";
+  import { t } from "#lib/i18n";
+  import type { Playlist } from "#lib/types/db/playlist/Playlist";
+  import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { playlistStore } from "#lib/stores/playlist/playlist.store";
+  import { queueState } from "#lib/stores/queue/queueState.store";
+  import { playerService } from "#lib/services/player/player.service";
+  import { toQueueTracks } from "#lib/helper/tools/queueTools";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import { portal } from "#lib/helper/portal";
+  import EditPlaylistPopin from "#lib/components/playlist/popin/EditPlaylistPopin.svelte";
+  import SmartPlaylistPopin from "#lib/components/playlist/smart/SmartPlaylistPopin.svelte";
 
   /** Les actions d'une playlist, au clic droit sur sa ligne. */
   let { x, y, playlist, onclose }: {

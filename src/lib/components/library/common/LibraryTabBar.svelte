@@ -1,5 +1,5 @@
 <script lang="ts">
-import LibraryViewControls from "$lib/components/library/common/LibraryViewControls.svelte";
+import LibraryViewControls from "#lib/components/library/common/LibraryViewControls.svelte";
 
 // Les sections vivent soit dans la barre latérale, soit dans l'en-tête général
 // — jamais ici. Ne reste que la rangée de commandes, posée en mode « à gauche »

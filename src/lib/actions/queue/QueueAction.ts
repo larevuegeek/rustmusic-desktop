@@ -1,14 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { toasts } from "$lib/stores/ui/toast.store";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { toasts } from "#lib/stores/ui/toast.store";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 import { get } from "svelte/store";
-import { loadTracksByAlbum } from "$lib/services/library/library.service";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { toQueueTracks } from "$lib/helper/tools/queueTools";
-import { playerService } from "$lib/services/player/player.service";
-import { echantillonAleatoire } from "$lib/helper/tools/randomTools";
-import { t, currentLocale } from "$lib/i18n";
+import { loadTracksByAlbum } from "#lib/services/library/library.service";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { toQueueTracks } from "#lib/helper/tools/queueTools";
+import { playerService } from "#lib/services/player/player.service";
+import { echantillonAleatoire } from "#lib/helper/tools/randomTools";
+import { t, currentLocale } from "#lib/i18n";
 
 /** Texte au singulier ou au pluriel, nombre au format de la langue. */
 function compte(n: number, one: string, many: string): string {

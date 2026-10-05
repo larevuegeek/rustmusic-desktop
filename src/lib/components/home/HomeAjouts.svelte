@@ -1,10 +1,10 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
 import { goto } from "$app/navigation";
-import { t } from "$lib/i18n";
-import { dateToYear } from "$lib/helper/tools/dateTools";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
+import { t } from "#lib/i18n";
+import { dateToYear } from "#lib/helper/tools/dateTools";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
 
 let { libraryId, albums }: { libraryId: number; albums: AlbumListView[] } = $props();
 

@@ -2,10 +2,10 @@
   // Sonde la sortie choisie en mode exclusif : fréquences acceptées, et DSD qu'elles permettent en DoP.
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { t } from "$lib/i18n";
-  import { formatSampleRate, type AudioDeviceInfo, type WasapiDeviceCapabilities } from "$lib/stores/audio/audioDevices.store";
-  import { decrireSortie } from "$lib/helper/audio/deviceLabel";
-  import GhostButton from "$lib/components/ui/button/GhostButton.svelte";
+  import { t } from "#lib/i18n";
+  import { formatSampleRate, type AudioDeviceInfo, type WasapiDeviceCapabilities } from "#lib/stores/audio/audioDevices.store";
+  import { decrireSortie } from "#lib/helper/audio/deviceLabel";
+  import GhostButton from "#lib/components/ui/button/GhostButton.svelte";
 
   let { device }: { device: AudioDeviceInfo | null } = $props();
 

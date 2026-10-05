@@ -1,6 +1,6 @@
 <script lang="ts">
-import { resolveBlurredCover, type CoverSize } from "$lib/helper/tools/coverHelper";
-import { settingsStore } from "$lib/stores/settings/settings.store";
+import { resolveBlurredCover, type CoverSize } from "#lib/helper/tools/coverHelper";
+import { settingsStore } from "#lib/stores/settings/settings.store";
 import CoverImg from "./CoverImg.svelte";
 import FadeImg from "./FadeImg.svelte";
 

@@ -1,5 +1,5 @@
-import type { AudioFile } from "$lib/types/db/audioFile/AudioFile";
-import type { LibraryCacheCreate } from "$lib/types/db/library/LibraryCache";
+import type { AudioFile } from "#lib/types/db/audioFile/AudioFile";
+import type { LibraryCacheCreate } from "#lib/types/db/library/LibraryCache";
 
 export function toLibraryCacheCreate(
   selectedPath: string,

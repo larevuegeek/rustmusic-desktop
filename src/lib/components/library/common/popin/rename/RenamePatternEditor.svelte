@@ -2,13 +2,13 @@
   // Le motif : mode, destination, saisie, champs et motifs prédéfinis.
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import {
     PATTERN_FIELDS,
     PRESETS,
     TREE_PRESETS,
     type LibraryDir,
-  } from "$lib/services/tags/rename.service";
+  } from "#lib/services/tags/rename.service";
 
   let {
     restructure = $bindable(),

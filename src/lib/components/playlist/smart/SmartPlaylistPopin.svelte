@@ -1,12 +1,12 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { t, currentLocale } from "$lib/i18n";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { playlistStore } from "$lib/stores/playlist/playlist.store";
-  import { profilSelector } from "$lib/stores/profil/profil.store";
-  import { libraryStore } from "$lib/stores/library/library.store";
-  import { oublier } from "$lib/stores/mix/mix.store";
+  import { t, currentLocale } from "#lib/i18n";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { playlistStore } from "#lib/stores/playlist/playlist.store";
+  import { profilSelector } from "#lib/stores/profil/profil.store";
+  import { libraryStore } from "#lib/stores/library/library.store";
+  import { oublier } from "#lib/stores/mix/mix.store";
   import { PLAYLIST_COLORS, PLAYLIST_ICONS } from "../playlistConfig";
   import RuleGroup from "./RuleGroup.svelte";
   import { PRESETS, type Preset } from "./presets";

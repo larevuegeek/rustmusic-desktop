@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "$lib/helper/tools/errorTools";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
   // Ce qu'il y a à corriger dans la bibliothèque.
   //
   // # Pourquoi c'est l'écran d'accueil de l'atelier
@@ -16,14 +16,14 @@
   // très bien. Les deux ne se valent pas et ne se rangent pas ensemble.
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import {
     auditLibrary,
     SEVERITY_ORDER,
     type AuditGroup,
     type AuditReport,
     type Severity,
-  } from "$lib/services/tags/audit.service";
+  } from "#lib/services/tags/audit.service";
 
   const {
     libraryId,

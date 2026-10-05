@@ -1,6 +1,6 @@
 <script lang="ts">
     import Icon from "@iconify/svelte";
-  import { toogleTheme } from "$lib/helper/theme/theme";
+  import { toogleTheme } from "#lib/helper/theme/theme";
 
   let isDarkTheme = $state(true);
 </script>

@@ -2,7 +2,7 @@
   // Barre de la colonne des champs : ce que Deezer vient de remplir, et l'accès à la recherche.
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   let {
     filled,

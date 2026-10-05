@@ -8,8 +8,8 @@
 
 import { writable, get } from "svelte/store";
 import { listen } from "@tauri-apps/api/event";
-import { dataCache } from "$lib/stores/cache/dataCache.store";
-import type { BatchProgress, BatchReport } from "$lib/services/batch/batch.service";
+import { dataCache } from "#lib/stores/cache/dataCache.store";
+import type { BatchProgress, BatchReport } from "#lib/services/batch/batch.service";
 
 export type BatchState = {
   jobId: string | null;

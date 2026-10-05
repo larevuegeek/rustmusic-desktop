@@ -1,12 +1,12 @@
 <script lang="ts">
   import { Dialog } from "@karbonjs/ui-svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { profilSelector } from "$lib/stores/profil/profil.store";
-  import { libraryStore } from "$lib/stores/library/library.store";
-  import { playlistStore } from "$lib/stores/playlist/playlist.store";
-  import { liked } from "$lib/stores/playlist/like.store";
+  import { profilSelector } from "#lib/stores/profil/profil.store";
+  import { libraryStore } from "#lib/stores/library/library.store";
+  import { playlistStore } from "#lib/stores/playlist/playlist.store";
+  import { liked } from "#lib/stores/playlist/like.store";
   import { goto } from "$app/navigation";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   let { open = $bindable(true) }: { open: boolean } = $props();
   let loading = $state(false);

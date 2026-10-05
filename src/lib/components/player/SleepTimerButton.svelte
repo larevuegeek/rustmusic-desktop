@@ -1,10 +1,10 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import {
     sleepTimer,
     formatSleepRemaining,
-  } from "$lib/stores/player/sleepTimer.store";
+  } from "#lib/stores/player/sleepTimer.store";
 
   let open = $state(false);
   let anchorEl: HTMLElement | null = $state(null);

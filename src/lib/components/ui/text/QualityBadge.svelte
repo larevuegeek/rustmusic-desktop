@@ -1,6 +1,6 @@
 <script lang="ts">
   // Badge de qualité en police mono : or Hi-Res, vert sans perte, neutre avec perte.
-  import type { PalierPiste } from "$lib/helper/tools/audioFormatTools";
+  import type { PalierPiste } from "#lib/helper/tools/audioFormatTools";
 
   let { palier, texte, mono = true, class: classes = "" }: { palier: PalierPiste; texte: string; mono?: boolean; class?: string } = $props();
 

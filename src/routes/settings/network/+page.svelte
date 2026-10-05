@@ -1,21 +1,21 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { t } from "$lib/i18n";
-  import OptionGroup from "$lib/components/ui/input/OptionGroup.svelte";
-  import OptionItem from "$lib/components/ui/input/OptionItem.svelte";
-  import OptionBlock from "$lib/components/ui/input/OptionBlock.svelte";
-  import TextField from "$lib/components/ui/input/TextField.svelte";
-  import ToggleSwitch from "$lib/components/ui/input/ToggleSwitch.svelte";
-  import GhostButton from "$lib/components/ui/button/GhostButton.svelte";
+  import { t } from "#lib/i18n";
+  import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
+  import OptionItem from "#lib/components/ui/input/OptionItem.svelte";
+  import OptionBlock from "#lib/components/ui/input/OptionBlock.svelte";
+  import TextField from "#lib/components/ui/input/TextField.svelte";
+  import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
+  import GhostButton from "#lib/components/ui/button/GhostButton.svelte";
   import {
     dlnaGetSettings,
     dlnaStart,
     dlnaStop,
     dlnaUpdateSettings,
     type DlnaSettings,
-  } from "$lib/services/dlna/dlna.service";
-  import { dlnaStatusStore, refreshDlnaStatus } from "$lib/stores/dlna/dlna.store";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
+  } from "#lib/services/dlna/dlna.service";
+  import { dlnaStatusStore, refreshDlnaStatus } from "#lib/stores/dlna/dlna.store";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
 
   let dlnaSettings = $state<DlnaSettings | null>(null);
   let dlnaToggling = $state(false);

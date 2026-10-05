@@ -1,11 +1,11 @@
 <script lang="ts">
   // Raccourcis en lecture seule : ceux que gèrent la fenêtre principale et les touches média.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
-  import { detectOS } from "$lib/helper/tools/osDetection";
-  import OptionGroup from "$lib/components/ui/input/OptionGroup.svelte";
-  import OptionItem from "$lib/components/ui/input/OptionItem.svelte";
+  import { t } from "#lib/i18n";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { detectOS } from "#lib/helper/tools/osDetection";
+  import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
+  import OptionItem from "#lib/components/ui/input/OptionItem.svelte";
 
   /** Une combinaison = une liste de touches ; plusieurs combinaisons = alternatives. */
   type Raccourci = { titre: string; desc?: string; combos: string[][]; motsCles?: string };

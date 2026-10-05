@@ -1,8 +1,8 @@
 <script lang="ts">
   // L'aperçu à blanc : nom actuel → nom après, une case par ligne modifiable.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import type { RenamePreview } from "$lib/services/tags/rename.service";
+  import { t } from "#lib/i18n";
+  import type { RenamePreview } from "#lib/services/tags/rename.service";
 
   const {
     empty,

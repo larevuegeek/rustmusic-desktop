@@ -1,8 +1,8 @@
 <script lang="ts">
   // Entre et sort du mode sélection ; icône seule, ou avec libellé.
-  import { t } from "$lib/i18n";
-  import { selectionStore } from "$lib/stores/ui/selection.store";
-  import ToolbarButton from "$lib/components/ui/button/ToolbarButton.svelte";
+  import { t } from "#lib/i18n";
+  import { selectionStore } from "#lib/stores/ui/selection.store";
+  import ToolbarButton from "#lib/components/ui/button/ToolbarButton.svelte";
 
   let { avecLibelle = false }: { avecLibelle?: boolean } = $props();
 </script>

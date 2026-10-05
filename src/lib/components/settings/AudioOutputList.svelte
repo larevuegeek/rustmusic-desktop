@@ -3,11 +3,11 @@
   import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { t } from "$lib/i18n";
-  import { audioDevicesStore, formatSampleRate, type AudioDeviceInfo } from "$lib/stores/audio/audioDevices.store";
-  import { capacitesSortie, decrireSortie, palierQualite, PALIERS } from "$lib/helper/audio/deviceLabel";
-  import { detectOS } from "$lib/helper/tools/osDetection";
-  import Badge from "$lib/components/ui/text/Badge.svelte";
+  import { t } from "#lib/i18n";
+  import { audioDevicesStore, formatSampleRate, type AudioDeviceInfo } from "#lib/stores/audio/audioDevices.store";
+  import { capacitesSortie, decrireSortie, palierQualite, PALIERS } from "#lib/helper/audio/deviceLabel";
+  import { detectOS } from "#lib/helper/tools/osDetection";
+  import Badge from "#lib/components/ui/text/Badge.svelte";
   import AudioDeviceDetailsModal from "./AudioDeviceDetailsModal.svelte";
 
   const os = detectOS();

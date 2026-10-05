@@ -1,8 +1,8 @@
 <script lang="ts">
   // Colonne de la source : recherche d'album, puis l'album retenu et ses raccourcis par champ.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import type { AlbumHit } from "$lib/services/tags/metadata.service";
+  import { t } from "#lib/i18n";
+  import type { AlbumHit } from "#lib/services/tags/metadata.service";
   import type { SourceSelection } from "./sourceSelection.svelte.js";
 
   let {

@@ -1,11 +1,11 @@
 import { goto } from "$app/navigation";
-import { choisirDossier, choisirFichiers, importerDossier, importerFichiers } from "$lib/services/library/library.service";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import { toasts } from "$lib/stores/ui/toast.store";
-import { importProgressStore } from "$lib/stores/library/importProgress.store";
+import { choisirDossier, choisirFichiers, importerDossier, importerFichiers } from "#lib/services/library/library.service";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+import { toasts } from "#lib/stores/ui/toast.store";
+import { importProgressStore } from "#lib/stores/library/importProgress.store";
 import { get } from "svelte/store";
-import { t, currentLocale } from "$lib/i18n";
+import { t, currentLocale } from "#lib/i18n";
 
 /** « 1 piste ajoutée » / « n pistes ajoutées », nombre au format de la langue. */
 function pistesAjoutees(n: number): string {

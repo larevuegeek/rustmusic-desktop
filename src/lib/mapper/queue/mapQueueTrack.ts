@@ -1,6 +1,6 @@
 import { get } from "svelte/store";
-import { profilSelector } from "$lib/stores/profil/profil.store";
-import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
+import { profilSelector } from "#lib/stores/profil/profil.store";
+import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
 
 /**
  * Ce qu'une liste sait déjà d'un morceau — assez pour le mettre en file sans

@@ -1,6 +1,6 @@
 import { readable } from "svelte/store";
 import { player } from "./player.store";
-import type { PlayerStatus } from "$lib/types/db/player/Player";
+import type { PlayerStatus } from "#lib/types/db/player/Player";
 
 export type Lecture = { path: string | null; status: PlayerStatus };
 

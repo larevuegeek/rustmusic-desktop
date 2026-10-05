@@ -7,7 +7,7 @@ import {
   applyFavoritesMode,
   type ThemeMode,
   type ContrastMode,
-} from "$lib/helper/theme/theme";
+} from "#lib/helper/theme/theme";
 
 export type AppSettings = {
   language: string;
@@ -47,10 +47,10 @@ export type AppSettings = {
   show_favorites: string;
   // 'sidebar' | 'top' | 'both' — où proposer les sections. 'both' d'origine.
   library_tabs_position: string;
-  // Sections retenues, en JSON. Voir `$lib/config/libraryTabs`.
+  // Sections retenues, en JSON. Voir `#lib/config/libraryTabs`.
   library_tabs: string;
   // Colonnes de l'onglet Morceaux, en JSON : un tableau de clés, dans l'ordre
-  // d'affichage. Voir `$lib/config/trackColumns`.
+  // d'affichage. Voir `#lib/config/trackColumns`.
   track_columns: string;
   // Largeurs réglées à la main, en JSON : clé de colonne → pixels. Les colonnes
   // absentes gardent leur largeur d'origine.
@@ -143,7 +143,7 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
   // Import dynamique pour éviter une dépendance circulaire au load.
   system_media_controls: async (_value: string) => {
     try {
-      const { mediaControlsService } = await import('$lib/services/mediaControls/mediaControls.service');
+      const { mediaControlsService } = await import('#lib/services/mediaControls/mediaControls.service');
       await mediaControlsService.sync();
     } catch (e) {
       console.error('[settings] Erreur sync SMTC:', e);

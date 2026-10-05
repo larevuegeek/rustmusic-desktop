@@ -1,9 +1,9 @@
-import { teinte } from "$lib/helper/tools/teinte";
-import { estDatee, decennieDe, courtDecennie, teinteDecennie } from "$lib/helper/library/periode";
-import type { SourceMix } from "$lib/stores/mix/mix.store";
-import type { GenreMix } from "$lib/types/ui/library/genre/GenreMix";
-import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
-import type { Playlist } from "$lib/types/db/playlist/Playlist";
+import { teinte } from "#lib/helper/tools/teinte";
+import { estDatee, decennieDe, courtDecennie, teinteDecennie } from "#lib/helper/library/periode";
+import type { SourceMix } from "#lib/stores/mix/mix.store";
+import type { GenreMix } from "#lib/types/ui/library/genre/GenreMix";
+import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
+import type { Playlist } from "#lib/types/db/playlist/Playlist";
 
 /** Un mix à afficher : ce qu'on tire, et comment on le présente. */
 export type SpecMix = {

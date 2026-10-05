@@ -1,17 +1,17 @@
 <script lang="ts">
 // Titre d'une page d'album en vue grille : numéro (lecture au survol), jaquette, titre, invités, durée, j'aime.
 import Icon from "@iconify/svelte";
-import { t } from "$lib/i18n";
-import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
-import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
-import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import { liked } from "$lib/stores/playlist/like.store";
-import { lecture } from "$lib/stores/player/lecture.store";
-import { selectionStore } from "$lib/stores/ui/selection.store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import { minutesSecondes } from "$lib/helper/tools/dateTools";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+import { t } from "#lib/i18n";
+import { handleSelectTrack, handlePlayTrack } from "#lib/actions/player/PlayerAction";
+import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import { liked } from "#lib/stores/playlist/like.store";
+import { lecture } from "#lib/stores/player/lecture.store";
+import { selectionStore } from "#lib/stores/ui/selection.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import { minutesSecondes } from "#lib/helper/tools/dateTools";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
 let {
     libraryId,

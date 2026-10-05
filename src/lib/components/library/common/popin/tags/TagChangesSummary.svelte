@@ -1,7 +1,7 @@
 <script lang="ts">
   // Bilan du pied de page : champs modifiés, image touchée, « tout rétablir » et la règle en info-bulle.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   let {
     dirty,

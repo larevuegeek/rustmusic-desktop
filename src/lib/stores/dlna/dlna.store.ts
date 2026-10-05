@@ -7,7 +7,7 @@ import { writable } from "svelte/store";
 import {
   dlnaGetStatus,
   type DlnaStatus,
-} from "$lib/services/dlna/dlna.service";
+} from "#lib/services/dlna/dlna.service";
 
 export const dlnaStatusStore = writable<DlnaStatus | null>(null);
 

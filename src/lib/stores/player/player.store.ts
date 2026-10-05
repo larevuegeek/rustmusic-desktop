@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import type { Player } from "$lib/types/db/player/Player";
+import type { Player } from "#lib/types/db/player/Player";
 import { queueState } from "../queue/queueState.store";
 
 const initial_state: Player =  {

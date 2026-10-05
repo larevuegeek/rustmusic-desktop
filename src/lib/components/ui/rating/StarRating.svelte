@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { dataCache } from "$lib/stores/cache/dataCache.store";
+  import { dataCache } from "#lib/stores/cache/dataCache.store";
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   /**
    * Notation en demi-étoiles.

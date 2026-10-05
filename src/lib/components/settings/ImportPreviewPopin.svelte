@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { t, currentLocale } from "$lib/i18n";
+  import { t, currentLocale } from "#lib/i18n";
 
   /**
    * Ce qu'un import ferait, montré avant qu'il ne le fasse.

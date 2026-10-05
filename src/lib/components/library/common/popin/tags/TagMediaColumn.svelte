@@ -2,12 +2,12 @@
   // Colonne des médias de l'éditeur d'un fichier : pochette, liste des images, identité du fichier.
   // Purement affichage : les gestes remontent au parent, qui possède la liste.
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import {
     formatBytes,
     PICTURE_TYPE_COVER,
     type MediaSlot,
-  } from "$lib/services/tags/tagEditor.service";
+  } from "#lib/services/tags/tagEditor.service";
 
   let {
     slots,

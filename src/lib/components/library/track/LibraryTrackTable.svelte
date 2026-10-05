@@ -2,12 +2,12 @@
   // Tableau de l'onglet Morceaux : les colonnes au choix et redimensionnables de `TrackTable`, habillées comme la maquette.
   import Icon from "@iconify/svelte";
   import type { Snippet } from "svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import LibraryTrackRow from "./LibraryTrackRow.svelte";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
-  import { selectionStore } from "$lib/stores/ui/selection.store";
-  import { largeurDe, largeurAjustee, libelleColonne, LARGEUR_MIN, LARGEUR_MAX, LARGEUR_MAX_SOUPLE, type SortDir, type TrackColumn } from "$lib/config/trackColumns";
-  import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { selectionStore } from "#lib/stores/ui/selection.store";
+  import { largeurDe, largeurAjustee, libelleColonne, LARGEUR_MIN, LARGEUR_MAX, LARGEUR_MAX_SOUPLE, type SortDir, type TrackColumn } from "#lib/config/trackColumns";
+  import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
   let {
     libraryId,

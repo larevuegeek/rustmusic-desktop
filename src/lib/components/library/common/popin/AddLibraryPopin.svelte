@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { messageErreur } from "$lib/helper/tools/errorTools";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { libraryStore } from "$lib/stores/library/library.store";
-  import { profilSelector } from "$lib/stores/profil/profil.store";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { libraryStore } from "#lib/stores/library/library.store";
+  import { profilSelector } from "#lib/stores/profil/profil.store";
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   let name = $state("");
   let description = $state("");

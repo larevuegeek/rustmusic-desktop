@@ -1,4 +1,4 @@
-import type { Profil } from "$lib/types/db/profil/Profil";
+import type { Profil } from "#lib/types/db/profil/Profil";
 import { invoke } from "@tauri-apps/api/core";
 import { get, writable } from "svelte/store";
 

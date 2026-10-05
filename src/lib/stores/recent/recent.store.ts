@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
-import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView";
+import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
 
 function createRecentStore() {
   const { subscribe, set, update } = writable<RecentFileListView[]>([]);

@@ -30,8 +30,8 @@
  * - Un Set<string> de "déjà en cours" pour ne pas lancer 2x le même fetch
  */
 
-import { dataCache } from "$lib/stores/cache/dataCache.store";
-import { loadAlbum, loadArtist, loadTracksByAlbum } from "$lib/services/library/library.service";
+import { dataCache } from "#lib/stores/cache/dataCache.store";
+import { loadAlbum, loadArtist, loadTracksByAlbum } from "#lib/services/library/library.service";
 
 /**
  * Set des clés en cours de preload.

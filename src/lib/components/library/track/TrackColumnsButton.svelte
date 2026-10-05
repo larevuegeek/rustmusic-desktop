@@ -1,10 +1,10 @@
 <script lang="ts">
   // Bouton « Colonnes » et sa popin : les colonnes et largeurs du tableau des titres (réglages partagés).
-  import { t } from "$lib/i18n";
-  import { settingsStore } from "$lib/stores/settings/settings.store";
-  import { clesAffichees } from "$lib/config/trackColumns";
-  import ToolbarButton from "$lib/components/ui/button/ToolbarButton.svelte";
-  import TrackColumnsPopin from "$lib/components/library/common/popin/TrackColumnsPopin.svelte";
+  import { t } from "#lib/i18n";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { clesAffichees } from "#lib/config/trackColumns";
+  import ToolbarButton from "#lib/components/ui/button/ToolbarButton.svelte";
+  import TrackColumnsPopin from "#lib/components/library/common/popin/TrackColumnsPopin.svelte";
 
   let { libraryId, avecLibelle = false }: { libraryId: number | null; avecLibelle?: boolean } = $props();
 

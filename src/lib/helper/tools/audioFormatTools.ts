@@ -4,7 +4,7 @@
  * stays consistent.
  */
 import { get } from "svelte/store";
-import { t, currentLocale } from "$lib/i18n";
+import { t, currentLocale } from "#lib/i18n";
 
 /** True when the audio format is one of the DSD container formats. */
 export function isDsdFormat(format: string | null | undefined): boolean {

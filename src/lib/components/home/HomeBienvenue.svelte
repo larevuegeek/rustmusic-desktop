@@ -1,11 +1,11 @@
 <script lang="ts">
 // Accueil sans bibliothèque.
 import Icon from "@iconify/svelte";
-import DisqueFiligrane from "$lib/components/ui/deco/DisqueFiligrane.svelte";
+import DisqueFiligrane from "#lib/components/ui/deco/DisqueFiligrane.svelte";
 import { goto } from "$app/navigation";
-import { t } from "$lib/i18n";
-import { handleClickOpenDirectory } from "$lib/actions/player/PlayerAction";
-import { ONGLETS_BIBLIOTHEQUE } from "$lib/config/libraryTabs";
+import { t } from "#lib/i18n";
+import { handleClickOpenDirectory } from "#lib/actions/player/PlayerAction";
+import { ONGLETS_BIBLIOTHEQUE } from "#lib/config/libraryTabs";
 
 const sections = ONGLETS_BIBLIOTHEQUE.filter((o) => o.key !== "playlists");
 

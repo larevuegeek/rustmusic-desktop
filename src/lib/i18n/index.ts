@@ -1,5 +1,5 @@
 import { derived } from "svelte/store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
 
 import fr from "./locales/fr.json";
 import en from "./locales/en.json";

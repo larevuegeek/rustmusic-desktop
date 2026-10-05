@@ -3,10 +3,10 @@
  * Partagée par le lecteur et le mini-lecteur ; ne se recalcule qu'au changement de pochette.
  */
 import { derived } from "svelte/store";
-import { player } from "$lib/stores/player/player.store";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { resolveCoverSrc } from "$lib/helper/tools/coverHelper";
-import { couleurPochette, type CouleurPochette } from "$lib/helper/tools/couleurPochette";
+import { player } from "#lib/stores/player/player.store";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { resolveCoverSrc } from "#lib/helper/tools/coverHelper";
+import { couleurPochette, type CouleurPochette } from "#lib/helper/tools/couleurPochette";
 
 // La vignette sur disque, sinon l'image du tag (data:) ; `null` sans morceau.
 const pochette = derived([player, queueState], ([$p, $q]) => {

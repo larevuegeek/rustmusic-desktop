@@ -1,16 +1,16 @@
 import { open } from '@tauri-apps/plugin-dialog';
-import { player } from "$lib/stores/player/player.store";
+import { player } from "#lib/stores/player/player.store";
 import { invoke } from "@tauri-apps/api/core";
 import { get } from "svelte/store";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import type { AudioFile } from "$lib/types/db/audioFile/AudioFile";
-import { thumbnail_getter } from "$lib/helper/tools/imgTools";
-import { toLibraryCacheCreate } from "$lib/mapper/library/mapLibraryCache";
-import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
-import { profilSelector } from "$lib/stores/profil/profil.store";
-import { toasts } from "$lib/stores/ui/toast.store";
-import { playerService } from '$lib/services/player/player.service';
-import { t, currentLocale } from "$lib/i18n";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import type { AudioFile } from "#lib/types/db/audioFile/AudioFile";
+import { thumbnail_getter } from "#lib/helper/tools/imgTools";
+import { toLibraryCacheCreate } from "#lib/mapper/library/mapLibraryCache";
+import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
+import { profilSelector } from "#lib/stores/profil/profil.store";
+import { toasts } from "#lib/stores/ui/toast.store";
+import { playerService } from '#lib/services/player/player.service';
+import { t, currentLocale } from "#lib/i18n";
 
 
 async function handleTrack(path: string, contexte?: QueueTrack[]): Promise<QueueTrack> {

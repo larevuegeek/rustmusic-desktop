@@ -7,10 +7,10 @@
  * pas rattrapable à la main — l'aperçu à blanc est ce qui permet d'oser.
  */
 
-import { dataCache } from "$lib/stores/cache/dataCache.store";
+import { dataCache } from "#lib/stores/cache/dataCache.store";
 import { invoke } from "@tauri-apps/api/core";
 import { get } from "svelte/store";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 
 /** Un motif prédéfini ; `label` est traduit à chaque lecture (clé `rename.preset_names.*`). */
 function modele(cle: string, pattern: string): { label: string; pattern: string } {

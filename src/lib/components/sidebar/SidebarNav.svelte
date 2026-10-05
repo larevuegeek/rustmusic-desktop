@@ -2,10 +2,10 @@
 import Icon from "@iconify/svelte";
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
-import { t } from "$lib/i18n";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import { sidebarStore } from "$lib/stores/ui/sidebar.store";
+import { t } from "#lib/i18n";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import { sidebarStore } from "#lib/stores/ui/sidebar.store";
 import {
   lireOnglets,
   lienOnglet,
@@ -13,7 +13,7 @@ import {
   memoriserOnglet,
   ongletCourant,
   resoudreOnglets,
-} from "$lib/config/libraryTabs";
+} from "#lib/config/libraryTabs";
 
 let { replie = false }: { replie?: boolean } = $props();
 

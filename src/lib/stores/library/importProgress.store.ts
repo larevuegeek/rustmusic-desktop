@@ -1,12 +1,12 @@
 import { writable, derived, get } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { dataCache } from "$lib/stores/cache/dataCache.store";
-import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { toasts } from "$lib/stores/ui/toast.store";
-import { t, currentLocale } from "$lib/i18n";
-import type { Library } from "$lib/types/db/library/Library";
+import { dataCache } from "#lib/stores/cache/dataCache.store";
+import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { toasts } from "#lib/stores/ui/toast.store";
+import { t, currentLocale } from "#lib/i18n";
+import type { Library } from "#lib/types/db/library/Library";
 
 export type ImportProgressState = {
   active: boolean;

@@ -1,11 +1,11 @@
 import { writable, get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import type { QueueTrack } from "../../types/db/queue/QueueTrack";
-import type { QueueState } from "$lib/types/db/queue/QueueState";
+import type { QueueState } from "#lib/types/db/queue/QueueState";
 import { profilSelector } from "../profil/profil.store";
 import { player } from "../player/player.store";
-import type { AudioFile } from "$lib/types/db/audioFile/AudioFile";
-import { ordonnerPourLecture } from "$lib/mapper/queue/mapQueueTrack";
+import type { AudioFile } from "#lib/types/db/audioFile/AudioFile";
+import { ordonnerPourLecture } from "#lib/mapper/queue/mapQueueTrack";
 
 // L'ID du profil par défaut (tu pourras le rendre dynamique plus tard)
 let currentProfilId = 1;

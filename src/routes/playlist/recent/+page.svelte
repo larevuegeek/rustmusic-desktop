@@ -1,23 +1,23 @@
 <script lang="ts">
-import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView";
-import { formatTime } from "$lib/helper/tools/dateTools";
-import { recent } from "$lib/stores/recent/recent.store";
+import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
+import { formatTime } from "#lib/helper/tools/dateTools";
+import { recent } from "#lib/stores/recent/recent.store";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
-import ViewModeToggle from "$lib/components/ui/input/ViewModeToggle.svelte";
-import TrackTable from "$lib/components/library/track/TrackTable.svelte";
-import { viewMode } from "$lib/stores/ui/viewMode.store";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { trierPistes, resetTagCache, type SortDir } from "$lib/config/trackColumns";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-import PageHeader from "$lib/components/ui/header/PageHeader.svelte";
-import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
-import { handleSelectTrack, handlePlayTrack } from "$lib/actions/player/PlayerAction";
-import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import { toasts } from "$lib/stores/ui/toast.store";
+import ViewModeToggle from "#lib/components/ui/input/ViewModeToggle.svelte";
+import TrackTable from "#lib/components/library/track/TrackTable.svelte";
+import { viewMode } from "#lib/stores/ui/viewMode.store";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { trierPistes, resetTagCache, type SortDir } from "#lib/config/trackColumns";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import PageHeader from "#lib/components/ui/header/PageHeader.svelte";
+import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
+import { handleSelectTrack, handlePlayTrack } from "#lib/actions/player/PlayerAction";
+import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import { toasts } from "#lib/stores/ui/toast.store";
 import { onMount } from "svelte";
-import { t } from "$lib/i18n";
+import { t } from "#lib/i18n";
 
 // Lu du store : l'abonnement se défait tout seul en quittant la page.
 const tracks = $derived($recent);

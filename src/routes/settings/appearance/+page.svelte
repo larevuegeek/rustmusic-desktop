@@ -1,20 +1,20 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
-  import { settingsStore, type AppSettings } from "$lib/stores/settings/settings.store";
-  import { t } from "$lib/i18n";
-  import { detectOS } from "$lib/helper/tools/osDetection";
-  import OptionGroup from "$lib/components/ui/input/OptionGroup.svelte";
-  import OptionItem from "$lib/components/ui/input/OptionItem.svelte";
-  import OptionBlock from "$lib/components/ui/input/OptionBlock.svelte";
-  import ChoiceCard from "$lib/components/ui/input/ChoiceCard.svelte";
-  import SegmentedControl from "$lib/components/ui/input/SegmentedControl.svelte";
-  import TogglePill from "$lib/components/ui/input/TogglePill.svelte";
-  import ToggleSwitch from "$lib/components/ui/input/ToggleSwitch.svelte";
-  import ThemePreview from "$lib/components/settings/ThemePreview.svelte";
-  import SidebarPreview from "$lib/components/settings/SidebarPreview.svelte";
-  import LibraryLayoutPreview from "$lib/components/settings/LibraryLayoutPreview.svelte";
-  import WindowControlsPreview from "$lib/components/settings/WindowControlsPreview.svelte";
+  import { settingsStore, type AppSettings } from "#lib/stores/settings/settings.store";
+  import { t } from "#lib/i18n";
+  import { detectOS } from "#lib/helper/tools/osDetection";
+  import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
+  import OptionItem from "#lib/components/ui/input/OptionItem.svelte";
+  import OptionBlock from "#lib/components/ui/input/OptionBlock.svelte";
+  import ChoiceCard from "#lib/components/ui/input/ChoiceCard.svelte";
+  import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
+  import TogglePill from "#lib/components/ui/input/TogglePill.svelte";
+  import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
+  import ThemePreview from "#lib/components/settings/ThemePreview.svelte";
+  import SidebarPreview from "#lib/components/settings/SidebarPreview.svelte";
+  import LibraryLayoutPreview from "#lib/components/settings/LibraryLayoutPreview.svelte";
+  import WindowControlsPreview from "#lib/components/settings/WindowControlsPreview.svelte";
   import {
     ONGLETS_BIBLIOTHEQUE,
     ORDRE_ONGLETS,
@@ -22,7 +22,7 @@
     lirePlacement,
     type LibraryTabKey,
     type PlacementOnglets,
-  } from "$lib/config/libraryTabs";
+  } from "#lib/config/libraryTabs";
   import {
     getRenderMode,
     setRenderMode,
@@ -30,7 +30,7 @@
     type RenderModeStatus,
     type RenderMode,
     type DmabufMode,
-  } from "$lib/services/system/renderMode.service";
+  } from "#lib/services/system/renderMode.service";
 
   // `!== 'false'` : sans réglage en base, le défaut est « visible ».
   const visible = (cle: keyof AppSettings) => $settingsStore[cle] !== "false";

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   // Barre de progression du lecteur : rail fin qui s'épaissit au survol, remplissage à la couleur du morceau.
   let { position = 0, onseek }: { position?: number; onseek?: (percent: number) => void } = $props();
 

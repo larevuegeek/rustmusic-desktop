@@ -3,15 +3,15 @@
   import Icon from "@iconify/svelte";
   import { tick } from "svelte";
   import { page } from "$app/state";
-  import { t } from "$lib/i18n";
-  import OptionGroup from "$lib/components/ui/input/OptionGroup.svelte";
-  import OptionBlock from "$lib/components/ui/input/OptionBlock.svelte";
-  import SegmentedControl from "$lib/components/ui/input/SegmentedControl.svelte";
-  import TexteAide from "$lib/components/ui/aide/TexteAide.svelte";
-  import { TERMES } from "$lib/config/glossaire";
-  import { CHAINE } from "$lib/helper/audio/chaineAudio";
-  import { texteBrut } from "$lib/helper/tools/texteAide";
-  import type { PipelineMode } from "$lib/stores/player/playbackPipeline.store";
+  import { t } from "#lib/i18n";
+  import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
+  import OptionBlock from "#lib/components/ui/input/OptionBlock.svelte";
+  import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
+  import TexteAide from "#lib/components/ui/aide/TexteAide.svelte";
+  import { TERMES } from "#lib/config/glossaire";
+  import { CHAINE } from "#lib/helper/audio/chaineAudio";
+  import { texteBrut } from "#lib/helper/tools/texteAide";
+  import type { PipelineMode } from "#lib/stores/player/playbackPipeline.store";
 
   // `h` : teinte de la tuile (oklch).
   const ETAPES = [

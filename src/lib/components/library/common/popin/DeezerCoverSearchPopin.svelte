@@ -2,10 +2,10 @@
   import { onMount } from "svelte";
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { toasts } from "$lib/stores/ui/toast.store";
-  import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
   import { fade, scale } from "svelte/transition";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   type DeezerCoverResult = {
     title: string;

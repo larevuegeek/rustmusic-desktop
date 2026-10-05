@@ -1,11 +1,11 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import Title from "$lib/components/ui/text/Title.svelte";
+import Title from "#lib/components/ui/text/Title.svelte";
 import Icon from "@iconify/svelte";
-import { libraryStore } from "$lib/stores/library/library.store";
-import { popinStore } from "$lib/stores/ui/popin.store";
-import AddLibraryPopin from "$lib/components/library/common/popin/AddLibraryPopin.svelte";
-import { t, currentLocale } from "$lib/i18n";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { popinStore } from "#lib/stores/ui/popin.store";
+import AddLibraryPopin from "#lib/components/library/common/popin/AddLibraryPopin.svelte";
+import { t, currentLocale } from "#lib/i18n";
 </script>
 
 <div class="p-10 flex flex-col gap-8">

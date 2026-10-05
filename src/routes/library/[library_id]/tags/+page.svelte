@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "$lib/helper/tools/errorTools";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
   // Atelier de tags.
   //
   // # Pourquoi une page et pas une popin
@@ -17,15 +17,15 @@
   import Icon from "@iconify/svelte";
   import { page } from "$app/state";
   import { goto, beforeNavigate } from "$app/navigation";
-  import { t } from "$lib/i18n";
-  import TagGrid from "$lib/components/library/tags/TagGrid.svelte";
-  import TagPanelView from "$lib/components/library/tags/TagPanelView.svelte";
-  import TagAuditView from "$lib/components/library/tags/TagAuditView.svelte";
-  import TagSourcePopin from "$lib/components/library/common/popin/TagSourcePopin.svelte";
-  import RenamePopin from "$lib/components/library/common/popin/RenamePopin.svelte";
-  import BatchHistoryPopin from "$lib/components/library/common/popin/BatchHistoryPopin.svelte";
-  import CleanTagsPopin from "$lib/components/library/common/popin/CleanTagsPopin.svelte";
-  import { popinStore } from "$lib/stores/ui/popin.store";
+  import { t } from "#lib/i18n";
+  import TagGrid from "#lib/components/library/tags/TagGrid.svelte";
+  import TagPanelView from "#lib/components/library/tags/TagPanelView.svelte";
+  import TagAuditView from "#lib/components/library/tags/TagAuditView.svelte";
+  import TagSourcePopin from "#lib/components/library/common/popin/TagSourcePopin.svelte";
+  import RenamePopin from "#lib/components/library/common/popin/RenamePopin.svelte";
+  import BatchHistoryPopin from "#lib/components/library/common/popin/BatchHistoryPopin.svelte";
+  import CleanTagsPopin from "#lib/components/library/common/popin/CleanTagsPopin.svelte";
+  import { popinStore } from "#lib/stores/ui/popin.store";
   import {
     tagWorkshop,
     fileIsDirty,
@@ -33,14 +33,14 @@
     DEFAULT_COLUMNS,
     WORKSHOP_FIELDS,
     type WorkshopField,
-  } from "$lib/stores/tags/tagWorkshop.store";
-  import { batchStore } from "$lib/stores/ui/batch.store";
-  import { writeTagsEach } from "$lib/services/batch/batch.service";
-  import { loadTracksByAlbum } from "$lib/services/library/library.service";
-  import { libraryContentStore } from "$lib/stores/library/libraryContent.store";
-  import type { AuditGroup } from "$lib/services/tags/audit.service";
-  import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
-  import { prepareImage } from "$lib/services/tags/tagEditor.service";
+  } from "#lib/stores/tags/tagWorkshop.store";
+  import { batchStore } from "#lib/stores/ui/batch.store";
+  import { writeTagsEach } from "#lib/services/batch/batch.service";
+  import { loadTracksByAlbum } from "#lib/services/library/library.service";
+  import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+  import type { AuditGroup } from "#lib/services/tags/audit.service";
+  import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+  import { prepareImage } from "#lib/services/tags/tagEditor.service";
   import { open } from "@tauri-apps/plugin-dialog";
 
   let workshop = $derived($tagWorkshop);

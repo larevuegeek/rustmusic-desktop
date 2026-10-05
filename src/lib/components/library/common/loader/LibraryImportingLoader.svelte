@@ -1,10 +1,10 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { importProgressStore } from "$lib/stores/library/importProgress.store";
-  import { t, currentLocale } from "$lib/i18n";
-  import { minutesSecondes } from "$lib/helper/tools/dateTools";
+  import { importProgressStore } from "#lib/stores/library/importProgress.store";
+  import { t, currentLocale } from "#lib/i18n";
+  import { minutesSecondes } from "#lib/helper/tools/dateTools";
   import { page } from "$app/state";
-  import LibraryFoldersPopin from "$lib/components/library/common/popin/LibraryFoldersPopin.svelte";
+  import LibraryFoldersPopin from "#lib/components/library/common/popin/LibraryFoldersPopin.svelte";
 
   let percent = $derived($importProgressStore.percent);
   let current = $derived($importProgressStore.current);

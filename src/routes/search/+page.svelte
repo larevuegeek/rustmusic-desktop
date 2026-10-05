@@ -1,13 +1,13 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { t, currentLocale } from "$lib/i18n";
+  import { t, currentLocale } from "#lib/i18n";
   import { page } from "$app/state";
   import { invoke } from "@tauri-apps/api/core";
-  import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+  import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
   import { goto } from "$app/navigation";
-  import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
-  import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
-  import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
+  import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
+  import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+  import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
 
   type SearchResult = {
     id: string;

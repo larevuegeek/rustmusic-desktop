@@ -1,54 +1,53 @@
 <script lang="ts">
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 import "../app.css";
-import "$lib/icons/preload";
-import Sidebar from "$lib/components/sidebar/Sidebar.svelte";
-import SwitchTheme from "$lib/components/ui/input/SwitchTheme.svelte";
-import Player from "$lib/components/player/Player.svelte";
-import QueuePanel from "$lib/components/queue/QueuePanel.svelte";
+import "#lib/icons/preload";
+import Sidebar from "#lib/components/sidebar/Sidebar.svelte";
+import SwitchTheme from "#lib/components/ui/input/SwitchTheme.svelte";
+import Player from "#lib/components/player/Player.svelte";
+import QueuePanel from "#lib/components/queue/QueuePanel.svelte";
 import Icon from "@iconify/svelte";
-import SearchAutocomplete from "$lib/components/search/SearchAutocomplete.svelte";
-import Toast from "$lib/components/ui/toast/Toast.svelte";
-import UpdateBanner from "$lib/components/updater/UpdateBanner.svelte";
+import SearchAutocomplete from "#lib/components/search/SearchAutocomplete.svelte";
+import Toast from "#lib/components/ui/toast/Toast.svelte";
+import UpdateBanner from "#lib/components/updater/UpdateBanner.svelte";
 import { onMount } from "svelte";
 import { get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
-import { profilSelector } from "$lib/stores/profil/profil.store";
-import { player } from "$lib/stores/player/player.store";
-import ProfilSelectorInput from "$lib/components/header/ProfilSelectorInput.svelte"
-import ProfilSelectorPopin from "$lib/components/header/ProfilSelectorPopin.svelte";
-import Titlebar from "$lib/components/ui/titlebar/Titlebar.svelte";
-import Popin from "$lib/components/ui/popin/Popin.svelte";
-import { libraryStore } from "$lib/stores/library/library.store";
-import LoaderApp from "$lib/components/ui/loader/LoaderApp.svelte";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { playerService } from "$lib/services/player/player.service";
-import { importProgressStore } from "$lib/stores/library/importProgress.store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import { sidebarStore } from "$lib/stores/ui/sidebar.store";
-import LibraryTabs from "$lib/components/library/common/LibraryTabs.svelte";
-import LibraryViewControls from "$lib/components/library/common/LibraryViewControls.svelte";
-import { lirePlacement } from "$lib/config/libraryTabs";
-import { taskProgressStore } from "$lib/stores/ui/taskProgress.store";
-import { artistImageReadyStore } from "$lib/stores/library/artistImageReady.store";
-import { refreshDlnaStatus } from "$lib/stores/dlna/dlna.store";
-import { initPlaybackPipelineListener } from "$lib/stores/player/playbackPipeline.store";
-import { initBatchListeners } from "$lib/stores/ui/batch.store";
-import BatchPanel from "$lib/components/ui/batch/BatchPanel.svelte";
-import { trackNotificationService } from "$lib/services/notification/trackNotification.service";
-import { mediaControlsService } from "$lib/services/mediaControls/mediaControls.service";
+import { profilSelector } from "#lib/stores/profil/profil.store";
+import { player } from "#lib/stores/player/player.store";
+import ProfilSelectorInput from "#lib/components/header/ProfilSelectorInput.svelte"
+import ProfilSelectorPopin from "#lib/components/header/ProfilSelectorPopin.svelte";
+import Titlebar from "#lib/components/ui/titlebar/Titlebar.svelte";
+import Popin from "#lib/components/ui/popin/Popin.svelte";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { playerService } from "#lib/services/player/player.service";
+import { importProgressStore } from "#lib/stores/library/importProgress.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import { sidebarStore } from "#lib/stores/ui/sidebar.store";
+import LibraryTabs from "#lib/components/library/common/LibraryTabs.svelte";
+import LibraryViewControls from "#lib/components/library/common/LibraryViewControls.svelte";
+import { lirePlacement } from "#lib/config/libraryTabs";
+import { taskProgressStore } from "#lib/stores/ui/taskProgress.store";
+import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
+import { refreshDlnaStatus } from "#lib/stores/dlna/dlna.store";
+import { initPlaybackPipelineListener } from "#lib/stores/player/playbackPipeline.store";
+import { initBatchListeners } from "#lib/stores/ui/batch.store";
+import BatchPanel from "#lib/components/ui/batch/BatchPanel.svelte";
+import { trackNotificationService } from "#lib/services/notification/trackNotification.service";
+import { mediaControlsService } from "#lib/services/mediaControls/mediaControls.service";
 import { onDestroy } from "svelte";
 import { page } from "$app/state";
-import SelectionBar from "$lib/components/ui/selection/SelectionBar.svelte";
-import MiniPlayer from "$lib/components/player/MiniPlayer.svelte";
-import { miniPlayerActive, assurerTailleNormale } from "$lib/stores/ui/miniPlayer.store";
-import SleepTimerButton from "$lib/components/player/SleepTimerButton.svelte";
+import SelectionBar from "#lib/components/ui/selection/SelectionBar.svelte";
+import MiniPlayer from "#lib/components/player/MiniPlayer.svelte";
+import { miniPlayerActive, assurerTailleNormale } from "#lib/stores/ui/miniPlayer.store";
+import SleepTimerButton from "#lib/components/player/SleepTimerButton.svelte";
 import { fade } from "svelte/transition";
-import { ouvrirLiensExternes } from "$lib/helper/tools/liensExternes";
-import { lecture } from "$lib/stores/player/lecture.store";
+import { ouvrirLiensExternes } from "#lib/helper/tools/liensExternes";
+import { lecture } from "#lib/stores/player/lecture.store";
 import { listen } from "@tauri-apps/api/event";
-import { empecherSurlignageMaj } from "$lib/helper/tools/surlignageMaj";
-import { volume, chargerVolume, reglerVolume } from "$lib/stores/player/volume.store";
+import { empecherSurlignageMaj } from "#lib/helper/tools/surlignageMaj";
+import { volume, chargerVolume, reglerVolume } from "#lib/stores/player/volume.store";
 
 // Affichage du bouton sleep timer dans le header (désactivable dans les réglages).
 let showSleepTimer = $derived($settingsStore.show_sleep_timer !== 'false');
@@ -70,6 +69,15 @@ const dansLaBibliotheque = $derived(page.url.pathname.startsWith('/library/'));
 // Les réglages gèrent eux-mêmes le fondu entre sections : leur navigation reste en place.
 // Dans une bibliothèque, son layout reste monté : le fondu des pages se fait dans ce layout.
 const cleTransition = $derived(isFullPageRoute ? '/settings' : dansLaBibliotheque ? `/library/${page.params.library_id}` : page.url.pathname);
+
+// L'écran de chargement d'app.html s'efface en fondu une fois le profil prêt.
+$effect(() => {
+  if (!$profilSelector.initialized) return;
+  const ecran = document.getElementById("demarrage");
+  if (!ecran) return;
+  ecran.classList.add("fini");
+  setTimeout(() => ecran.remove(), 250);
+});
 
 onMount(ouvrirLiensExternes);
 onMount(() => void chargerVolume());
@@ -161,7 +169,7 @@ onMount(async () => {
   // Auto-update : vérifie en silence 5s après le démarrage (anti cold-start
   // slow). Si une update est dispo, le store updaterState passe en
   // "available" et UpdateBanner s'affiche en bas à droite.
-  const { initUpdaterAutoCheck } = await import('$lib/services/updater/updater.service');
+  const { initUpdaterAutoCheck } = await import('#lib/services/updater/updater.service');
   initUpdaterAutoCheck(5000);
 });
 
@@ -228,7 +236,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 
 {#if !$profilSelector.initialized}
-  <LoaderApp />
+  <!-- L'écran de chargement d'app.html reste affiché. -->
 {:else if $miniPlayerActive}
   <!-- Mode mini-player : la fenêtre est réduite et always-on-top -->
   <MiniPlayer />

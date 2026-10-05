@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import {
     COLONNES_FIXES,
     COLONNES_PAR_DEFAUT,
@@ -9,7 +9,7 @@
     libelleColonne,
     tagProposable,
     type TrackColumn,
-  } from "$lib/config/trackColumns";
+  } from "#lib/config/trackColumns";
 
   type TagCandidate = { key: string; filled: number };
 

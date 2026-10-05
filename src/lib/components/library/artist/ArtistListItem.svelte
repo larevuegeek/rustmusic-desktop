@@ -1,15 +1,15 @@
 <script lang="ts">
 // Carte d'artiste de la grille : portrait rond (lecture et menu au survol), nom, albums · titres.
-import type { ArtistListView } from "$lib/types/ui/library/artist/ArtistListView";
+import type { ArtistListView } from "#lib/types/ui/library/artist/ArtistListView";
 import Icon from "@iconify/svelte";
-import { t } from "$lib/i18n";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import LibraryItemMenu from "$lib/components/ui/contextmenu/LibraryItemMenu.svelte";
-import { preload, preloadArtistData } from "$lib/actions/preload/preloadAction";
-import { handleArtistPlay } from "$lib/actions/queue/QueueAction";
-import { artistImageReadyStore } from "$lib/stores/library/artistImageReady.store";
-import { selectionStore } from "$lib/stores/ui/selection.store";
-import { cleGroupe, toggleGroupSelection } from "$lib/helper/tools/selectionGroups";
+import { t } from "#lib/i18n";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import LibraryItemMenu from "#lib/components/ui/contextmenu/LibraryItemMenu.svelte";
+import { preload, preloadArtistData } from "#lib/actions/preload/preloadAction";
+import { handleArtistPlay } from "#lib/actions/queue/QueueAction";
+import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
+import { selectionStore } from "#lib/stores/ui/selection.store";
+import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 
 let { libraryId, artist }: { libraryId: number; artist: ArtistListView } = $props();
 

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
-import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
 /** Où mène un morceau : sa fiche, son artiste, son album. */
 export type TrackLocation = {

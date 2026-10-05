@@ -1,17 +1,17 @@
 <script lang="ts">
   // Métadonnées Deezer pour la sélection : rien n'est écrit, Appliquer remplit les modifs en attente.
   // Choix par valeur, morceau ou champ ; seules les cases vides sont cochées d'office.
-  import PopinFooter from "$lib/components/ui/popin/PopinFooter.svelte";
-  import PopinError from "$lib/components/ui/popin/PopinError.svelte";
-  import { messageErreur } from "$lib/helper/tools/errorTools";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import { t } from "$lib/i18n";
-  import { tagWorkshop, valueOf } from "$lib/stores/tags/tagWorkshop.store";
+  import PopinFooter from "#lib/components/ui/popin/PopinFooter.svelte";
+  import PopinError from "#lib/components/ui/popin/PopinError.svelte";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import { t } from "#lib/i18n";
+  import { tagWorkshop, valueOf } from "#lib/stores/tags/tagWorkshop.store";
   import {
     matchAlbum,
     searchAlbums,
     type AlbumHit,
-  } from "$lib/services/tags/metadata.service";
+  } from "#lib/services/tags/metadata.service";
   import SourceAlbumPanel from "./source/SourceAlbumPanel.svelte";
   import SourceTrackList from "./source/SourceTrackList.svelte";
   import { SourceSelection } from "./source/sourceSelection.svelte.js";

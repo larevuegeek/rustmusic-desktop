@@ -1,7 +1,7 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
-import { t, currentLocale } from "$lib/i18n";
-import type { LibraryStats } from "$lib/types/ui/library/stats/LibraryStats";
+import { t, currentLocale } from "#lib/i18n";
+import type { LibraryStats } from "#lib/types/ui/library/stats/LibraryStats";
 
 let { nom, libraryId, stats, onajouter, sousTitre = null, bouton = true }: {
   nom: string | null | undefined;

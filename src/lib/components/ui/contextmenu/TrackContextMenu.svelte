@@ -1,20 +1,20 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { goto } from "$app/navigation";
-  import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
-  import { queueState } from "$lib/stores/queue/queueState.store";
-  import { liked } from "$lib/stores/playlist/like.store";
-  import { toasts } from "$lib/stores/ui/toast.store";
-  import { toQueueTrack, type TrackLike } from "$lib/helper/tools/queueTools";
-  import { playlistStore } from "$lib/stores/playlist/playlist.store";
-  import { playlistsRangees } from "$lib/stores/playlist/couvertures.store";
+  import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
+  import { queueState } from "#lib/stores/queue/queueState.store";
+  import { liked } from "#lib/stores/playlist/like.store";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import { toQueueTrack, type TrackLike } from "#lib/helper/tools/queueTools";
+  import { playlistStore } from "#lib/stores/playlist/playlist.store";
+  import { playlistsRangees } from "#lib/stores/playlist/couvertures.store";
   import { invoke } from "@tauri-apps/api/core";
-  import type { Playlist } from "$lib/types/db/playlist/Playlist";
-  import { t } from "$lib/i18n";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import AddPlaylistPopin from "$lib/components/playlist/popin/AddPlaylistPopin.svelte";
-  import { canWriteTags } from "$lib/services/tags/tagEditor.service";
-  import EditTagsPopin from "$lib/components/library/common/popin/EditTagsPopin.svelte";
+  import type { Playlist } from "#lib/types/db/playlist/Playlist";
+  import { t } from "#lib/i18n";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import AddPlaylistPopin from "#lib/components/playlist/popin/AddPlaylistPopin.svelte";
+  import { canWriteTags } from "#lib/services/tags/tagEditor.service";
+  import EditTagsPopin from "#lib/components/library/common/popin/EditTagsPopin.svelte";
 
   type Props = {
     track: TrackLike & { id?: string | number | null; artist_id?: string | null; library_artist_id?: string | null; album_id?: string | null };

@@ -1,8 +1,8 @@
 <script lang="ts">
   // Chemin en police mono, avec « ouvrir le dossier » et « copier ».
   import Icon from "@iconify/svelte";
-  import { t } from "$lib/i18n";
-  import { copierChemin, revelerDansDossier } from "$lib/helper/tools/fileTools";
+  import { t } from "#lib/i18n";
+  import { copierChemin, revelerDansDossier } from "#lib/helper/tools/fileTools";
 
   let { chemin, aReveler = chemin }: {
     chemin: string;

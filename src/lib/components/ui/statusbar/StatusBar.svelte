@@ -1,9 +1,9 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
-  import { activeTasks, taskProgressStore } from "$lib/stores/ui/taskProgress.store";
+  import { activeTasks, taskProgressStore } from "#lib/stores/ui/taskProgress.store";
   import { slide, fade } from "svelte/transition";
   import { invoke } from "@tauri-apps/api/core";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
 
   async function cancelTask(taskId: string) {
     try {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "$lib/helper/tools/errorTools";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
   // Ce que le fichier contient, ce que la source propose, et ce qu'on retient.
   //
   // # Deux colonnes, et le choix au milieu
@@ -16,18 +16,18 @@
   import Icon from "@iconify/svelte";
   import { untrack } from "svelte";
   import { fade } from "svelte/transition";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n";
   import {
     formatBytes,
     prepareImageFromUrl,
     type DownloadedImage,
     type MediaSlot,
-  } from "$lib/services/tags/tagEditor.service";
+  } from "#lib/services/tags/tagEditor.service";
   import {
     formatDuration,
     type TrackHit,
     type TrackValues,
-  } from "$lib/services/tags/metadata.service";
+  } from "#lib/services/tags/metadata.service";
 
   const {
     current,

@@ -10,7 +10,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { TagEditPayload } from "$lib/services/tags/tagEditor.service";
+import type { TagEditPayload } from "#lib/services/tags/tagEditor.service";
 
 /** Émis après chaque fichier. */
 export type BatchProgress = {

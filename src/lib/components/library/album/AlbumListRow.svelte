@@ -1,17 +1,17 @@
 <script lang="ts">
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 // Ligne d'album de la liste : pochette (lecture au survol), titre, artiste · année, titres, durée, actions.
-import type { AlbumListView } from "$lib/types/ui/library/album/AlbumListView";
-import CollectionContextMenu from "$lib/components/ui/contextmenu/CollectionContextMenu.svelte";
+import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
+import CollectionContextMenu from "#lib/components/ui/contextmenu/CollectionContextMenu.svelte";
 import { goto } from "$app/navigation";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
-import { t } from "$lib/i18n";
-import { dureeEcoute } from "$lib/helper/tools/dateTools";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import { handleAlbumAddToQueue, handleAlbumEnqueue } from "$lib/actions/queue/QueueAction";
-import { selectionStore } from "$lib/stores/ui/selection.store";
-import { cleGroupe, toggleGroupSelection } from "$lib/helper/tools/selectionGroups";
+import { t } from "#lib/i18n";
+import { dureeEcoute } from "#lib/helper/tools/dateTools";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import { handleAlbumAddToQueue, handleAlbumEnqueue } from "#lib/actions/queue/QueueAction";
+import { selectionStore } from "#lib/stores/ui/selection.store";
+import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 
 let { libraryId, album, onopen }: {
     libraryId: number;

@@ -2,10 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { get } from "svelte/store";
 
-import { player } from "$lib/stores/player/player.store";
-import { queueState } from "$lib/stores/queue/queueState.store";
-import { settingsStore } from "$lib/stores/settings/settings.store";
-import { playerService } from "$lib/services/player/player.service";
+import { player } from "#lib/stores/player/player.store";
+import { queueState } from "#lib/stores/queue/queueState.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import { playerService } from "#lib/services/player/player.service";
 
 // ============================================================================
 // SERVICE FRONTEND POUR SMTC (System Media Transport Controls)

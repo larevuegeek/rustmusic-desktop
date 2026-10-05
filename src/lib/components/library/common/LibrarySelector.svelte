@@ -1,16 +1,16 @@
 <script lang="ts">
-import { libraryStore } from "$lib/stores/library/library.store"
-import { pistesAvecImport } from "$lib/stores/library/importProgress.store";
-import { t } from "$lib/i18n";
+import { libraryStore } from "#lib/stores/library/library.store"
+import { pistesAvecImport } from "#lib/stores/library/importProgress.store";
+import { t } from "#lib/i18n";
 import Icon from "@iconify/svelte";
 import { goto } from "$app/navigation";
 import { scale } from "svelte/transition";
-import type { Library } from "$lib/types/db/library/Library";
-import { popinStore } from "$lib/stores/ui/popin.store";
-import AddLibraryPopin from "$lib/components/library/common/popin/AddLibraryPopin.svelte";
+import type { Library } from "#lib/types/db/library/Library";
+import { popinStore } from "#lib/stores/ui/popin.store";
+import AddLibraryPopin from "#lib/components/library/common/popin/AddLibraryPopin.svelte";
 import { page } from "$app/state";
-import { portal } from "$lib/helper/portal";
-import { currentLocale } from "$lib/i18n";
+import { portal } from "#lib/helper/portal";
+import { currentLocale } from "#lib/i18n";
 
 let { replie = false }: { replie?: boolean } = $props();
 

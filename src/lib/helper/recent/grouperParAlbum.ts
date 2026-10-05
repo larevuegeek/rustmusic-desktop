@@ -1,5 +1,5 @@
-import { artistesLisibles } from "$lib/helper/tools/stringTools";
-import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView";
+import { artistesLisibles } from "#lib/helper/tools/stringTools";
+import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
 
 /** Un album de l'historique : les morceaux écoutés, du plus récent au plus ancien. */
 export type AlbumEcoute = {

@@ -1,5 +1,5 @@
 import { get } from "svelte/store";
-import { selectionStore } from "$lib/stores/ui/selection.store";
+import { selectionStore } from "#lib/stores/ui/selection.store";
 
 /** Maj + clic étend la sélection multiple : sans ça, le navigateur surlignait aussi le texte entre les deux clics. */
 export function empecherSurlignageMaj(): () => void {

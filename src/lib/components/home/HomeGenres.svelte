@@ -1,10 +1,10 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { t, currentLocale } from "$lib/i18n";
-import { teinte } from "$lib/helper/tools/teinte";
+import { t, currentLocale } from "#lib/i18n";
+import { teinte } from "#lib/helper/tools/teinte";
 import Icon from "@iconify/svelte";
-import { iconeGenre } from "$lib/helper/tools/iconeGenre";
-import type { GenreView } from "$lib/types/ui/library/genre/GenreView";
+import { iconeGenre } from "#lib/helper/tools/iconeGenre";
+import type { GenreView } from "#lib/types/ui/library/genre/GenreView";
 
 let { libraryId, genres }: { libraryId: number; genres: GenreView[] } = $props();
 

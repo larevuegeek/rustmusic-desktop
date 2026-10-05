@@ -2,15 +2,15 @@
 // Ligne de genre : mosaïque, nom (pastille de couleur), artistes phares, part de la bibliothèque, actions.
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
-import { t, currentLocale } from "$lib/i18n";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import CollectionContextMenu from "$lib/components/ui/contextmenu/CollectionContextMenu.svelte";
-import { handleGenrePlay } from "$lib/actions/queue/QueueAction";
-import { selectionStore } from "$lib/stores/ui/selection.store";
-import { cleGroupe, toggleGroupSelection } from "$lib/helper/tools/selectionGroups";
-import { teinte } from "$lib/helper/tools/teinte";
-import type { GenreView } from "$lib/types/ui/library/genre/GenreView";
-import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
+import { t, currentLocale } from "#lib/i18n";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import CollectionContextMenu from "#lib/components/ui/contextmenu/CollectionContextMenu.svelte";
+import { handleGenrePlay } from "#lib/actions/queue/QueueAction";
+import { selectionStore } from "#lib/stores/ui/selection.store";
+import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+import { teinte } from "#lib/helper/tools/teinte";
+import type { GenreView } from "#lib/types/ui/library/genre/GenreView";
+import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
 let {
     libraryId,

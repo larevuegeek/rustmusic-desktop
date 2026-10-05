@@ -1,22 +1,22 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
 import { goto } from "$app/navigation";
-import { t, currentLocale } from "$lib/i18n";
-import { recent } from "$lib/stores/recent/recent.store";
-import { lecture } from "$lib/stores/player/lecture.store";
-import { liked } from "$lib/stores/playlist/like.store";
-import { handlePlayTrack } from "$lib/actions/player/PlayerAction";
-import { handleRemoveRecentItem } from "$lib/actions/recent/RecentAction";
-import { versFileDAttente } from "$lib/mapper/queue/mapQueueTrack";
-import { mapRecentFile } from "$lib/mapper/recent/mapRecentFile";
-import { localiser, lienTitre, lienArtiste, lienAlbum, fileDeLAlbum, type TrackLocation } from "$lib/helper/library/trackLocation";
-import { grouperParAlbum } from "$lib/helper/recent/grouperParAlbum";
-import { ilYA } from "$lib/helper/tools/dateTools";
-import { displayTitle, artistesLisibles } from "$lib/helper/tools/stringTools";
-import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
-import PochetteFloue from "$lib/components/ui/image/PochetteFloue.svelte";
-import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
-import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView";
+import { t, currentLocale } from "#lib/i18n";
+import { recent } from "#lib/stores/recent/recent.store";
+import { lecture } from "#lib/stores/player/lecture.store";
+import { liked } from "#lib/stores/playlist/like.store";
+import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
+import { handleRemoveRecentItem } from "#lib/actions/recent/RecentAction";
+import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import { mapRecentFile } from "#lib/mapper/recent/mapRecentFile";
+import { localiser, lienTitre, lienArtiste, lienAlbum, fileDeLAlbum, type TrackLocation } from "#lib/helper/library/trackLocation";
+import { grouperParAlbum } from "#lib/helper/recent/grouperParAlbum";
+import { ilYA } from "#lib/helper/tools/dateTools";
+import { displayTitle, artistesLisibles } from "#lib/helper/tools/stringTools";
+import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+import PochetteFloue from "#lib/components/ui/image/PochetteFloue.svelte";
+import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
+import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
 
 // Le hero montre déjà le morceau chargé (ou le dernier écouté) : on part du suivant.
 const cheminCourant = $derived($lecture.path);

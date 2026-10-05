@@ -2,12 +2,12 @@
   // Éditeur de métadonnées d'un fichier : n'envoie que ce qui a changé, images comprises.
   // Popin `flush` : deux colonnes qui défilent chacune et un pied de page fixe.
   import { open } from "@tauri-apps/plugin-dialog";
-  import { messageErreur } from "$lib/helper/tools/errorTools";
-  import { popinStore } from "$lib/stores/ui/popin.store";
-  import TagField from "$lib/components/ui/input/TagField.svelte";
-  import ImageLightbox from "$lib/components/ui/image/ImageLightbox.svelte";
-  import PopinError from "$lib/components/ui/popin/PopinError.svelte";
-  import PopinFooter from "$lib/components/ui/popin/PopinFooter.svelte";
+  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import TagField from "#lib/components/ui/input/TagField.svelte";
+  import ImageLightbox from "#lib/components/ui/image/ImageLightbox.svelte";
+  import PopinError from "#lib/components/ui/popin/PopinError.svelte";
+  import PopinFooter from "#lib/components/ui/popin/PopinFooter.svelte";
   import TagEditorLayout from "./tags/TagEditorLayout.svelte";
   import TagMediaColumn from "./tags/TagMediaColumn.svelte";
   import TagFetchBar from "./tags/TagFetchBar.svelte";
@@ -16,8 +16,8 @@
   import TagChangesSummary from "./tags/TagChangesSummary.svelte";
   import UnsavedChangesBar from "./tags/UnsavedChangesBar.svelte";
   import DeezerLookupPane from "./tags/DeezerLookupPane.svelte";
-  import type { TrackHit, TrackValues } from "$lib/services/tags/metadata.service";
-  import { t } from "$lib/i18n";
+  import type { TrackHit, TrackValues } from "#lib/services/tags/metadata.service";
+  import { t } from "#lib/i18n";
   import {
     buildEdit,
     formatBytes,
@@ -35,7 +35,7 @@
     PICTURE_TYPE_COVER,
     PICTURE_TYPE_OTHER,
     type MediaSlot,
-  } from "$lib/services/tags/tagEditor.service";
+  } from "#lib/services/tags/tagEditor.service";
 
   /* eslint-disable svelte/valid-prop-names-in-kit-pages */
   const {
