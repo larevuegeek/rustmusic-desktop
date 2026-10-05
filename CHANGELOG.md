@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.2.9] - 2026-10-05
+
+Correctifs remontés par les testeurs : un disque externe qui saturait la
+mémoire, le DSD converti qui ne passait pas au morceau suivant, et un journal
+qui restait vide quand il aurait dû aider.
+
+### Lecture
+- **Le DSD converti en PCM enchaîne enfin les morceaux** (macOS, DAC sans
+  DSD natif). La fin du morceau n'était jamais signalée quand le décodage
+  rendait un peu moins que la durée annoncée : la file restait bloquée.
+- **Ouvrir un dossier** : les morceaux arrivent dans l'ordre de l'album et
+  s'enchaînent.
+
+### Bibliothèque
+- **Ajouter un disque externe ne fait plus exploser la mémoire.** Le scan ne
+  tourne plus sans fin dans les raccourcis de dossiers qui bouclent (anciens
+  disques système), saute la corbeille et « System Volume Information », ne
+  garde que la pochette des morceaux qui embarquent tout un livret, et ne
+  décode plus les images géantes.
+
+### Fenêtre
+- **Boutons de fenêtre façon macOS** dans l'ordre du système (rouge, jaune,
+  vert), avec leurs symboles : fermer, réduire, plein écran. L'aperçu des
+  réglages aussi.
+
+### Sous le capot
+- Le journal enregistre aussi les informations (sortie choisie, chaîne audio,
+  conversions), et plus seulement les erreurs : celui d'un testeur restait
+  vide.
+
 ## [0.2.8] - 2026-10-04
 
 Le son tient enfin sa promesse de bit-perfect, la bibliothèque s'explore par

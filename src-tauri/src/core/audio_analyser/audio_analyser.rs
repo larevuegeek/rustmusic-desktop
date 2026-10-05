@@ -24,6 +24,21 @@ impl AudioAnalyser {
     pub fn analyse_audio_file(
         file_path: &PathBuf,
     ) -> Result<AudioFile, Box<dyn std::error::Error>> {
+        Self::analyse_inner(file_path, false)
+    }
+
+    /// Pour le scan : seule la première image sert (la pochette), sans base64.
+    /// Un livret de 30 scans par morceau, huit morceaux à la fois, saturait la mémoire.
+    pub fn analyse_for_scan(
+        file_path: &PathBuf,
+    ) -> Result<AudioFile, Box<dyn std::error::Error>> {
+        Self::analyse_inner(file_path, true)
+    }
+
+    fn analyse_inner(
+        file_path: &PathBuf,
+        scan: bool,
+    ) -> Result<AudioFile, Box<dyn std::error::Error>> {
         // Court-circuit pour les formats gérés par notre extractor maison
         // (Symphonia ne sait pas lire DSD, DSF ni DFF).
         //
@@ -156,8 +171,11 @@ impl AudioAnalyser {
             for visual in visuals {
                 cover_found = true;
 
-                let attached_image: AttachedImage = Self::visual_tag_reader(visual);
+                let attached_image: AttachedImage = Self::visual_tag_reader(visual, !scan);
                 tags.attached_images.push(attached_image);
+                if scan {
+                    break;
+                }
             }
         }
 
@@ -177,7 +195,7 @@ impl AudioAnalyser {
                     })
                     .find(|path| path.exists())
                 {
-                    if let Ok(attached_image) = Self::visual_file_reader(&cover_filepath) {
+                    if let Ok(attached_image) = Self::visual_file_reader(&cover_filepath, !scan) {
                         tags.attached_images.push(attached_image);
                     }
                 }
@@ -299,8 +317,7 @@ impl AudioAnalyser {
         tags
     }
 
-    fn visual_tag_reader(visual: &Visual) -> AttachedImage {
-        let base64_cover: String = general_purpose::STANDARD.encode(&visual.data);
+    fn visual_tag_reader(visual: &Visual, with_base64: bool) -> AttachedImage {
 
         // 0.6 : media_type est devenu Option<String>
         let mime_type: String = visual
@@ -308,7 +325,11 @@ impl AudioAnalyser {
             .clone()
             .unwrap_or_else(|| "image/unknown".to_string());
 
-        let image_src: String = format!("data:{};base64,{}", mime_type, base64_cover);
+        let image_src: String = if with_base64 {
+            format!("data:{};base64,{}", mime_type, general_purpose::STANDARD.encode(&visual.data))
+        } else {
+            String::new()
+        };
 
         let image_type: ImageType = match visual.usage {
             Some(StandardVisualKey::FrontCover) => ImageType::CoverFront,
@@ -346,9 +367,8 @@ impl AudioAnalyser {
         attached_image
     }
 
-    fn visual_file_reader(file: &PathBuf) -> Result<AttachedImage, std::io::Error> {
+    fn visual_file_reader(file: &PathBuf, with_base64: bool) -> Result<AttachedImage, std::io::Error> {
         let data: Vec<u8> = std::fs::read(file)?;
-        let base64_cover: String = general_purpose::STANDARD.encode(&data);
 
         // Déterminer le type MIME à partir de l’extension
         let mime_type: String = match file.extension().and_then(|ext| ext.to_str()) {
@@ -360,7 +380,11 @@ impl AudioAnalyser {
         }
         .to_string();
 
-        let image_src: String = format!("data:{};base64,{}", mime_type, base64_cover);
+        let image_src: String = if with_base64 {
+            format!("data:{};base64,{}", mime_type, general_purpose::STANDARD.encode(&data))
+        } else {
+            String::new()
+        };
 
         let attached_image: AttachedImage = AttachedImage {
             image_type: Some(ImageType::CoverFront),

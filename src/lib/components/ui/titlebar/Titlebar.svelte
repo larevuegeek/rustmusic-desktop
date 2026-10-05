@@ -76,6 +76,29 @@
      rangé avec les contrôles de fenêtre. Toujours côté "intérieur" du groupe
      (order-first quand les contrôles sont à droite, order-last à gauche)
      pour laisser les 3 contrôles standards contre le coin de la fenêtre. -->
+{#snippet trafficLight(fill: string, border: string, glyph: string, label: string, action: (e: MouseEvent) => void, kind: "close" | "minimize" | "fullscreen" | "exit_fullscreen")}
+  <button
+    type="button"
+    class="w-3 h-3 rounded-full flex items-center justify-center cursor-pointer"
+    style="background: {fill}; box-shadow: inset 0 0 0 0.5px {border}"
+    onclick={action}
+    aria-label={label}
+    title={label}
+  >
+    <svg viewBox="0 0 12 12" class="w-3 h-3" style="color: {glyph}" aria-hidden="true">
+      {#if kind === "close"}
+        <path d="M3.8 3.8l4.4 4.4M8.2 3.8l-4.4 4.4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
+      {:else if kind === "minimize"}
+        <path d="M3 6h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+      {:else if kind === "fullscreen"}
+        <path d="M3 3h3.6L3 6.6zM9 9H5.4L9 5.4z" fill="currentColor" />
+      {:else}
+        <path d="M5.5 2.8v2.7H2.8zM6.5 9.2V6.5h2.7z" fill="currentColor" />
+      {/if}
+    </svg>
+  </button>
+{/snippet}
+
 {#snippet miniPlayerButton(style: 'macos' | 'windows' | 'linux')}
   <button
     class="cursor-pointer transition-colors
@@ -142,25 +165,14 @@
       class:order-first={effectivePosition === 'left'}
     >
       {@render miniPlayerButton('macos')}
-      <button
-        class="w-3 h-3 rounded-full bg-[#febc2e] opacity-70 hover:opacity-100
-               transition-opacity cursor-pointer"
-        onclick={minimize}
-        aria-label={$t("window.minimize")}
-      ></button>
-      <button
-        class="w-3 h-3 rounded-full bg-[#28c840] opacity-70 hover:opacity-100
-               transition-opacity cursor-pointer"
-        onclick={boutonVert}
-        aria-label={osDetected !== 'macos' ? $t("window.maximize")
-          : isFullscreen ? $t("window.exit_fullscreen") : $t("window.fullscreen")}
-      ></button>
-      <button
-        class="w-3 h-3 rounded-full bg-[#ff5f57] opacity-70 hover:opacity-100
-               transition-opacity cursor-pointer"
-        onclick={close}
-        aria-label={$t("common.close")}
-      ></button>
+      <!-- Ordre et symboles de macOS : rouge, jaune, vert. -->
+      <div class="flex items-center gap-2">
+        {@render trafficLight("#ff5f57", "#e0443e", "#4d0000", $t("common.close"), close, "close")}
+        {@render trafficLight("#febc2e", "#dea123", "#985700", $t("window.minimize"), minimize, "minimize")}
+        {@render trafficLight("#28c840", "#1aab29", "#006500",
+          osDetected !== 'macos' ? $t("window.maximize") : isFullscreen ? $t("window.exit_fullscreen") : $t("window.fullscreen"),
+          boutonVert, isFullscreen ? "exit_fullscreen" : "fullscreen")}
+      </div>
     </div>
 
   <!-- ─── Contrôles : style Linux (boutons ronds Adwaita / GNOME) ─── -->

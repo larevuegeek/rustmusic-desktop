@@ -130,12 +130,13 @@ fn init_logger() {
             eprintln!("Fuseau local indisponible : les horodatages seront en UTC.");
         }
 
-        let log_config = builder.build();
         // Symphonia décrit chaque MP3 ouvert en Info (« xing header… ») : des
-        // milliers de lignes par scan. Le fichier, en Warn, garde ses alertes.
-        let term_config = builder.add_filter_ignore_str("symphonia").build();
+        // milliers de lignes par scan. On n'en garde que les alertes.
+        let symphonia_config = builder.clone().add_filter_allow_str("symphonia").build();
+        let log_config = builder.add_filter_ignore_str("symphonia").build();
+        let term_config = log_config.clone();
 
-        CombinedLogger::init(vec![
+        let mut loggers: Vec<Box<dyn simplelog::SharedLogger>> = vec![
             // Terminal : tout à partir de Info (visible dans `npm run tauri dev`)
             TermLogger::new(
                 LevelFilter::Info,
@@ -143,12 +144,15 @@ fn init_logger() {
                 TerminalMode::Mixed,
                 ColorChoice::Auto,
             ),
-            // Fichier : avertissements **et** erreurs. Un avertissement est
-            // souvent la trace de ce qui a mené à la panne — un fichier ignoré,
-            // un repli sur un autre chemin. N'en garder que les erreurs revient
-            // à lire la fin d'une histoire sans son début.
-            WriteLogger::new(LevelFilter::Warn, log_config, file),
-        ]).ok();
+        ];
+        if let Ok(symphonia_file) = file.try_clone() {
+            loggers.push(WriteLogger::new(LevelFilter::Warn, symphonia_config, symphonia_file));
+        }
+        // Fichier : dès Info, comme le terminal. Un morceau qui ne s'enchaîne
+        // pas ou un DoP qui saute ne lève aucun avertissement : en Warn seul,
+        // le journal d'un testeur restait vide.
+        loggers.push(WriteLogger::new(LevelFilter::Info, log_config, file));
+        CombinedLogger::init(loggers).ok();
 
         install_panic_hook();
 

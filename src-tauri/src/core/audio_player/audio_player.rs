@@ -1862,6 +1862,7 @@ impl AudioPlayer {
                 &current_position_frames,
                 &current_position,
                 &is_stopped,
+                &is_paused,
                 &is_playing,
                 &is_stream_alive,
             );
@@ -1950,6 +1951,7 @@ impl AudioPlayer {
             &current_position_frames,
             &current_position,
             &is_stopped,
+            &is_paused,
             &is_playing,
             &is_stream_alive,
         )
@@ -1969,6 +1971,7 @@ impl AudioPlayer {
         current_position_frames: &AtomicUsize,
         current_position: &AtomicU64,
         is_stopped: &AtomicBool,
+        is_paused: &AtomicBool,
         is_playing: &AtomicBool,
         is_stream_alive: &AtomicBool,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -1986,6 +1989,10 @@ impl AudioPlayer {
         // We can't peek the consumer from here (it was moved into the closure),
         // so we compare the played frames count against the expected total.
         let total_frames_expected = (duration * output_sample_rate as f64) as usize;
+        // Le décodage rend souvent un peu moins que la durée annoncée : sans ce repli,
+        // la fin n'arrivait jamais et la file ne passait pas au morceau suivant.
+        let mut last_frames = usize::MAX;
+        let mut idle_polls = 0;
         loop {
             std::thread::sleep(std::time::Duration::from_millis(100));
 
@@ -1997,6 +2004,17 @@ impl AudioPlayer {
             if is_stopped.load(Ordering::Relaxed) || frames >= total_frames_expected {
                 break;
             }
+            // Tampon vidé : plus rien ne joue depuis 1 s, hors pause.
+            if frames == last_frames && !is_paused.load(Ordering::Relaxed) {
+                idle_polls += 1;
+                if idle_polls >= 10 {
+                    log::debug!("✅ [DSD] Fin du tampon ({frames}/{total_frames_expected} trames)");
+                    break;
+                }
+            } else {
+                idle_polls = 0;
+            }
+            last_frames = frames;
         }
 
         log::debug!("✅ [DSD] Lecture terminée");

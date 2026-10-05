@@ -12,7 +12,7 @@ use crate::entity::library::dir_entry::DirEntry;
 use crate::entity::library::library::{Library, LibraryCreate};
 use crate::entity::library::library_cache::{LibraryCache, LibraryCacheCreate};
 use crate::helper::library::thumbnail_helper::{thumbnail_saver, save_artist_image, resolve_thumbnail};
-use crate::helper::library::recuperation_images::{alleger, chercher, telecharger, POCHETTES, PORTRAITS};
+use crate::helper::library::image_fetch::{download, search_first, shrink_image, COVER_FETCH, PORTRAIT_FETCH};
 use crate::mapper::library::album::album_detail_view::AlbumDetailView;
 use crate::mapper::library::album::album_list_view::AlbumListView;
 use crate::mapper::library::artist::artist_detail_view::ArtistDetailView;
@@ -69,7 +69,7 @@ pub async fn add_directory(
     directory: String
 ) -> Result<Vec<TrackListView>, String> {
     
-    let Some(jeton) = IMPORT.demarrer() else { return Err("deja_en_cours".into()) };
+    let Some(jeton) = IMPORT.start() else { return Err("deja_en_cours".into()) };
     let tracks: Vec<TrackListView> = save_dir_to_library(app, &state.pool, library_id, directory, &jeton).await?;
 
     Ok(tracks)
@@ -159,7 +159,7 @@ pub async fn rescan_library(
         return Err("Aucun dossier enregistré dans cette bibliothèque".to_string());
     }
 
-    let Some(jeton) = IMPORT.demarrer() else { return Err("deja_en_cours".into()) };
+    let Some(jeton) = IMPORT.start() else { return Err("deja_en_cours".into()) };
 
     let library_name = LibraryRepository::find_library_by_id(&state.pool, library_id)
         .await
@@ -186,7 +186,7 @@ pub async fn rescan_library(
 
     // Re-scanner chaque dossier (les fichiers inchangés sont sautés via le cache)
     for (dir, files) in lots {
-        if jeton.annule() {
+        if jeton.is_cancelled() {
             break;
         }
         match save_files_to_library(app.clone(), &state.pool, library_id, dir.path, files, Some(&mut progression), &jeton).await {
@@ -198,7 +198,7 @@ pub async fn rescan_library(
     let _ = app.emit("rescan-complete", serde_json::json!({
         "library_id": library_id,
         "library_name": library_name,
-        "cancelled": jeton.annule(),
+        "cancelled": jeton.is_cancelled(),
     }));
 
     Ok(all_tracks)
@@ -442,7 +442,7 @@ pub async fn rescan_library_dir(
     let dir = dirs.into_iter().find(|d| d.id == dir_id)
         .ok_or_else(|| "Directory not found".to_string())?;
 
-    let Some(jeton) = IMPORT.demarrer() else { return Err("deja_en_cours".into()) };
+    let Some(jeton) = IMPORT.start() else { return Err("deja_en_cours".into()) };
     save_dir_to_library(app, &state.pool, library_id, dir.path, &jeton).await
 }
 
@@ -1026,7 +1026,7 @@ pub async fn fetch_artist_image(
 
     let client = client_deezer(3)?;
     let url = format!("https://api.deezer.com/search/artist?q={}&limit=1", urlencoding::encode(&artist_name));
-    let image = match chercher(&client, &url, CHAMPS_PORTRAIT).await {
+    let image = match search_first(&client, &url, CHAMPS_PORTRAIT).await {
         Ok(Some(image)) => image,
         Ok(None) => {
             ArtistRepository::update_image_url(&state.pool, &artist_id, "")
@@ -1041,7 +1041,7 @@ pub async fn fetch_artist_image(
     };
 
     // Téléchargement raté : rien d'enregistré, la prochaine visite réessaiera.
-    let Some(octets) = telecharger(&client, &image).await else { return Ok(None) };
+    let Some(octets) = download(&client, &image).await else { return Ok(None) };
     let nom = format!("artist_{}.jpg", artist_id.replace('-', ""));
     let chemin = save_artist_image(&dossier_portraits(), &nom, &octets)?;
     ArtistRepository::update_image_url(&state.pool, &artist_id, &chemin)
@@ -1058,7 +1058,7 @@ pub async fn fetch_all_artist_images(
     state: State<'_, AppState>,
     force: Option<bool>,
 ) -> Result<BilanRecuperation, String> {
-    let Some(jeton) = PORTRAITS.demarrer() else { return Err("deja_en_cours".into()) };
+    let Some(jeton) = PORTRAIT_FETCH.start() else { return Err("deja_en_cours".into()) };
 
     if force.unwrap_or(false) {
         ArtistRepository::reset_not_found_images(&state.pool)
@@ -1080,19 +1080,19 @@ pub async fn fetch_all_artist_images(
     let mut erreurs: u32 = 0;
 
     for (i, artist) in artists.iter().enumerate() {
-        if jeton.annule() {
+        if jeton.is_cancelled() {
             break;
         }
         let _ = app.emit("artist-image-progress", serde_json::json!({ "current": i + 1, "total": total, "name": artist.name }));
 
         let url = format!("https://api.deezer.com/search/artist?q={}&limit=1", urlencoding::encode(&artist.name));
-        match chercher(&client, &url, CHAMPS_PORTRAIT).await {
+        match search_first(&client, &url, CHAMPS_PORTRAIT).await {
             Ok(None) => {
                 let _ = ArtistRepository::update_image_url(&state.pool, &artist.id, "").await;
             }
             Ok(Some(image)) => {
                 let nom = format!("artist_{}.jpg", artist.id.replace('-', ""));
-                let enregistre = match telecharger(&client, &image).await {
+                let enregistre = match download(&client, &image).await {
                     Some(octets) => save_artist_image(&dossier, &nom, &octets).ok(),
                     None => None,
                 };
@@ -1110,19 +1110,19 @@ pub async fn fetch_all_artist_images(
                 erreurs += 1;
                 log::warn!("[portraits] '{}' : {}", artist.name, e);
                 if e.contains("Quota") {
-                    jeton.patienter(5000).await;
+                    jeton.sleep(5000).await;
                 }
             }
         }
 
         // Une respiration entre deux artistes : Deezer limite le débit.
-        jeton.patienter(500).await;
+        jeton.sleep(500).await;
     }
 
     let _ = app.emit("artist-image-complete", serde_json::json!({
-        "found": found, "total": total, "errors": erreurs, "cancelled": jeton.annule(),
+        "found": found, "total": total, "errors": erreurs, "cancelled": jeton.is_cancelled(),
     }));
-    Ok(BilanRecuperation { found, errors: erreurs, cancelled: jeton.annule() })
+    Ok(BilanRecuperation { found, errors: erreurs, cancelled: jeton.is_cancelled() })
 }
 
 // ============================================================================
@@ -1265,7 +1265,7 @@ pub async fn fetch_album_cover(
         None => album_title.clone(),
     };
     let url = format!("https://api.deezer.com/search/album?q={}&limit=1", urlencoding::encode(&requete));
-    let image = match chercher(&client, &url, CHAMPS_POCHETTE).await {
+    let image = match search_first(&client, &url, CHAMPS_POCHETTE).await {
         Ok(Some(image)) => image,
         Ok(None) => return Ok(None),
         Err(e) => {
@@ -1273,7 +1273,7 @@ pub async fn fetch_album_cover(
             return Ok(None);
         }
     };
-    let Some(octets) = telecharger(&client, &image).await else { return Ok(None) };
+    let Some(octets) = download(&client, &image).await else { return Ok(None) };
     let chemin = crate::helper::library::thumbnail_helper::thumbnail_saver(&dossier_covers(), &octets, false)?;
     LibraryAlbumRepository::update_cover_url_by_id(&state.pool, &album_id, &chemin)
         .await
@@ -1288,7 +1288,7 @@ pub async fn fetch_all_album_covers(
     state: State<'_, AppState>,
     library_id: i64,
 ) -> Result<BilanRecuperation, String> {
-    let Some(jeton) = POCHETTES.demarrer() else { return Err("deja_en_cours".into()) };
+    let Some(jeton) = COVER_FETCH.start() else { return Err("deja_en_cours".into()) };
 
     let albums = LibraryAlbumRepository::find_albums_without_cover(&state.pool, library_id)
         .await
@@ -1304,7 +1304,7 @@ pub async fn fetch_all_album_covers(
     let mut erreurs: u32 = 0;
 
     for (i, album) in albums.iter().enumerate() {
-        if jeton.annule() {
+        if jeton.is_cancelled() {
             break;
         }
         let _ = app.emit("album-cover-progress", serde_json::json!({ "current": i + 1, "total": total, "name": album.title }));
@@ -1315,10 +1315,10 @@ pub async fn fetch_all_album_covers(
             None => album.title.clone(),
         };
         let url = format!("https://api.deezer.com/search/album?q={}&limit=1", urlencoding::encode(&requete));
-        match chercher(&client, &url, CHAMPS_POCHETTE).await {
+        match search_first(&client, &url, CHAMPS_POCHETTE).await {
             Ok(None) => {}
             Ok(Some(image)) => {
-                let enregistre = match telecharger(&client, &image).await {
+                let enregistre = match download(&client, &image).await {
                     Some(octets) => crate::helper::library::thumbnail_helper::thumbnail_saver(&dossier, &octets, false).ok(),
                     None => None,
                 };
@@ -1335,27 +1335,27 @@ pub async fn fetch_all_album_covers(
                 erreurs += 1;
                 log::warn!("[pochettes] '{}' : {}", album.title, e);
                 if e.contains("Quota") {
-                    jeton.patienter(5000).await;
+                    jeton.sleep(5000).await;
                 }
             }
         }
 
-        jeton.patienter(500).await;
+        jeton.sleep(500).await;
     }
 
     let _ = app.emit("album-cover-complete", serde_json::json!({
-        "found": found, "total": total, "errors": erreurs, "cancelled": jeton.annule(),
+        "found": found, "total": total, "errors": erreurs, "cancelled": jeton.is_cancelled(),
     }));
-    Ok(BilanRecuperation { found, errors: erreurs, cancelled: jeton.annule() })
+    Ok(BilanRecuperation { found, errors: erreurs, cancelled: jeton.is_cancelled() })
 }
 
 /// Arrête une récupération en cours (barre d'état) ; vrai si une passe tournait.
 #[tauri::command]
 pub fn cancel_task(task_id: String) -> bool {
     match task_id.as_str() {
-        "album-covers" => POCHETTES.annuler(),
-        "artist-images" => PORTRAITS.annuler(),
-        "import" | "rescan" => IMPORT.annuler(),
+        "album-covers" => COVER_FETCH.cancel(),
+        "artist-images" => PORTRAIT_FETCH.cancel(),
+        "import" | "rescan" => IMPORT.cancel(),
         _ => false,
     }
 }
@@ -1420,7 +1420,7 @@ fn balayer_images(racine: &std::path::Path, cites: &std::collections::HashSet<St
                     }
                 } else if taille == "full" {
                     let Ok(octets) = std::fs::read(&chemin) else { continue };
-                    if let Some(leger) = alleger(&octets) {
+                    if let Some(leger) = shrink_image(&octets) {
                         if std::fs::write(&chemin, &leger).is_ok() {
                             bilan.alleges += 1;
                             bilan.liberes += (octets.len() - leger.len()) as u64;

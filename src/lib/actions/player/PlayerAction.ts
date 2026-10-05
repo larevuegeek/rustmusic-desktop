@@ -156,28 +156,8 @@ export async function openAudioDirectory(): Promise<void> {
         const audioFiles = await invoke('open_files', { directory: selectedPath }) as AudioFile[];
         if (audioFiles.length === 0) return;
 
-        const [firstAudioFile, ...restAudioFile] = audioFiles;
-
-        let currentFilePath = firstAudioFile.path;
-        const firstThumbnail = await thumbnail_getter(currentFilePath, firstAudioFile);
-
-        await invoke('create_library_cache', { payload: toLibraryCacheCreate(selectedPath, firstAudioFile, firstThumbnail) });
-
-        ///////////////////// Gestion de la queue
-        queueState.loadTrack(firstAudioFile.path);
-        //////////////////////////////////////////
-
-        await Promise.all(restAudioFile.map(async (audioFile) => {
-            let currentFilePath = audioFile.path;
-
-            const thumbnailPath = await thumbnail_getter(currentFilePath, audioFile);
-            await invoke('create_library_cache', { payload: toLibraryCacheCreate(selectedPath, audioFile, thumbnailPath) });
-
-            let track = audioFileToQueueTrack(audioFile);
-
-            //rajouter dans la queue
-            queueState.addTrack(track);
-        }));
+        // Une file neuve dans l'ordre de l'album : les morceaux s'enchaînent.
+        await queueState.loadTracks(audioFiles.map((f, i) => ({ ...audioFileToQueueTrack(f), position: i })));
 
         toasts.push({
             type: "success",
@@ -185,6 +165,12 @@ export async function openAudioDirectory(): Promise<void> {
             message: get(t)(audioFiles.length === 1 ? "notify.files_to_playlist_one" : "notify.files_to_playlist_n")
                 .replace("{n}", audioFiles.length.toLocaleString(get(currentLocale)))
         });
+
+        // Cache de bibliothèque ensuite, chaque morceau sous son propre chemin.
+        for (const audioFile of audioFiles) {
+            const thumbnailPath = await thumbnail_getter(audioFile.path, audioFile);
+            await invoke('create_library_cache', { payload: toLibraryCacheCreate(audioFile.path, audioFile, thumbnailPath) });
+        }
 
     } catch(err) {
         console.error(err);

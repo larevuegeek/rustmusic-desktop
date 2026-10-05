@@ -15,8 +15,8 @@ use crate::entity::library::library_cache::{LibraryCache, LibraryCacheCreate};
 use crate::entity::library::library_dirs::{LibraryDir, LibraryDirCreate};
 use crate::entity::library::library_track::{LibraryTrack, LibraryTrackCreate};
 use crate::entity::library::library_track_artist::LibraryTrackArtistCreate;
-use crate::helper::files::reader::read_dir_deep_suivi;
-use crate::helper::tache::{Jeton, Tache};
+use crate::helper::files::reader::read_dir_deep_with_progress;
+use crate::helper::task::{Task, TaskToken};
 use crate::helper::library::thumbnail_helper::{migrate_old_thumbnails, thumbnail_saver};
 use crate::helper::string::string::{normalize_name, normalize_sort_name, split_artists};
 use crate::mapper::library::track::mapper_track::to_track_list_view;
@@ -77,7 +77,7 @@ fn analyse_file_inner(file: &PathBuf, covers_dir: &PathBuf) -> Result<FileAnalys
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_secs().to_string());
 
-    let audio_file = AudioAnalyser::analyse_audio_file(file).map_err(|e| e.to_string())?;
+    let audio_file = AudioAnalyser::analyse_for_scan(file).map_err(|e| e.to_string())?;
 
     let thumbnail_url = audio_file.tags.attached_images.first().and_then(|img| {
         if img.image_data.is_empty() { return None; }
@@ -112,7 +112,7 @@ pub fn create_context(
 // ============================================================================
 
 /// Import ou rescan : un seul à la fois, arrêtable.
-pub static IMPORT: Tache = Tache::new();
+pub static IMPORT: Task = Task::new();
 
 #[derive(Clone, Serialize)]
 pub struct ImportStart {
@@ -222,7 +222,7 @@ pub async fn save_dir_to_library(
     pool_api: &SqlitePool,
     library_id: i64,
     directory: String,
-    jeton: &Jeton,
+    jeton: &TaskToken,
 ) -> Result<Vec<TrackListView>, String> {
 
     // Enregistré avant le listage pour apparaître tout de suite.
@@ -258,12 +258,12 @@ pub async fn lister_fichiers(
         };
         let mut files: Vec<PathBuf> = Vec::new();
         let mut derniere: Option<Instant> = None;
-        let complet = read_dir_deep_suivi(&directory, &mut files, &mut |found| {
+        let complet = read_dir_deep_with_progress(&directory, &mut files, &mut |found| {
             if derniere.map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(100)) {
                 derniere = Some(Instant::now());
                 emettre(found);
             }
-            !IMPORT.annulation_demandee()
+            !IMPORT.is_cancel_requested()
         });
         emettre(files.len());
         complet.then_some(files)
@@ -311,7 +311,7 @@ pub async fn save_files_to_library(
     directory: String,
     files: Vec<PathBuf>,
     mut progression: Option<&mut RescanProgress>,
-    jeton: &Jeton,
+    jeton: &TaskToken,
 ) -> Result<Vec<TrackListView>, String> {
 
     let start: Instant = Instant::now();
@@ -354,7 +354,7 @@ pub async fn save_files_to_library(
     for chunk in files.chunks(BATCH_SIZE) {
 
         // Arrêt entre deux lots : ce qui est fait est validé.
-        if jeton.annule() {
+        if jeton.is_cancelled() {
             annule = true;
             break;
         }
@@ -756,7 +756,7 @@ pub async fn save_track_to_library_tx(
         // ─── ÉTAPE 4 : Analyse audio (seulement si fichier nouveau ou modifié) ───
         // C'est l'opération la plus coûteuse : symphonia ouvre le fichier, lit les headers,
         // parse les tags ID3/Vorbis/FLAC, extrait les images embarquées, calcule la durée
-        let audio_file: AudioFile = AudioAnalyser::analyse_audio_file(&file_buf).map_err(|e| e.to_string())?;
+        let audio_file: AudioFile = AudioAnalyser::analyse_for_scan(&file_buf).map_err(|e| e.to_string())?;
 
         let thumbnail_url: Option<String> = audio_file.tags.attached_images.first().and_then(|img| {
             if img.image_data.is_empty() { return None; }

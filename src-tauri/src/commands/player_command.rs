@@ -57,6 +57,15 @@ pub async fn open_files(directory: String) -> Vec<AudioFile> {
 
     }
 
+    // Ordre de l'album : dossier, disque, piste. `read_dir` n'a pas d'ordre garanti (APFS).
+    audio_files.sort_by(|a, b| {
+        let key = |f: &AudioFile| {
+            let parent = std::path::Path::new(&f.path).parent().map(|p| p.to_path_buf());
+            (parent, f.tags.disc_number.unwrap_or(1), f.tags.track_number.unwrap_or(u16::MAX), f.path.clone())
+        };
+        key(a).cmp(&key(b))
+    });
+
     audio_files
 }
 

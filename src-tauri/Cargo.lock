@@ -4749,7 +4749,7 @@ dependencies = [
 
 [[package]]
 name = "rustmusic"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "alsa",
  "anyhow",
