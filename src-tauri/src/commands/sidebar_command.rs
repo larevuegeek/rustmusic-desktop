@@ -38,7 +38,7 @@ pub async fn get_sidebar_covers(
     for (id, regles) in playlists {
         let covers = match regles {
             Some(json) => pochettes_intelligentes(pool, id, &json).await.unwrap_or_default(),
-            None => pochettes(pool, &format!(
+            None => pochettes(pool, format!(
                 "SELECT {POCHETTE} FROM playlist_items pi
                  JOIN library_tracks lt ON lt.id = pi.library_track_id
                  LEFT JOIN library_albums la ON la.id = lt.library_album_id
@@ -50,7 +50,7 @@ pub async fn get_sidebar_covers(
         sortie.push(CollectionCovers { key: format!("playlist:{id}"), covers });
     }
 
-    let aimes = pochettes(pool, &format!(
+    let aimes = pochettes(pool, format!(
         "SELECT {POCHETTE} FROM track_liked tl
          JOIN library_files lf ON lf.path = tl.path
          JOIN library_tracks lt ON lt.file_id = lf.id
@@ -62,7 +62,7 @@ pub async fn get_sidebar_covers(
     sortie.push(CollectionCovers { key: "liked".into(), covers: aimes });
 
     // L'historique n'est pas rangé par profil.
-    let recents = pochettes(pool, &format!(
+    let recents = pochettes(pool, format!(
         "SELECT {POCHETTE} FROM recent_files rf
          JOIN library_files lf ON lf.path = rf.path
          JOIN library_tracks lt ON lt.file_id = lf.id
@@ -76,8 +76,8 @@ pub async fn get_sidebar_covers(
     Ok(sortie)
 }
 
-async fn pochettes(pool: &SqlitePool, sql: &str, param: Option<i64>) -> Result<Vec<String>, String> {
-    let mut q = sqlx::query_scalar::<_, String>(sql);
+async fn pochettes(pool: &SqlitePool, sql: String, param: Option<i64>) -> Result<Vec<String>, String> {
+    let mut q = sqlx::query_scalar::<_, String>(sqlx::AssertSqlSafe(sql));
     if let Some(p) = param {
         q = q.bind(p);
     }
@@ -105,7 +105,7 @@ async fn pochettes_intelligentes(pool: &SqlitePool, playlist_id: i64, json: &str
          LEFT JOIN library_cache lc ON lc.id = lt.cache_id
          WHERE lt.id IN ({trous}) AND {POCHETTE} IS NOT NULL"
     );
-    let mut q = sqlx::query_as::<_, (String, String)>(&sql);
+    let mut q = sqlx::query_as::<_, (String, String)>(sqlx::AssertSqlSafe(sql));
     for id in &ids {
         q = q.bind(id);
     }

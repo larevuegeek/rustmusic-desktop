@@ -73,10 +73,11 @@ pub fn resolve_hw_id(selected_display: &str) -> Option<String> {
 
 /// Ouvre le PCM `hw:` en réessayant sur EBUSY (errno 16). Après une réservation
 /// D-Bus, PipeWire ferme le device de façon **asynchrone** : le `hw:` peut rester
-/// occupé ~centaines de ms. On réessaie jusqu'à ~2,5 s avant d'abandonner.
+/// occupé ~centaines de ms (0,4 s mesuré pendant une lecture), parfois plus de
+/// 3 s quand WirePlumber est lent à démonter la carte. On réessaie jusqu'à ~6 s.
 fn open_hw_pcm(hw_id: &str) -> Result<PCM, String> {
     let mut last = String::new();
-    for _ in 0..25 {
+    for _ in 0..60 {
         match PCM::new(hw_id, Direction::Playback, false) {
             Ok(pcm) => return Ok(pcm),
             Err(e) => {
@@ -134,12 +135,12 @@ pub fn dop_format_supported(hw_id: &str, carrier_rate: u32, channels: u16) -> bo
         Ok(pcm) => match configure_dop_params(&pcm, carrier_rate, channels) {
             Ok(()) => true,
             Err(e) => {
-                log::debug!("🎚️  DoP ALSA format refusé sur {hw_id} @ {carrier_rate} Hz : {e}");
+                log::warn!("🎚️  DoP ALSA format refusé sur {hw_id} @ {carrier_rate} Hz : {e}");
                 false
             }
         },
         Err(e) => {
-            log::debug!("🎚️  Ouverture exclusive {hw_id} impossible : {e}");
+            log::warn!("🎚️  Ouverture exclusive {hw_id} impossible : {e}");
             false
         }
     }
@@ -256,3 +257,4 @@ pub fn run_alsa_dop_render(
     log::info!("⏹  ALSA DoP : stream fermé ({hw_id})");
     Ok(())
 }
+

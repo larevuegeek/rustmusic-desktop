@@ -8,7 +8,7 @@
 //! accumulator buffers — callers see only an interleaved API.
 
 use audioadapter_buffers::direct::SequentialSliceOfVecs;
-use rubato::{Fft, FixedSync, Resampler as RubatoResampler};
+use rubato::{Fft, FixedSync, Resampler as RubatoResampler, WindowFunction};
 
 use crate::core::audio_quality::AudioQualityProfile;
 
@@ -60,12 +60,15 @@ impl Resampler {
             input_rate, output_rate, profile, chunk_size, sub_chunks,
         );
 
-        let fft = Fft::<f32>::new(
+        // `new_custom` garde les sous-blocs du profil ; la fenêtre est celle que
+        // rubato appliquait d'office avant la 5.
+        let fft = Fft::<f32>::new_custom(
             input_rate as usize,
             output_rate as usize,
             chunk_size,
             sub_chunks,
             channels,
+            WindowFunction::BlackmanHarris2,
             FixedSync::Input,
         )
         .map_err(|e| format!("Erreur resampler: {:?}", e))?;

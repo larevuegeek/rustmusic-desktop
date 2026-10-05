@@ -24,6 +24,52 @@ fn open_image_guessed(path: &std::path::Path) -> Result<DynamicImage, image::Ima
         .decode()
 }
 
+/// Côté des pochettes floutées : le navigateur les agrandit, le flou absorbe la perte.
+const BLURRED_SIZE: u32 = 64;
+
+/// Pochette saturée puis floutée une fois, en cache : sous WebKitGTK, un `blur()`
+/// CSS sur une grande image se recalcule à chaque image. `flou` : écart-type à 64 px.
+pub fn blurred_cover(source: &str, saturation: f32, flou: f32) -> Result<PathBuf, String> {
+    let dossier = dirs::data_dir()
+        .ok_or("dossier de données introuvable")?
+        .join("com.larevuegeek.rustmusic")
+        .join("covers")
+        .join("flou");
+    let cle = format!("{:x}", md5::compute(format!("{source}|{saturation:.2}|{flou:.2}")));
+    let sortie = dossier.join(format!("{cle}.jpg"));
+    if sortie.exists() {
+        return Ok(sortie);
+    }
+
+    // La miniature 1x suffit à 64 px, et se décode bien plus vite que l'original.
+    let source_norm = source.replace('\\', "/");
+    let miniature = source_norm.contains("/full/").then(|| PathBuf::from(source_norm.replace("/full/", "/1x/")));
+    let chemin = miniature.filter(|m| m.exists()).unwrap_or_else(|| PathBuf::from(source));
+    let image = open_image_guessed(&chemin).map_err(|e| format!("ouverture de {}: {e}", chemin.display()))?;
+
+    let mut petite = image.thumbnail(BLURRED_SIZE, BLURRED_SIZE).to_rgb8();
+    saturate(&mut petite, saturation);
+    let floue = image::imageops::blur(&petite, flou);
+
+    std::fs::create_dir_all(&dossier).map_err(|e| format!("création de {}: {e}", dossier.display()))?;
+    // Écrite à côté puis renommée : un affichage concurrent ne lit jamais une image à moitié écrite.
+    let temporaire = dossier.join(format!("{cle}.{}.tmp", std::process::id()));
+    floue
+        .save_with_format(&temporaire, image::ImageFormat::Jpeg)
+        .map_err(|e| format!("écriture de {}: {e}", temporaire.display()))?;
+    std::fs::rename(&temporaire, &sortie).map_err(|e| format!("renommage de {}: {e}", sortie.display()))?;
+    Ok(sortie)
+}
+
+/// Saturation façon CSS `saturate()` : chaque canal s'écarte de la luminance.
+fn saturate(image: &mut image::RgbImage, facteur: f32) {
+    for pixel in image.pixels_mut() {
+        let [r, g, b] = pixel.0.map(f32::from);
+        let luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        pixel.0 = [r, g, b].map(|c| (luminance + (c - luminance) * facteur).round().clamp(0.0, 255.0) as u8);
+    }
+}
+
 /// Pool de threads dédié à la génération de miniatures (50% des cores)
 fn thumbnail_pool() -> &'static rayon::ThreadPool {
     static POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
@@ -319,4 +365,48 @@ pub async fn migrate_old_thumbnails(
 
     log::info!("{} Terminé — {} fichiers migrés sur {}", label, migrated, total);
     Ok(migrated)
+}
+
+#[cfg(test)]
+mod tests_flou {
+    use super::*;
+
+    #[test]
+    fn saturation_matches_css() {
+        let mut gris = image::RgbImage::from_pixel(1, 1, image::Rgb([90, 90, 90]));
+        saturate(&mut gris, 2.4);
+        assert_eq!(gris.get_pixel(0, 0).0, [90, 90, 90], "un gris reste gris");
+
+        let mut rouge = image::RgbImage::from_pixel(1, 1, image::Rgb([180, 90, 90]));
+        saturate(&mut rouge, 2.0);
+        let [r, g, b] = rouge.get_pixel(0, 0).0;
+        assert!(r > 180 && g < 90 && g == b, "plus saturé : {r},{g},{b}");
+    }
+
+    #[test]
+    fn blurred_cover_is_small_and_cached() {
+        let dossier = std::env::temp_dir().join(format!("rm-flou-{}", std::process::id()));
+        std::fs::create_dir_all(&dossier).unwrap();
+        // Damier contrasté : flouté, il ne doit plus rester de noir ni de blanc purs.
+        let source = dossier.join("pochette.png");
+        image::RgbImage::from_fn(300, 300, |x, y| {
+            if (x / 30 + y / 30) % 2 == 0 { image::Rgb([0, 0, 0]) } else { image::Rgb([255, 255, 255]) }
+        })
+        .save(&source)
+        .unwrap();
+
+        let floue = blurred_cover(source.to_str().unwrap(), 1.0, 4.0).expect("pochette floue");
+        let lue = image::open(&floue).unwrap().to_rgb8();
+        assert_eq!(lue.dimensions(), (BLURRED_SIZE, BLURRED_SIZE));
+        let (min, max) = lue.pixels().fold((255u8, 0u8), |(lo, hi), p| (lo.min(p.0[0]), hi.max(p.0[0])));
+        // Les bords, moins entourés, restent un peu plus contrastés que le centre.
+        assert!(min > 20 && max < 235, "flou insuffisant : {min}..{max}");
+
+        let date = std::fs::metadata(&floue).unwrap().modified().unwrap();
+        assert_eq!(blurred_cover(source.to_str().unwrap(), 1.0, 4.0).unwrap(), floue, "même clé, même fichier");
+        assert_eq!(std::fs::metadata(&floue).unwrap().modified().unwrap(), date, "pas régénérée");
+
+        let _ = std::fs::remove_file(&floue);
+        let _ = std::fs::remove_dir_all(&dossier);
+    }
 }

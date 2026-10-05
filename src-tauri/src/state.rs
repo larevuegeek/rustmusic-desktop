@@ -1,5 +1,7 @@
+use std::str::FromStr;
 use std::sync::Arc;
 
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqliteSynchronous};
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
 
@@ -20,14 +22,12 @@ pub struct AppState {
 
 impl AppState {
     pub async fn new(database_url: &str) -> Result<Self, sqlx::Error> {
-        let pool: sqlx::Pool<sqlx::Sqlite> = SqlitePool::connect(database_url).await?;
-
         // ═══════════════════════════════════════════════════════════════
         // PRAGMAS SQLite — Configuration performance
         // ═══════════════════════════════════════════════════════════════
         //
         // Ces commandes configurent le moteur SQLite pour une app desktop.
-        // Elles sont exécutées une seule fois au démarrage, sur la connexion.
+        // Elles s'appliquent à chaque connexion que le pool ouvre.
         //
         // WAL (Write-Ahead Logging) :
         //   - Les écritures vont dans un fichier .wal séparé
@@ -52,10 +52,16 @@ impl AppState {
         //   - Au lieu de fichiers temporaires sur disque
         //   - Plus rapide pour les tris et agrégations
         //
-        sqlx::query("PRAGMA journal_mode = WAL").execute(&pool).await?;
-        sqlx::query("PRAGMA synchronous = NORMAL").execute(&pool).await?;
-        sqlx::query("PRAGMA cache_size = -64000").execute(&pool).await?;
-        sqlx::query("PRAGMA temp_store = MEMORY").execute(&pool).await?;
+        // Posés dans les options de connexion, ils valent pour CHAQUE connexion
+        // du pool. Exécutés une fois sur le pool, seul `journal_mode` (enregistré
+        // dans le fichier) s'appliquait partout ; les trois autres ne touchaient
+        // que la connexion qui les avait reçus.
+        let options = SqliteConnectOptions::from_str(database_url)?
+            .journal_mode(SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .pragma("cache_size", "-64000")
+            .pragma("temp_store", "MEMORY");
+        let pool: sqlx::Pool<sqlx::Sqlite> = SqlitePool::connect_with(options).await?;
 
         log::debug!("PRAGMAs SQLite configurés (WAL + NORMAL + 64MB cache)");
 
@@ -144,7 +150,7 @@ impl AppState {
         ];
 
         for idx in &indexes {
-            if let Err(e) = sqlx::query(idx).execute(&pool).await {
+            if let Err(e) = sqlx::query(*idx).execute(&pool).await {
                 log::warn!("Index creation warning: {}", e);
             }
         }
@@ -230,7 +236,7 @@ async fn sauvegarder_avant_migration(pool: &SqlitePool, database_url: &str) {
     // `VACUUM INTO` n'accepte pas de paramètre lié ; le chemin vient de notre
     // propre dossier de données, pas de l'utilisateur.
     let echappe = copie.replace('\'', "''");
-    match sqlx::query(&format!("VACUUM INTO '{echappe}'"))
+    match sqlx::query(sqlx::AssertSqlSafe(format!("VACUUM INTO '{echappe}'")))
         .execute(pool)
         .await
     {
@@ -284,6 +290,30 @@ mod tests {
         assert!(!std::path::Path::new(&copie).exists(), "aucune sauvegarde attendue");
 
         pool.close().await;
+        let _ = std::fs::remove_dir_all(&dossier);
+    }
+
+    #[tokio::test]
+    async fn every_connection_gets_pragmas() {
+        let dossier = std::env::temp_dir().join(format!("rm-pragmas-{}", std::process::id()));
+        std::fs::create_dir_all(&dossier).expect("dossier");
+        let url = format!("sqlite:{}?mode=rwc", dossier.join("essai.db").display());
+        let etat = AppState::new(&url).await.expect("base");
+
+        // Tenues en même temps : le pool ne peut pas resservir la même.
+        let mut connexions = Vec::new();
+        for _ in 0..3 {
+            connexions.push(etat.pool.acquire().await.expect("connexion"));
+        }
+        for c in connexions.iter_mut() {
+            let synchronous: i64 = sqlx::query_scalar("PRAGMA synchronous").fetch_one(&mut **c).await.expect("synchronous");
+            let temp_store: i64 = sqlx::query_scalar("PRAGMA temp_store").fetch_one(&mut **c).await.expect("temp_store");
+            let cache_size: i64 = sqlx::query_scalar("PRAGMA cache_size").fetch_one(&mut **c).await.expect("cache_size");
+            assert_eq!((synchronous, temp_store, cache_size), (1, 2, -64000), "NORMAL, MEMORY, 64 Mo");
+        }
+
+        drop(connexions);
+        etat.pool.close().await;
         let _ = std::fs::remove_dir_all(&dossier);
     }
 }

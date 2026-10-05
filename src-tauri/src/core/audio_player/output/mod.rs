@@ -32,10 +32,13 @@ pub mod dop_engine;
 pub mod dop_alsa;
 #[cfg(target_os = "linux")]
 pub mod device_reservation;
+#[cfg(target_os = "linux")]
+pub mod profil_pipewire;
 #[cfg(target_os = "macos")]
 pub mod dop_coreaudio;
 
 pub mod echantillons;
+pub mod peripherique;
 
 use crate::core::audio_player::pipeline_info::Repli;
 
@@ -55,6 +58,67 @@ pub fn exclusif_au_rate_source(device_name: &str, source_rate: u32, channels: u1
             && exclusive_coreaudio::CoreAudioExclusiveOutput::probe(device_name, source_rate).is_some()
     }
 }
+
+/// DSD converti en PCM, en exclusif (Linux) : la carte derrière l'un de ces noms
+/// accepte-t-elle `rate` ? `Ok` porte de quoi ouvrir [`open_dsd_exclusive`].
+#[cfg(target_os = "linux")]
+pub fn probe_dsd_exclusive(
+    noms: &[&str],
+    rate: u32,
+    channels: u16,
+) -> Result<(String, exclusive_alsa::AlsaNegotiation), Repli> {
+    let hw_id = noms
+        .iter()
+        .find_map(|nom| dop_alsa::resolve_hw_id(nom))
+        .ok_or(Repli::AppareilIntrouvable)?;
+    let negociation = exclusive_alsa::probe(&hw_id, rate, channels)?;
+    Ok((hw_id, negociation))
+}
+
+/// Sortie exclusive du DSD converti : le rendu des fichiers PCM, lu dans le ring
+/// buffer du décodeur DSD (source « décodage en direct »).
+#[cfg(target_os = "linux")]
+#[allow(clippy::too_many_arguments)]
+pub fn open_dsd_exclusive<C>(
+    hw_id: String,
+    device_name: String,
+    negociation: exclusive_alsa::AlsaNegotiation,
+    rate: u32,
+    channels: u16,
+    consumer: C,
+    atomics: PlaybackAtomics,
+    seek_flush: std::sync::Arc<std::sync::atomic::AtomicBool>,
+) -> Result<Box<dyn AudioOutput>, AudioOutputError>
+where
+    C: Consumer<Item = f32> + Send + 'static,
+{
+    use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize};
+    use std::sync::{Arc, RwLock};
+    let shared = SymphoniaSharedState {
+        full_buffer_data: Arc::new(RwLock::new(Vec::new())),
+        full_buffer_cursor: Arc::new(AtomicUsize::new(0)),
+        is_full_buffer_ready: Arc::new(AtomicBool::new(false)),
+        // 0 : le rendu lit le ring buffer.
+        current_source: Arc::new(AtomicU8::new(0)),
+        seek_flush,
+        // Le décodeur DSD tient lui-même la position après un seek.
+        pending_seek_frames: Arc::new(AtomicUsize::new(usize::MAX)),
+        output_channels: channels,
+    };
+    let mut sortie = exclusive_alsa::AlsaExclusiveOutput::try_new(
+        hw_id,
+        device_name,
+        negociation,
+        rate,
+        channels,
+        consumer,
+        atomics,
+        shared,
+    )?;
+    sortie.start()?;
+    Ok(Box::new(sortie))
+}
+
 pub use preference::{current_preference, dop_enabled, set_dop_enabled, set_wasapi_exclusive};
 pub use traits::{AudioOutput, AudioOutputError};
 pub use types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
@@ -65,6 +129,10 @@ use ringbuf::traits::Consumer;
 ///
 /// **Paramètres CPAL** : `cpal_device`, `cpal_config`, `cpal_device_name` —
 /// nécessaires pour le fallback (et le path par défaut).
+///
+/// **`nom_carte`** (Linux) : la sortie choisie, qui désigne la carte de la
+/// sortie exclusive. Elle peut différer de `cpal_device_name` quand sa sortie
+/// PipeWire a disparu le temps d'une lecture exclusive précédente.
 ///
 /// **Paramètres WASAPI** : `source_sample_rate`, `source_channels` —
 /// utilisés pour la négociation de format. Le device WASAPI est toujours le
@@ -83,6 +151,7 @@ pub fn create_symphonia_output<C>(
     cpal_device: cpal::Device,
     cpal_config: cpal::StreamConfig,
     cpal_device_name: String,
+    nom_carte: String,
     atomics: PlaybackAtomics,
     shared: SymphoniaSharedState,
     consumer: C,
@@ -148,12 +217,12 @@ where
     // `probe` n'a pas répondu, le repli CPAL reste possible sans acrobatie.
     #[cfg(target_os = "linux")]
     if matches!(desired_backend, AudioBackend::AlsaExclusive) {
-        let negociation = match dop_alsa::resolve_hw_id(&cpal_device_name) {
+        let negociation = match dop_alsa::resolve_hw_id(&nom_carte) {
             Some(hw_id) => exclusive_alsa::probe(&hw_id, rate_decodeur, source_channels)
                 .map(|n| (hw_id, n)),
             None => {
                 log::info!(
-                    "🎚️  ALSA exclusive : aucune carte hw: ne correspond à « {cpal_device_name} » \
+                    "🎚️  ALSA exclusive : aucune carte hw: ne correspond à « {nom_carte} » \
                      → CPAL partagé"
                 );
                 Err(Repli::AppareilIntrouvable)
@@ -164,7 +233,7 @@ where
             Ok((hw_id, negotiation)) => {
                 match exclusive_alsa::AlsaExclusiveOutput::try_new(
                     hw_id,
-                    cpal_device_name.clone(),
+                    nom_carte.clone(),
                     negotiation,
                     rate_decodeur,
                     source_channels,
@@ -230,6 +299,20 @@ where
     // ─── Path CPAL (default, cross-platform) ───
     #[cfg(target_os = "windows")]
     wasapi_exclusive::fermer_moteur();
+    // Carte choisie encore hors service (délai de grâce d'une lecture exclusive,
+    // ou sonde exclusive refusée à l'instant) : elle revient à PipeWire, et le
+    // flux partagé l'ouvre au lieu de la sortie système.
+    #[cfg(target_os = "linux")]
+    let (cpal_device, cpal_device_name) = match peripherique::reclaim_if_held(&nom_carte) {
+        Some(device) => {
+            use cpal::traits::DeviceTrait;
+            let nom = device.description().map(|d| d.name().to_string()).unwrap_or(nom_carte);
+            (device, nom)
+        }
+        None => (cpal_device, cpal_device_name),
+    };
+    #[cfg(not(target_os = "linux"))]
+    let _ = nom_carte;
     let _ = desired_backend; // évite warning unused quand aucun backend exclusif
     cpal_symphonia::CpalSymphoniaOutput::try_new(
         cpal_device,

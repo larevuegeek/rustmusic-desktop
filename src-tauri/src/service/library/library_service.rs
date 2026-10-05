@@ -197,16 +197,23 @@ impl RescanProgress {
 //
 // Fonctionnement :
 // 1. On scanne le dossier récursivement pour lister tous les fichiers audio
-// 2. On ouvre UNE SEULE transaction SQLite (BEGIN IMMEDIATE)
-//    → Toutes les insertions se font en mémoire, pas de fsync entre chaque
-//    → C'est ~10-50x plus rapide que des commits individuels
+// 2. Par lot de 8 fichiers : analyse d'abord, HORS transaction, puis une
+//    transaction courte (BEGIN IMMEDIATE) pour écrire le lot
+//    → Le verrou d'écriture ne dure que le temps d'écrire 8 fichiers
 // 3. Pour chaque fichier, on émet un event Tauri "import-progress" au frontend
-// 4. À la fin, on COMMIT (1 seul fsync disque) et on émet "import-complete"
+// 4. À la fin, on émet "import-complete"
+//
+// Pourquoi pas une seule transaction pour tout l'import ?
+// - SQLite n'a qu'un écrivain à la fois, même en WAL
+// - Une transaction englobant l'analyse (lecture des fichiers, parfois sur un
+//   partage réseau) gardait le verrou plusieurs minutes : la file de lecture,
+//   l'historique, les compteurs attendaient 5 s (busy_timeout) puis échouaient
+//   en « database is locked »
 //
 // Pourquoi BEGIN IMMEDIATE ?
-// - BEGIN simple = shared lock (d'autres peuvent lire)
-// - BEGIN IMMEDIATE = reserved lock (on est sûr de pouvoir écrire)
-// - Évite les erreurs "database is locked" si un autre thread lit en même temps
+// - Le lot lit (fichier déjà connu ?) puis écrit : en BEGIN simple, si une
+//   autre écriture passe entre les deux, SQLite refuse aussitôt, sans attendre
+// - BEGIN IMMEDIATE prend le verrou d'écriture d'emblée et attend son tour
 //
 // ============================================================================
 
@@ -324,16 +331,12 @@ pub async fn save_files_to_library(
     let total: usize = files.len();
     log::info!("📁 {} fichiers trouvés dans {}", total, directory);
 
-    // ─── OUVRIR LA TRANSACTION ───────────────────────────────────────
-    let mut tx = pool_api.begin().await
-        .map_err(|e| format!("Failed to begin transaction: {}", e))?;
-
     // ─── IMPORT PAR BATCH DE 8 (analyse parallèle + DB séquentielle) ───
     //
     // Pour chaque batch de 8 fichiers :
     //   1. rayon analyse les 8 fichiers en parallèle sur tous les cores CPU
     //   2. On récupère les résultats (Vec<Result<FileAnalysisResult>>)
-    //   3. On écrit chaque résultat en DB séquentiellement (transaction unique)
+    //   3. On écrit chaque résultat en DB séquentiellement (une transaction par batch)
     //   4. On émet la progression fichier par fichier pendant la phase DB
     //
     // Pourquoi 8 ? C'est un bon compromis entre :
@@ -381,9 +384,12 @@ pub async fn save_files_to_library(
             }
         };
 
-        // ── Phase 2 : Écriture DB séquentielle (async, transaction) ──
+        // ── Phase 2 : Écriture DB séquentielle (async, transaction du lot) ──
         // On itère les résultats un par un et on écrit dans la transaction
         // La progression est émise après chaque fichier → UX fluide
+        let mut tx = pool_api.begin_with("BEGIN IMMEDIATE").await
+            .map_err(|e| format!("Failed to begin transaction: {}", e))?;
+
         for (file, analysis_result) in analyses {
             processed += 1;
 
@@ -430,11 +436,10 @@ pub async fn save_files_to_library(
                 }
             }
         }
-    }
 
-    // ─── COMMIT ─────────────────────────────────────────────────────
-    tx.commit().await
-        .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+        tx.commit().await
+            .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+    }
 
     let elapsed = start.elapsed();
     log::info!(

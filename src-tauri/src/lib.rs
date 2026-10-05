@@ -18,7 +18,7 @@ use crate::commands::smart_playlist_command::{count_smart_playlist, create_smart
 use crate::commands::playlist_view_command::{get_playlist_tracks_view, get_tracks_view_by_paths};
 use crate::commands::export_command::{export_settings_and_playlists, import_settings_and_playlists, preview_import};
 use crate::commands::pin_command::{get_library_pins, pin_album, pin_artist, unpin_album, unpin_artist};
-use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, cancel_task, clean_image_cache, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_library_tag_keys, get_track, mark_track_played, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_under_path, get_tracks_by_genre, get_tracks_by_years, get_mix_tracks, get_mix_genres, get_track_letter_offsets, list_directory, remove_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, repair_artist_links, get_track_artists, get_track_locations, save_thumbnail, save_thumbnail_from_file, read_cover_as_base64};
+use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, resolve_blurred_cover, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, cancel_task, clean_image_cache, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_library_tag_keys, get_track, mark_track_played, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_under_path, get_tracks_by_genre, get_tracks_by_years, get_mix_tracks, get_mix_genres, get_track_letter_offsets, list_directory, remove_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, repair_artist_links, get_track_artists, get_track_locations, save_thumbnail, save_thumbnail_from_file, read_cover_as_base64};
 use crate::commands::player_command::{AUDIO_PLAYER, get_progress, open_file, open_files, pause_play, play_file, seek_to, set_veille_bloquee, stop_play};
 use crate::commands::playlist_command::{add_track_liked, get_tracks_liked, remove_track_liked, get_playlists, get_playlist, create_playlist, update_playlist, set_playlist_pinned, delete_playlist, get_playlist_tracks, add_track_to_playlist, remove_track_from_playlist};
 use crate::commands::profil_command::{get_profil, get_all_profils, create_profil, update_profil, delete_profil};
@@ -33,7 +33,7 @@ use crate::commands::audio_command::{
     get_audio_quality_status, get_replay_gain_settings, set_audio_quality_setting, set_gapless,
     set_next_track, set_replay_gain_settings,
 };
-use crate::commands::system_command::{get_render_mode, notify_ui_ready, set_render_mode};
+use crate::commands::system_command::{get_render_mode, notify_ui_ready, set_dmabuf_mode, set_render_mode};
 use crate::commands::audit_command::audit_library;
 use crate::commands::rename_command::{
     apply_rename, check_pattern, clean_tags, list_batch_journal, order_moves, preview_rename,
@@ -115,7 +115,10 @@ fn init_logger() {
             .add_filter_ignore_str("hyper")
             .add_filter_ignore_str("reqwest")
             .add_filter_ignore_str("h2")
-            .add_filter_ignore_str("rustls");
+            .add_filter_ignore_str("rustls")
+            // Le client PulseAudio de CPAL écrit « Reactor error: Client
+            // disconnected » en Error à chaque connexion refermée normalement.
+            .add_filter_ignore_str("pulseaudio");
 
         // Heure locale plutôt qu'UTC : on relit un journal en le comparant à
         // « ça a planté vers 18 h », pas à un décalage qu'il faut calculer.
@@ -212,6 +215,10 @@ async fn configure_render_pipeline(app_state: &AppState, db_mode: crate::core::r
     use crate::core::render_mode::RenderMode;
     use crate::repository::settings::settings_repository::SettingsRepository;
 
+    // Indépendant du mode de rendu : un cache de polices d'une autre version
+    // bloque WebKit en GPU comme en logiciel.
+    crate::core::fontconfig_cache::remove_mismatched_caches();
+
     let env_mode = RenderMode::from_env();
     if let Some(m) = env_mode {
         log::info!("🖥  RUSTMUSIC_RENDER override : {}", m.as_str());
@@ -265,15 +272,23 @@ async fn configure_render_pipeline(app_state: &AppState, db_mode: crate::core::r
         gpu_sentinel::set_booted_gpu(true);
     }
 
-    apply_linux_render_env(force_software, &reason);
+    let dmabuf = crate::core::render_mode::dmabuf_mode(
+        SettingsRepository::get(&app_state.pool, crate::core::render_mode::DMABUF_KEY)
+            .await
+            .ok()
+            .flatten()
+            .as_deref(),
+    );
+    apply_linux_render_env(force_software, &reason, dmabuf);
 }
 
 /// Apply the WebKitGTK / GDK env vars for the chosen rendering path.
 #[cfg(target_os = "linux")]
-fn apply_linux_render_env(force_software: bool, reason: &str) {
+fn apply_linux_render_env(force_software: bool, reason: &str, dmabuf: &str) {
     if force_software {
         log::info!("🖥  Render mode : software ({})", reason);
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        crate::core::render_mode::set_dmabuf_active(false);
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         // WebKitGTK ≥ 2.46 (Skia) ignore WEBKIT_DISABLE_COMPOSITING_MODE (le
         // compositing n'est plus désactivable) — cette variable est le « rendu
@@ -285,12 +300,53 @@ fn apply_linux_render_env(force_software: bool, reason: &str) {
         // when GTK can't query the scale from a non-existent compositor.
         std::env::set_var("GDK_SCALE", "1");
     } else {
-        // Native / forced-GPU path. DMABUF is known to break on AMD/Mesa
-        // stacks (Tauri/wry issue) so we still neutralise it unless the user
-        // explicitly forces GPU mode AND we're on a native machine — in which
-        // case we set it too since most modern Mesa builds still have issues.
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        log::info!("🖥  Render mode : GPU ({}, DMABUF off)", reason);
+        // DMA-BUF : sans lui, chaque image est recopiée par le processeur (17 au
+        // lieu de 37 images/s au défilement en 4K). Coupé avec le pilote NVIDIA
+        // propriétaire ; la variable d'environnement et `dmabuf_mode` priment.
+        let actif = match std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER") {
+            // WebKit ne le coupe que pour une valeur autre que « 0 ».
+            Ok(valeur) => valeur == "0",
+            Err(_) => {
+                let actif = match dmabuf {
+                    "on" => true,
+                    "off" => false,
+                    _ => !crate::core::system_detect::nvidia_proprietary_driver(),
+                };
+                if !actif {
+                    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+                }
+                actif
+            }
+        };
+        crate::core::render_mode::set_dmabuf_active(actif);
+        log::info!(
+            "🖥  Render mode : GPU ({}, DMABUF {} — réglage {})",
+            reason,
+            if actif { "on" } else { "off" },
+            dmabuf
+        );
+    }
+}
+
+/// Builds de développement, Linux : GNOME relie la fenêtre au `.desktop` du nom de
+/// l'exécutable (`rustmusic` en dev, sans entrée installée : icône générique).
+#[cfg(all(target_os = "linux", debug_assertions))]
+fn register_dev_desktop_entry() {
+    let Some(dossier) = dirs::data_dir().map(|d| d.join("applications")) else { return };
+    let Some(exe) = std::env::current_exe().ok() else { return };
+    let nom = exe.file_name().and_then(|n| n.to_str()).unwrap_or("rustmusic").to_string();
+    let icone = concat!(env!("CARGO_MANIFEST_DIR"), "/icons/128x128@2x.png");
+    let contenu = format!(
+        "[Desktop Entry]\nType=Application\nName=RustMusic (dev)\nExec={}\nIcon={icone}\nStartupWMClass={nom}\nNoDisplay=true\n",
+        exe.display()
+    );
+    let fichier = dossier.join(format!("{nom}.desktop"));
+    if std::fs::read_to_string(&fichier).ok().as_deref() == Some(contenu.as_str()) {
+        return;
+    }
+    match std::fs::create_dir_all(&dossier).and_then(|_| std::fs::write(&fichier, contenu)) {
+        Ok(()) => log::info!("🖼  Entrée de bureau de développement : {}", fichier.display()),
+        Err(e) => log::warn!("Entrée de bureau de développement non écrite ({}) : {e}", fichier.display()),
     }
 }
 
@@ -336,6 +392,13 @@ pub async fn run() {
         .as_deref(),
     );
     configure_render_pipeline(&app_state, render_mode).await;
+
+    #[cfg(all(target_os = "linux", debug_assertions))]
+    register_dev_desktop_entry();
+
+    // Une carte laissée hors service par un plantage en pleine lecture exclusive revient à PipeWire.
+    #[cfg(target_os = "linux")]
+    crate::core::audio_player::output::profil_pipewire::restore_pending();
 
     let audio_player = AudioPlayer::new();
 
@@ -714,6 +777,7 @@ pub async fn run() {
             search,
             read_cover_as_base64,
             resolve_cover_thumbnail,
+            resolve_blurred_cover,
             get_lyrics,
             refresh_lyrics,
             dlna_get_settings,
@@ -763,9 +827,20 @@ pub async fn run() {
             wasapi_probe_device_capabilities,
             set_wasapi_exclusive_preference,
             set_dop_preference,
+            set_dmabuf_mode,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|_app, event| {
+            // Quitter pendant une lecture exclusive, ou dans les 5 s qui suivent :
+            // la carte mise hors service (profil « off ») revient à PipeWire.
+            #[cfg(target_os = "linux")]
+            if let tauri::RunEvent::Exit = event {
+                crate::core::audio_player::output::profil_pipewire::restore_all();
+            }
+            #[cfg(not(target_os = "linux"))]
+            let _ = event;
+        });
 }
 
 #[cfg(test)]

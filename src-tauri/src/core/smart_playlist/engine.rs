@@ -44,9 +44,9 @@ const SELECT: &str = "\
 const PLAFOND: i64 = 5000;
 
 fn lier<'q>(
-    mut q: sqlx::query::QueryAs<'q, Sqlite, PlaylistTrackView, sqlx::sqlite::SqliteArguments<'q>>,
+    mut q: sqlx::query::QueryAs<'q, Sqlite, PlaylistTrackView, sqlx::sqlite::SqliteArguments>,
     binds: &'q [Bind],
-) -> sqlx::query::QueryAs<'q, Sqlite, PlaylistTrackView, sqlx::sqlite::SqliteArguments<'q>> {
+) -> sqlx::query::QueryAs<'q, Sqlite, PlaylistTrackView, sqlx::sqlite::SqliteArguments> {
     for b in binds {
         q = match b {
             Bind::Text(s) => q.bind(s),
@@ -76,7 +76,7 @@ pub async fn evaluate(
 
     // L'ordre des liaisons suit celui des `?` dans le texte : l'identifiant de
     // playlist du SELECT, puis les valeurs du WHERE, puis celles de l'ORDER BY.
-    let mut q = sqlx::query_as::<_, PlaylistTrackView>(&sql).bind(playlist_id);
+    let mut q = sqlx::query_as::<_, PlaylistTrackView>(sqlx::AssertSqlSafe(sql)).bind(playlist_id);
     q = lier(q, &filtre.binds);
     q = lier(q, &ordre_binds);
 
@@ -96,7 +96,7 @@ pub async fn count(pool: &SqlitePool, rules: &SmartRules) -> Result<i64, String>
     // morceaux répondent aux règles, pas combien seront affichés.
     let sql = format!("SELECT COUNT(*)\n{TRACK_FROM}\nWHERE {}", filtre.sql);
 
-    let mut q = sqlx::query_scalar::<_, i64>(&sql);
+    let mut q = sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(sql));
     for b in &filtre.binds {
         q = match b {
             Bind::Text(s) => q.bind(s.clone()),

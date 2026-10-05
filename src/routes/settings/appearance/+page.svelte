@@ -26,8 +26,10 @@
   import {
     getRenderMode,
     setRenderMode,
+    setDmabufMode,
     type RenderModeStatus,
     type RenderMode,
+    type DmabufMode,
   } from "$lib/services/system/renderMode.service";
 
   // `!== 'false'` : sans réglage en base, le défaut est « visible ».
@@ -127,6 +129,36 @@
       renderModeSaving = false;
     }
   }
+
+  // ─── DMA-BUF : figé au démarrage, comme le mode de rendu ───
+  let dmabufSaving = $state(false);
+  let dmabufInitial: DmabufMode | null = null;
+  $effect(() => {
+    if (renderMode && dmabufInitial === null) dmabufInitial = renderMode.dmabuf_mode;
+  });
+
+  async function handleDmabufChange(value: DmabufMode) {
+    if (dmabufSaving) return;
+    dmabufSaving = true;
+    try {
+      renderMode = await setDmabufMode(value);
+    } catch (e) {
+      console.error("[dmabuf] save failed:", e);
+    } finally {
+      dmabufSaving = false;
+    }
+  }
+
+  const descDmabuf = $derived(
+    [
+      $t("settings.dmabuf_desc"),
+      renderMode?.nvidia ? $t("settings.dmabuf_nvidia") : "",
+      renderMode ? $t(renderMode.dmabuf_active ? "settings.dmabuf_now_on" : "settings.dmabuf_now_off") : "",
+      renderMode && dmabufInitial !== null && renderMode.dmabuf_mode !== dmabufInitial
+        ? $t("settings.render_mode_restart_required")
+        : "",
+    ].filter(Boolean).join(" "),
+  );
 
   const descRendu = $derived(
     [
@@ -297,6 +329,10 @@
       onchange={(v) => settingsStore.set("window_controls_position", v)}
     />
   </OptionItem>
+</OptionGroup>
+
+<!-- ─── Options expert : affichage, à n'ajuster qu'en cas de lenteur ou de défaut ─── -->
+<OptionGroup title={$t("settings.expert_group")} hint={$t("settings.expert_group_hint")}>
   {#if renderMode}
     <OptionItem title={$t("settings.render_mode")} desc={descRendu} keywords="gpu webkit">
       <SegmentedControl
@@ -310,5 +346,28 @@
         onchange={(v) => handleRenderModeChange(v as RenderMode)}
       />
     </OptionItem>
+    <OptionItem title={$t("settings.dmabuf")} desc={descDmabuf} keywords="dmabuf dma-buf gpu webkit fluidité 4k">
+      <SegmentedControl
+        value={renderMode.dmabuf_mode}
+        options={[
+          { value: "auto", label: $t("settings.auto") },
+          { value: "on", label: $t("settings.dmabuf_on") },
+          { value: "off", label: $t("settings.dmabuf_off") },
+        ]}
+        label={$t("settings.dmabuf")}
+        onchange={(v) => handleDmabufChange(v as DmabufMode)}
+      />
+    </OptionItem>
   {/if}
+  <OptionItem title={$t("settings.blurred_backgrounds")} desc={$t("settings.blurred_backgrounds_desc")} keywords="flou blur pochette fond">
+    <SegmentedControl
+      value={$settingsStore.blurred_backgrounds === "live" ? "live" : "precomputed"}
+      options={[
+        { value: "precomputed", label: $t("settings.blurred_precomputed") },
+        { value: "live", label: $t("settings.blurred_live") },
+      ]}
+      label={$t("settings.blurred_backgrounds")}
+      onchange={(v) => settingsStore.set("blurred_backgrounds", v)}
+    />
+  </OptionItem>
 </OptionGroup>

@@ -15,7 +15,7 @@ use symphonia::{
     default::get_probe,
 };
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::traits::{DeviceTrait, StreamTrait};
 use ringbuf::{traits::{Producer, Consumer, Split}};
 use tauri::{AppHandle, Emitter};
 use std::sync::atomic::{AtomicBool, Ordering, AtomicU8, AtomicU64, AtomicUsize};
@@ -387,29 +387,10 @@ impl AudioPlayer {
 
         // ========== PHASE 2 : CONFIGURATION SORTIE ==========
         let host: cpal::Host = cpal::default_host();
-        let device: cpal::Device = if let Some(ref name) = selected_device_name {
-            let found = host.output_devices()
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?
-                .find(|d| {
-                    if let Ok(desc) = d.description() {
-                        let dn = desc.name().to_string();
-                        let display = match desc.manufacturer() {
-                            Some(mfr) => format!("{} ({})", dn, mfr),
-                            None => dn.clone(),
-                        };
-                        dn == *name || display == *name
-                    } else { false }
-                });
-            match found {
-                Some(d) => d,
-                None => {
-                    log::error!("Device '{}' introuvable, fallback default", name);
-                    host.default_output_device().ok_or("Pas de périphérique audio")?
-                }
-            }
-        } else {
-            host.default_output_device().ok_or("Pas de périphérique audio")?
-        };
+        let device: cpal::Device = crate::core::audio_player::output::peripherique::choose(
+            &host,
+            selected_device_name.as_deref(),
+        )?;
 
         log::debug!("Output device: {:?}", device.description());
 
@@ -442,6 +423,13 @@ impl AudioPlayer {
                 }
             })
             .unwrap_or_else(|| "Périphérique audio".to_string());
+        // Nom qui désigne la carte des sorties exclusives (Linux) : la sortie
+        // choisie, même quand sa sortie PipeWire a disparu le temps d'une lecture
+        // exclusive (CPAL s'est alors rabattu sur la sortie système).
+        #[cfg(target_os = "linux")]
+        let nom_carte = selected_device_name.clone().unwrap_or_else(|| device_name.clone());
+        #[cfg(not(target_os = "linux"))]
+        let nom_carte = device_name.clone();
 
         // ─── Pré-négociation WASAPI (Windows) : pilote le décodeur au rate
         // natif du DAC pour une vraie sortie bit-perfect ───
@@ -482,7 +470,7 @@ impl AudioPlayer {
         // ─── Pré-négociation ALSA / CoreAudio : même raison que WASAPI ───
         // La sortie exclusive ouvre le DAC au rate source ; le décodeur doit le produire.
         #[cfg(any(target_os = "linux", target_os = "macos"))]
-        if crate::core::audio_player::output::exclusif_au_rate_source(&device_name, source_sample_rate, output_channels) {
+        if crate::core::audio_player::output::exclusif_au_rate_source(&nom_carte, source_sample_rate, output_channels) {
             log::info!(
                 "🎚️  Exclusif pré-négocié : décodeur piloté à {} Hz / {} ch (au lieu de {} Hz)",
                 source_sample_rate, output_channels, output_sample_rate
@@ -503,7 +491,10 @@ impl AudioPlayer {
             crate::core::audio_quality::AudioQualityProfile::Low => {
                 Some((output_sample_rate as f32 * 0.2) as u32) // 200 ms
             }
-            _ => None,
+            _ => crate::core::audio_player::output::peripherique::sound_server_period(
+                &host,
+                output_sample_rate,
+            ),
         };
 
         // Clamp dans la range supportée par le device. Si le device n'accepte
@@ -596,6 +587,7 @@ impl AudioPlayer {
         let is_stopped_clone_decoder: Arc<AtomicBool> = is_stopped.clone();
         let current_source_clone_decoder: Arc<AtomicU8> = current_source.clone();
         let current_position_frames_decoder: Arc<AtomicUsize> = current_position_frames.clone();
+        let full_buffer_cursor_decoder: Arc<AtomicUsize> = full_buffer_cursor.clone();
         let full_buffer_data_writer: Arc<std::sync::RwLock<Vec<f32>>> = full_buffer_data.clone();
         let is_full_buffer_ready_writer: Arc<AtomicBool> = is_full_buffer_ready.clone();
         let seek_position_decoder: Arc<AtomicU64> = seek_position.clone();
@@ -624,6 +616,7 @@ impl AudioPlayer {
                 is_full_buffer_ready_writer,
                 current_source_clone_decoder,
                 current_position_frames_decoder,
+                full_buffer_cursor_decoder,
                 is_stopped_clone_decoder,
                 seek_position_decoder,
                 source_sample_rate,
@@ -753,6 +746,7 @@ impl AudioPlayer {
             device,
             config,
             device_name.clone(),
+            nom_carte,
             playback_atomics,
             symphonia_shared,
             consumer,
@@ -1022,6 +1016,15 @@ impl AudioPlayer {
         drop(audio_output);
         log::debug!("🧹 Fin de lecture - backend audio libéré");
 
+        // Remise à zéro AVANT de signaler la fin : dès que `is_stream_alive`
+        // tombe, `stop()` rend la main et la piste suivante démarre — ces
+        // drapeaux sont alors les siens. Après, on écrasait son `is_playing`
+        // (une seconde lecture pouvait partir par-dessus) et sa position.
+        is_stopped.store(false, Ordering::SeqCst);
+        is_playing.store(false, Ordering::SeqCst);
+        current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
+        current_position_frames.store(0, Ordering::Relaxed);
+        full_buffer_cursor.store(0, Ordering::Relaxed);
         is_stream_alive.store(false, Ordering::SeqCst);
         
         // Le préchargement en vol n'a plus d'objet : on l'annule et on attend
@@ -1048,12 +1051,6 @@ impl AudioPlayer {
                 log::error!("❌ Erreur d'envoi de l'event Tauri : {}", e);
             }
         }
-
-        is_stopped.store(false, Ordering::SeqCst);
-        is_playing.store(false, Ordering::SeqCst);
-        current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
-        current_position_frames.store(0, Ordering::Relaxed);
-        full_buffer_cursor.store(0, Ordering::Relaxed);
 
         Ok(())
     }
@@ -1124,33 +1121,10 @@ impl AudioPlayer {
 
         // ─── 2. CPAL output device + config (mêmes choix que Symphonia path) ───
         let host = cpal::default_host();
-        let device: cpal::Device = if let Some(ref name) = selected_device_name {
-            let found = host
-                .output_devices()?
-                .find(|d| {
-                    if let Ok(desc) = d.description() {
-                        let dn = desc.name().to_string();
-                        let display = match desc.manufacturer() {
-                            Some(mfr) => format!("{} ({})", dn, mfr),
-                            None => dn.clone(),
-                        };
-                        dn == *name || display == *name
-                    } else {
-                        false
-                    }
-                });
-            match found {
-                Some(d) => d,
-                None => {
-                    log::error!("Device '{}' introuvable, fallback default", name);
-                    host.default_output_device()
-                        .ok_or("Pas de périphérique audio")?
-                }
-            }
-        } else {
-            host.default_output_device()
-                .ok_or("Pas de périphérique audio")?
-        };
+        let device: cpal::Device = crate::core::audio_player::output::peripherique::choose(
+            &host,
+            selected_device_name.as_deref(),
+        )?;
 
         // Le DSD (DoP ou converti) ne passe pas par le moteur PCM exclusif : il rend le DAC.
         #[cfg(target_os = "windows")]
@@ -1337,9 +1311,11 @@ impl AudioPlayer {
                         repli_dop = Some(crate::core::audio_player::pipeline_info::Repli::DopRefuse);
                     }
                 } else {
-                    log::debug!(
-                        "🎚️  Aucun hw: ALSA résolu pour '{}', fallback DSD2PCM",
-                        device_full_name
+                    // DoP demandé mais aucune carte : à voir dans le journal, pas seulement en debug.
+                    log::warn!(
+                        "🎚️  DoP : aucune carte ALSA pour '{}' (sortie choisie : {:?}), fallback DSD2PCM",
+                        device_full_name,
+                        selected_device_name
                     );
                     repli_dop = Some(crate::core::audio_player::pipeline_info::Repli::AppareilIntrouvable);
                 }
@@ -1449,9 +1425,58 @@ impl AudioPlayer {
         #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
         crate::core::audio_player::output::dop_engine::teardown_engine();
 
+        // ─── DSD converti, en exclusif (Linux) ───
+        // Comme un fichier PCM : avec « Sortie exclusive », le PCM issu du DSD part
+        // au `hw:` de la carte, à son débit intermédiaire (ni rééchantillonnage, ni
+        // serveur son). Le profil Minimal garde CPAL, comme pour le DoP.
+        #[cfg(target_os = "linux")]
+        let exclusif_dsd = {
+            use crate::core::audio_player::output;
+            let profil = crate::core::audio_quality::current_profile();
+            let minimal = matches!(profil, crate::core::audio_quality::AudioQualityProfile::Minimal);
+            if !minimal && matches!(output::current_preference(), output::AudioBackend::AlsaExclusive) {
+                let nom_sortie = device
+                    .description()
+                    .ok()
+                    .map(|d| d.name().to_string())
+                    .unwrap_or_default();
+                let noms: Vec<&str> = selected_device_name
+                    .as_deref()
+                    .into_iter()
+                    .chain([nom_sortie.as_str()])
+                    .collect();
+                let rate = profil.dsd_target_rate(dsd_rate);
+                match output::probe_dsd_exclusive(&noms, rate, channel_count as u16) {
+                    Ok((hw_id, negociation)) => Some((hw_id, negociation, rate, nom_sortie)),
+                    Err(motif) => {
+                        repli_dop.get_or_insert(motif);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        };
+
+        // Partagé : si la carte choisie est encore hors service (délai de grâce
+        // d'une lecture exclusive), elle revient à PipeWire avant d'ouvrir le flux.
+        #[cfg(target_os = "linux")]
+        let device = match (&exclusif_dsd, selected_device_name.as_deref()) {
+            (None, Some(nom)) => crate::core::audio_player::output::peripherique::reclaim_if_held(nom)
+                .unwrap_or(device),
+            _ => device,
+        };
+
         let output_config = device.default_output_config()?;
-        let output_sample_rate = output_config.sample_rate();
-        let output_channels = output_config.channels();
+        #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
+        let mut output_sample_rate = output_config.sample_rate();
+        #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
+        let mut output_channels = output_config.channels();
+        #[cfg(target_os = "linux")]
+        if let Some((_, _, rate, _)) = &exclusif_dsd {
+            output_sample_rate = *rate;
+            output_channels = channel_count as u16;
+        }
 
         // Buffer hardware CPAL : gros sur profil contraint pour tolérer les
         // stalls OS scheduling. Cf. raisonnement détaillé dans play_file_thread.
@@ -1463,7 +1488,11 @@ impl AudioPlayer {
             crate::core::audio_quality::AudioQualityProfile::Low => {
                 cpal::BufferSize::Fixed((output_sample_rate as f32 * 0.2) as u32)
             }
-            _ => cpal::BufferSize::Default,
+            _ => crate::core::audio_player::output::peripherique::sound_server_period(
+                &host,
+                output_sample_rate,
+            )
+            .map_or(cpal::BufferSize::Default, cpal::BufferSize::Fixed),
         };
 
         let config = cpal::StreamConfig {
@@ -1483,6 +1512,15 @@ impl AudioPlayer {
         // that intermediate rate differs from the device rate.
         let profile_for_pipeline = crate::core::audio_quality::current_profile();
         let intermediate_pcm_rate = profile_for_pipeline.dsd_target_rate(dsd_rate);
+        // DSD converti : CPAL, ou le `hw:` en exclusif sous Linux (jamais WASAPI ici).
+        #[cfg(target_os = "linux")]
+        let backend_dsd = if exclusif_dsd.is_some() {
+            crate::core::audio_player::output::AudioBackend::AlsaExclusive
+        } else {
+            crate::core::audio_player::output::AudioBackend::CpalShared
+        };
+        #[cfg(not(target_os = "linux"))]
+        let backend_dsd = crate::core::audio_player::output::AudioBackend::CpalShared;
         let dsd_device_name = device
             .description()
             .ok()
@@ -1501,10 +1539,7 @@ impl AudioPlayer {
             device_name: dsd_device_name,
             resampler_active: intermediate_pcm_rate != output_sample_rate,
             quality_profile: format!("{:?}", profile_for_pipeline).to_lowercase(),
-            // DSD passe par CPAL (WASAPI exclusive DSD non supporté ici).
-            backend: crate::core::audio_player::output::AudioBackend::CpalShared
-                .display_name()
-                .to_string(),
+            backend: backend_dsd.display_name().to_string(),
             bit_perfect: false,
             repli: repli_dop,
         }
@@ -1759,9 +1794,16 @@ impl AudioPlayer {
 
             log::debug!("✅ [DSD-FullBuffer] Lecture terminée");
             drop(stream);
+
+            let user_stopped = is_stopped.load(Ordering::Relaxed);
+            // Remise à zéro avant le signal de fin : voir la fin du chemin PCM.
+            is_stopped.store(false, Ordering::SeqCst);
+            is_playing.store(false, Ordering::SeqCst);
+            current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
+            current_position_frames.store(0, Ordering::Relaxed);
             is_stream_alive.store(false, Ordering::SeqCst);
 
-            if !is_stopped.load(Ordering::Relaxed) {
+            if !user_stopped {
                 if let Err(e) = app_handle.emit(
                     "playback-ended",
                     file_path.to_string_lossy().to_string(),
@@ -1769,11 +1811,6 @@ impl AudioPlayer {
                     log::error!("❌ Erreur d'envoi de l'event Tauri : {}", e);
                 }
             }
-
-            is_stopped.store(false, Ordering::SeqCst);
-            is_playing.store(false, Ordering::SeqCst);
-            current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
-            current_position_frames.store(0, Ordering::Relaxed);
 
             return Ok(());
         } else {
@@ -1794,6 +1831,41 @@ impl AudioPlayer {
         }
 
         is_playing.store(true, Ordering::SeqCst);
+
+        // ─── 7 bis. Sortie exclusive (Linux) : même ring buffer, rendu ALSA ───
+        #[cfg(target_os = "linux")]
+        if let Some((hw_id, negociation, rate, nom_sortie)) = exclusif_dsd {
+            let atomics = crate::core::audio_player::output::PlaybackAtomics {
+                is_paused: is_paused.clone(),
+                is_stopped: is_stopped.clone(),
+                volume: volume.clone(),
+                current_position_frames: current_position_frames.clone(),
+            };
+            let sortie = crate::core::audio_player::output::open_dsd_exclusive(
+                hw_id,
+                nom_sortie,
+                negociation,
+                rate,
+                output_channels,
+                consumer,
+                atomics,
+                seek_flush.clone(),
+            )?;
+            log::info!("🎚️  [DSD] Converti en PCM {rate} Hz, sortie ALSA exclusive");
+            return Self::finish_dsd_playback(
+                sortie,
+                decoder_handle,
+                &app_handle,
+                &file_path,
+                duration,
+                output_sample_rate,
+                &current_position_frames,
+                &current_position,
+                &is_stopped,
+                &is_playing,
+                &is_stream_alive,
+            );
+        }
 
         // ─── 7. Build CPAL stream (LiveDecode-only) ───
         let is_paused_cpal = is_paused.clone();
@@ -1868,6 +1940,38 @@ impl AudioPlayer {
         stream.play()?;
         log::debug!("▶️ [DSD] Lecture en cours...");
 
+        Self::finish_dsd_playback(
+            stream,
+            decoder_handle,
+            &app_handle,
+            &file_path,
+            duration,
+            output_sample_rate,
+            &current_position_frames,
+            &current_position,
+            &is_stopped,
+            &is_playing,
+            &is_stream_alive,
+        )
+    }
+
+    /// Fin d'une lecture DSD en décodage direct, quelle que soit la sortie (flux
+    /// CPAL ou rendu exclusif) : attend la fin du décodage puis celle du rendu,
+    /// relâche la sortie, prévient l'interface.
+    #[allow(clippy::too_many_arguments)]
+    fn finish_dsd_playback<S, E: std::fmt::Display>(
+        stream: S,
+        decoder_handle: std::thread::JoinHandle<Result<(), E>>,
+        app_handle: &AppHandle,
+        file_path: &std::path::Path,
+        duration: f64,
+        output_sample_rate: u32,
+        current_position_frames: &AtomicUsize,
+        current_position: &AtomicU64,
+        is_stopped: &AtomicBool,
+        is_playing: &AtomicBool,
+        is_stream_alive: &AtomicBool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // Safety : re-émettre preparing: false en cas d'event perdu (cf. path Symphonia).
         let _ = app_handle.emit("playback-preparing", false);
 
@@ -1897,21 +2001,25 @@ impl AudioPlayer {
 
         log::debug!("✅ [DSD] Lecture terminée");
 
+        // Le rendu exclusif lève `is_stopped` en se refermant : l'intention se
+        // lit avant.
+        let user_stopped = is_stopped.load(Ordering::Relaxed);
         drop(stream);
+
+        // Remise à zéro avant le signal de fin : voir la fin du chemin PCM.
+        is_stopped.store(false, Ordering::SeqCst);
+        is_playing.store(false, Ordering::SeqCst);
+        current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
+        current_position_frames.store(0, Ordering::Relaxed);
         is_stream_alive.store(false, Ordering::SeqCst);
 
-        if !is_stopped.load(Ordering::Relaxed) {
+        if !user_stopped {
             if let Err(e) =
                 app_handle.emit("playback-ended", file_path.to_string_lossy().to_string())
             {
                 log::error!("❌ Erreur d'envoi de l'event Tauri : {}", e);
             }
         }
-
-        is_stopped.store(false, Ordering::SeqCst);
-        is_playing.store(false, Ordering::SeqCst);
-        current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
-        current_position_frames.store(0, Ordering::Relaxed);
 
         Ok(())
     }
@@ -2039,6 +2147,10 @@ impl AudioPlayer {
         dop_engine::end_current_track_on_engine(user_stopped);
 
         log::debug!("✅ [DoP] Fin de piste (moteur gardé vivant, user_stopped={user_stopped})");
+        // Remise à zéro avant le signal de fin : voir la fin du chemin PCM.
+        is_stopped.store(false, Ordering::SeqCst);
+        is_playing.store(false, Ordering::SeqCst);
+        current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
         is_stream_alive.store(false, Ordering::SeqCst);
 
         if !preparing_cleared {
@@ -2053,10 +2165,6 @@ impl AudioPlayer {
                 log::error!("❌ Erreur d'envoi de l'event Tauri : {}", e);
             }
         }
-
-        is_stopped.store(false, Ordering::SeqCst);
-        is_playing.store(false, Ordering::SeqCst);
-        current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
 
         Ok(())
     }
@@ -2078,6 +2186,7 @@ pub fn decode_thread<P>(
     is_full_buffer_ready: Arc<AtomicBool>,
     current_source: Arc<AtomicU8>,
     current_position_frames: Arc<AtomicUsize>,
+    full_buffer_cursor: Arc<AtomicUsize>,
     is_stopped: Arc<AtomicBool>,
     seek_position: Arc<AtomicU64>,
     sample_rate_for_seek: u32,
@@ -2250,10 +2359,18 @@ where
                 let played_samples: usize = played_frames * output_channels as usize;
 
                 if fb.len() > played_samples + SAFETY_MARGIN {
+                    // Le FullBuffer reprend là où en est la lecture. Tant qu'on
+                    // lit le ring buffer, le curseur ne bouge pas : resté à 0, il
+                    // faisait repartir le morceau du début dès que la bascule
+                    // arrivait après les premiers échantillons. C'est le cas avec
+                    // le serveur son (CPAL PulseAudio), qui préremplit près d'une
+                    // seconde d'un coup avant que le décodeur passe devant.
+                    // Curseur d'abord : la sortie ne lit la source 1 qu'après.
+                    full_buffer_cursor.store(played_samples, Ordering::Release);
                     is_full_buffer_ready.store(true, Ordering::Relaxed);
 
                     // On bascule sur le FullBuffer (1 = FullBuffer)
-                    current_source.store(1, Ordering::Relaxed);
+                    current_source.store(1, Ordering::Release);
 
                     log::debug!(
                         "🚀 FullBuffer prêt ! ({} samples) - Basculement effectué",

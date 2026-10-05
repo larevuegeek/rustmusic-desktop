@@ -11,6 +11,21 @@
 //! relâche le nom → PipeWire reprend la carte.
 //!
 //! Tant qu'une instance de [`DeviceReservation`] vit, la carte est à nous.
+//!
+//! # PipeWire d'abord
+//! Quand PipeWire répond, on ne passe pas par D-Bus : on lui fait mettre la
+//! carte hors service (profil « off », voir [`super::profil_pipewire`]). La
+//! réservation D-Bus fait recréer la carte à WirePlumber 0.4, qui la renomme et
+//! perd la sortie par défaut. Elle reste le repli des systèmes sans PipeWire.
+//!
+//! # Le détenteur doit répondre
+//! Le protocole impose au détenteur du nom d'exposer l'objet
+//! `/org/freedesktop/ReserveDevice1/Audio<N>` (méthode `RequestRelease`,
+//! propriétés `Priority`, `ApplicationName`, `ApplicationDeviceName`).
+//! WirePlumber, dès qu'il a cédé la carte, nous envoie lui-même un
+//! `RequestRelease` pour la récupérer. Sans objet pour lui répondre, son appel
+//! échouait, et il ne redemandait plus jamais le nom une fois rendu : après une
+//! lecture DSD, la carte disparaissait de PipeWire jusqu'au redémarrage.
 
 #![cfg(target_os = "linux")]
 
@@ -18,17 +33,54 @@ use std::time::Duration;
 
 use zbus::blocking::{Connection, Proxy};
 use zbus::fdo::{RequestNameFlags, RequestNameReply};
+use zbus::interface;
 
 /// Priorité de réservation passée à `RequestRelease`. Le propriétaire actuel
 /// (PipeWire) cède si notre priorité est ≥ la sienne. Valeur haute : on veut
 /// vraiment la carte (l'utilisateur a explicitement demandé le DoP bit-perfect).
 const RESERVE_PRIORITY: i32 = 1_000_000;
 
+/// L'objet que le protocole demande au détenteur du nom.
+struct Detenteur {
+    card_index: u32,
+}
+
+#[interface(name = "org.freedesktop.ReserveDevice1")]
+impl Detenteur {
+    /// Un autre programme veut la carte. On la garde : la lecture DSD tourne, et
+    /// la rendre en plein morceau n'est pas prévu. WirePlumber, dont la priorité
+    /// est bien plus basse, attend alors qu'on rende le nom pour le reprendre.
+    fn request_release(&self, _priority: i32) -> bool {
+        false
+    }
+
+    #[zbus(property)]
+    fn priority(&self) -> i32 {
+        RESERVE_PRIORITY
+    }
+
+    #[zbus(property)]
+    fn application_name(&self) -> String {
+        "RustMusic".into()
+    }
+
+    #[zbus(property)]
+    fn application_device_name(&self) -> String {
+        format!("hw:{}", self.card_index)
+    }
+}
+
 /// Réservation vivante d'une carte ALSA. Le `Drop` relâche automatiquement.
 pub struct DeviceReservation {
-    conn: Connection,
-    name: String,
     card_index: u32,
+    mode: Mode,
+}
+
+enum Mode {
+    /// PipeWire a mis la carte hors service à notre demande.
+    Profil,
+    /// Nom D-Bus `ReserveDevice1` détenu (serveur son sans PipeWire).
+    DBus { conn: Connection, name: String },
 }
 
 impl DeviceReservation {
@@ -38,8 +90,22 @@ impl DeviceReservation {
     /// sinon (pas de session D-Bus, propriétaire qui refuse, etc.) → l'appelant
     /// retombe alors sur le chemin PCM classique.
     pub fn acquire(card_index: u32) -> Result<Self, String> {
+        match super::profil_pipewire::acquire(card_index) {
+            Ok(()) => return Ok(Self { card_index, mode: Mode::Profil }),
+            Err(e) => log::debug!("🔒 PipeWire indisponible pour la carte {card_index} ({e}) → réservation D-Bus"),
+        }
+        Self::acquire_dbus(card_index)
+    }
+
+    fn acquire_dbus(card_index: u32) -> Result<Self, String> {
         let conn = Connection::session().map_err(|e| format!("session D-Bus: {e}"))?;
         let name = format!("org.freedesktop.ReserveDevice1.Audio{card_index}");
+        let path = format!("/org/freedesktop/ReserveDevice1/Audio{card_index}");
+
+        // L'objet d'abord : WirePlumber l'interroge dès qu'on détient le nom.
+        conn.object_server()
+            .at(path.as_str(), Detenteur { card_index })
+            .map_err(|e| format!("objet ReserveDevice1: {e}"))?;
 
         let base = RequestNameFlags::AllowReplacement | RequestNameFlags::DoNotQueue;
 
@@ -49,7 +115,7 @@ impl DeviceReservation {
         match conn.request_name_with_flags(name.as_str(), base) {
             Ok(RequestNameReply::PrimaryOwner) | Ok(RequestNameReply::AlreadyOwner) => {
                 log::info!("🔒 Carte audio {card_index} réservée (D-Bus, libre)");
-                return Ok(Self { conn, name, card_index });
+                return Ok(Self { card_index, mode: Mode::DBus { conn, name } });
             }
             // `Exists` remonte sous forme d'erreur `NameTaken` chez zbus.
             Ok(_) | Err(zbus::Error::NameTaken) => {
@@ -59,7 +125,6 @@ impl DeviceReservation {
         }
 
         // Occupée : demander la libération au propriétaire actuel (PipeWire).
-        let path = format!("/org/freedesktop/ReserveDevice1/Audio{card_index}");
         // Chaînes possédées (String) → le Proxy n'emprunte pas `name`, ce qui
         // permet de le déplacer ensuite dans `Self`.
         let proxy = Proxy::new(
@@ -88,7 +153,7 @@ impl DeviceReservation {
                 // Laisser PipeWire finir de fermer le device ALSA.
                 std::thread::sleep(Duration::from_millis(200));
                 log::info!("🔒 Carte audio {card_index} réservée (D-Bus, après release PipeWire)");
-                Ok(Self { conn, name, card_index })
+                Ok(Self { card_index, mode: Mode::DBus { conn, name } })
             }
             other => Err(format!("réservation refusée après release: {other}")),
         }
@@ -97,8 +162,13 @@ impl DeviceReservation {
 
 impl Drop for DeviceReservation {
     fn drop(&mut self) {
-        let _ = self.conn.release_name(self.name.as_str());
-        log::info!("🔓 Carte audio {} relâchée (D-Bus)", self.card_index);
+        match &self.mode {
+            Mode::Profil => super::profil_pipewire::release(self.card_index),
+            Mode::DBus { conn, name } => {
+                let _ = conn.release_name(name.as_str());
+                log::info!("🔓 Carte audio {} relâchée (D-Bus)", self.card_index);
+            }
+        }
     }
 }
 

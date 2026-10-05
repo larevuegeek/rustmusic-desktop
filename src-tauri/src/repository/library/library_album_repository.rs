@@ -254,7 +254,7 @@ impl LibraryAlbumRepository {
             "#, where_query);
 
 
-        let albums: Vec<AlbumListView> = sqlx::query_as::<_, AlbumListView>(&query_sql)
+        let albums: Vec<AlbumListView> = sqlx::query_as::<_, AlbumListView>(sqlx::AssertSqlSafe(query_sql))
         .bind(library_id)
         .fetch_all(exec)
         .await?;

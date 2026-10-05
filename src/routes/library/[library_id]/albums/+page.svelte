@@ -59,10 +59,10 @@ const annee = $derived(Number(page.url.searchParams.get("annee")) || null);
 
 function choisirAnnee(y: number | null) {
   menuAnnee = false;
-  const url = new URL(page.url);
+  const url = new URL(page.url.href);
   if (y) url.searchParams.set("annee", String(y));
   else url.searchParams.delete("annee");
-  goto(url.pathname + url.search, { replaceState: true, keepFocus: true, noScroll: true });
+  goto(url.pathname + url.search, { replace: true, reset: false });
 }
 
 let menuGenre = $state(false);

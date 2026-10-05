@@ -53,6 +53,10 @@ pub struct AudioDeviceInfo {
     pub is_hires: bool,
     /// Bus de l'adaptateur (« USB », « HDAUDIO », « BTHENUM »…), Windows uniquement.
     pub bus: Option<String>,
+    /// `true` pour la sortie qu'utilise le lecteur (choisie et enregistrée).
+    /// Sans elle, l'interface affichait la sortie par défaut au lancement,
+    /// même quand une autre avait été restaurée.
+    pub is_selected: bool,
 }
 
 /// Traduit un `SampleFormat` CPAL en libellé humain court.
@@ -91,6 +95,64 @@ fn is_alsa_virtual_device(_name: &str) -> bool {
     false
 }
 
+/// Capacités de la carte ALSA derrière une sortie du serveur son : fréquences,
+/// formats, canaux, lus dans `/proc/asound/cardN/stream0` (cartes USB).
+#[cfg(target_os = "linux")]
+fn card_capabilities(sortie: &str) -> Option<(Vec<u32>, Vec<String>, u16)> {
+    use crate::core::audio_player::output::{device_reservation, dop_alsa};
+    let hw = dop_alsa::resolve_hw_id(sortie)?;
+    let carte = device_reservation::card_index_from_hw_id(&hw)?;
+    let stream0 = std::fs::read_to_string(format!("/proc/asound/card{carte}/stream0")).ok()?;
+    usb_capabilities(&stream0)
+}
+
+/// Lit la section « Playback » d'un `stream0` de carte USB.
+#[cfg(target_os = "linux")]
+fn usb_capabilities(stream0: &str) -> Option<(Vec<u32>, Vec<String>, u16)> {
+    let debut = stream0.find("Playback:")?;
+    let lecture = &stream0[debut..];
+    let lecture = lecture.split("\nCapture:").next().unwrap_or(lecture);
+
+    let mut rates = std::collections::BTreeSet::<u32>::new();
+    let mut formats = std::collections::BTreeSet::<&'static str>::new();
+    let mut canaux: u16 = 0;
+    for ligne in lecture.lines().map(str::trim) {
+        if let Some(f) = ligne.strip_prefix("Format: ") {
+            let label = match f.trim() {
+                "S16_LE" | "S16_BE" => "16-bit int",
+                "S24_3LE" | "S24_3BE" | "S24_LE" | "S24_BE" => "24-bit int",
+                "S32_LE" | "S32_BE" => "32-bit int",
+                "FLOAT_LE" | "FLOAT_BE" => "32-bit float",
+                _ => continue,
+            };
+            formats.insert(label);
+        } else if let Some(c) = ligne.strip_prefix("Channels: ") {
+            canaux = canaux.max(c.trim().parse().unwrap_or(0));
+        } else if let Some(r) = ligne.strip_prefix("Rates: ") {
+            // « 44100, 48000, … » ou « 8000 - 192000 (continuous) ».
+            let bornes: Vec<u32> = r
+                .split(|ch: char| !ch.is_ascii_digit())
+                .filter_map(|n| n.parse().ok())
+                .collect();
+            if r.contains(" - ") {
+                if let (Some(&min), Some(&max)) = (bornes.first(), bornes.get(1)) {
+                    rates.extend(CANDIDATE_RATES.iter().filter(|&&f| min <= f && f <= max));
+                }
+            } else {
+                rates.extend(bornes.into_iter().filter(|f| CANDIDATE_RATES.contains(f)));
+            }
+        }
+    }
+    if rates.is_empty() || formats.is_empty() {
+        return None;
+    }
+    Some((
+        rates.into_iter().collect(),
+        formats.into_iter().map(str::to_string).collect(),
+        canaux.max(1),
+    ))
+}
+
 /// Corrèle un nom CPAL → ID WASAPI par matching de friendly_name. Sur
 /// Windows uniquement. Renvoie `None` sur les autres OS ou si aucun match.
 /// La liste WASAPI est construite une seule fois par appel de
@@ -118,6 +180,7 @@ fn find_wasapi_id(name: &str, wasapi_list: &[(String, String)]) -> Option<String
 fn describe_device(
     device: &cpal::Device,
     default_name: &str,
+    hote_alsa: bool,
     #[cfg(target_os = "windows")] wasapi_list: &[(String, String)],
 ) -> Option<AudioDeviceInfo> {
     // CPAL 0.18 : `Device::name()` supprimé → tout passe par `description()`.
@@ -129,8 +192,11 @@ fn describe_device(
     // carte (ex. "Fosi Audio K7, USB Audio"), le discriminant virtuel
     // (hw:/plughw:/surround/iec958/sysdefault…) est dans le champ `driver`.
     // On teste donc les DEUX, sinon la liste explose en doublons ALSA.
-    if is_alsa_virtual_device(&raw_name)
-        || drv.as_deref().map(is_alsa_virtual_device).unwrap_or(false)
+    // Les sorties du serveur son n'en ont pas : le filtre écarterait à tort
+    // « DL7400 Universal HDMI Graphics… ».
+    if hote_alsa
+        && (is_alsa_virtual_device(&raw_name)
+            || drv.as_deref().map(is_alsa_virtual_device).unwrap_or(false))
     {
         return None;
     }
@@ -189,9 +255,34 @@ fn describe_device(
         }
     }
 
-    let sample_rates: Vec<u32> = rates_set.into_iter().collect();
-    let sample_formats: Vec<String> =
+    #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
+    let mut sample_rates: Vec<u32> = rates_set.into_iter().collect();
+    #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
+    let mut sample_formats: Vec<String> =
         formats_set.into_iter().map(|s| s.to_string()).collect();
+
+    // Serveur son : CPAL annonce tout ce que le serveur sait convertir, chaque
+    // sortie aurait l'air « Hi-Res ». On montre la carte derrière la sortie
+    // quand on sait la lire, sinon la configuration réelle de la sortie.
+    #[cfg(target_os = "linux")]
+    if !hote_alsa {
+        match card_capabilities(&raw_name) {
+            Some((rates, formats, channels)) => {
+                sample_rates = rates;
+                sample_formats = formats;
+                max_channels = channels;
+            }
+            None => {
+                if let Ok(cfg) = device.default_output_config() {
+                    sample_rates = vec![cfg.sample_rate()];
+                    sample_formats = vec![format_label(cfg.sample_format()).to_string()];
+                    max_channels = cfg.channels();
+                }
+            }
+        }
+        min_buf = None;
+        max_buf = None;
+    }
 
     // Hi-Res = ≥ 24-bit ET ≥ 88.2 kHz (règle usuelle audiophile).
     let has_24bit_or_more = sample_formats.iter().any(|f| {
@@ -226,6 +317,7 @@ fn describe_device(
         is_hires,
         wasapi_id,
         bus,
+        is_selected: false,
     })
 }
 
@@ -239,6 +331,19 @@ fn display_name_matches(device: &cpal::Device, default_name: &str) -> bool {
 #[tauri::command]
 pub async fn get_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
     let host: cpal::Host = cpal::default_host();
+    #[cfg(target_os = "linux")]
+    let hote_alsa = host.id() == cpal::HostId::Alsa;
+    #[cfg(not(target_os = "linux"))]
+    let hote_alsa = false;
+
+    // La sortie du lecteur, sous le nom qu'elle porte aujourd'hui (un ancien
+    // nom ALSA enregistré désigne la même carte sous un autre nom).
+    let choisie = crate::commands::player_command::AUDIO_PLAYER
+        .get()
+        .and_then(|p| p.lock().ok().and_then(|p| p.get_selected_device_name()))
+        .and_then(|nom| crate::core::audio_player::output::peripherique::find(&host, &nom))
+        .and_then(|d| d.description().ok())
+        .map(|d| d.name().to_string());
 
     let default_name = host
         .default_output_device()
@@ -266,11 +371,12 @@ pub async fn get_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
 
     for device in output_devices {
         #[cfg(target_os = "windows")]
-        let info_opt = describe_device(&device, &default_name, &wasapi_list);
+        let info_opt = describe_device(&device, &default_name, hote_alsa, &wasapi_list);
         #[cfg(not(target_os = "windows"))]
-        let info_opt = describe_device(&device, &default_name);
+        let info_opt = describe_device(&device, &default_name, hote_alsa);
 
-        if let Some(info) = info_opt {
+        if let Some(mut info) = info_opt {
+            info.is_selected = choisie.as_deref() == Some(info.name.as_str());
             if seen.insert(info.display_name.clone()) {
                 out.push(info);
             }
@@ -285,4 +391,41 @@ pub async fn get_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
     });
 
     Ok(out)
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_capabilities_from_stream0() {
+        let stream0 = "Fosi Audio Fosi Audio K7 at usb-0000:c5:00.3-2.1.1.2, high speed : USB Audio
+
+Playback:
+  Status: Running
+  Interface 1
+    Altset 1
+    Format: S32_LE
+    Channels: 2
+    Rates: 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000, 705600, 768000
+    Bits: 32
+
+Capture:
+  Interface 2
+    Format: S16_LE
+    Channels: 8
+    Rates: 8000
+";
+        let (rates, formats, canaux) = usb_capabilities(stream0).expect("capacités");
+        assert_eq!(rates, CANDIDATE_RATES.to_vec());
+        assert_eq!(formats, vec!["32-bit int".to_string()]);
+        assert_eq!(canaux, 2, "la section Capture ne compte pas");
+    }
+
+    #[test]
+    fn continuous_rate_range() {
+        let stream0 = "Playback:\n  Format: S16_LE\n  Channels: 2\n  Rates: 8000 - 96000 (continuous)\n";
+        let (rates, _, _) = usb_capabilities(stream0).expect("capacités");
+        assert_eq!(rates, vec![44_100, 48_000, 88_200, 96_000]);
+    }
 }

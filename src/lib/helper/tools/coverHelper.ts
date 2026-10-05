@@ -58,6 +58,33 @@ function miniature(chemin: string, original: string): Promise<string> {
 }
 
 // ── Fonction publique ──
+// ── Pochettes floutées (fonds) : générées une fois par le backend ──
+const MAX_FLOUES = 500;
+const floues = new Map<string, Promise<string | null>>();
+
+/** Version pré-floutée et saturée d'une pochette du disque ; `null` si impossible (distante, intégrée). */
+export function resolveBlurredCover(
+    path: string | null | undefined,
+    saturation: number,
+    flou: number,
+): Promise<string | null> {
+    if (!path || path.startsWith("http") || path.startsWith("data:") || path.startsWith("blob:") || path.startsWith("/images/")) {
+        return Promise.resolve(null);
+    }
+    const cle = `${path}|${saturation}|${flou}`;
+    const connue = floues.get(cle);
+    if (connue) return connue;
+    const p = invoke<string>("resolve_blurred_cover", { path, saturation, flou })
+        .then(assetSrc)
+        .catch(() => {
+            floues.delete(cle);
+            return null;
+        });
+    if (floues.size >= MAX_FLOUES) floues.delete(floues.keys().next().value!);
+    floues.set(cle, p);
+    return p;
+}
+
 export async function resolveCoverSrc(path: string | null | undefined, size: CoverSize = 'full'): Promise<string | null> {
     if (!path) return null;
 

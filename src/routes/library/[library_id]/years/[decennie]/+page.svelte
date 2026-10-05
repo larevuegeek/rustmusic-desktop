@@ -55,10 +55,10 @@ const debut = $derived(annee ?? decennie);
 const fin = $derived(annee ?? decennie + 9);
 
 function changer(cle: string, valeur: string | null) {
-  const url = new URL(page.url);
+  const url = new URL(page.url.href);
   if (valeur) url.searchParams.set(cle, valeur);
   else url.searchParams.delete(cle);
-  goto(url.pathname + url.search, { replaceState: true, keepFocus: true, noScroll: true });
+  goto(url.pathname + url.search, { replace: true, reset: false });
 }
 
 // ─── Les titres de la période ───

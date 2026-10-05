@@ -115,7 +115,7 @@ impl LibraryTrackRepository {
                  LEFT JOIN artists a ON a.id = t.artist_id
                  WHERE (? IS NULL OR f.library_id = ?) AND f.path IN ({trous})"
             );
-            let mut requete = sqlx::query_as::<_, FicheChemin>(&sql).bind(library_id).bind(library_id);
+            let mut requete = sqlx::query_as::<_, FicheChemin>(sqlx::AssertSqlSafe(sql)).bind(library_id).bind(library_id);
             for p in lot {
                 requete = requete.bind(p);
             }
@@ -443,7 +443,7 @@ impl LibraryTrackRepository {
                GROUP BY c ORDER BY c {}"#,
             filter_clause, cover_clause, if descending { "DESC" } else { "ASC" }
         );
-        let mut requete = sqlx::query_as::<_, (Option<String>, i64)>(&sql).bind(library_id);
+        let mut requete = sqlx::query_as::<_, (Option<String>, i64)>(sqlx::AssertSqlSafe(sql)).bind(library_id);
         if let Some(ref pat) = like_pattern {
             requete = requete.bind(pat).bind(pat).bind(pat);
         }
@@ -499,7 +499,7 @@ impl LibraryTrackRepository {
             filter_clause, cover_clause
         );
 
-        let mut count_query = sqlx::query_scalar::<_, i64>(&count_sql)
+        let mut count_query = sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(count_sql))
             .bind(library_id);
         if let Some(ref pat) = like_pattern {
             count_query = count_query.bind(pat).bind(pat).bind(pat);
@@ -549,7 +549,7 @@ impl LibraryTrackRepository {
         // L'ordre des liaisons suit celui des `?` dans le texte : la clause
         // WHERE, puis l'expression de tri qui la suit dans l'ORDER BY, puis
         // LIMIT et OFFSET. Intervertir ces deux-là ferait trier sur « 100 ».
-        let mut data_query = sqlx::query_as::<_, TrackListView>(&data_sql)
+        let mut data_query = sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(data_sql))
             .bind(library_id);
         if let Some(ref pat) = like_pattern {
             data_query = data_query.bind(pat).bind(pat).bind(pat);
@@ -710,7 +710,7 @@ impl LibraryTrackRepository {
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
         let sql = format!("{PISTES_DE_DOSSIER} WHERE lt.library_id = ? AND lf.library_dir_id = ? ORDER BY lf.path, lt.disc_number, lt.track_number");
-        sqlx::query_as::<_, TrackListView>(&sql)
+        sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql))
             .bind(library_id)
             .bind(dir_id)
             .fetch_all(exec)
@@ -730,7 +730,7 @@ impl LibraryTrackRepository {
         let base = dossier.trim_end_matches(['/', '\\']);
         let (windows, unix) = (format!("{base}\\"), format!("{base}/"));
         let sql = format!("{PISTES_DE_DOSSIER} WHERE lt.library_id = ? AND (substr(lf.path, 1, length(?)) = ? OR substr(lf.path, 1, length(?)) = ?) ORDER BY lf.path, lt.disc_number, lt.track_number");
-        sqlx::query_as::<_, TrackListView>(&sql)
+        sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql))
             .bind(library_id)
             .bind(&windows)
             .bind(&windows)
@@ -1074,7 +1074,7 @@ impl LibraryTrackRepository {
             LIMIT ?
         "#);
 
-        let mut requete = sqlx::query_as::<_, TrackListView>(&sql).bind(library_id);
+        let mut requete = sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql)).bind(library_id);
         for t in &textes {
             requete = requete.bind(t);
         }

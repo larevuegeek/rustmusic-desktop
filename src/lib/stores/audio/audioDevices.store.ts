@@ -34,6 +34,8 @@ export type AudioDeviceInfo = {
   wasapiId: string | null;
   /** Bus de l'adaptateur : « USB », « HDAUDIO », « BTHENUM »… (Windows uniquement). */
   bus: string | null;
+  /** Sortie qu'utilise le lecteur : celle choisie et enregistrée, restaurée au lancement. */
+  isSelected: boolean;
 };
 
 /** Résultat du probing WASAPI par device (Windows uniquement). */
@@ -80,8 +82,14 @@ function createStore() {
     try {
       const devices = await invoke<AudioDeviceInfo[]>("get_output_devices");
       update((s) => {
+        // Le lecteur fait foi : sa sortie restaurée, puis la dernière choisie ici
+        // si elle existe encore, puis celle du système.
+        const encorePresente = devices.some((d) => d.displayName === s.activeDisplayName);
         const active =
-          s.activeDisplayName ?? devices.find((d) => d.isDefault)?.displayName ?? null;
+          devices.find((d) => d.isSelected)?.displayName
+          ?? (encorePresente ? s.activeDisplayName : null)
+          ?? devices.find((d) => d.isDefault)?.displayName
+          ?? null;
         return { ...s, loaded: true, loading: false, devices, activeDisplayName: active, exclusive: {} };
       });
       sonder(devices);

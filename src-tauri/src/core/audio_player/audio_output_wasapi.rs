@@ -734,7 +734,7 @@ fn moteur_inner(
         // LiveDecode (anneau) ou FullBuffer (piste décodée en RAM).
         interleaved_f32.clear();
         interleaved_f32.resize(needed_samples, 0.0);
-        let source_mode = p.sym.current_source.load(Ordering::Relaxed);
+        let source_mode = p.sym.current_source.load(Ordering::Acquire);
         let popped: usize = if source_mode == 0 {
             p.source.lire(&mut interleaved_f32)
         } else if p.sym.is_full_buffer_ready.load(Ordering::Relaxed) {

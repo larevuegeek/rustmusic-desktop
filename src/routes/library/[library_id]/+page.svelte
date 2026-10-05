@@ -9,7 +9,7 @@ import { dernierOnglet } from "$lib/config/libraryTabs";
 const libraryId = $derived(Number(page.params.library_id));
 
 // Simple étape : on file vers le dernier onglet visité.
-onMount(() => goto(`/library/${libraryId}/${dernierOnglet(libraryId)}`, { replaceState: true }));
+onMount(() => goto(`/library/${libraryId}/${dernierOnglet(libraryId)}`, { replace: true }));
 </script>
 
 {#if $importAffiche}

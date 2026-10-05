@@ -4,7 +4,9 @@
 
 Le son tient enfin sa promesse de bit-perfect, la bibliothèque s'explore par
 années, par mix et par playlists, l'application explique ses termes
-techniques, et l'import se suit en direct et s'arrête à tout moment.
+techniques, et l'import se suit en direct et s'arrête à tout moment. Sous
+Linux, l'affichage devient deux fois plus fluide et les sorties audio cessent
+de se marcher dessus.
 
 ### Audio
 - **Bit-perfect réel en mode exclusif**, sous Windows, Linux et macOS. La
@@ -37,6 +39,25 @@ techniques, et l'import se suit en direct et s'arrête à tout moment.
   devenait pause).
 - **Un anneau tourne autour du bouton lecture** tant que le son n'a pas
   démarré : on ne croit plus à un plantage pendant l'ouverture du DAC.
+- **Sous Linux, la sortie partagée passe par le serveur son** (PipeWire ou
+  PulseAudio). Choisir son DAC ne bloque plus les autres applications, et les
+  erreurs « format f32 non pris en charge » ou « périphérique occupé »
+  disparaissent. La liste montre les vrais noms des sorties et les capacités
+  réelles du DAC ; la sortie utilisée est cochée dès le lancement.
+- **La sortie choisie est retenue d'un lancement à l'autre.** Elle ne l'était
+  jamais : sous Linux, le DSD natif (DoP) retombait sans prévenir en
+  conversion PCM après un redémarrage.
+- **Mode exclusif et DSD natif sous Linux sans perdre la sortie par défaut.**
+  La carte est libérée puis rendue proprement au système : le son des autres
+  applications ne part plus vers l'écran HDMI après une lecture, et la carte
+  ne disparaît plus jusqu'au redémarrage.
+- Sous Linux, le DSD converti en PCM suit le réglage « Sortie exclusive »,
+  comme les autres fichiers.
+- Mode partagé sous Linux : la pause, le volume et les sauts réagissent tout
+  de suite, au lieu de 2 secondes plus tard, et le morceau ne repart plus du
+  début après une seconde de lecture.
+- Passer au morceau suivant ne bascule plus vers une autre sortie, et le
+  morceau précédent ne perturbe plus celui qui démarre.
 
 ### Comprendre le son
 - **Bulles d'explication** : DAC, DSD, DoP, PCM, bit-perfect,
@@ -102,6 +123,9 @@ techniques, et l'import se suit en direct et s'arrête à tout moment.
   lieu d'échouer sans rien dire.
 - Une bibliothèque vide affiche la progression de l'import, d'où qu'il ait
   été lancé, avec les boutons Arrêter et Dossiers.
+- **Un import n'empêche plus d'enregistrer la lecture** : position, historique
+  et compteurs d'écoute échouaient pendant tout l'import, la base restant
+  verrouillée.
 
 ### Premier lancement
 - **Accueil de bienvenue** sans bibliothèque ou avec une bibliothèque vide :
@@ -154,11 +178,32 @@ techniques, et l'import se suit en direct et s'arrête à tout moment.
   applications ; ⌥ + clic garde l'agrandissement. Le mini-lecteur sait en
   sortir et y revenir.
 
+### Affichage sous Linux
+- **Fin de la fenêtre grise au démarrage** : un cache de polices laissé par
+  une autre application (Flatpak) bloquait l'affichage. Il est nettoyé au
+  lancement.
+- **Défilement deux fois plus fluide**, surtout en 4K : 37 images par seconde
+  au lieu de 17 (transfert d'image DMA-BUF, sauf avec le pilote NVIDIA
+  propriétaire).
+- **Fonds flous bien plus légers** (reprise de la lecture, récents, paroles) :
+  floutés une fois pour toutes au lieu de l'être à chaque image. Pendant la
+  lecture, l'interface n'occupe plus un cœur entier du processeur.
+- **Réglages → Apparence → Options expert** : mode de rendu, transfert
+  DMA-BUF et fonds flous (pré-calculés ou en direct), pour les machines qui
+  en ont besoin.
+
 ### Divers
 - L'export des réglages conserve les playlists auto, les mix et l'épinglage.
 - Le nettoyage du cache d'images épargne les pochettes de playlists.
 - L'accueil, les statistiques et la page d'import ne sont plus coupés en bas
   sur une petite fenêtre.
+
+### Sous le capot
+- Passage à SvelteKit 3, Tauri 2.12, sqlx 0.9 et rubato 5 ; plus aucune
+  faille signalée par `npm audit`. Les requêtes SQL construites à la volée ont
+  été relues une à une.
+- Les réglages de la base (journal, cache) valent pour toutes ses connexions,
+  et plus seulement pour la première.
 
 ## [0.2.7] - 2026-10-01
 

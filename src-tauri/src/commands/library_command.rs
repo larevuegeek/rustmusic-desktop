@@ -125,7 +125,7 @@ pub async fn get_track_locations(
          WHERE f.path IN ({trous})"
     );
 
-    let mut requete = sqlx::query_as::<_, TrackLocation>(&sql);
+    let mut requete = sqlx::query_as::<_, TrackLocation>(sqlx::AssertSqlSafe(sql));
     for p in &paths {
         requete = requete.bind(p);
     }
@@ -507,6 +507,17 @@ pub fn read_cover_as_base64(path: String) -> Result<String, String> {
 pub fn resolve_cover_thumbnail(path: String) -> Result<String, String> {
     resolve_thumbnail(&path)
         .ok_or_else(|| format!("Impossible de générer la miniature pour: {}", path))
+}
+
+/// Pochette pré-floutée pour les fonds, générée hors du fil principal.
+#[tauri::command]
+pub async fn resolve_blurred_cover(path: String, saturation: f32, flou: f32) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::helper::library::thumbnail_helper::blurred_cover(&path, saturation, flou)
+    })
+    .await
+    .map_err(|e| format!("pochette floue : {e}"))?
+    .map(|chemin| chemin.to_string_lossy().into_owned())
 }
 
 #[tauri::command]

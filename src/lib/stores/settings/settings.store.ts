@@ -29,6 +29,7 @@ export type AppSettings = {
   contrast: string;                  // 'normal' | 'high' — lisibilité renforcée
   window_controls_style: string;     // 'auto' | 'macos' | 'windows'
   window_controls_position: string;  // 'right' | 'left'
+  blurred_backgrounds: string;       // 'precomputed' | 'live' — fonds de pochette floutés
   // 'true' | 'false' — interroger Deezer à l'ouverture d'une fiche artiste.
   // Par défaut actif : c'est le comportement historique, et le couper sans
   // le dire priverait les bibliothèques existantes de leurs portraits.
@@ -73,6 +74,7 @@ export const settingsDefaults: AppSettings = {
   scan_on_startup: 'false',
   audio_quality: 'high',
   hardware_acceleration: 'true',
+  blurred_backgrounds: 'precomputed',
   single_click_play: 'false',
   show_sleep_timer: 'true',
   system_media_controls: 'true',

@@ -48,11 +48,11 @@ const OCCUPE: &str = "device toujours occupé";
 const CANDIDATE_FORMATS: [Format; 2] = [Format::S32LE, Format::S16LE];
 
 /// Ouvre le PCM `hw:` en réessayant sur EBUSY : après une réservation D-Bus,
-/// PipeWire ferme le device de façon asynchrone (jusqu'à quelques centaines de
-/// ms). Même stratégie que le DoP ALSA.
+/// PipeWire ferme le device de façon asynchrone (quelques centaines de ms,
+/// parfois plusieurs secondes). Même stratégie que le DoP ALSA : ~6 s.
 fn open_hw_pcm(hw_id: &str) -> Result<PCM, String> {
     let mut last = String::new();
-    for _ in 0..25 {
+    for _ in 0..60 {
         match PCM::new(hw_id, Direction::Playback, false) {
             Ok(pcm) => return Ok(pcm),
             Err(e) => {
@@ -373,7 +373,7 @@ where
 
         // ─── Remplissage depuis la source active ───
         let mut samples_read = 0usize;
-        let source = shared.current_source.load(Ordering::Relaxed);
+        let source = shared.current_source.load(Ordering::Acquire);
 
         if source == 0 {
             samples_read = consumer.pop_slice(&mut scratch);

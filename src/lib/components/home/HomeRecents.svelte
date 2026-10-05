@@ -14,6 +14,7 @@ import { grouperParAlbum } from "$lib/helper/recent/grouperParAlbum";
 import { ilYA } from "$lib/helper/tools/dateTools";
 import { displayTitle, artistesLisibles } from "$lib/helper/tools/stringTools";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+import PochetteFloue from "$lib/components/ui/image/PochetteFloue.svelte";
 import TrackContextMenu from "$lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import type { RecentFileListView } from "$lib/types/ui/recent/RecentFileListView";
 
@@ -117,8 +118,8 @@ function ouvrirMenu(e: MouseEvent, track: RecentFileListView) {
          class="recent-vedette relative overflow-hidden flex flex-col gap-4 p-5 rounded-2xl border min-w-0 {c.carte}">
       {#if vedette.thumbnail_path}
         <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <CoverImg path={vedette.thumbnail_path} size="2x"
-                    class="w-full h-full object-cover scale-125 blur-[36px] saturate-[1.8] opacity-95" />
+          <PochetteFloue path={vedette.thumbnail_path} saturation={1.8} flou={5} rayon={36}
+                         class="w-full h-full object-cover scale-125 opacity-95" />
         </div>
         <div class="vedette-voile absolute inset-0 pointer-events-none" aria-hidden="true"></div>
       {/if}

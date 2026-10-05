@@ -56,11 +56,25 @@ impl SettingsManager {
         Ok(())
     }
 
+    /// Config enregistrée, ou les valeurs par défaut si le fichier manque ou ne
+    /// se lit pas. Sans ce repli, rien ne créait jamais le fichier : chaque
+    /// sauvegarde part d'un chargement, qui échouait. La sortie choisie
+    /// retombait alors sur « défaut » à chaque lancement, et le DoP, qui a
+    /// besoin de la carte ALSA, cédait sa place au DSD2PCM sans rien dire.
     pub fn load_config() -> io::Result<Config> {
         let config_path = SettingsManager::get_config_file();
 
-        let file = File::open(config_path)?;
-        let config = serde_json::from_reader(file)?;
-        Ok(config)
+        let file = match File::open(&config_path) {
+            Ok(file) => file,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Config::default()),
+            Err(e) => return Err(e),
+        };
+        match serde_json::from_reader(file) {
+            Ok(config) => Ok(config),
+            Err(e) => {
+                log::warn!("Config illisible ({}) : {e} — valeurs par défaut", config_path.display());
+                Ok(Config::default())
+            }
+        }
     }
 }

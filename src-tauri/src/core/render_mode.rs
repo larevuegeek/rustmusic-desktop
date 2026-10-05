@@ -65,3 +65,30 @@ impl RenderMode {
         }
     }
 }
+
+/// Réglage du moteur DMA-BUF de WebKitGTK (Linux), clé de la table `settings`.
+/// `auto` le laisse actif sauf avec le pilote propriétaire NVIDIA ; `on` et
+/// `off` imposent. Lu au démarrage, avant WebKit : un changement attend le
+/// redémarrage.
+pub const DMABUF_KEY: &str = "dmabuf_mode";
+
+/// La valeur enregistrée, ramenée à `auto`, `on` ou `off`.
+pub fn dmabuf_mode(value: Option<&str>) -> &'static str {
+    match value.map(str::trim) {
+        Some("on") => "on",
+        Some("off") => "off",
+        _ => "auto",
+    }
+}
+
+static DMABUF_ACTIF: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Fixé au démarrage : DMA-BUF est-il actif pour cette session ?
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn set_dmabuf_active(actif: bool) {
+    DMABUF_ACTIF.store(actif, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn dmabuf_active() -> bool {
+    DMABUF_ACTIF.load(std::sync::atomic::Ordering::Relaxed)
+}

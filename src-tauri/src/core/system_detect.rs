@@ -186,3 +186,11 @@ mod tests {
         let _ = is_network_path(Path::new("1:\\pas-une-lettre"));
     }
 }
+
+/// Pilote propriétaire NVIDIA chargé (module `nvidia`). Le moteur DMA-BUF de
+/// WebKitGTK y donne une fenêtre vide ; sur Mesa (AMD, Intel, nouveau), il marche.
+#[cfg(target_os = "linux")]
+pub fn nvidia_proprietary_driver() -> bool {
+    std::path::Path::new("/sys/module/nvidia").exists()
+        || std::path::Path::new("/proc/driver/nvidia/version").exists()
+}

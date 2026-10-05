@@ -103,7 +103,7 @@ impl CpalSymphoniaOutput {
                     }
 
                     // --- Lecture audio selon le mode source ---
-                    let source: u8 = current_source.load(Ordering::Relaxed);
+                    let source: u8 = current_source.load(Ordering::Acquire);
                     let mut samples_read: usize = 0;
 
                     if source == 0 {

@@ -21,20 +21,24 @@ name = "rustmusic_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.3", features = [] }
+tauri-build = { version = "2.7.1", features = [] }
 
 [dependencies]
-tauri = { version = "2.11.5", features = ["protocol-asset", "tray-icon"] }
-tauri-plugin-opener = "2.5.4"
-tauri-plugin-dialog = "2.7.1"
-tauri-plugin-autostart = "2"
-tauri-plugin-notification = "2"
-tauri-plugin-process = "2"
-tauri-plugin-single-instance = "2.4.2"
+tauri = { version = "2.12.1", features = ["protocol-asset", "tray-icon"] }
+tauri-plugin-opener = "2.7.0"
+tauri-plugin-dialog = "2.8.1"
+tauri-plugin-autostart = "2.7.0"
+tauri-plugin-notification = "2.5.1"
+tauri-plugin-process = "2.4.0"
+tauri-plugin-single-instance = "2.5.2"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1.0.150"
-base64 = "0.22.1"
-cpal = "0.18.1"
+serde_json = "1.0.151"
+base64 = "0.23.1"
+# `pulseaudio` : sous Linux, CPAL passe par le serveur son (PipeWire via
+# pipewire-pulse, ou PulseAudio) et liste ses vraies sorties. Sans lui, il
+# ouvrait les PCM ALSA bruts (`hw:`), occupés dès qu'une autre appli joue.
+# Client Rust pur, limité à Linux/BSD par CPAL : rien de plus sous Windows/macOS.
+cpal = { version = "0.18.2", features = ["pulseaudio"] }
 # 0.6 : flac/wav/vorbis/pcm/ogg sont dans les features par défaut ; isomp4 ajoute
 # le conteneur MP4/M4A (AAC et ALAC), aiff le conteneur AIFF.
 symphonia = { version = "0.6.0", features = ["mp3", "flac", "wav", "vorbis", "aac", "isomp4", "aiff", "alac"] }
@@ -42,9 +46,9 @@ symphonia = { version = "0.6.0", features = ["mp3", "flac", "wav", "vorbis", "aa
 symphonia-adapter-libopus = "0.3"
 # Magic cookie ALAC : la profondeur d'un ALAC n'est déclarée que là (même version que Symphonia).
 symphonia-common = "0.6"
-rubato = "3.0.0"
-lazy_static = "1.5.0"
-log = "0.4.33"
+rubato = "5.0.1"
+lazy_static = "1.5.1"
+log = "0.4.34"
 simplelog = "0.12"
 # Déjà dans l'arbre via simplelog ; en dépendance directe pour la macro
 # `format_description!`, qui vérifie le format d'horodatage à la compilation.
@@ -52,42 +56,42 @@ time = { version = "0.3", features = ["macros", "local-offset"] }
 rb = "0.4.1"
 arrayvec = "0.7.8"
 num-traits = "0.2.19"
-anyhow = "1.0.103"
+anyhow = "1.0.104"
 md5 = "0.8.1"
-# NB: rester aligné sur la version qu'utilise rubato (4.0 existe mais rubato 3 attend les traits 3.x)
-audioadapter-buffers = "3.0.0"
-sqlx = { version = "0.8.6", features = [
+# NB: rester aligné sur la version qu'utilise rubato (rubato 5 attend les traits 5.x)
+audioadapter-buffers = "5.2.0"
+sqlx = { version = "0.9.0", features = [
     "runtime-tokio",      # Runtime async
     "sqlite",             # Driver SQLite
     "macros",             # Pour query!() macro
     "chrono"
 ] }
-tokio = { version = "1.52.3", features = ["full"] }
-dirs = "6.0.0"
-uuid = { version = "1.23.4", features = ["v4", "serde"] }
+tokio = { version = "1.53.2", features = ["full"] }
+dirs = "7.0.0"
+uuid = { version = "1.27.0", features = ["v4", "serde"] }
 unidecode = "0.3.0"
 chrono = { version = "0.4.45", features = ["serde"] }
-ringbuf = "0.5.0"
-regex = "1.13.0"
+ringbuf = "0.5.2"
+regex = "1.13.1"
 rayon = "1.12.0"
-reqwest = { version = "0.13.4", features = ["json"] }
+reqwest = { version = "0.13.5", features = ["json"] }
 urlencoding = "2"
-tauri-plugin-updater = "2.10.1"
+tauri-plugin-updater = "2.13.1"
 image = "0.25.10"
-fast_image_resize = { version = "6.0", default-features = false, features = ["image"] }
+fast_image_resize = { version = "6.1", default-features = false, features = ["image"] }
 num_cpus = "1.17.0"
 axum = "0.8"
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.7.0", features = ["fs"] }
+tower-http = { version = "0.7.1", features = ["fs"] }
 async-trait = "0.1"
 souvlaki = "0.8"
-tauri-plugin-window-state = "2.4.1"
+tauri-plugin-window-state = "2.5.0"
 
 # WASAPI exclusive mode (Windows uniquement) — bit-perfect, bypass mixer
 # Windows. Activable via Réglages → Audio → "WASAPI exclusive". Sur les
 # autres OS ce crate n'est pas compilé.
 [target.'cfg(target_os = "windows")'.dependencies]
-wasapi = "0.23"
+wasapi = "0.25"
 # Même version que celle de `wasapi` : bus de l'adaptateur d'une sortie (USB, HDMI…).
 windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties", "Win32_System_Power"] }
 
@@ -105,6 +109,8 @@ objc2-core-foundation = "0.3"
 # ALSA direct (hw:) pour le DoP bit-perfect sur Linux (bypass PipeWire/Pulse).
 # Nécessite libasound2-dev au build.
 [target.'cfg(target_os = "linux")'.dependencies]
+# Même version que celle de CPAL : `alsa-sys` lie libasound et ne peut figurer
+# qu'une fois dans l'arbre. À monter en même temps que CPAL.
 alsa = "0.11"
 # Accès direct au WebView WebKitGTK (via WebviewWindow::with_webview) pour
 # écouter le signal `web-process-terminated` : détection du crash du processus

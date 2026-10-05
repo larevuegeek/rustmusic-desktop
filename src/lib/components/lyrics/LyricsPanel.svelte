@@ -7,6 +7,7 @@ import { getLyrics, refreshLyrics, type Lyrics } from "$lib/services/lyrics/lyri
 import { parseLrc, findActiveLineIndex, type LrcLine } from "$lib/helper/lyrics/lrcParser";
 import { playerService } from "$lib/services/player/player.service";
 import { resolveCoverSrc } from "$lib/helper/tools/coverHelper";
+import PochetteFloue from "$lib/components/ui/image/PochetteFloue.svelte";
 import NowPlayingCard from "$lib/components/player/NowPlayingCard.svelte";
 import { t } from "$lib/i18n";
 
@@ -73,6 +74,8 @@ $effect(() => {
 let currentQueueTrack = $derived($queueState.tracks[$queueState.currentIndex] ?? null);
 let embeddedCover = $derived($player?.audioFile?.tags?.attached_images?.[0]?.image_src ?? null);
 let bgCoverSrc = $state<string | null>(null);
+// Pochette du disque : fond pré-flouté par le backend (voir PochetteFloue).
+let bgCoverChemin = $state<string | null>(null);
 
 // Couleur de gradient de fallback dérivée du chemin (stable par track)
 let fallbackGradient = $derived.by(() => {
@@ -93,8 +96,17 @@ $effect(() => {
     const queueCover = currentQueueTrack?.cover;
     const embedded = embeddedCover;
 
-    // Priorité 1 : cover de la queue si c'est une URL asset:// (miniature sur disque)
-    if (queueCover && queueCover !== '/images/no-cd.png' && !queueCover.startsWith('data:')) {
+    bgCoverChemin = null;
+
+    // Priorité 1 : cover de la queue, fichier sur disque → fond pré-flouté
+    if (queueCover && queueCover !== '/images/no-cd.png' && !queueCover.startsWith('data:') && !queueCover.startsWith('http')) {
+        bgCoverChemin = queueCover;
+        bgCoverSrc = null;
+        return;
+    }
+
+    // Pochette distante : flou CSS, faute de fichier à pré-flouter
+    if (queueCover && queueCover.startsWith('http')) {
         let vivant = true;
         resolveCoverSrc(queueCover, "2x").then((url) => {
             if (vivant) bgCoverSrc = url;
@@ -229,7 +241,11 @@ function handleSeekToLine(timeMs: number) {
 >
     <!-- Background : cover floutée OU gradient de fallback -->
     <div class="absolute inset-0 -z-10 overflow-hidden">
-        {#if bgCoverSrc}
+        {#if bgCoverChemin}
+            <!-- Pré-floutée : un filtre CSS se recalculait à chaque ligne de paroles. -->
+            <PochetteFloue path={bgCoverChemin} saturation={1.5} flou={6} rayon={60}
+                class="absolute -inset-10 w-[calc(100%+80px)] h-[calc(100%+80px)] object-cover scale-110 opacity-90" />
+        {:else if bgCoverSrc}
             <img
                 src={bgCoverSrc}
                 alt=""

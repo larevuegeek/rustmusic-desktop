@@ -26,6 +26,32 @@ pub struct RenderModeStatus {
     /// software. Cleared by picking any render mode, or by a successful GPU
     /// boot (e.g. launched with `RUSTMUSIC_RENDER=gpu`).
     pub gpu_boot_failed: bool,
+    /// Réglage DMA-BUF enregistré (`"auto" | "on" | "off"`), Linux uniquement.
+    pub dmabuf_mode: String,
+    /// DMA-BUF actif pour la session en cours ; un changement de réglage
+    /// attend le redémarrage.
+    pub dmabuf_active: bool,
+    /// Pilote propriétaire NVIDIA détecté : `auto` y coupe DMA-BUF.
+    pub nvidia: bool,
+}
+
+async fn read_dmabuf_mode(state: &State<'_, AppState>) -> String {
+    let raw = SettingsRepository::get(&state.pool, crate::core::render_mode::DMABUF_KEY)
+        .await
+        .ok()
+        .flatten();
+    crate::core::render_mode::dmabuf_mode(raw.as_deref()).to_string()
+}
+
+fn detect_nvidia() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        return crate::core::system_detect::nvidia_proprietary_driver();
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        false
+    }
 }
 
 fn detect_virt_kind() -> Option<String> {
@@ -72,7 +98,24 @@ pub async fn get_render_mode(
         virt_kind: detect_virt_kind(),
         steamos: detect_steamos(),
         gpu_boot_failed,
+        dmabuf_mode: read_dmabuf_mode(&state).await,
+        dmabuf_active: crate::core::render_mode::dmabuf_active(),
+        nvidia: detect_nvidia(),
     })
+}
+
+/// Enregistre le réglage DMA-BUF (`auto`, `on`, `off`) ; effectif au redémarrage.
+#[tauri::command]
+pub async fn set_dmabuf_mode(
+    state: State<'_, AppState>,
+    value: String,
+) -> Result<RenderModeStatus, String> {
+    let mode = crate::core::render_mode::dmabuf_mode(Some(&value));
+    SettingsRepository::set(&state.pool, crate::core::render_mode::DMABUF_KEY, mode)
+        .await
+        .map_err(|e| format!("save {}: {e}", crate::core::render_mode::DMABUF_KEY))?;
+    log::info!("🖥  DMA-BUF : réglage {mode} (effectif au prochain démarrage)");
+    get_render_mode(state).await
 }
 
 #[tauri::command]
@@ -95,6 +138,9 @@ pub async fn set_render_mode(
         virt_kind: detect_virt_kind(),
         steamos: detect_steamos(),
         gpu_boot_failed: false,
+        dmabuf_mode: read_dmabuf_mode(&state).await,
+        dmabuf_active: crate::core::render_mode::dmabuf_active(),
+        nvidia: detect_nvidia(),
     })
 }
 

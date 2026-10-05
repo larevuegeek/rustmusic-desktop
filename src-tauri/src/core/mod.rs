@@ -98,6 +98,8 @@ pub mod tag_pattern {
 }
 
 pub mod audio_quality;
+#[cfg(target_os = "linux")]
+pub mod fontconfig_cache;
 pub mod gpu_sentinel;
 pub mod render_mode;
 pub mod system_detect;

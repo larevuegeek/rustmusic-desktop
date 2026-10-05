@@ -67,7 +67,7 @@ pub async fn get_playlist_tracks_view(
          ORDER BY pi.sort_index ASC, pi.id ASC"
     );
 
-    sqlx::query_as::<_, TrackListView>(&sql)
+    sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql))
         .bind(playlist_id)
         .fetch_all(&state.pool)
         .await
@@ -96,7 +96,7 @@ pub async fn get_tracks_view_by_paths(
         .join(",");
     let sql = format!("{TRACK_VIEW_SELECT}\n{TRACK_VIEW_FROM}\nWHERE lf.path IN ({trous})");
 
-    let mut q = sqlx::query_as::<_, TrackListView>(&sql);
+    let mut q = sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql));
     for p in &paths {
         q = q.bind(p);
     }
@@ -123,7 +123,7 @@ async fn remplir_dans_l_ordre(
         .join(",");
     let sql = format!("{TRACK_VIEW_SELECT}\n{TRACK_VIEW_FROM}\nWHERE lt.id IN ({trous})");
 
-    let mut q = sqlx::query_as::<_, TrackListView>(&sql);
+    let mut q = sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql));
     for id in ids {
         q = q.bind(id);
     }

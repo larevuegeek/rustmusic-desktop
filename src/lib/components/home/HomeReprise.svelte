@@ -14,6 +14,7 @@ import { fileDeLAlbum } from "$lib/helper/library/trackLocation";
 import { formatTime, dateToYear, ilYA } from "$lib/helper/tools/dateTools";
 import { displayTitle } from "$lib/helper/tools/stringTools";
 import CoverImg from "$lib/components/ui/image/CoverImg.svelte";
+import PochetteFloue from "$lib/components/ui/image/PochetteFloue.svelte";
 import type { QueueTrack } from "$lib/types/db/queue/QueueTrack";
 import type { TrackListView } from "$lib/types/ui/library/track/TrackListView";
 
@@ -193,8 +194,12 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
   <!-- Fond : la pochette floutée, ou un vert discret sans pochette -->
   {#if fiche.pochette}
     <div class="hero-fond absolute inset-0 pointer-events-none" aria-hidden="true">
-      <CoverImg path={fiche.pochette} size="2x"
-                class="w-full h-full object-cover scale-125 blur-[60px] saturate-[2.4] dark:saturate-[1.4] opacity-80" />
+      <!-- Pré-floutée : un filtre CSS se recalculait à chaque pas de la progression.
+           Une saturation par thème, la bonne affichée par le CSS. -->
+      <PochetteFloue path={fiche.pochette} saturation={2.4} flou={3} rayon={60}
+                     class="w-full h-full object-cover scale-125 opacity-80 dark:hidden" />
+      <PochetteFloue path={fiche.pochette} saturation={1.4} flou={3} rayon={60}
+                     class="w-full h-full object-cover scale-125 opacity-80 hidden dark:block" />
     </div>
     <div class="hero-voile absolute inset-0 pointer-events-none" aria-hidden="true"></div>
   {:else}

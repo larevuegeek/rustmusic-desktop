@@ -92,7 +92,7 @@ impl TrackPathRepository {
                 "SELECT path FROM library_cache WHERE path IN ({holders})
                  UNION SELECT path FROM recent_files WHERE path IN ({holders})"
             );
-            let mut query = sqlx::query_as::<_, (String,)>(&sql);
+            let mut query = sqlx::query_as::<_, (String,)>(sqlx::AssertSqlSafe(sql));
             for path in chunk {
                 query = query.bind(path);
             }
