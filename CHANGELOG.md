@@ -12,6 +12,9 @@ qui restait vide quand il aurait dû aider.
   rendait un peu moins que la durée annoncée : la file restait bloquée.
 - **Ouvrir un dossier** : les morceaux arrivent dans l'ordre de l'album et
   s'enchaînent.
+- **Mode exclusif sur les haut-parleurs du Mac** : plus de silence avec la
+  sortie système (erreur CoreAudio `!obj`). Le DSD natif profite du même
+  correctif. Un DAC choisi dans la liste n'était pas concerné.
 
 ### Bibliothèque
 - **Ajouter un disque externe ne fait plus exploser la mémoire.** Le scan ne
