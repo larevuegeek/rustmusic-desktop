@@ -54,6 +54,19 @@ pub fn choose(host: &cpal::Host, name: Option<&str>) -> Result<cpal::Device, Str
         .ok_or_else(|| "Pas de périphérique audio".to_string())
 }
 
+/// Le même périphérique, pris dans la liste des sorties. Celui de `default_output_device`
+/// ouvre une unité qui suit la sortie système ; sous hog mode il cesse de l'être et
+/// CoreAudio refuse le flux (`!obj`). L'exclusif doit viser le périphérique lui-même.
+#[cfg(target_os = "macos")]
+pub fn epingler(device: &cpal::Device) -> cpal::Device {
+    let Ok(id) = device.id() else { return device.clone() };
+    cpal::default_host()
+        .output_devices()
+        .ok()
+        .and_then(|mut sorties| sorties.find(|d| d.id().is_ok_and(|i| i == id)))
+        .unwrap_or_else(|| device.clone())
+}
+
 /// Période des flux partagés sur le serveur son, en trames. Sans elle, le serveur
 /// prend 2 s d'audio d'un coup (pause, volume et sauts en retard d'autant).
 pub fn sound_server_period(host: &cpal::Host, rate: u32) -> Option<u32> {

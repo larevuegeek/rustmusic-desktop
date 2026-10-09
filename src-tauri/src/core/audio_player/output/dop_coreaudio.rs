@@ -524,6 +524,7 @@ pub fn run_coreaudio_dop_render(
         return Err("nombre de canaux nul".into());
     }
 
+    let device = &super::peripherique::epingler(device);
     // Exclusivité tenue aussi longtemps que le moteur (relâchée au retour).
     let _hog = HogGuard::acquire(device_id);
 
