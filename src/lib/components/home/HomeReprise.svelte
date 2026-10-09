@@ -220,7 +220,7 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
     {/if}
     <span class="absolute inset-0 flex items-center justify-center bg-black/35
                  opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-      <span class="w-16 h-16 rounded-full bg-[#22c55e] text-(--rg-on-g) flex items-center justify-center shadow-xl">
+      <span class="w-16 h-16 rounded-full bg-accent-500 text-(--rg-on-g) flex items-center justify-center shadow-xl">
         <Icon icon={enCours && isPlaying ? "mynaui:pause-solid" : "mynaui:play-solid"} width={28} />
       </span>
     </span>
@@ -259,7 +259,7 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
 
     <div class="flex items-center gap-3 mt-3">
       <button type="button" onclick={actionPrincipale} disabled={occupe}
-              class="h-[52px] px-[26px] rounded-full bg-[#1a1c1a] hover:bg-black text-white dark:bg-[#22c55e] dark:hover:bg-[#4ade80] dark:text-(--rg-on-g)
+              class="h-[52px] px-[26px] rounded-full bg-[#1a1c1a] hover:bg-black text-white dark:bg-accent-500 dark:hover:bg-accent-400 dark:text-(--rg-on-g)
                      font-bold text-[17px] flex items-center gap-2.5 cursor-pointer transition-colors shrink-0
                      disabled:opacity-60 disabled:cursor-wait">
         <Icon icon={enCours && isPlaying ? "mynaui:pause-solid" : "mynaui:play-solid"} width={20} />
@@ -309,12 +309,12 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
         <span class="text-[11.5px] font-bold uppercase tracking-[0.11em] text-[#5e625d] dark:text-white/60 truncate">{g.libelle}</span>
         {#if g.cle === "file"}
           <button type="button" onclick={openQueuePanel}
-                  class="shrink-0 text-[12px] font-semibold text-[#15803d] hover:text-[#166534] dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer transition-colors">
+                  class="shrink-0 text-[12px] font-semibold text-accent-700 hover:text-accent-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer transition-colors">
             {$t('home.see_queue')}
           </button>
         {:else if g.cle === "recents" && ancreRecents}
           <button type="button" onclick={allerAuxRecents}
-                  class="shrink-0 text-[12px] font-semibold text-[#15803d] hover:text-[#166534] dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer transition-colors">
+                  class="shrink-0 text-[12px] font-semibold text-accent-700 hover:text-accent-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer transition-colors">
             {$t('home.see_all')}
           </button>
         {/if}
@@ -358,7 +358,7 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
   <h2 class="relative text-[34px] font-extrabold tracking-[-0.025em] leading-tight max-w-xl">{$t('home.welcome_desc')}</h2>
   <div class="relative">
     <button type="button" onclick={onajouter}
-            class="h-[52px] px-[26px] rounded-full bg-[#1a1c1a] hover:bg-black text-white dark:bg-[#22c55e] dark:hover:bg-[#4ade80] dark:text-(--rg-on-g)
+            class="h-[52px] px-[26px] rounded-full bg-[#1a1c1a] hover:bg-black text-white dark:bg-accent-500 dark:hover:bg-accent-400 dark:text-(--rg-on-g)
                    font-bold text-[17px] flex items-center gap-2.5 cursor-pointer transition-colors shrink-0">
       <Icon icon="lucide:plus" width={18} /> {$t('home.add_music')}
     </button>

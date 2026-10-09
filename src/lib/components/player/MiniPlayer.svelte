@@ -1,6 +1,7 @@
 <script lang="ts">
   // Mini-lecteur : fenêtre compacte teintée par la pochette, file et paroles en onglets repliables.
   import Icon from "@iconify/svelte";
+  import MiniVolume from "./MiniVolume.svelte";
   import AnneauAttente from "#lib/components/ui/loader/AnneauAttente.svelte";
   import { volume } from "#lib/stores/player/volume.store";
   import { fade } from "svelte/transition";
@@ -22,7 +23,7 @@
   import { dsdLabel, formatDsdRate, isDsdFormat } from "#lib/helper/tools/audioFormatTools";
   import { getLyrics, type Lyrics } from "#lib/services/lyrics/lyrics.service";
   import { parseLrc, findActiveLineIndex, type LrcLine } from "#lib/helper/lyrics/lrcParser";
-  import { exitMiniPlayer, setMiniExpanded, reportCollapsedHeight, miniPinned, toggleMiniPin } from "#lib/stores/ui/miniPlayer.store";
+  import { exitMiniPlayer, enterMicroPlayer, setMiniExpanded, reportCollapsedHeight, miniPinned, toggleMiniPin } from "#lib/stores/ui/miniPlayer.store";
   import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
 
   const audioFile = $derived($player?.audioFile);
@@ -205,6 +206,9 @@
       <button type="button" class="{tb} {$miniPinned ? 'text-(--lc-acc)!' : ''}" title={$t("mini.pin")} aria-label={$t("mini.pin")} aria-pressed={$miniPinned} onclick={toggleMiniPin}>
         <Icon icon={$miniPinned ? "material-symbols:keep" : "material-symbols-light:keep-outline"} width="17" />
       </button>
+      <button type="button" class={tb} title={$t("mini.micro")} aria-label={$t("mini.micro")} onclick={() => enterMicroPlayer()}>
+        <Icon icon="ph:picture-in-picture" width="17" />
+      </button>
       <button type="button" class={tb} title={$t("mini.restore")} aria-label={$t("mini.restore")} onclick={() => exitMiniPlayer()}>
         <Icon icon="material-symbols-light:open-in-full-rounded" width="17" />
       </button>
@@ -262,6 +266,7 @@
           <span>{minutesSecondes(jsPosition)}</span><span>{minutesSecondes(duration)}</span>
         </div>
       </div>
+      <MiniVolume buttonClass={ib} />
     </div>
 
     <!-- Onglets File / Paroles -->

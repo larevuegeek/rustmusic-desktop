@@ -60,9 +60,9 @@
                 style="filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.4));" />
         <defs>
           <linearGradient id="importGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#22c55e" />
-            <stop offset="50%" stop-color="#10b981" />
-            <stop offset="100%" stop-color="#06b6d4" />
+            <stop offset="0%" style="stop-color: var(--acc-500, #22c55e)" />
+            <stop offset="50%" style="stop-color: var(--acc-600, #10b981)" />
+            <stop offset="100%" style="stop-color: var(--acc-400, #06b6d4)" />
           </linearGradient>
         </defs>
       </svg>

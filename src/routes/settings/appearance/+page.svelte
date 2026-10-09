@@ -15,6 +15,7 @@
   import SidebarPreview from "#lib/components/settings/SidebarPreview.svelte";
   import LibraryLayoutPreview from "#lib/components/settings/LibraryLayoutPreview.svelte";
   import WindowControlsPreview from "#lib/components/settings/WindowControlsPreview.svelte";
+  import AccentPicker from "#lib/components/ui/input/AccentPicker.svelte";
   import {
     ONGLETS_BIBLIOTHEQUE,
     ORDRE_ONGLETS,
@@ -184,6 +185,12 @@
       {/each}
     </div>
   </OptionBlock>
+  <!-- Couleur d'accent : logo, boutons, sélections -->
+  <OptionBlock keywords="{$t('settings.accent')} {$t('settings.accent_desc')} accent couleur color" class="px-5 py-4">
+    <p class="text-[15px] font-semibold leading-[1.2] text-(--rg-tx)">{$t("settings.accent")}</p>
+    <p class="mt-0.75 mb-3.5 text-[13px] leading-[1.25] text-(--rg-mu) text-pretty">{$t("settings.accent_desc")}</p>
+    <AccentPicker value={$settingsStore.accent_color} onchange={(hex) => settingsStore.set("accent_color", hex)} />
+  </OptionBlock>
   <OptionItem title={$t("settings.contrast")} desc={$t("settings.contrast_desc")} keywords="contrast">
     <SegmentedControl
       value={$settingsStore.contrast === "high" ? "high" : "normal"}
@@ -327,6 +334,21 @@
       ]}
       label={$t("settings.window_controls_position")}
       onchange={(v) => settingsStore.set("window_controls_position", v)}
+    />
+  </OptionItem>
+</OptionGroup>
+
+<!-- ─── Mini-lecteur ─── -->
+<OptionGroup title={$t("settings.mini_group")} hint={$t("settings.mini_group_hint")}>
+  <OptionItem title={$t("settings.mini_volume_layout")} desc={$t("settings.mini_volume_layout_desc")} keywords="mini volume">
+    <SegmentedControl
+      value={$settingsStore.mini_volume_layout === "horizontal" ? "horizontal" : "vertical"}
+      options={[
+        { value: "vertical", label: $t("settings.vertical") },
+        { value: "horizontal", label: $t("settings.horizontal") },
+      ]}
+      label={$t("settings.mini_volume_layout")}
+      onchange={(v) => settingsStore.set("mini_volume_layout", v)}
     />
   </OptionItem>
 </OptionGroup>

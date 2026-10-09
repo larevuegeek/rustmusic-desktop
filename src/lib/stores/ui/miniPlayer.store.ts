@@ -8,9 +8,11 @@
  */
 
 import { writable, get } from "svelte/store";
-import { getCurrentWindow, LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
+import { currentMonitor, getCurrentWindow, LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
 
 export const miniPlayerActive = writable(false);
+/** Micro-lecteur : sous-mode du mini, la pochette seule dans un carré. */
+export const microPlayerActive = writable(false);
 /** Épinglé au-dessus des autres fenêtres (par défaut en entrant en mode mini). */
 export const miniPinned = writable(true);
 
@@ -18,6 +20,18 @@ export const miniPinned = writable(true);
 const MINI_W = 380;
 /** Hauteur de repli par défaut, remplacée par la mesure réelle du contenu. */
 const MINI_H = 150;
+/** Côté du micro-lecteur (points logiques) : de 220 à trois fois plus, retenu d'une fois sur l'autre. */
+export const MICRO_MIN = 220;
+export const MICRO_MAX = 660;
+const MICRO_SIZE_KEY = "rustmusic:micro-size";
+let microSize = (() => {
+  try {
+    const n = Number(localStorage.getItem(MICRO_SIZE_KEY));
+    return n >= MICRO_MIN && n <= MICRO_MAX ? n : MICRO_MIN;
+  } catch {
+    return MICRO_MIN;
+  }
+})();
 /** Hauteur ajoutée par le panneau (file d'attente / paroles) quand déroulé. */
 const PANEL_H = 300;
 /** Plancher du mode normal : en dessous, l'interface n'est plus utilisable. */
@@ -52,6 +66,25 @@ async function setH(h: number): Promise<void> {
     await getCurrentWindow().setSize(new LogicalSize(MINI_W, h));
   } catch (e) {
     console.error("[mini-player] setSize failed:", e);
+  }
+}
+
+/** Garde la fenêtre entière dans la zone de travail de l'écran : collée au bord, elle ne déborde plus en grandissant. */
+async function keepOnScreen(width: number, height: number): Promise<void> {
+  try {
+    const win = getCurrentWindow();
+    const monitor = await currentMonitor();
+    if (!monitor) return;
+    const scale = await win.scaleFactor();
+    const pos = await win.outerPosition();
+    const area = monitor.workArea;
+    const maxX = area.position.x + area.size.width - Math.round(width * scale);
+    const maxY = area.position.y + area.size.height - Math.round(height * scale);
+    const x = Math.max(area.position.x, Math.min(pos.x, maxX));
+    const y = Math.max(area.position.y, Math.min(pos.y, maxY));
+    if (x !== pos.x || y !== pos.y) await win.setPosition(new PhysicalPosition(x, y));
+  } catch (e) {
+    console.error("[mini-player] keepOnScreen failed:", e);
   }
 }
 
@@ -92,6 +125,7 @@ export async function enterMiniPlayer(): Promise<void> {
     expanded = false;
     currentH = collapsedH;
     await win.setSize(new LogicalSize(MINI_W, collapsedH));
+    await keepOnScreen(MINI_W, collapsedH);
     tailleMini = true;
     miniPlayerActive.set(true);
   } catch (e) {
@@ -119,6 +153,7 @@ export async function exitMiniPlayer(): Promise<void> {
     else await win.center();
     if (savedMaximized) await win.maximize();
     if (savedFullscreen) await win.setFullscreen(true);
+    microPlayerActive.set(false);
     miniPlayerActive.set(false);
   } catch (e) {
     console.error("[mini-player] exit failed:", e);
@@ -156,6 +191,64 @@ export async function toggleMiniPin(): Promise<void> {
   }
 }
 
+/** Du mini au micro : la fenêtre devient un carré, le mini ne se remesure plus. */
+export async function enterMicroPlayer(): Promise<void> {
+  if (!get(miniPlayerActive) || get(microPlayerActive) || bascule) return;
+  bascule = true;
+  tailleMini = false;
+  cancelAnimationFrame(resizeRaf);
+  try {
+    await getCurrentWindow().setSize(new LogicalSize(microSize, microSize));
+    await keepOnScreen(microSize, microSize);
+    microPlayerActive.set(true);
+  } catch (e) {
+    console.error("[micro-player] enter failed:", e);
+  } finally {
+    bascule = false;
+  }
+}
+
+/** Redimensionne le micro en gardant le carré (poignée du coin), sans recaler pendant le geste. */
+export async function resizeMicroPlayer(size: number): Promise<void> {
+  if (!get(microPlayerActive)) return;
+  microSize = Math.round(Math.max(MICRO_MIN, Math.min(MICRO_MAX, size)));
+  try {
+    await getCurrentWindow().setSize(new LogicalSize(microSize, microSize));
+  } catch (e) {
+    console.error("[micro-player] resize failed:", e);
+  }
+}
+
+/** Fin du geste : la fenêtre revient dans l'écran et la taille est retenue. */
+export async function endMicroResize(): Promise<void> {
+  await keepOnScreen(microSize, microSize);
+  try {
+    localStorage.setItem(MICRO_SIZE_KEY, String(microSize));
+  } catch {}
+}
+
+export function currentMicroSize(): number {
+  return microSize;
+}
+
+/** Retour au mini, panneau replié. */
+export async function exitMicroPlayer(): Promise<void> {
+  if (!get(microPlayerActive) || bascule) return;
+  bascule = true;
+  try {
+    expanded = false;
+    currentH = collapsedH;
+    await getCurrentWindow().setSize(new LogicalSize(MINI_W, collapsedH));
+    await keepOnScreen(MINI_W, collapsedH);
+    tailleMini = true;
+    microPlayerActive.set(false);
+  } catch (e) {
+    console.error("[micro-player] exit failed:", e);
+  } finally {
+    bascule = false;
+  }
+}
+
 export async function toggleMiniPlayer(): Promise<void> {
   if (get(miniPlayerActive)) await exitMiniPlayer();
   else await enterMiniPlayer();
@@ -185,7 +278,10 @@ function animateMiniHeight(to: number): void {
 /** Ouvre (déroulé) ou ferme le panneau, avec animation. */
 export function setMiniExpanded(exp: boolean): void {
   expanded = exp;
-  animateMiniHeight(exp ? collapsedH + PANEL_H : collapsedH);
+  const to = exp ? collapsedH + PANEL_H : collapsedH;
+  // On remonte d'abord si le panneau dépasserait en bas de l'écran.
+  if (exp) void keepOnScreen(MINI_W, to).then(() => animateMiniHeight(to));
+  else animateMiniHeight(to);
 }
 
 /**

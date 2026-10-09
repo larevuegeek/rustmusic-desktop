@@ -30,6 +30,13 @@
           if (localStorage.getItem("rustmusic:contrast") === "high") {
             document.documentElement.setAttribute("data-contrast", "high");
           }
+
+          // Couleur d'accent choisie : nuances calculées au dernier lancement.
+          var accent = JSON.parse(localStorage.getItem("rustmusic:accent") || "null");
+          if (accent) {
+            for (var k in accent) document.documentElement.style.setProperty(k, accent[k]);
+            document.documentElement.setAttribute("data-accent", "");
+          }
         } catch (e) {
           // Stockage indisponible : on laisse le thème clair, que la base
           // corrigera. Mieux vaut un bref passage en clair qu'un écran noir.
@@ -49,13 +56,13 @@
       }
       .dark #demarrage { background: #0b0d0c; }
       #demarrage.fini { opacity: 0; pointer-events: none; }
-      #demarrage .rm-vert { fill: #16a34a; }
+      #demarrage .rm-vert { fill: var(--acc-600, #16a34a); }
       #demarrage .rm-texte { fill: #1a1c1a; }
       .dark #demarrage .rm-vert { fill: url(#rmDemarrage); }
       .dark #demarrage .rm-texte { fill: #f5f5f5; }
       #demarrage .anneau {
         width: 30px; height: 30px; border-radius: 50%;
-        border: 3px solid rgb(22 163 74 / 0.18); border-top-color: #16a34a;
+        border: 3px solid color-mix(in srgb, var(--acc-600, #16a34a) 18%, transparent); border-top-color: var(--acc-600, #16a34a);
         animation: demarrage-tourne 0.8s linear infinite;
       }
       @keyframes demarrage-tourne { to { transform: rotate(360deg); } }
@@ -67,7 +74,7 @@
       <svg width="190" viewBox="0 0 141 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <defs>
           <linearGradient id="rmDemarrage" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#34d369" /><stop offset="100%" stop-color="#22c55e" />
+            <stop offset="0%" style="stop-color: var(--acc-400, #34d369)" /><stop offset="100%" style="stop-color: var(--acc-500, #22c55e)" />
           </linearGradient>
         </defs>
         <g transform="translate(1, 1)">

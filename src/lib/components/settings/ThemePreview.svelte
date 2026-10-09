@@ -12,7 +12,7 @@
 {#snippet ecran(p: Palette, complet: boolean)}
   <div class="absolute inset-0 grid grid-cols-[30%_1fr] grid-rows-[1fr_16px]">
     <div class="flex flex-col gap-1 px-1.5 py-2" style:background={p.sb}>
-      <i class="block h-1.25 w-3/5 rounded-[3px] bg-[#22c55e]"></i>
+      <i class="block h-1.25 w-3/5 rounded-[3px] bg-accent-500"></i>
       <i class="block h-1.25 rounded-[3px]" style:background={p.barre}></i>
       <i class="block h-1.25 rounded-[3px]" style:background={p.barre}></i>
     </div>

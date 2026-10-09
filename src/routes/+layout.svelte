@@ -40,7 +40,10 @@ import { onDestroy } from "svelte";
 import { page } from "$app/state";
 import SelectionBar from "#lib/components/ui/selection/SelectionBar.svelte";
 import MiniPlayer from "#lib/components/player/MiniPlayer.svelte";
-import { miniPlayerActive, assurerTailleNormale } from "#lib/stores/ui/miniPlayer.store";
+import MicroPlayer from "#lib/components/player/MicroPlayer.svelte";
+import { miniPlayerActive, microPlayerActive, assurerTailleNormale, toggleMiniPlayer } from "#lib/stores/ui/miniPlayer.store";
+import { resolveShortcuts, eventToBinding, findAction, type ShortcutAction } from "#lib/config/shortcuts";
+import { applyAccent } from "#lib/helper/theme/accent";
 import SleepTimerButton from "#lib/components/player/SleepTimerButton.svelte";
 import { fade } from "svelte/transition";
 import { ouvrirLiensExternes } from "#lib/helper/tools/liensExternes";
@@ -185,50 +188,36 @@ function goBack() { history.back(); }
 function goForward() { history.forward(); }
 
 // Raccourcis clavier globaux
-function handleKeydown(e: KeyboardEvent) {
-  // Ignorer si on est dans un input/textarea
-  const tag = (e.target as HTMLElement)?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+// Couleur d'accent choisie dans Apparence (vide = vert d'origine).
+$effect(() => applyAccent($settingsStore.accent_color));
 
-  switch (e.code) {
-    case 'Space':
-      e.preventDefault();
-      playerService.handleTogglePlay();
-      break;
-    case 'ArrowRight':
-      if (e.ctrlKey || e.metaKey) {
-        playerService.nextTrack();
-      } else {
-        playerService.seekTo((get(player).jsPosition ?? 0) + 10);
-      }
-      break;
-    case 'ArrowLeft':
-      if (e.ctrlKey || e.metaKey) {
-        playerService.prevTrack();
-      } else {
-        playerService.seekTo(Math.max(0, (get(player).jsPosition ?? 0) - 10));
-      }
-      break;
-    case 'ArrowUp':
-      e.preventDefault();
-      reglerVolume(get(volume) + 5);
-      break;
-    case 'ArrowDown':
-      e.preventDefault();
-      reglerVolume(get(volume) - 5);
-      break;
-    case 'KeyM':
-      invoke('mute').then(chargerVolume);
-      break;
-    case 'KeyF':
-    case 'KeyK':
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        const searchInput = document.querySelector('input[type="search"]') as HTMLInputElement;
-        searchInput?.focus();
-      }
-      break;
-  }
+// Touches choisies dans les réglages, sinon celles par défaut.
+const shortcuts = $derived(resolveShortcuts($settingsStore.shortcuts));
+
+const shortcutHandlers: Record<ShortcutAction, () => void> = {
+  playPause: () => playerService.handleTogglePlay(),
+  seekForward: () => playerService.seekTo((get(player).jsPosition ?? 0) + 10),
+  seekBackward: () => playerService.seekTo(Math.max(0, (get(player).jsPosition ?? 0) - 10)),
+  next: () => playerService.nextTrack(),
+  previous: () => playerService.prevTrack(),
+  volumeUp: () => reglerVolume(get(volume) + 5),
+  volumeDown: () => reglerVolume(get(volume) - 5),
+  mute: () => { invoke('mute').then(chargerVolume); },
+  search: () => (document.querySelector('input[type="search"]') as HTMLInputElement | null)?.focus(),
+  toggleMini: () => { void toggleMiniPlayer(); },
+};
+
+function handleKeydown(e: KeyboardEvent) {
+  // Ignorer si on est dans un champ, ou sur une glissière qui gère ses flèches
+  const target = e.target as HTMLElement;
+  const tag = target?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.getAttribute?.('role') === 'slider') return;
+
+  const binding = eventToBinding(e);
+  const action = binding ? findAction(shortcuts, binding) : undefined;
+  if (!action) return;
+  e.preventDefault();
+  shortcutHandlers[action]();
 }
 </script>
 
@@ -238,8 +227,8 @@ function handleKeydown(e: KeyboardEvent) {
 {#if !$profilSelector.initialized}
   <!-- L'écran de chargement d'app.html reste affiché. -->
 {:else if $miniPlayerActive}
-  <!-- Mode mini-player : la fenêtre est réduite et always-on-top -->
-  <MiniPlayer />
+  <!-- Mode mini-player : la fenêtre est réduite et always-on-top ; le micro n'en garde que la pochette -->
+  {#if $microPlayerActive}<MicroPlayer />{:else}<MiniPlayer />{/if}
 {:else}
 <main class="w-screen h-screen flex flex-col bg-(--c-fond) dark:bg-zinc-950 text-gray-900 dark:text-gray-100 overflow-hidden">
   <!-- Barre unique : la barre de titre porte la navigation, la recherche et les

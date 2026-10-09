@@ -59,13 +59,13 @@ const visibilite = ['flex', 'flex', 'flex', 'hidden @6xl:flex', 'hidden @7xl:fle
 const STYLES = {
   fond: {
     carte: "bg-[#121614] border-white/10",
-    titre: "text-white", sous: "text-white/70", survol: "hover:text-white", surtitre: "text-[#4ade80]",
+    titre: "text-white", sous: "text-white/70", survol: "hover:text-white", surtitre: "text-accent-400",
     boutonFond: "bg-white/10 hover:bg-white/16", boutonTexte: "text-white",
   },
   uni: {
     carte: "bg-neutral-50 border-neutral-200 dark:bg-[#131715] dark:border-[#1f2522]",
     titre: "text-neutral-900 dark:text-[#f2f5f3]", sous: "text-neutral-500 dark:text-[#9aa39e]",
-    survol: "hover:text-neutral-900 dark:hover:text-white", surtitre: "text-emerald-600 dark:text-[#22c55e]",
+    survol: "hover:text-neutral-900 dark:hover:text-white", surtitre: "text-emerald-600 dark:text-accent-500",
     boutonFond: "bg-neutral-900/6 hover:bg-neutral-900/10 dark:bg-[#1e2421] dark:hover:bg-[#262d29]",
     boutonTexte: "text-neutral-900 dark:text-[#f2f5f3]",
   },
@@ -105,7 +105,7 @@ function ouvrirMenu(e: MouseEvent, track: RecentFileListView) {
         {$t('home.clear_history')}
       </button>
       <button type="button" onclick={() => goto('/playlist/recent')}
-              class="text-sm font-semibold text-emerald-600 dark:text-[#22c55e] hover:underline cursor-pointer">
+              class="text-sm font-semibold text-emerald-600 dark:text-accent-500 hover:underline cursor-pointer">
         {$t('home.see_all')}
       </button>
     </div>
@@ -155,7 +155,7 @@ function ouvrirMenu(e: MouseEvent, track: RecentFileListView) {
 
       <div class="relative flex items-center gap-2.5 min-w-0">
         <button type="button" onclick={() => jouer('vedette', vedette.path)} disabled={occupe !== null}
-                class="h-11 px-5 rounded-full bg-[#22c55e] hover:bg-[#4ade80] text-(--rg-on-g) font-bold text-[15px]
+                class="h-11 px-5 rounded-full bg-accent-500 hover:bg-accent-400 text-(--rg-on-g) font-bold text-[15px]
                        flex items-center gap-2 shrink-0 whitespace-nowrap cursor-pointer transition-colors
                        disabled:opacity-60 disabled:cursor-wait">
           <Icon icon="mynaui:play-solid" width={18} /> {$t('home.replay')}
@@ -198,7 +198,7 @@ function ouvrirMenu(e: MouseEvent, track: RecentFileListView) {
               {/if}
               <span class="absolute inset-0 flex items-center justify-center bg-black/30
                            opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <span class="w-12 h-12 rounded-full bg-[#22c55e] text-(--rg-on-g) flex items-center justify-center
+                <span class="w-12 h-12 rounded-full bg-accent-500 text-(--rg-on-g) flex items-center justify-center
                              shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
                   <Icon icon={occupe === a.cle ? "lucide:loader-circle" : "mynaui:play-solid"} width={22}
                         class={occupe === a.cle ? "animate-spin" : ""} />

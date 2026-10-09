@@ -27,7 +27,7 @@
            {position === 'left' ? 'flex-row-reverse' : ''}"
   >
     <!-- Le logo cède la place, jamais les boutons. -->
-    <span class="mx-2.5 w-8 min-w-1 h-2 shrink rounded-full bg-[#22c55e]"></span>
+    <span class="mx-2.5 w-8 min-w-1 h-2 shrink rounded-full bg-accent-500"></span>
     <span class="flex-1"></span>
 
     {#if style === "macos"}

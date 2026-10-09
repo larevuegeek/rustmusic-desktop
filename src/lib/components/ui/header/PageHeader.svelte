@@ -7,7 +7,7 @@
     title,
     subtitle = "",
     icon = "lucide:music",
-    iconColor = "#22c55e",
+    iconColor = "var(--color-accent-500)",
     count = 0,
     actions,
     extra,

@@ -27,8 +27,11 @@ export type AppSettings = {
   prevent_sleep: string;             // 'true' | 'false' — pas de veille automatique pendant la lecture
   theme: string;                     // 'auto' | 'light' | 'dark'
   contrast: string;                  // 'normal' | 'high' — lisibilité renforcée
+  accent_color: string;              // '#rrggbb' ; vide = vert d'origine
   window_controls_style: string;     // 'auto' | 'macos' | 'windows'
   window_controls_position: string;  // 'right' | 'left'
+  mini_volume_layout: string;        // 'vertical' | 'horizontal' — bulle du volume du mini-lecteur
+  shortcuts: string;                 // JSON des raccourcis modifiés ; vide = touches par défaut
   blurred_backgrounds: string;       // 'precomputed' | 'live' — fonds de pochette floutés
   // 'true' | 'false' — interroger Deezer à l'ouverture d'une fiche artiste.
   // Par défaut actif : c'est le comportement historique, et le couper sans
@@ -85,8 +88,11 @@ export const settingsDefaults: AppSettings = {
   prevent_sleep: 'true',
   theme: 'dark',
   contrast: 'normal',
+  accent_color: '',
   window_controls_style: 'auto',
   window_controls_position: 'right',
+  mini_volume_layout: 'vertical',
+  shortcuts: '',
   auto_download_artist_images: 'true',
   show_liked_in_playlists: 'true',
   show_recent_in_playlists: 'true',

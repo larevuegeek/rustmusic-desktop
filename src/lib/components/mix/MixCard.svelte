@@ -125,7 +125,7 @@
         </div>
       {/if}
 
-      <span class="absolute rounded-full bg-[#22c55e] text-(--rg-on-g)
+      <span class="absolute rounded-full bg-accent-500 text-(--rg-on-g)
                    flex items-center justify-center shadow-[0_8px_20px_rgba(0,0,0,0.4)] transition-all duration-200
                    {horizontale ? 'right-2 bottom-2 w-9 h-9 @4xl:right-3.5 @4xl:bottom-3.5 @4xl:w-12 @4xl:h-12' : decennie ? 'right-3 bottom-3 w-10 h-10' : 'right-3.5 bottom-3.5 w-12 h-12'}
                    {lance ? 'opacity-100' : 'opacity-0 translate-y-1.5 group-hover:opacity-100 group-hover:translate-y-0'}">

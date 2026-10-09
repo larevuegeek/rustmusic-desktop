@@ -5,6 +5,18 @@
 
 @theme {
   --font-sans: 'Inter Variable', system-ui, sans-serif;
+  /* Couleur d'accent : le vert de la marque, sauf si l'utilisateur en choisit une autre (--acc-*). */
+  --color-accent-50: var(--acc-50, #f0fdf4);
+  --color-accent-100: var(--acc-100, #dcfce7);
+  --color-accent-200: var(--acc-200, #bbf7d0);
+  --color-accent-300: var(--acc-300, #86efac);
+  --color-accent-400: var(--acc-400, #4ade80);
+  --color-accent-500: var(--acc-500, #22c55e);
+  --color-accent-600: var(--acc-600, #16a34a);
+  --color-accent-700: var(--acc-700, #15803d);
+  --color-accent-800: var(--acc-800, #166534);
+  --color-accent-900: var(--acc-900, #14532d);
+  --color-accent-950: var(--acc-950, #052e16);
 }
 
 html {
@@ -880,3 +892,44 @@ html, body {
 .mini-eq[data-pause] i { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .mini-eq i { animation: none; transform: scaleY(0.6); } }
 @keyframes mini-eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Couleur d'accent choisie (Apparence) — <html data-accent>
+   ───────────────────────────────────────────────────────────────────────────
+   La palette `emerald` des composants et les variables vertes du thème
+   prennent les nuances calculées (--acc-*). Le vert « succès » (`green`)
+   ne change pas : un état validé reste vert. */
+:root[data-accent] {
+  --color-emerald-50: var(--acc-50);
+  --color-emerald-100: var(--acc-100);
+  --color-emerald-200: var(--acc-200);
+  --color-emerald-300: var(--acc-300);
+  --color-emerald-400: var(--acc-400);
+  --color-emerald-500: var(--acc-500);
+  --color-emerald-600: var(--acc-600);
+  --color-emerald-700: var(--acc-700);
+  --color-emerald-800: var(--acc-800);
+  --color-emerald-900: var(--acc-900);
+  --color-emerald-950: var(--acc-950);
+  --rg-g: var(--acc-600); --rg-gtx: var(--acc-800);
+  --rg-gbg: color-mix(in oklab, var(--acc-500) 16%, #f8f6f1);
+  --rg-gbd: color-mix(in oklab, var(--acc-500) 32%, #f8f6f1);
+  --rg-creux-on: color-mix(in oklab, var(--acc-500) 7%, #f8f6f1);
+  --rg-on-g: var(--acc-on);
+}
+:root[data-accent].dark {
+  --rg-g: var(--acc-500); --rg-gtx: var(--acc-400);
+  --rg-gbg: color-mix(in oklab, var(--acc-500) 18%, #0b0d0c);
+  --rg-gbd: color-mix(in oklab, var(--acc-500) 34%, #0b0d0c);
+  --rg-creux-on: color-mix(in oklab, var(--acc-500) 8%, #0f1211);
+}
+:root[data-accent] .sidebar {
+  --sb-g: var(--acc-800); --sb-point: var(--acc-600);
+  --sb-gbg: color-mix(in oklab, var(--acc-500) 16%, #f8f6f1); --sb-gbd: var(--sb-gbg);
+}
+:root[data-accent].dark .sidebar {
+  --sb-g: var(--acc-400); --sb-point: var(--acc-500);
+  --sb-gbg: color-mix(in oklab, var(--acc-500) 18%, #0b0d0c);
+  --sb-gbd: color-mix(in oklab, var(--acc-500) 30%, #0b0d0c);
+}

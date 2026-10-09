@@ -65,7 +65,7 @@ const chiffres = $derived(stats && libraryId ? [
                  h-10 px-4 rounded-full text-sm font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap
                  bg-neutral-900/6 hover:bg-neutral-900/10 text-neutral-900
                  dark:bg-white/10 dark:hover:bg-white/16 dark:text-white transition-colors">
-    <Icon icon="lucide:plus" width={16} class="text-[#16a34a] dark:text-[#22c55e]" /> {$t('home.add_music')}
+    <Icon icon="lucide:plus" width={16} class="text-accent-600 dark:text-accent-500" /> {$t('home.add_music')}
   </button>
   {/if}
 </header>

@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.2.10] - 2026-10-09
+
+Un lecteur qui se fait tout petit, aux couleurs de son choix : volume dans le
+mini-lecteur, micro-lecteur réduit à la pochette, couleur d'accent libre et
+raccourcis clavier personnalisables.
+
+### Lecture
+- **Volume dans le mini-lecteur** : un bouton au bout des commandes ouvre la
+  sourdine et la glissière ; la molette sur le bouton règle le volume. Bulle
+  verticale ou horizontale, au choix dans Apparence → Mini-lecteur.
+- **Micro-lecteur** : depuis le mini-lecteur, la fenêtre devient un carré de
+  pochette. Au survol : précédent, lecture, suivant, la timeline du morceau,
+  le volume (petite bulle) et le retour au mini-lecteur ; la molette règle
+  aussi le volume. La poignée du coin agrandit la pochette jusqu'à trois
+  fois, et la taille est retenue.
+- Le mini et le micro-lecteur restent entiers dans l'écran : collés au bord,
+  ils ne débordent plus en grandissant (retour au mini, panneau File ou
+  Paroles).
+
+### Apparence
+- **Couleur d'accent au choix** (Apparence → Thème) : dix teintes prêtes ou
+  une couleur libre. Le logo, les boutons, les sélections, les liens et
+  l'écran de chargement la suivent ; le vert des états validés ne change pas.
+
+### Raccourcis
+- **Raccourcis personnalisables** : dans Réglages → Raccourcis, un clic sur les
+  touches puis la nouvelle combinaison. Une touche déjà prise est refusée en
+  disant par quoi ; chaque raccourci se rétablit seul, ou tous d'un coup.
+- **Basculer en mini-lecteur** : Ctrl + Maj + M (⌘ + ⇧ + M sur Mac).
+- La sourdine (M) répond à la touche M sur un clavier AZERTY : c'était la
+  touche « , ».
+
 ## [0.2.9] - 2026-10-05
 
 Correctifs remontés par les testeurs : un disque externe qui saturait la
