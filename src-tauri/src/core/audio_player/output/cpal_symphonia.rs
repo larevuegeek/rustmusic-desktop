@@ -132,6 +132,30 @@ impl CpalSymphoniaOutput {
                             } else {
                                 output.fill(0.0);
                             }
+
+                            // Gapless handoff: the current track ran out in the
+                            // middle of this callback. Swap in the preloaded
+                            // track right here and fill the rest of the buffer
+                            // from it, instead of leaving zeros until the
+                            // control thread notices the end.
+                            if samples_read < output.len()
+                                && crate::core::audio_player::preload::gapless_enabled()
+                            {
+                                if let Ok(mut fb) = full_buffer_data.try_write() {
+                                    let cursor: usize = full_buffer_cursor.load(Ordering::Relaxed);
+                                    if cursor >= fb.len()
+                                        && crate::core::audio_player::preload::promote_from_callback(
+                                            &mut fb,
+                                        )
+                                    {
+                                        let n = fb.len().min(output.len() - samples_read);
+                                        output[samples_read..samples_read + n]
+                                            .copy_from_slice(&fb[..n]);
+                                        full_buffer_cursor.store(n, Ordering::Release);
+                                        samples_read += n;
+                                    }
+                                }
+                            }
                         } else {
                             output.fill(0.0);
                         }

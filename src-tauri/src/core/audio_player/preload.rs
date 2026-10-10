@@ -181,6 +181,62 @@ pub fn take_ready() -> Option<PreloadedTrack> {
     taken
 }
 
+/// Bookkeeping left behind by a promotion done inside the audio callback.
+/// The control thread consumes it to update duration, path and UI events, and
+/// to free the previous buffer outside the real-time thread.
+pub struct Promotion {
+    pub path: PathBuf,
+    pub duration_secs: f64,
+    /// Samples of the track that just ended; dropped by the control thread.
+    pub old_samples: Vec<f32>,
+}
+
+static PROMOTION: Mutex<Option<Promotion>> = Mutex::new(None);
+
+/// Real-time promotion, called from the audio callback when the cursor has
+/// reached the end of `buffer`. Swaps the preloaded samples into `buffer`
+/// without blocking: if any lock is contended or nothing matching is ready,
+/// returns `false` and the control thread falls back to its own promotion.
+pub fn promote_from_callback(buffer: &mut Vec<f32>) -> bool {
+    let Ok(mut promotion) = PROMOTION.try_lock() else {
+        return false;
+    };
+    if promotion.is_some() {
+        return false;
+    }
+    let Ok(mut st) = STATE.try_lock() else {
+        return false;
+    };
+    let Some(expected) = st.next_path.clone() else {
+        return false;
+    };
+    let next = match st.ready.take() {
+        Some(t) if t.path == expected => t,
+        other => {
+            st.ready = other;
+            return false;
+        }
+    };
+    st.next_path = None;
+    drop(st);
+    GENERATION.fetch_add(1, Ordering::Relaxed);
+
+    let mut next = next;
+    std::mem::swap(buffer, &mut next.samples);
+    replay_gain::set_current_factor(next.gain);
+    *promotion = Some(Promotion {
+        path: next.path,
+        duration_secs: next.duration_secs,
+        old_samples: next.samples,
+    });
+    true
+}
+
+/// Picks up the bookkeeping of a promotion done by the audio callback.
+pub fn take_promotion() -> Option<Promotion> {
+    PROMOTION.lock().unwrap_or_else(|e| e.into_inner()).take()
+}
+
 /// Jette le décodage en cours mais **conserve** l'annonce : utilisé en fin de
 /// piste, quand le frontend n'a pas encore eu le temps d'annoncer la suite.
 pub fn abort_current_decode() {
@@ -190,6 +246,7 @@ pub fn abort_current_decode() {
 
 /// Vide entièrement la réserve (stop, changement manuel de piste).
 pub fn reset() {
+    log::debug!("📦 Préchargement : reset complet");
     let mut st = lock();
     st.next_path = None;
     st.ready = None;
@@ -208,8 +265,10 @@ pub fn run_preload(format: StreamFormat, is_stopped: Arc<AtomicBool>) {
     let generation = GENERATION.load(Ordering::Relaxed);
 
     let Some(path) = announced_next() else {
+        log::debug!("📦 Préchargement : rien d'annoncé au lancement (génération {generation})");
         return;
     };
+    log::debug!("📦 Préchargement lancé : {} (génération {generation})", path.display());
 
     match decode_track(&path, format, &is_stopped, generation) {
         Ok(Some(track)) => {
@@ -229,7 +288,12 @@ pub fn run_preload(format: StreamFormat, is_stopped: Arc<AtomicBool>) {
                 st.ready = Some(track);
             }
         }
-        Ok(None) => {} // Incompatible ou annulé : pas d'enchaînement, sans bruit.
+        Ok(None) => log::debug!(
+            "📦 Préchargement sans résultat (annulé, incompatible ou vide) : {} (génération {} → {})",
+            path.display(),
+            generation,
+            GENERATION.load(Ordering::Relaxed)
+        ),
         Err(e) => log::debug!("📦 Préchargement de {} abandonné : {e}", path.display()),
     }
 }
@@ -386,6 +450,21 @@ fn decode_track(
                 path.display()
             );
             return Ok(None);
+        }
+    }
+
+    // Flush what the resampler still holds back (partial chunk + filter delay).
+    if let Some(rs) = resampler.as_mut() {
+        let tail = rs.finish();
+        if !tail.is_empty() {
+            if channels as u16 != fmt.output_channels {
+                let mut out =
+                    vec![0.0f32; (tail.len() / channels) * fmt.output_channels as usize];
+                adapt_channels(&tail, channels, &mut out, fmt.output_channels.into());
+                samples.extend_from_slice(&out);
+            } else {
+                samples.extend_from_slice(&tail);
+            }
         }
     }
 

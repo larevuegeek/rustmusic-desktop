@@ -20,6 +20,13 @@ pub struct Resampler {
     chunk_size: usize,
     /// Per-channel accumulator (deinterleaved staging buffer).
     accumulator: Vec<Vec<f32>>,
+    /// Output frames still to be dropped: the filter delay at the start of a
+    /// stream, which would otherwise show up as leading silence.
+    skip_out: usize,
+    /// Input frames pushed / output frames emitted since the last reset,
+    /// used by [`Self::finish`] to know how much tail is still owed.
+    in_frames: usize,
+    out_frames: usize,
 }
 
 impl Resampler {
@@ -77,12 +84,16 @@ impl Resampler {
         // selon le ratio interne) ; on utilise la valeur effective.
         let actual_chunk_size = fft.input_frames_next();
         let accumulator = vec![Vec::new(); channels];
+        let skip_out = fft.output_delay();
 
         Ok(Some(Self {
             fft,
             channels,
             chunk_size: actual_chunk_size,
             accumulator,
+            skip_out,
+            in_frames: 0,
+            out_frames: 0,
         }))
     }
 
@@ -90,6 +101,8 @@ impl Resampler {
     /// resampled output frames ready (interleaved). May return an empty Vec
     /// if not enough input has accumulated for a full FFT chunk yet.
     pub fn process_interleaved(&mut self, input: &[f32]) -> Vec<f32> {
+        self.in_frames += input.len() / self.channels;
+
         // Deinterleave into per-channel accumulator
         for (i, &sample) in input.iter().enumerate() {
             let ch = i % self.channels;
@@ -158,7 +171,39 @@ impl Resampler {
             }
         }
 
+        // Drop the start-of-stream filter delay (leading silence).
+        if self.skip_out > 0 {
+            let drop_frames = self.skip_out.min(output_samples.len() / self.channels);
+            output_samples.drain(..drop_frames * self.channels);
+            self.skip_out -= drop_frames;
+        }
+        self.out_frames += output_samples.len() / self.channels;
+
         output_samples
+    }
+
+    /// Flush the end of the stream: pushes zero padding through the filter so
+    /// the input frames still held back (partial chunk + filter delay) come
+    /// out, then truncates to exactly `input_frames * ratio` output frames.
+    /// Call once at end of media; the resampler must be `reset` before reuse.
+    pub fn finish(&mut self) -> Vec<f32> {
+        let expected = (self.in_frames as f64 * self.fft.resample_ratio()).round() as usize;
+        let mut tail: Vec<f32> = Vec::new();
+        let mut passes = 0;
+
+        while self.out_frames < expected && passes < 16 {
+            let pad_frames = self.chunk_size - self.accumulator[0].len();
+            let zeros = vec![0.0f32; pad_frames * self.channels];
+            tail.extend(self.process_interleaved(&zeros));
+            passes += 1;
+        }
+
+        if self.out_frames > expected {
+            let excess = (self.out_frames - expected).min(tail.len() / self.channels);
+            tail.truncate(tail.len() - excess * self.channels);
+            self.out_frames -= excess;
+        }
+        tail
     }
 
     /// Reset internal state (call after seek).
@@ -167,5 +212,45 @@ impl Resampler {
             ch.clear();
         }
         self.fft.reset();
+        self.skip_out = self.fft.output_delay();
+        self.in_frames = 0;
+        self.out_frames = 0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sine(frames: usize, rate: u32) -> Vec<f32> {
+        (0..frames)
+            .flat_map(|i| {
+                let v = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / rate as f32).sin() * 0.5;
+                [v, v]
+            })
+            .collect()
+    }
+
+    #[test]
+    fn finish_emits_full_length_without_leading_silence() {
+        let in_frames = 44_100 * 3 + 123;
+        let mut rs = Resampler::maybe_new(44_100, 48_000, 2).unwrap().unwrap();
+        let input = sine(in_frames, 44_100);
+
+        let mut out = Vec::new();
+        for block in input.chunks(2 * 1152) {
+            out.extend(rs.process_interleaved(block));
+        }
+        out.extend(rs.finish());
+
+        let expected = (in_frames as f64 * 48_000.0 / 44_100.0).round() as usize;
+        assert_eq!(out.len() / 2, expected);
+
+        // The first frames must carry signal, not filter-delay silence.
+        let lead = out.chunks(2).take(200).map(|f| f[0].abs()).fold(0.0f32, f32::max);
+        assert!(lead > 0.05, "leading silence, peak {lead}");
+        // And the end must not have been cut off.
+        let tail = out.chunks(2).rev().take(200).map(|f| f[0].abs()).fold(0.0f32, f32::max);
+        assert!(tail > 0.05, "tail cut off, peak {tail}");
     }
 }

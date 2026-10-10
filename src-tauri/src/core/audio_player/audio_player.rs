@@ -841,6 +841,11 @@ impl AudioPlayer {
         // Dernière annonce pour laquelle un décodage a été lancé, pour ne pas
         // relancer le même en boucle.
         let mut preload_attempted: Option<PathBuf> = None;
+        log::debug!(
+            "📦 Phase 6 : can_preload={} annoncé={:?}",
+            can_preload,
+            crate::core::audio_player::preload::announced_next()
+        );
 
         // ⭐ CRITIQUE: Attendre que le FullBuffer soit complètement lu
         // Le decoder est terminé mais il reste peut-être des données dans le buffer
@@ -925,6 +930,21 @@ impl AudioPlayer {
                 continue; // Ne pas vérifier is_end ce tour-ci
             }
 
+            // The audio callback may already have swapped in the preloaded
+            // track; only the bookkeeping is left to do here.
+            if let Some(done) = crate::core::audio_player::preload::take_promotion() {
+                total_duration.store(done.duration_secs.to_bits(), Ordering::Relaxed);
+                playing_path = done.path.clone();
+                log::info!("🔗 Enchaînement sans blanc → {}", done.path.display());
+                let _ = app_handle.emit(
+                    "track-advanced",
+                    done.path.to_string_lossy().to_string(),
+                );
+                preload_attempted = None;
+                // `done.old_samples` is freed here, off the audio thread.
+                continue;
+            }
+
             let source: u8 = current_source.load(Ordering::Relaxed);
             let mut is_end: bool = false;
 
@@ -987,6 +1007,16 @@ impl AudioPlayer {
                 }
             }
 
+            if is_end && !is_stopped.load(Ordering::Relaxed) {
+                log::debug!(
+                    "📦 Fin de piste sans enchaînement : source={} prêt={} annoncé={:?} tentative={:?}",
+                    source,
+                    crate::core::audio_player::preload::is_ready(),
+                    crate::core::audio_player::preload::announced_next(),
+                    preload_attempted
+                );
+            }
+
             if is_end || is_stopped.load(Ordering::Relaxed) {
                 // On vide le buffer final
                 if let Ok(mut fb) = full_buffer_data.write() {
@@ -1030,15 +1060,11 @@ impl AudioPlayer {
         // Le préchargement en vol n'a plus d'objet : on l'annule et on attend
         // sa sortie, pour ne pas laisser un thread décoder dans le vide.
         //
-        // Sur un arrêt utilisateur on vide tout ; sur une fin naturelle on
-        // CONSERVE l'annonce, car le frontend l'a peut-être déjà mise à jour
-        // pour la piste qui va suivre — l'effacer nous ferait perdre le
-        // préchargement du morceau d'après.
-        if user_stopped {
-            crate::core::audio_player::preload::reset();
-        } else {
-            crate::core::audio_player::preload::abort_current_decode();
-        }
+        // The announcement is kept in both cases. On a user stop the frontend
+        // announces the next track of the NEW playback before this teardown
+        // runs, and it does not announce again; wiping it here left the new
+        // playback with nothing to preload (no gapless on its first track).
+        crate::core::audio_player::preload::abort_current_decode();
         if let Some(h) = preload_handle.take() {
             let _ = h.join();
         }
@@ -2427,6 +2453,40 @@ where
                 // On attend 1ms pour laisser CPAL vider un peu le buffer.
                 if written == 0 {
                     std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+            }
+        }
+    }
+
+    // Flush the resampler tail so the end of the track is not cut short.
+    if !is_stopped.load(Ordering::Relaxed) && seek_position.load(Ordering::Relaxed) == u64::MAX {
+        if let Some(rs) = resampler.as_mut() {
+            let tail = rs.finish();
+            if !tail.is_empty() {
+                let adapted: Vec<f32> = if channels as u16 != output_channels {
+                    let mut out: Vec<f32> =
+                        vec![0.0f32; (tail.len() / channels) * output_channels as usize];
+                    adapt_channels(&tail, channels, &mut out, output_channels.into());
+                    out
+                } else {
+                    tail
+                };
+
+                full_buffer_data
+                    .write()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .extend_from_slice(&adapted);
+
+                // Still in LiveDecode (very short track): feed the ring too.
+                if current_source.load(Ordering::Relaxed) == 0 {
+                    let mut offset: usize = 0;
+                    while offset < adapted.len() && !is_stopped.load(Ordering::Relaxed) {
+                        let written: usize = producer.push_slice(&adapted[offset..]);
+                        offset += written;
+                        if written == 0 {
+                            std::thread::sleep(std::time::Duration::from_millis(1));
+                        }
+                    }
                 }
             }
         }
