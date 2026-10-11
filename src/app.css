@@ -465,6 +465,20 @@ html, body {
   filter: none;
 }
 
+/* Effets allégés (rendu logiciel, VM, vieux PC) : sans vrai GPU, chaque flou
+   d'arrière-plan est recalculé à chaque image du défilement, et chaque pochette
+   qui arrive lance un fondu de 300 ms. On les coupe ; les fonds restent colorés. */
+:root[data-effets="legers"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+:root[data-effets="legers"] img {
+  transition: none !important;
+}
+:root[data-effets="legers"] .lyric-past {
+  filter: none;
+}
+
 /* Focus clavier franchement visible : utile à tout le monde, indispensable
    pour qui navigue sans souris.
 

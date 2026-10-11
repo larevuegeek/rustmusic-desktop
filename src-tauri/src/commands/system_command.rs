@@ -159,3 +159,34 @@ pub async fn notify_ui_ready(state: State<'_, AppState>) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// Faut-il alléger les effets visuels (flous, fondus) quand le réglage est sur
+/// `auto` ? Oui en rendu logiciel, sur un GPU faible et sur une machine modeste.
+#[derive(Debug, Serialize)]
+pub struct LightEffectsAuto {
+    pub light: bool,
+    /// Ce qui a motivé l'allègement, pour l'afficher dans les réglages.
+    pub reason: Option<String>,
+}
+
+#[tauri::command]
+pub fn get_light_effects_auto() -> LightEffectsAuto {
+    let reason = light_effects_reason();
+    LightEffectsAuto { light: reason.is_some(), reason }
+}
+
+fn light_effects_reason() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        if crate::core::render_mode::software_active() {
+            return Some("software rendering".into());
+        }
+        if let Some(gpu) = crate::core::system_detect::weak_gpu() {
+            return Some(gpu);
+        }
+        if let Some(virt) = detect_virt_kind() {
+            return Some(format!("virtual machine ({virt})"));
+        }
+    }
+    crate::core::system_detect::modest_hardware()
+}

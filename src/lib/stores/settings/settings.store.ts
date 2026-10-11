@@ -5,6 +5,7 @@ import {
   applyThemeMode,
   applyContrastMode,
   applyFavoritesMode,
+  applyLightEffects,
   type ThemeMode,
   type ContrastMode,
 } from "#lib/helper/theme/theme";
@@ -33,6 +34,7 @@ export type AppSettings = {
   mini_volume_layout: string;        // 'vertical' | 'horizontal' — bulle du volume du mini-lecteur
   shortcuts: string;                 // JSON des raccourcis modifiés ; vide = touches par défaut
   blurred_backgrounds: string;       // 'precomputed' | 'live' — fonds de pochette floutés
+  visual_effects: string;            // 'auto' | 'full' | 'light' — flous et fondus allégés
   // 'true' | 'false' — interroger Deezer à l'ouverture d'une fiche artiste.
   // Par défaut actif : c'est le comportement historique, et le couper sans
   // le dire priverait les bibliothèques existantes de leurs portraits.
@@ -79,6 +81,7 @@ export const settingsDefaults: AppSettings = {
   audio_quality: 'high',
   hardware_acceleration: 'true',
   blurred_backgrounds: 'precomputed',
+  visual_effects: 'auto',
   single_click_play: 'false',
   show_sleep_timer: 'true',
   system_media_controls: 'true',
@@ -146,6 +149,9 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
     applyFavoritesMode(value !== 'false');
   },
 
+  // Effets visuels : `auto` allège sur rendu logiciel, GPU faible ou machine modeste.
+  visual_effects: applyVisualEffects,
+
   // SMTC / MPRIS / Now Playing : on appelle le service qui parle au backend
   // souvlaki pour enregistrer/désenregistrer l'app auprès de l'OS.
   // Import dynamique pour éviter une dépendance circulaire au load.
@@ -192,6 +198,26 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
   },
 };
 
+export type LightEffectsAuto = { light: boolean; reason: string | null };
+
+// Ce que décide `auto` : la machine ne change pas en cours de session, une
+// seule question au backend suffit.
+let effetsAuto: Promise<LightEffectsAuto> | null = null;
+export function lightEffectsAuto(): Promise<LightEffectsAuto> {
+  effetsAuto ??= invoke<LightEffectsAuto>('get_light_effects_auto')
+    .catch(() => ({ light: false, reason: null }));
+  return effetsAuto;
+}
+
+/** Effets allégés en ce moment, réglage `auto` résolu. */
+export const effetsLegers = writable(false);
+
+async function applyVisualEffects(value: string) {
+  const legers = value === 'light' || (value !== 'full' && (await lightEffectsAuto()).light);
+  applyLightEffects(legers);
+  effetsLegers.set(legers);
+}
+
 const settingsWriter = writable<AppSettings>({ ...settingsDefaults });
 
 export const settingsStore = {
@@ -221,6 +247,7 @@ export const settingsStore = {
       applyThemeMode((finalTheme as ThemeMode) ?? 'auto');
       applyContrastMode((get(settingsWriter).contrast as ContrastMode) ?? 'normal');
       applyFavoritesMode(get(settingsWriter).show_favorites !== 'false');
+      void applyVisualEffects(get(settingsWriter).visual_effects);
 
       // L'autostart en fond, sans retenir `init` : il interroge le registre et
       // peut prendre des secondes, pendant lesquelles l'interface attendrait

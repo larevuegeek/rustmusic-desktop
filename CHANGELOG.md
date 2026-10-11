@@ -7,7 +7,8 @@ mini-lecteur, micro-lecteur réduit à la pochette, couleur d'accent libre et
 raccourcis clavier personnalisables. Les playlists passent au tableau de la
 bibliothèque, les grandes collections s'ouvrent plus vite, les morceaux
 démarrent sans attendre la carte son, et l'enchaînement sans blanc gagne en
-précision.
+précision. Sur une machine modeste ou virtuelle, l'interface s'allège et ne
+clignote plus au défilement.
 
 ### Lecture
 - **Volume dans le mini-lecteur** : un bouton au bout des commandes ouvre la
@@ -96,6 +97,17 @@ précision.
   sortie audio…) adoptent l'habillage des réglages : en-tête teinté, champs
   clairs, pied de fenêtre avec le bouton à la couleur d'accent. Elles suivent
   le thème clair ou sombre et la couleur d'accent choisie.
+- **Effets visuels allégés** (Apparence → Options expert) : Auto, Complets ou
+  Allégés. Allégés coupe les flous d'arrière-plan, le fondu des pochettes et le
+  flou en direct des fonds, recalculés à chaque image au défilement. Auto les
+  allège en rendu logiciel, sur un GPU virtuel, ancien ou absent, en machine
+  virtuelle et sur une machine modeste (2 cœurs ou 4 Go de mémoire au plus) ;
+  la raison s'affiche sous le réglage. Effet immédiat, sans relance.
+- **Linux : plus de clignotement au défilement** sur les GPU mal gérés par
+  DMA-BUF. Le réglage DMA-BUF « Auto » le coupe désormais selon le pilote
+  graphique réel : GPU virtuel (VirtualBox, VMware, QEMU, Hyper-V), Radeon
+  ancienne ou aucun GPU accéléré, en plus du pilote NVIDIA propriétaire. Une
+  machine virtuelle avec un vrai GPU attribué le garde.
 
 ### Raccourcis
 - **Raccourcis personnalisables** : dans Réglages → Raccourcis, un clic sur les
@@ -108,6 +120,9 @@ précision.
 ### Réglages
 - Le bouton Retour des réglages ramène toujours à la page d'où l'on venait,
   même après plusieurs sections parcourues.
+- **Relancer maintenant** : après un changement du mode de rendu ou de DMA-BUF
+  (Linux), un bouton redémarre RustMusic pour l'appliquer. L'avertissement ne
+  disparaît plus en quittant la page avant d'avoir relancé.
 
 ### Technique
 - En développement, le journal détaille la lecture (enchaînements, fins de

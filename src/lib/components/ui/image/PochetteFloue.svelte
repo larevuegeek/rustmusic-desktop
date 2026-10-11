@@ -1,6 +1,6 @@
 <script lang="ts">
 import { resolveBlurredCover, type CoverSize } from "#lib/helper/tools/coverHelper";
-import { settingsStore } from "#lib/stores/settings/settings.store";
+import { effetsLegers, settingsStore } from "#lib/stores/settings/settings.store";
 import CoverImg from "./CoverImg.svelte";
 import FadeImg from "./FadeImg.svelte";
 
@@ -15,7 +15,8 @@ let { path, saturation = 1, flou = 4, rayon = 40, size = "2x", class: classe = "
     class?: string;
 } = $props();
 
-const live = $derived($settingsStore.blurred_backgrounds === "live");
+// Effets allégés : le flou en direct est justement ce qui coûte, on garde le pré-calculé.
+const live = $derived($settingsStore.blurred_backgrounds === "live" && !$effetsLegers);
 
 let src = $state<string | null>(null);
 

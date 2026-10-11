@@ -39,6 +39,22 @@ export function applyContrastMode(mode: ContrastMode) {
     }
 }
 
+/**
+ * Effets allégés : pose `data-effets="legers"` sur <html>. Les flous
+ * d'arrière-plan et les fondus d'images sont recalculés à chaque image au
+ * défilement ; sans vrai GPU (rendu logiciel, VM, vieux PC) l'interface rame.
+ * Voir les règles `[data-effets="legers"]` dans `app.css`.
+ */
+export function applyLightEffects(legers: boolean) {
+    remember("rustmusic:effects", legers ? "light" : "full");
+    const root = document.documentElement;
+    if (legers) {
+        root.setAttribute('data-effets', 'legers');
+    } else {
+        root.removeAttribute('data-effets');
+    }
+}
+
 /** Masque les favoris partout : sept boutons cœur et une entrée de menu. */
 export function applyFavoritesMode(actif: boolean) {
     const root = document.documentElement;

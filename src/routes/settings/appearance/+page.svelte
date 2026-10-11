@@ -1,7 +1,15 @@
+<script lang="ts" module>
+  // Réglages tels qu'au lancement de l'appli : c'est à eux qu'il faut comparer,
+  // pas à l'ouverture de la page, sinon quitter la page et y revenir faisait
+  // oublier qu'un redémarrage était en attente.
+  let modeAuLancement: string | null = null;
+  let dmabufAuLancement: string | null = null;
+</script>
+
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
-  import { settingsStore, type AppSettings } from "#lib/stores/settings/settings.store";
+  import { lightEffectsAuto, settingsStore, type AppSettings, type LightEffectsAuto } from "#lib/stores/settings/settings.store";
   import { t } from "#lib/i18n";
   import { detectOS } from "#lib/helper/tools/osDetection";
   import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
@@ -105,14 +113,13 @@
   const surLinux = os === "linux";
   let renderMode = $state<RenderModeStatus | null>(null);
   let renderModeSaving = $state(false);
-  let renderModeChanged = $state(false);
-  let renderModeInitial: RenderMode | null = null;
 
   onMount(async () => {
     if (!surLinux) return;
     try {
       renderMode = await getRenderMode();
-      renderModeInitial = renderMode.mode;
+      modeAuLancement ??= renderMode.mode;
+      dmabufAuLancement ??= renderMode.dmabuf_mode;
     } catch (e) {
       console.error("[render mode] init failed:", e);
     }
@@ -123,8 +130,6 @@
     renderModeSaving = true;
     try {
       renderMode = await setRenderMode(value);
-      // Les variables d'environnement sont figées au démarrage.
-      renderModeChanged = renderModeInitial !== null && renderModeInitial !== value;
     } catch (e) {
       console.error("[render mode] save failed:", e);
     } finally {
@@ -134,10 +139,23 @@
 
   // ─── DMA-BUF : figé au démarrage, comme le mode de rendu ───
   let dmabufSaving = $state(false);
-  let dmabufInitial: DmabufMode | null = null;
-  $effect(() => {
-    if (renderMode && dmabufInitial === null) dmabufInitial = renderMode.dmabuf_mode;
-  });
+
+  // Les variables d'environnement sont figées au démarrage : un changement
+  // n'agit qu'après relance, proposée par un bouton.
+  const renderModeChanged = $derived(!!renderMode && modeAuLancement !== null && renderMode.mode !== modeAuLancement);
+  const dmabufChanged = $derived(!!renderMode && dmabufAuLancement !== null && renderMode.dmabuf_mode !== dmabufAuLancement);
+  let relance = $state(false);
+
+  async function relancer() {
+    relance = true;
+    try {
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      await relaunch();
+    } catch (e) {
+      console.error("[render mode] relaunch failed:", e);
+      relance = false;
+    }
+  }
 
   async function handleDmabufChange(value: DmabufMode) {
     if (dmabufSaving) return;
@@ -156,8 +174,20 @@
       $t("settings.dmabuf_desc"),
       renderMode?.nvidia ? $t("settings.dmabuf_nvidia") : "",
       renderMode ? $t(renderMode.dmabuf_active ? "settings.dmabuf_now_on" : "settings.dmabuf_now_off") : "",
-      renderMode && dmabufInitial !== null && renderMode.dmabuf_mode !== dmabufInitial
-        ? $t("settings.render_mode_restart_required")
+      dmabufChanged ? $t("settings.render_mode_restart_required") : "",
+    ].filter(Boolean).join(" "),
+  );
+
+  // Ce que décide `auto` sur cette machine, affiché sous le réglage.
+  let effetsAuto = $state<LightEffectsAuto | null>(null);
+  onMount(() => { lightEffectsAuto().then((r) => (effetsAuto = r)); });
+  const descEffets = $derived(
+    [
+      $t("settings.visual_effects_desc"),
+      effetsAuto
+        ? effetsAuto.light
+          ? $t("settings.visual_effects_auto_light").replace("{reason}", effetsAuto.reason ?? "")
+          : $t("settings.visual_effects_auto_full")
         : "",
     ].filter(Boolean).join(" "),
   );
@@ -382,6 +412,20 @@
         onchange={(v) => handleDmabufChange(v as DmabufMode)}
       />
     </OptionItem>
+    {#if renderModeChanged || dmabufChanged}
+      <OptionItem title={$t("settings.restart_now_title")} desc={$t("settings.render_mode_restart_required")}>
+        <button
+          type="button"
+          onclick={relancer}
+          disabled={relance}
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500
+                 text-white text-xs font-medium transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+        >
+          <Icon icon="ph:arrow-clockwise-bold" width="14" />
+          {$t("settings.restart_now")}
+        </button>
+      </OptionItem>
+    {/if}
   {/if}
   <OptionItem title={$t("settings.blurred_backgrounds")} desc={$t("settings.blurred_backgrounds_desc")} keywords="flou blur pochette fond">
     <SegmentedControl
@@ -392,6 +436,18 @@
       ]}
       label={$t("settings.blurred_backgrounds")}
       onchange={(v) => settingsStore.set("blurred_backgrounds", v)}
+    />
+  </OptionItem>
+  <OptionItem title={$t("settings.visual_effects")} desc={descEffets} keywords="effets flou fondu lent performance vieux pc vm">
+    <SegmentedControl
+      value={["full", "light"].includes($settingsStore.visual_effects) ? $settingsStore.visual_effects : "auto"}
+      options={[
+        { value: "auto", label: $t("settings.visual_effects_auto") },
+        { value: "full", label: $t("settings.visual_effects_full") },
+        { value: "light", label: $t("settings.visual_effects_light") },
+      ]}
+      label={$t("settings.visual_effects")}
+      onchange={(v) => settingsStore.set("visual_effects", v)}
     />
   </OptionItem>
 </OptionGroup>

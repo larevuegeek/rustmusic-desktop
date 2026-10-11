@@ -31,6 +31,10 @@
             document.documentElement.setAttribute("data-contrast", "high");
           }
 
+          if (localStorage.getItem("rustmusic:effects") === "light") {
+            document.documentElement.setAttribute("data-effets", "legers");
+          }
+
           // Couleur d'accent choisie : nuances calculées au dernier lancement.
           var accent = JSON.parse(localStorage.getItem("rustmusic:accent") || "null");
           if (accent) {

@@ -33,7 +33,7 @@ use crate::commands::audio_command::{
     get_audio_quality_status, get_replay_gain_settings, set_audio_quality_setting, set_gapless, log_player_event,
     set_next_track, set_replay_gain_settings,
 };
-use crate::commands::system_command::{get_render_mode, notify_ui_ready, set_dmabuf_mode, set_render_mode};
+use crate::commands::system_command::{get_light_effects_auto, get_render_mode, notify_ui_ready, set_dmabuf_mode, set_render_mode};
 use crate::commands::audit_command::audit_library;
 use crate::commands::rename_command::{
     apply_rename, check_pattern, clean_tags, list_batch_journal, order_moves, preview_rename,
@@ -301,6 +301,7 @@ async fn configure_render_pipeline(app_state: &AppState, db_mode: crate::core::r
 fn apply_linux_render_env(force_software: bool, reason: &str, dmabuf: &str) {
     if force_software {
         log::info!("🖥  Render mode : software ({})", reason);
+        crate::core::render_mode::set_software_active(true);
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         crate::core::render_mode::set_dmabuf_active(false);
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
@@ -315,8 +316,11 @@ fn apply_linux_render_env(force_software: bool, reason: &str, dmabuf: &str) {
         std::env::set_var("GDK_SCALE", "1");
     } else {
         // DMA-BUF : sans lui, chaque image est recopiée par le processeur (17 au
-        // lieu de 37 images/s au défilement en 4K). Coupé avec le pilote NVIDIA
-        // propriétaire ; la variable d'environnement et `dmabuf_mode` priment.
+        // lieu de 37 images/s au défilement en 4K). Coupé là où le pilote le gère
+        // mal (NVIDIA propriétaire, GPU virtuel, Radeon ancienne, pas de GPU
+        // accéléré : fenêtre vide ou image qui clignote au défilement) ; la
+        // variable d'environnement et `dmabuf_mode` priment.
+        let mut raison_coupure = None;
         let actif = match std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER") {
             // WebKit ne le coupe que pour une valeur autre que « 0 ».
             Ok(valeur) => valeur == "0",
@@ -324,7 +328,10 @@ fn apply_linux_render_env(force_software: bool, reason: &str, dmabuf: &str) {
                 let actif = match dmabuf {
                     "on" => true,
                     "off" => false,
-                    _ => !crate::core::system_detect::nvidia_proprietary_driver(),
+                    _ => {
+                        raison_coupure = crate::core::system_detect::dmabuf_unsuitable_gpu();
+                        raison_coupure.is_none()
+                    }
                 };
                 if !actif {
                     std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
@@ -334,10 +341,11 @@ fn apply_linux_render_env(force_software: bool, reason: &str, dmabuf: &str) {
         };
         crate::core::render_mode::set_dmabuf_active(actif);
         log::info!(
-            "🖥  Render mode : GPU ({}, DMABUF {} — réglage {})",
+            "🖥  Render mode : GPU ({}, DMABUF {} — réglage {}{})",
             reason,
             if actif { "on" } else { "off" },
-            dmabuf
+            dmabuf,
+            raison_coupure.map(|r| format!(" : {r}")).unwrap_or_default()
         );
     }
 }
@@ -830,6 +838,7 @@ pub async fn run() {
             metadata_search_tracks,
             metadata_track_values,
             get_render_mode,
+            get_light_effects_auto,
             set_render_mode,
             notify_ui_ready,
             enable_media_controls,

@@ -92,3 +92,15 @@ pub fn set_dmabuf_active(actif: bool) {
 pub fn dmabuf_active() -> bool {
     DMABUF_ACTIF.load(std::sync::atomic::Ordering::Relaxed)
 }
+
+static LOGICIEL_ACTIF: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Fixé au démarrage : WebKit dessine-t-il au processeur pour cette session ?
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub fn set_software_active(actif: bool) {
+    LOGICIEL_ACTIF.store(actif, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn software_active() -> bool {
+    LOGICIEL_ACTIF.load(std::sync::atomic::Ordering::Relaxed)
+}

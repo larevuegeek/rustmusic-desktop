@@ -194,3 +194,83 @@ pub fn nvidia_proprietary_driver() -> bool {
     std::path::Path::new("/sys/module/nvidia").exists()
         || std::path::Path::new("/proc/driver/nvidia/version").exists()
 }
+
+/// Pilote du GPU qui dessine (nœud `renderD*`), par exemple `amdgpu`, `i915`,
+/// `vmwgfx`. `None` quand aucun nœud de rendu n'existe : pas d'accélération.
+#[cfg(target_os = "linux")]
+pub fn render_node_driver() -> Option<String> {
+    let mut noeuds: Vec<_> = std::fs::read_dir("/sys/class/drm")
+        .ok()?
+        .filter_map(Result::ok)
+        .filter(|e| e.file_name().to_string_lossy().starts_with("renderD"))
+        .map(|e| e.path())
+        .collect();
+    noeuds.sort();
+    noeuds.into_iter().find_map(|n| {
+        let pilote = std::fs::read_link(n.join("device/driver")).ok()?;
+        Some(pilote.file_name()?.to_string_lossy().into_owned())
+    })
+}
+
+/// GPU virtuels : DMA-BUF y fait clignoter l'image au défilement.
+#[cfg(target_os = "linux")]
+const PILOTES_VIRTUELS: &[&str] = &[
+    "vmwgfx", "virtio_gpu", "virtio-gpu", "vboxvideo", "qxl", "bochs", "bochs-drm",
+    "cirrus", "cirrus-qemu", "hyperv_drm",
+];
+
+/// Pilotes de cartes anciennes (Radeon d'avant 2012) : même défaut.
+#[cfg(target_os = "linux")]
+const PILOTES_ANCIENS: &[&str] = &["radeon"];
+
+/// Pourquoi DMA-BUF est déconseillé sur ce GPU, ou `None` s'il convient.
+/// On juge le pilote, pas la machine : une VM avec un vrai GPU passé en
+/// direct s'en sert très bien, un vieux PC sans pilote 3D non.
+#[cfg(target_os = "linux")]
+pub fn dmabuf_unsuitable_gpu() -> Option<String> {
+    if nvidia_proprietary_driver() {
+        return Some("NVIDIA proprietary driver".into());
+    }
+    weak_gpu()
+}
+
+/// GPU virtuel, ancien ou absent, ou `None` pour un vrai GPU correctement piloté.
+#[cfg(target_os = "linux")]
+pub fn weak_gpu() -> Option<String> {
+    match render_node_driver() {
+        None => Some("no accelerated GPU".into()),
+        Some(p) if PILOTES_VIRTUELS.contains(&p.as_str()) => Some(format!("virtual GPU ({p})")),
+        Some(p) if PILOTES_ANCIENS.contains(&p.as_str()) => Some(format!("legacy GPU driver ({p})")),
+        Some(_) => None,
+    }
+}
+
+/// Mémoire vive totale en Mio (Linux), `None` si illisible ou ailleurs.
+#[cfg(not(target_os = "linux"))]
+fn total_ram_mib() -> Option<u64> {
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn total_ram_mib() -> Option<u64> {
+    let contenu = std::fs::read_to_string("/proc/meminfo").ok()?;
+    let ligne = contenu.lines().find(|l| l.starts_with("MemTotal:"))?;
+    let kio: u64 = ligne.split_whitespace().nth(1)?.parse().ok()?;
+    Some(kio / 1024)
+}
+
+/// Machine modeste : 2 cœurs logiques ou moins, ou 4 Gio de mémoire ou moins.
+/// Les flous et fondus y coûtent plus qu'ils n'apportent.
+pub fn modest_hardware() -> Option<String> {
+    let coeurs = logical_cpu_count();
+    if coeurs <= 2 {
+        return Some(format!("{coeurs} CPU cores"));
+    }
+    if let Some(mio) = total_ram_mib() {
+        // Marge : une machine de 4 Gio en annonce un peu moins.
+        if mio <= 4 * 1024 {
+            return Some(format!("{} MiB RAM", mio));
+        }
+    }
+    None
+}
