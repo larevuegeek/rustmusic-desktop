@@ -290,16 +290,25 @@ class PlayerService {
     // donc se resynchroniser SANS relancer la lecture.
     private async initTrackAdvancedListener() {
         trackAdvancedUnlisten = await listen<string>("track-advanced", async (e) => {
-            const advanced = announcedNext;
+            let advanced = announcedNext;
             announcedNext = null;
             lastAnnouncedPath = null;
 
-            // Garde-fou : si ce qui a été promu ne correspond pas à ce qu'on
-            // avait annoncé, on ne touche à rien — le flux normal
-            // (`playback-ended`) reprendra la main en fin de morceau.
+            // Promu autre chose que l'annonce : le moteur joue déjà ce morceau,
+            // on le retrouve dans la file plutôt que de garder l'ancien affiché
+            // (compteur qui recule, puis le même morceau rejoué).
             if (!advanced || advanced.track.path !== e.payload) {
-                console.warn("[gapless] track-advanced inattendu :", e.payload);
-                return;
+                const qs = get(queueState);
+                const apres = qs.tracks.findIndex((t, i) => i > qs.currentIndex && t.path === e.payload);
+                const index = apres >= 0 ? apres : qs.tracks.findIndex((t) => t.path === e.payload);
+                invoke("log_player_event", {
+                    message: `enchaînement inattendu : promu ${e.payload}, annoncé ${advanced?.track.path ?? "rien"}, retrouvé à l'index ${index}`,
+                }).catch(() => {});
+                if (index < 0) {
+                    this.syncNextTrack();
+                    return;
+                }
+                advanced = { track: qs.tracks[index], index };
             }
 
             const track = advanced.track;
@@ -349,6 +358,7 @@ class PlayerService {
                 this.sendTrackNotification(track, audioFile);
             } catch (err) {
                 console.error("[gapless] resynchronisation après enchaînement :", err);
+                invoke("log_player_event", { message: `resynchronisation après enchaînement : ${err}` }).catch(() => {});
             }
 
             // Annonce de la piste d'après, pour rester en avance.

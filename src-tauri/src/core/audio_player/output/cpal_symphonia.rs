@@ -20,8 +20,12 @@ use super::types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
 
 /// Backend CPAL pour la lecture Symphonia (LiveDecode + FullBuffer + seek).
 pub struct CpalSymphoniaOutput {
-    /// Le stream CPAL. Le Drop arrête la lecture automatiquement.
-    stream: cpal::Stream,
+    /// Flux propre (hog mode macOS) ; `None` en partagé, servi par le moteur persistant.
+    stream: Option<cpal::Stream>,
+    /// Partagé : de quoi se brancher au moteur, au démarrage.
+    pending: Option<(cpal::Device, cpal::StreamConfig, super::shared_engine::RenderFn)>,
+    /// Partagé : la piste branchée, débranchée au Drop.
+    track: Option<u64>,
     sample_rate: u32,
     channels: u16,
     device_name: String,
@@ -42,6 +46,8 @@ impl CpalSymphoniaOutput {
         shared: SymphoniaSharedState,
         // `MARGE_PARTAGEE` en partagé ; 1.0 sous le hog mode macOS (bit-perfect).
         marge: f32,
+        // Partagé : flux gardé ouvert entre les pistes ; sinon un flux à soi.
+        persistent: bool,
     ) -> Result<Self, AudioOutputError>
     where
         C: Consumer<Item = f32> + Send + 'static,
@@ -61,14 +67,12 @@ impl CpalSymphoniaOutput {
         let current_source = shared.current_source.clone();
         let seek_flush = shared.seek_flush.clone();
         let pending_seek_frames = shared.pending_seek_frames.clone();
+        let promotion_armed = shared.promotion_armed.clone();
 
         // Compteur fade-in post-seek, mut local à la closure.
         let mut fade_in_samples: usize = 0;
 
-        let stream = device
-            .build_output_stream(
-                config,
-                move |output: &mut [f32], _| {
+        let render = move |output: &mut [f32]| {
                     // --- Pause & Stop ---
                     if is_paused.load(Ordering::Relaxed) || is_stopped.load(Ordering::Relaxed) {
                         output.fill(0.0);
@@ -137,6 +141,7 @@ impl CpalSymphoniaOutput {
                             // tampon, on prend la suivante ici même pour le compléter,
                             // au lieu de laisser des zéros jusqu'au fil de contrôle.
                             if samples_read < output.len()
+                                && promotion_armed.load(Ordering::Acquire)
                                 && crate::core::audio_player::preload::gapless_enabled()
                             {
                                 if let Ok(mut fb) = full_buffer_data.try_write() {
@@ -178,12 +183,26 @@ impl CpalSymphoniaOutput {
                     let vol: f32 = volume.load(Ordering::Relaxed) as f32 / 100.0
                         * crate::core::audio_player::replay_gain::current_factor();
                     super::echantillons::appliquer_gain(output, vol, &mut fade_in_samples, marge);
-                },
+        };
+
+        if persistent {
+            return Ok(Self {
+                stream: None,
+                pending: Some((device, config.clone(), Box::new(render))),
+                track: None,
+                sample_rate,
+                channels,
+                device_name,
+            });
+        }
+
+        let mut render = render;
+        let stream = device
+            .build_output_stream(
+                config,
+                move |output: &mut [f32], _| render(output),
                 {
-                    // Throttle des erreurs CPAL : 1ère, puis 1 sur 100, puis 1
-                    // sur 1000. Sur VM contrainte, on peut recevoir des
-                    // centaines de BufferUnderrun/s alors que la lecture est
-                    // OK (juste un retard de scheduler OS).
+                    // Erreurs throttlées : 1re, puis 1 sur 100, puis 1 sur 1000.
                     let cpal_error_count =
                         std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
                     move |err| {
@@ -198,7 +217,9 @@ impl CpalSymphoniaOutput {
             .map_err(|e| AudioOutputError::BuildFailed(format!("build_output_stream: {e}")))?;
 
         Ok(Self {
-            stream,
+            stream: Some(stream),
+            pending: None,
+            track: None,
             sample_rate,
             channels,
             device_name,
@@ -208,9 +229,16 @@ impl CpalSymphoniaOutput {
 
 impl AudioOutput for CpalSymphoniaOutput {
     fn start(&mut self) -> Result<(), AudioOutputError> {
-        self.stream
-            .play()
-            .map_err(|e| AudioOutputError::StartFailed(format!("stream.play: {e}")))
+        if let Some((device, config, render)) = self.pending.take() {
+            self.track = Some(super::shared_engine::attach(&device, &config, &self.device_name, render)?);
+            return Ok(());
+        }
+        match &self.stream {
+            Some(stream) => stream
+                .play()
+                .map_err(|e| AudioOutputError::StartFailed(format!("stream.play: {e}"))),
+            None => Ok(()),
+        }
     }
 
     fn output_sample_rate(&self) -> u32 {
@@ -227,5 +255,13 @@ impl AudioOutput for CpalSymphoniaOutput {
 
     fn backend(&self) -> AudioBackend {
         AudioBackend::CpalShared
+    }
+}
+
+impl Drop for CpalSymphoniaOutput {
+    fn drop(&mut self) {
+        if let Some(id) = self.track.take() {
+            super::shared_engine::detach(id);
+        }
     }
 }

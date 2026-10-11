@@ -1,12 +1,13 @@
 # Changelog
 
-## [0.2.10] - 2026-10-10
+## [0.2.10] - 2026-10-11
 
 Un lecteur qui se fait tout petit, aux couleurs de son choix : volume dans le
 mini-lecteur, micro-lecteur réduit à la pochette, couleur d'accent libre et
 raccourcis clavier personnalisables. Les playlists passent au tableau de la
-bibliothèque, les grandes collections s'ouvrent plus vite, et l'enchaînement
-sans blanc gagne en précision.
+bibliothèque, les grandes collections s'ouvrent plus vite, les morceaux
+démarrent sans attendre la carte son, et l'enchaînement sans blanc gagne en
+précision.
 
 ### Lecture
 - **Volume dans le mini-lecteur** : un bouton au bout des commandes ouvre la
@@ -34,6 +35,17 @@ sans blanc gagne en précision.
   PipeWire quelle carte est derrière la sortie. Les capacités du DAC
   (fréquences, profondeur) s'affichent aussi dans la liste des sorties.
 
+- **Démarrage instantané en mode partagé** : la sortie reste ouverte d'un
+  morceau à l'autre, comme en mode exclusif. Certains DAC USB mettaient plus
+  d'1,5 s à rouvrir leur flux à chaque changement de morceau ; seul le premier
+  morceau paie désormais ce délai. La sortie se referme après 30 s sans lecture,
+  ou dès qu'une lecture exclusive ou DSD a besoin du DAC.
+- **Morceau qui décrochait en cours de lecture** : un tampon momentanément vide
+  pendant le décodage (fichier sur un disque réseau, par exemple) pouvait être
+  pris pour la fin du morceau et déclencher l'enchaînement trop tôt : le son
+  sautait, puis le compteur reculait ou le morceau revenait. L'enchaînement
+  attend maintenant que le morceau soit entièrement décodé, et l'affichage se
+  recale sur le morceau réellement joué si les deux divergent.
 - **Préampli Replay Gain pris en compte tout de suite** : changer le mode ou
   le préampli s'entend aussitôt sur le morceau en cours. Avant, le réglage
   n'agissait qu'à partir du deuxième morceau : le suivant, déjà préchargé pour
@@ -98,6 +110,8 @@ sans blanc gagne en précision.
   même après plusieurs sections parcourues.
 
 ### Technique
+- En développement, le journal détaille la lecture (enchaînements, fins de
+  piste, seeks) et reçoit les incidents de lecture vus par l'interface.
 - Dépendances JavaScript et Rust mises à jour (TypeScript reste en 6 : SvelteKit
   3 ne suit pas encore la 7).
 

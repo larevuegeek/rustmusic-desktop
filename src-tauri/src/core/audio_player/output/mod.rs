@@ -39,6 +39,7 @@ pub mod dop_coreaudio;
 
 pub mod echantillons;
 pub mod peripherique;
+pub mod shared_engine;
 
 use crate::core::audio_player::pipeline_info::Repli;
 
@@ -104,6 +105,7 @@ where
         // Le décodeur DSD tient lui-même la position après un seek.
         pending_seek_frames: Arc::new(AtomicUsize::new(usize::MAX)),
         output_channels: channels,
+        promotion_armed: Arc::new(AtomicBool::new(false)),
     };
     let mut sortie = exclusive_alsa::AlsaExclusiveOutput::try_new(
         hw_id,
@@ -162,6 +164,8 @@ where
     // ─── Tentative WASAPI exclusive (Windows uniquement) ───
     #[cfg(target_os = "windows")]
     if matches!(desired_backend, AudioBackend::WasapiExclusive) {
+        // Le flux partagé tiendrait le DAC : l'exclusif ne l'aurait pas.
+        shared_engine::close();
         match wasapi_exclusive::WasapiExclusiveOutput::try_new(
             source_sample_rate,
             source_channels,
@@ -199,6 +203,7 @@ where
                     atomics,
                     shared,
                     echantillons::MARGE_PARTAGEE,
+                    true,
                 )
                 .map(|o| {
                     log::info!("🎚️  Audio backend : CPAL shared ({})", o.device_name());
@@ -217,6 +222,7 @@ where
     // `probe` n'a pas répondu, le repli CPAL reste possible sans acrobatie.
     #[cfg(target_os = "linux")]
     if matches!(desired_backend, AudioBackend::AlsaExclusive) {
+        shared_engine::close();
         let negociation = match dop_alsa::resolve_hw_id(&nom_carte) {
             Some(hw_id) => exclusive_alsa::probe(&hw_id, rate_decodeur, source_channels)
                 .map(|n| (hw_id, n)),
@@ -261,6 +267,7 @@ where
     // ─── Tentative CoreAudio exclusive (macOS uniquement) ───
     #[cfg(target_os = "macos")]
     if matches!(desired_backend, AudioBackend::CoreAudioExclusive) {
+        shared_engine::close();
         if let Some(device_id) =
             exclusive_coreaudio::CoreAudioExclusiveOutput::probe(&cpal_device_name, rate_decodeur)
         {
@@ -322,6 +329,7 @@ where
         atomics,
         shared,
         echantillons::MARGE_PARTAGEE,
+        true,
     )
     .map(|o| {
         log::info!("🎚️  Audio backend : CPAL shared ({})", o.device_name());

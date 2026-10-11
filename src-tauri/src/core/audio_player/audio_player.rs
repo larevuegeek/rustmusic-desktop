@@ -721,6 +721,7 @@ impl AudioPlayer {
             volume: volume.clone(),
             current_position_frames: current_position_frames.clone(),
         };
+        let promotion_armed = Arc::new(AtomicBool::new(false));
         let symphonia_shared = output::SymphoniaSharedState {
             full_buffer_data: full_buffer_data.clone(),
             full_buffer_cursor: full_buffer_cursor.clone(),
@@ -729,6 +730,7 @@ impl AudioPlayer {
             seek_flush: seek_flush.clone(),
             pending_seek_frames: pending_seek_frames.clone(),
             output_channels,
+            promotion_armed: promotion_armed.clone(),
         };
 
         startup.mark("premier bloc décodé");
@@ -819,6 +821,8 @@ impl AudioPlayer {
             Ok(Err(e)) => log::error!("❌ Erreur thread décodage: {e}"),
             Err(_) => log::error!("❌ Panic dans le thread de décodage"),
         }
+        // Le tampon est complet : un tampon vide est désormais une vraie fin.
+        promotion_armed.store(true, Ordering::Release);
 
         // ─── Préchargement de la piste suivante (« troisième tampon ») ───
         // Lancé ICI, une fois le décodeur de la piste courante terminé : la
@@ -934,7 +938,7 @@ impl AudioPlayer {
             if let Some(done) = crate::core::audio_player::preload::take_promotion() {
                 total_duration.store(done.duration_secs.to_bits(), Ordering::Relaxed);
                 playing_path = done.path.clone();
-                log::info!("🔗 Enchaînement sans blanc → {}", done.path.display());
+                log::info!("🔗 Enchaînement sans blanc (callback) → {}", done.path.display());
                 let _ = app_handle.emit(
                     "track-advanced",
                     done.path.to_string_lossy().to_string(),
@@ -1161,7 +1165,8 @@ impl AudioPlayer {
             selected_device_name.as_deref(),
         )?;
 
-        // Le DSD (DoP ou converti) ne passe pas par le moteur PCM exclusif : il rend le DAC.
+        // Le DSD (DoP ou converti) ne passe pas par les moteurs PCM : ils rendent le DAC.
+        crate::core::audio_player::output::shared_engine::close();
         #[cfg(target_os = "windows")]
         crate::core::audio_player::output::fermer_moteur();
 

@@ -95,6 +95,12 @@ pub fn set_next_track(path: Option<String>) {
 /// threads audio. La persistance est assurée par le store côté frontend
 /// (clé `gapless`), comme pour la sortie exclusive.
 #[tauri::command]
+pub fn log_player_event(message: String) {
+    // Incidents du lecteur vus par l'interface : sans ça, absents du journal.
+    log::warn!("🎛  Interface : {message}");
+}
+
+#[tauri::command]
 pub fn set_gapless(enabled: bool) {
     crate::core::audio_player::preload::set_gapless_enabled(enabled);
 }

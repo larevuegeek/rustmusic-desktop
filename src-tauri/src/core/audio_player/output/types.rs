@@ -66,6 +66,9 @@ pub struct SymphoniaSharedState {
     pub pending_seek_frames: Arc<AtomicUsize>,
     /// Nombre de canaux de sortie (typiquement 2 pour stereo).
     pub output_channels: u16,
+    /// Le callback peut enchaîner la piste préchargée : seulement une fois le
+    /// décodeur de CETTE lecture fini, sinon un tampon vide n'est qu'un retard.
+    pub promotion_armed: Arc<AtomicBool>,
 }
 
 // ============================================================================

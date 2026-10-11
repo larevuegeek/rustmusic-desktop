@@ -107,6 +107,7 @@ impl CoreAudioExclusiveOutput {
             atomics,
             shared,
             1.0,
+            false,
         )?;
 
         Ok(Self {

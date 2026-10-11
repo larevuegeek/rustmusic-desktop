@@ -30,7 +30,7 @@ use crate::commands::search_command::search;
 use crate::commands::lyrics_command::{get_lyrics, refresh_lyrics};
 use crate::commands::dlna_command::{dlna_get_settings, dlna_status, dlna_start, dlna_stop, dlna_update_settings};
 use crate::commands::audio_command::{
-    get_audio_quality_status, get_replay_gain_settings, set_audio_quality_setting, set_gapless,
+    get_audio_quality_status, get_replay_gain_settings, set_audio_quality_setting, set_gapless, log_player_event,
     set_next_track, set_replay_gain_settings,
 };
 use crate::commands::system_command::{get_render_mode, notify_ui_ready, set_dmabuf_mode, set_render_mode};
@@ -133,6 +133,9 @@ fn init_logger() {
         // Symphonia décrit chaque MP3 ouvert en Info (« xing header… ») : des
         // milliers de lignes par scan. On n'en garde que les alertes.
         let symphonia_config = builder.clone().add_filter_allow_str("symphonia").build();
+        // En développement, l'appli seule descend au détail (enchaînements, seeks) : sqlx & co en noieraient le fichier.
+        let app_debug_config = builder.clone().add_filter_allow_str("rustmusic_lib").build();
+        let others_config = builder.clone().add_filter_ignore_str("symphonia").add_filter_ignore_str("rustmusic_lib").build();
         let log_config = builder.add_filter_ignore_str("symphonia").build();
         let term_config = log_config.clone();
 
@@ -151,7 +154,14 @@ fn init_logger() {
         // Fichier : dès Info, comme le terminal. Un morceau qui ne s'enchaîne
         // pas ou un DoP qui saute ne lève aucun avertissement : en Warn seul,
         // le journal d'un testeur restait vide.
-        loggers.push(WriteLogger::new(LevelFilter::Info, log_config, file));
+        if cfg!(debug_assertions) {
+            if let Ok(app_file) = file.try_clone() {
+                loggers.push(WriteLogger::new(LevelFilter::Debug, app_debug_config, app_file));
+            }
+            loggers.push(WriteLogger::new(LevelFilter::Info, others_config, file));
+        } else {
+            loggers.push(WriteLogger::new(LevelFilter::Info, log_config, file));
+        }
         CombinedLogger::init(loggers).ok();
 
         install_panic_hook();
@@ -796,6 +806,7 @@ pub async fn run() {
             set_replay_gain_settings,
             set_next_track,
             set_gapless,
+            log_player_event,
             can_write_tags,
             read_track_tags,
             prepare_image,
