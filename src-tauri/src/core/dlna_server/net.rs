@@ -2,13 +2,12 @@
 
 use std::net::{Ipv4Addr, SocketAddr};
 
-/// Detect the LAN IPv4 address by opening a UDP socket to a routable target.
-/// No packet is actually sent (UDP has no handshake) but the OS picks the
-/// outgoing interface for us. Falls back to loopback if detection fails.
-///
-/// Used both for SSDP `LOCATION` headers and for building the absolute
-/// media URLs embedded in DIDL responses.
+/// Adresse de l'ordinateur sur le réseau de la maison, affichée et annoncée par défaut.
+/// La vraie carte locale passe avant la route par défaut, qu'un VPN (WireGuard…) détourne.
 pub fn detect_local_ipv4() -> Ipv4Addr {
+    if let Some(ip) = crate::core::network_player::interfaces::lan_ipv4() {
+        return ip;
+    }
     let socket = match std::net::UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
         Err(_) => return Ipv4Addr::LOCALHOST,

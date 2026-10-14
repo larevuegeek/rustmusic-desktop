@@ -1,0 +1,418 @@
+<script lang="ts">
+  // Télécommande d'ampli : panneau rangé au bord droit, sorti par sa languette.
+  // En tête, un afficheur façon façade d'ampli ; dessous, sources, son et navigation.
+  import Icon from "@iconify/svelte";
+  import { goto } from "$app/navigation";
+  import { t } from "#lib/i18n";
+  import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
+  import AmpRemoteNav from "#lib/components/remote/AmpRemoteNav.svelte";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { ampRemoteStore, type AmpBrand, type AmpChoice, type AmpZone, type AmpZoneState } from "#lib/stores/audio/ampRemote.store";
+
+  const LARGEUR = 320;
+  const MARQUE: Record<AmpBrand, string> = { onkyo: "Onkyo", denon: "Denon", yamaha: "Yamaha" };
+
+  const actif = $derived($settingsStore.amp_remote === "true");
+  const ouvert = $derived($settingsStore.amp_remote_open === "true");
+  const vue = $derived($ampRemoteStore.view);
+  const etat = $derived(vue?.state);
+  const caps = $derived(vue?.caps);
+  const allume = $derived(!!etat?.connected && !!etat.main.power);
+
+  // Volume en cours de glissement : affiché tout de suite, envoyé au relâché.
+  let glisse = $state<{ zone: AmpZone; valeur: number } | null>(null);
+  let onglet = $state<"sources" | "son" | "navigation">("sources");
+
+  const nomEntree = (id: string | null | undefined) =>
+    caps?.inputs.find((i) => i.id.toUpperCase() === id?.toUpperCase())?.name ?? "";
+  const entreePrincipale = $derived(nomEntree(etat?.main.input));
+
+  // Passage sur l'entrée réseau : l'écran de navigation s'ouvre de lui-même.
+  let derniereEntree = "";
+  $effect(() => {
+    const entree = entreePrincipale;
+    if (entree !== derniereEntree) {
+      if (/^(net|usb)/i.test(entree)) onglet = "navigation";
+      derniereEntree = entree;
+    }
+  });
+
+  // Icône d'une entrée d'après son nom, tel que l'ampli le donne.
+  const ICONES_ENTREE: [RegExp, string][] = [
+    [/bd|dvd|blu-?ray/i, "material-symbols:movie-outline-rounded"],
+    [/^tv/i, "material-symbols:tv-outline-rounded"],
+    [/cbl|sat|cable/i, "material-symbols:satellite-alt-outline-rounded"],
+    [/strm|stream|media/i, "material-symbols:cast-rounded"],
+    [/game/i, "material-symbols:sports-esports-outline-rounded"],
+    [/^pc/i, "material-symbols:computer-outline-rounded"],
+    [/^cd/i, "material-symbols:disc-full-outline-rounded"],
+    [/phono/i, "material-symbols:album-outline-rounded"],
+    [/^(fm|am|tuner|dab)/i, "material-symbols:radio-outline-rounded"],
+    [/^net/i, "material-symbols:lan-outline-rounded"],
+    [/bluetooth/i, "material-symbols:bluetooth-rounded"],
+    [/usb/i, "material-symbols:usb-rounded"],
+    [/aux/i, "material-symbols:cable-rounded"],
+    [/hdmi|video/i, "material-symbols:settings-input-hdmi-outline-rounded"],
+  ];
+  const iconeEntree = (nom: string) => ICONES_ENTREE.find(([m]) => m.test(nom))?.[1] ?? "material-symbols:input-rounded";
+
+  const send = ampRemoteStore.send;
+
+  const volume = (zone: AmpZone, z: AmpZoneState) => (glisse?.zone === zone ? glisse.valeur : z.volume);
+
+  function affiche(v: number | null): string {
+    if (v === null) return "—";
+    return (caps?.volume_step ?? 1) < 1 ? v.toFixed(1) : String(Math.round(v));
+  }
+
+  function lacher(zone: AmpZone) {
+    if (glisse?.zone === zone) send({ type: "volume", zone, value: glisse.valeur });
+    glisse = null;
+  }
+
+  const dB = (v: number) => `${v > 0 ? "+" : ""}${v} dB`;
+
+  const ONGLETS = [
+    { id: "sources", cle: "amp_remote.tab_sources", icone: "material-symbols:input-rounded" },
+    { id: "son", cle: "amp_remote.tab_sound", icone: "material-symbols:equalizer-rounded" },
+    { id: "navigation", cle: "amp_remote.tab_nav", icone: "material-symbols:tv-remote-outline-rounded" },
+  ] as const;
+
+  const rond = "flex items-center justify-center rounded-full cursor-pointer transition-all disabled:cursor-default disabled:opacity-40";
+  const touche = `${rond} bouton-relief text-(--rg-tx2) hover:text-(--rg-tx)`;
+</script>
+
+{#snippet titre(texte: string, extra?: string)}
+  <p class="flex items-center gap-2 px-0.5 pb-2 text-[10.5px] font-bold uppercase tracking-widest text-(--rg-mu)">
+    <span class="flex-1">{texte}</span>{#if extra}<span class="normal-case tracking-normal font-semibold text-(--rg-gtx) truncate">{extra}</span>{/if}
+  </p>
+{/snippet}
+
+<!-- Entrées : tuiles avec leur icône, la source active éclairée. -->
+{#snippet tuiles(liste: AmpChoice[], courant: string | null | undefined, choisir: (id: string) => void)}
+  <div class="grid grid-cols-3 gap-1.5">
+    {#each liste as c (c.id)}
+      {@const sel = courant?.toUpperCase() === c.id.toUpperCase()}
+      <button
+        type="button"
+        class="h-15 min-w-0 flex flex-col items-center justify-center gap-1 px-1 rounded-xl border cursor-pointer transition-all
+               {sel ? 'tuile-active' : 'border-(--rg-bd) text-(--rg-tx2) hover:text-(--rg-tx) hover:border-(--rg-bd2)'}"
+        title={c.name}
+        aria-pressed={sel}
+        onclick={() => choisir(c.id)}
+      >
+        <Icon icon={iconeEntree(c.name)} width="20" />
+        <span class="max-w-full truncate text-[10.5px] font-bold tracking-[0.02em]">{c.name}</span>
+      </button>
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet pastilles(liste: AmpChoice[], courant: string | null | undefined, choisir: (id: string) => void)}
+  <div class="grid grid-cols-3 gap-1.5">
+    {#each liste as c (c.id)}
+      {@const sel = courant?.toUpperCase() === c.id.toUpperCase()}
+      <button
+        type="button"
+        class="h-8 min-w-0 px-1.5 rounded-[10px] border text-[11px] font-semibold truncate cursor-pointer transition-all
+               {sel ? 'tuile-active' : 'border-(--rg-bd) text-(--rg-tx2) hover:text-(--rg-tx) hover:border-(--rg-bd2)'}"
+        title={c.name}
+        aria-pressed={sel}
+        onclick={() => choisir(c.id)}
+      >{c.name}</button>
+    {/each}
+  </div>
+{/snippet}
+
+<!-- Graves, aigus : barre centrée sur 0, remplie vers le réglage. -->
+{#snippet tonalite(libelle: string, valeur: number | null, regler: (v: number) => void)}
+  {@const plage = caps?.tone}
+  {#if plage && valeur !== null}
+    {@const part = (Math.abs(valeur) / Math.max(plage.max, -plage.min, 1)) * 50}
+    <div class="flex items-center gap-2.5 py-1.5">
+      <span class="w-13 text-[12px] font-semibold text-(--rg-tx2)">{libelle}</span>
+      <button type="button" class="{touche} w-7 h-7" aria-label="{libelle} −" disabled={valeur <= plage.min}
+              onclick={() => regler(Math.max(plage.min, valeur - plage.step))}>
+        <Icon icon="material-symbols:remove-rounded" width="16" />
+      </button>
+      <div class="relative flex-1 h-1.5 rounded-full bg-(--rg-s2)">
+        <span class="absolute left-1/2 -top-1 -bottom-1 w-px bg-(--rg-bd2)"></span>
+        <span class="absolute top-0 bottom-0 rounded-full bg-(--rg-g) shadow-[0_0_8px_var(--rg-g)]"
+              style="left: {valeur >= 0 ? 50 : 50 - part}%; width: {part}%"></span>
+      </div>
+      <button type="button" class="{touche} w-7 h-7" aria-label="{libelle} +" disabled={valeur >= plage.max}
+              onclick={() => regler(Math.min(plage.max, valeur + plage.step))}>
+        <Icon icon="material-symbols:add-rounded" width="16" />
+      </button>
+      <span class="w-12 text-right tabular-nums text-[12px] font-bold {valeur === 0 ? 'text-(--rg-mu)' : 'text-(--rg-gtx)'}">{dB(valeur)}</span>
+    </div>
+  {/if}
+{/snippet}
+
+<!-- Volume : − curseur + et sourdine sur une ligne. -->
+{#snippet reglageVolume(zone: AmpZone, z: AmpZoneState)}
+  {@const v = volume(zone, z)}
+  <div class="flex items-center gap-2">
+    <button type="button" class="{touche} w-8.5 h-8.5" aria-label="{$t('amp_remote.volume')} −" onclick={() => send({ type: "volume_step", zone, up: false })}>
+      <Icon icon="material-symbols:remove-rounded" width="19" />
+    </button>
+    <input
+      type="range"
+      class="remote-range flex-1"
+      min="0"
+      max={caps?.volume_max ?? 100}
+      step={caps?.volume_step ?? 1}
+      value={v ?? 0}
+      style="--rempli: {((v ?? 0) / (caps?.volume_max || 100)) * 100}%"
+      aria-label={$t("amp_remote.volume")}
+      oninput={(e) => (glisse = { zone, valeur: Number(e.currentTarget.value) })}
+      onchange={() => lacher(zone)}
+    />
+    <button type="button" class="{touche} w-8.5 h-8.5" aria-label="{$t('amp_remote.volume')} +" onclick={() => send({ type: "volume_step", zone, up: true })}>
+      <Icon icon="material-symbols:add-rounded" width="19" />
+    </button>
+    <button
+      type="button"
+      class="{rond} w-8.5 h-8.5 {z.muted ? 'sourdine-on' : 'text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)'}"
+      title={$t("amp_remote.mute")}
+      aria-label={$t("amp_remote.mute")}
+      aria-pressed={z.muted}
+      onclick={() => send({ type: "mute", zone, on: !z.muted })}
+    >
+      <Icon icon={z.muted ? "material-symbols:volume-off-rounded" : "material-symbols:volume-up-rounded"} width="19" />
+    </button>
+  </div>
+{/snippet}
+
+{#if actif && vue && etat && caps}
+  <div
+    class="fixed right-0 top-21 z-30 flex items-start transition-transform duration-300 ease-out"
+    style="transform: translateX({ouvert ? 0 : LARGEUR}px)"
+  >
+    <!-- Languette : toujours visible, elle sort et range la télécommande. -->
+    <button
+      type="button"
+      class="languette mt-10 w-10 h-30 flex flex-col items-center justify-center gap-3 rounded-l-2xl border border-r-0 cursor-pointer
+             border-(--rg-bd) text-(--rg-mu) hover:text-(--rg-tx) transition-colors"
+      title={ouvert ? $t("amp_remote.close") : $t("amp_remote.open")}
+      aria-label={ouvert ? $t("amp_remote.close") : $t("amp_remote.open")}
+      aria-expanded={ouvert}
+      onclick={() => settingsStore.set("amp_remote_open", ouvert ? "false" : "true")}
+    >
+      <Icon icon={ouvert ? "material-symbols:chevron-right-rounded" : "material-symbols:settings-remote-outline-rounded"} width="21" />
+      <span class="w-1.5 h-1.5 rounded-full {!etat.connected ? 'bg-(--rg-am)' : allume ? 'bg-(--rg-g) shadow-[0_0_8px_var(--rg-g)]' : 'bg-(--rg-off)'}"></span>
+    </button>
+
+    <aside
+      class="panneau max-h-[calc(100dvh-230px)] max-[1250px]:max-h-[calc(100dvh-330px)] overflow-y-auto scrollbar-app rounded-l-[22px] border border-r-0 border-(--rg-bd) text-(--rg-tx)"
+      style="width: {LARGEUR}px"
+      aria-label={$t("amp_remote.panel")}
+      inert={!ouvert}
+    >
+      <!-- En-tête : l'ampli et sa mise en marche. -->
+      <div class="flex items-center gap-3 px-4 pt-4 pb-3">
+        <span class="w-10 h-10 shrink-0 flex items-center justify-center rounded-[12px] border
+                     {allume ? 'bg-(--rg-g)/14 border-(--rg-g)/30 text-(--rg-g)' : 'bg-(--rg-s2) border-(--rg-bd) text-(--rg-mu)'}">
+          <Icon icon="material-symbols:speaker-group-outline-rounded" width="22" />
+        </span>
+        <div class="flex-1 min-w-0 leading-[1.2]">
+          <p class="text-[15px] font-bold tracking-[-0.01em] truncate">{vue.amp.name}</p>
+          <p class="flex items-center gap-1.5 text-[11.5px] truncate {etat.connected ? 'text-(--rg-mu)' : 'text-(--rg-am)'}">
+            <span class="w-1.5 h-1.5 shrink-0 rounded-full {!etat.connected ? 'bg-(--rg-am)' : allume ? 'bg-(--rg-g)' : 'bg-(--rg-off)'}"></span>
+            {etat.connected ? (allume ? `${MARQUE[vue.amp.brand]} · ${vue.amp.ip}` : $t("amp_remote.standby")) : $t("amp_remote.reconnecting")}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="{rond} w-11 h-11 border {allume ? 'marche-on' : 'bouton-relief border-(--rg-bd) text-(--rg-mu) hover:text-(--rg-tx)'}"
+          title={allume ? $t("amp_remote.power_off") : $t("amp_remote.power_on")}
+          aria-label={allume ? $t("amp_remote.power_off") : $t("amp_remote.power_on")}
+          aria-pressed={allume}
+          disabled={!etat.connected}
+          onclick={() => send({ type: "power", zone: "main", on: !allume })}
+        >
+          <Icon icon="material-symbols:power-settings-new-rounded" width="22" />
+        </button>
+      </div>
+
+      {#if !etat.connected}
+        <p class="mx-4 mb-4 px-3.5 py-3 rounded-[14px] bg-(--rg-am)/10 text-[12px] leading-snug text-(--rg-am)">
+          {$t("amp_remote.unreachable").replace("{name}", vue.amp.name)}
+        </p>
+      {:else if !allume}
+        <div class="px-4 pb-6 pt-2 flex flex-col items-center">
+          <button
+            type="button"
+            class="marche-on h-11 px-6 flex items-center gap-2 rounded-full border cursor-pointer text-[13.5px] font-bold transition"
+            onclick={() => send({ type: "power", zone: "main", on: true })}
+          >
+            <Icon icon="material-symbols:power-settings-new-rounded" width="19" />{$t("amp_remote.power_on")}
+          </button>
+        </div>
+      {:else}
+        <!-- Afficheur : source, mode d'écoute, volume, comme la façade de l'ampli. -->
+        {@const v = volume("main", etat.main)}
+        <div class="facade mx-4 px-4 py-3.5 rounded-2xl flex items-center gap-3">
+          <div class="flex-1 min-w-0">
+            <p class="text-[9.5px] font-bold uppercase tracking-[0.16em] text-white/40">{$t("amp_remote.input")}</p>
+            <p class="mt-0.5 flex items-center gap-1.5 text-[15px] font-bold text-white/92 truncate">
+              <Icon icon={iconeEntree(entreePrincipale)} width="17" class="shrink-0 text-white/60" />{entreePrincipale || "—"}
+            </p>
+            {#if etat.mode}<p class="mt-1 text-[11.5px] font-semibold facade-lum truncate">{etat.mode.name}</p>{/if}
+          </div>
+          <div class="text-right leading-none">
+            <p class="text-[9.5px] font-bold uppercase tracking-[0.16em] {etat.main.muted ? 'text-amber-400' : 'text-white/40'}">
+              {etat.main.muted ? $t("amp_remote.mute") : "Vol"}
+            </p>
+            <p class="mt-1 tabular-nums text-[46px] font-bold tracking-[-0.03em] {etat.main.muted ? 'text-white/25' : 'facade-lum'}">{affiche(v)}</p>
+          </div>
+        </div>
+        <div class="px-4 pt-3">
+          {@render reglageVolume("main", etat.main)}
+        </div>
+
+        <div class="mx-4 mt-4 p-1 grid grid-cols-3 gap-1 rounded-[13px] bg-(--rg-s2)" role="tablist">
+          {#each ONGLETS as o (o.id)}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={onglet === o.id}
+              class="h-8 flex items-center justify-center gap-1.5 rounded-[10px] text-[11.5px] font-semibold cursor-pointer transition-all
+                     {onglet === o.id ? 'onglet-actif text-(--rg-tx)' : 'text-(--rg-mu) hover:text-(--rg-tx)'}"
+              onclick={() => (onglet = o.id)}
+            >
+              <Icon icon={o.icone} width="15" />{$t(o.cle)}
+            </button>
+          {/each}
+        </div>
+
+        <div class="px-4 pt-3.5 pb-4">
+          {#if onglet === "sources"}
+            {@render tuiles(caps.inputs, etat.main.input, (id) => send({ type: "input", zone: "main", id }))}
+          {:else if onglet === "son"}
+            <div class="flex flex-col gap-4">
+              {#if caps.modes.length}
+                <section>
+                  {@render titre($t("amp_remote.mode"), etat.mode?.name)}
+                  {@render pastilles(caps.modes, etat.mode?.id, (id) => send({ type: "mode", id }))}
+                </section>
+              {/if}
+              {#if caps.tone && (etat.bass !== null || etat.treble !== null)}
+                <section>
+                  {@render titre($t("amp_remote.tone"))}
+                  {@render tonalite($t("amp_remote.bass"), etat.bass, (value) => send({ type: "bass", value }))}
+                  {@render tonalite($t("amp_remote.treble"), etat.treble, (value) => send({ type: "treble", value }))}
+                </section>
+              {/if}
+              {#if caps.zone2 && etat.zone2}
+                {@const z2 = etat.zone2}
+                <section class="rounded-[14px] border border-(--rg-bd) p-3 flex flex-col gap-3">
+                  <div class="flex items-center gap-2.5">
+                    <Icon icon="material-symbols:speaker-group-outline-rounded" width="18" class={z2.power ? "text-(--rg-g)" : "text-(--rg-mu)"} />
+                    <span class="flex-1 min-w-0 leading-[1.2]">
+                      <span class="block text-[13px] font-semibold">{$t("amp_remote.zone2")}</span>
+                      <span class="block text-[11px] truncate {z2.power ? 'text-(--rg-gtx)' : 'text-(--rg-mu)'}">
+                        {z2.power ? `${nomEntree(z2.input)} · ${affiche(volume("zone2", z2))}` : $t("amp_remote.standby")}
+                      </span>
+                    </span>
+                    <ToggleSwitch size="sm" checked={z2.power} label={$t("amp_remote.zone2")} onclick={() => send({ type: "power", zone: "zone2", on: !z2.power })} />
+                  </div>
+                  {#if z2.power}
+                    {@render reglageVolume("zone2", z2)}
+                    {@render pastilles(caps.inputs, z2.input, (id) => send({ type: "input", zone: "zone2", id }))}
+                  {/if}
+                </section>
+              {/if}
+            </div>
+          {:else}
+            <AmpRemoteNav {vue} cover={$ampRemoteStore.cover} />
+          {/if}
+        </div>
+      {/if}
+
+      <button
+        type="button"
+        class="w-full flex items-center justify-center gap-2 h-10 border-t border-(--rg-line) cursor-pointer
+               text-[11.5px] font-semibold text-(--rg-mu) hover:text-(--rg-tx) transition-colors"
+        onclick={() => goto("/settings/remote")}
+      >
+        <Icon icon="material-symbols:settings-outline-rounded" width="15" />{$t("amp_remote.settings")}
+      </button>
+    </aside>
+  </div>
+{/if}
+
+<style>
+  /* Surface : une pointe de la couleur d'accent en haut, ombre portée vers la page. */
+  .panneau {
+    background: linear-gradient(180deg, color-mix(in oklch, var(--rg-carte) 93%, var(--rg-g)) 0%, var(--rg-carte) 180px);
+    box-shadow: -18px 10px 48px rgb(0 0 0 / 0.22), inset 1px 1px 0 rgb(255 255 255 / 0.05);
+  }
+  .languette {
+    background: color-mix(in oklch, var(--rg-carte) 93%, var(--rg-g));
+    box-shadow: -8px 4px 20px rgb(0 0 0 / 0.16), inset 1px 1px 0 rgb(255 255 255 / 0.05);
+  }
+
+  /* Afficheur : écran sombre et lumineux, quel que soit le thème. */
+  .facade {
+    background: radial-gradient(120% 150% at 100% 0%, color-mix(in oklch, var(--rg-g) 20%, #0b100d) 0%, #070908 72%);
+    box-shadow: inset 0 2px 12px rgb(0 0 0 / 0.65), inset 0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 0 rgb(255 255 255 / 0.04);
+  }
+  .facade-lum {
+    color: color-mix(in oklch, var(--rg-g) 62%, white);
+    text-shadow: 0 0 16px color-mix(in oklch, var(--rg-g) 55%, transparent);
+  }
+
+  /* Touches en léger relief. */
+  :global(.bouton-relief) {
+    background: linear-gradient(180deg, color-mix(in oklch, var(--rg-s2) 92%, white), var(--rg-s2));
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  }
+  :global(.bouton-relief:hover:not(:disabled)) {
+    background: var(--rg-bd);
+  }
+
+  .marche-on {
+    background: radial-gradient(circle at 50% 35%, color-mix(in oklch, var(--rg-g) 80%, white), var(--rg-g));
+    border-color: var(--rg-g);
+    color: var(--rg-on-g);
+    box-shadow: 0 0 18px color-mix(in oklch, var(--rg-g) 55%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.3);
+  }
+
+  .sourdine-on {
+    background: color-mix(in oklch, var(--rg-am) 20%, transparent);
+    color: var(--rg-am);
+    box-shadow: 0 0 12px color-mix(in oklch, var(--rg-am) 40%, transparent);
+  }
+
+  :global(.tuile-active) {
+    border-color: color-mix(in oklch, var(--rg-g) 55%, transparent);
+    background: linear-gradient(180deg, color-mix(in oklch, var(--rg-g) 20%, transparent), color-mix(in oklch, var(--rg-g) 8%, transparent));
+    color: var(--rg-gtx);
+    box-shadow: 0 0 14px color-mix(in oklch, var(--rg-g) 22%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  }
+
+  .onglet-actif {
+    background: var(--rg-carte);
+    box-shadow: 0 1px 5px rgb(0 0 0 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  }
+
+  /* Curseur de volume : rail fin, partie remplie en accent lumineux. */
+  .remote-range {
+    appearance: none;
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--rg-g) var(--rempli), var(--rg-s2) var(--rempli));
+    box-shadow: 0 0 10px color-mix(in oklch, var(--rg-g) 25%, transparent);
+    cursor: pointer;
+  }
+  .remote-range::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 35%, white, #dfe5e1);
+    border: 2px solid var(--rg-g);
+    box-shadow: 0 1px 5px rgb(0 0 0 / 0.35), 0 0 10px color-mix(in oklch, var(--rg-g) 40%, transparent);
+  }
+</style>

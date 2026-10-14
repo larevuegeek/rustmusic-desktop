@@ -10,11 +10,12 @@
 
 use axum::body::Body;
 use axum::extract::{Path, Request, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use tower::ServiceExt;
 use tower_http::services::ServeFile;
 
+use crate::core::dlna_server::content_directory::didl::DLNA_FEATURES;
 use crate::core::dlna_server::http::router::AppState;
 use crate::core::dlna_server::library::provider::CoverKind;
 
@@ -48,7 +49,14 @@ pub async fn stream_media(
     );
 
     match ServeFile::new(&path).oneshot(request).await {
-        Ok(resp) => resp.map(Body::new).into_response(),
+        Ok(resp) => {
+            // En-têtes DLNA : flux continu, saut et pause permis.
+            let mut resp = resp.map(Body::new).into_response();
+            let h = resp.headers_mut();
+            h.insert("transferMode.dlna.org", HeaderValue::from_static("Streaming"));
+            h.insert("contentFeatures.dlna.org", HeaderValue::from_static(DLNA_FEATURES));
+            resp
+        }
         Err(e) => {
             log::error!("ServeFile error for {:?} : {}", path, e);
             (

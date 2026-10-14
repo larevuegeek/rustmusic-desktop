@@ -7,6 +7,7 @@
   import TextField from "#lib/components/ui/input/TextField.svelte";
   import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
   import GhostButton from "#lib/components/ui/button/GhostButton.svelte";
+  import Badge from "#lib/components/ui/text/Badge.svelte";
   import {
     dlnaGetSettings,
     dlnaStart,
@@ -95,6 +96,35 @@
     }
   }
 </script>
+
+<!-- ─── Lecteurs réseau : désactivés par défaut, rien ne part sur le réseau sans eux ─── -->
+<OptionGroup title={$t("network_player.group")} hint={$t("network_player.group_hint")}>
+  {#snippet action()}<Badge tone="amber">{$t("settings.beta_badge")}</Badge>{/snippet}
+  <OptionItem
+    title={$t("network_player.toggle")}
+    desc={$t("network_player.toggle_desc")}
+    keywords="wiim upnp dlna ampli renderer cast"
+    onclick={() => settingsStore.toggle("network_players")}
+  >
+    <ToggleSwitch
+      checked={$settingsStore.network_players === "true"}
+      label={$t("network_player.toggle")}
+      onclick={() => settingsStore.toggle("network_players")}
+    />
+  </OptionItem>
+  <OptionItem
+    title={$t("network_player.airplay_toggle")}
+    desc={$t("network_player.airplay_toggle_desc")}
+    keywords="airplay apple raop onkyo denon"
+    onclick={() => settingsStore.toggle("airplay")}
+  >
+    <ToggleSwitch
+      checked={$settingsStore.airplay === "true"}
+      label={$t("network_player.airplay_toggle")}
+      onclick={() => settingsStore.toggle("airplay")}
+    />
+  </OptionItem>
+</OptionGroup>
 
 <!-- ─── Serveur DLNA ─── -->
 <OptionGroup title={$t("settings.dlna_group")} hint={$t("settings.dlna_group_hint")}>

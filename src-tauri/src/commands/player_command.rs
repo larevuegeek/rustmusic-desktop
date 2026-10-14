@@ -1,11 +1,12 @@
 use std::error::Error;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use tauri::AppHandle;
 
 use crate::core::audio_analyser::audio_analyser::AudioAnalyser;
 use crate::core::audio_player::audio_player::AudioPlayer;
+use crate::commands::playback;
 use crate::entity::audio::audio_file::AudioFile;
 use crate::helper::files::reader::read_dir_deep;
 
@@ -70,32 +71,10 @@ pub async fn open_files(directory: String) -> Vec<AudioFile> {
 }
 
 #[tauri::command]
-pub async fn play_file(
-    app_handle: AppHandle,
-    path: String
-) {
-    
-    let path_file: PathBuf = PathBuf::from(path);
-
+pub async fn play_file(app_handle: AppHandle, path: String) {
+    let path_file = PathBuf::from(path);
     log::debug!("File selected {:?}", path_file);
-
-    if let Some(player_arc) = AUDIO_PLAYER.get() {
-        let player: MutexGuard<'_, AudioPlayer> = player_arc.lock().unwrap_or_else(|e| e.into_inner());
-
-        if player.is_playing() {
-            if player.is_paused() {
-                player.resume();
-            } else {
-                player.pause();
-            }
-        } else {
-            if let Err(e) = player.play_file(app_handle, path_file) {
-                log::error!("Erreur de lecture: {}", e);
-            }
-        }
-    } else {
-        log::error!("⚠️ AudioPlayer non initialisé !");
-    }
+    playback::play(app_handle, path_file).await;
 }
 
 /// Empêche la mise en veille automatique tant que la musique joue (l'écran peut s'éteindre).
@@ -107,52 +86,20 @@ pub fn set_veille_bloquee(bloquer: bool) {
 #[tauri::command]
 pub async fn pause_play() {
     log::debug!("Demande de pause");
-
-    if let Some(player_arc) = AUDIO_PLAYER.get() {
-        let player: MutexGuard<'_, AudioPlayer> = player_arc.lock().unwrap_or_else(|e| e.into_inner());
-
-        // Pas besoin de relâcher le lock, on ne bloque pas le stream ici
-        if player.is_paused() {
-            player.resume();
-        } else {
-            player.pause();
-        }
-    } else {
-        log::error!("⚠️ AudioPlayer non initialisé !");
-    }
+    playback::toggle_pause().await;
 }
 
 #[tauri::command]
 pub async fn stop_play() {
-    if let Some(player_arc) = AUDIO_PLAYER.get() {
-        let player: MutexGuard<'_, AudioPlayer> = player_arc.lock().unwrap_or_else(|e| e.into_inner());
-
-        // Pas besoin de relâcher le lock, on ne bloque pas le stream ici
-        player.stop();
-    } else {
-        log::error!("⚠️ AudioPlayer non initialisé !");
-    }
+    playback::stop().await;
 }
 
 #[tauri::command]
 pub async fn get_progress() -> (f64, f64) {
-    if let Some(player_arc) = AUDIO_PLAYER.get() {
-        let player: MutexGuard<'_, AudioPlayer> = player_arc.lock().unwrap_or_else(|e| e.into_inner());
-
-        let current: f64 = player.get_current_position();
-        let total: f64 = player.get_total_duration();
-        return (current, total);
-    }
-
-    (0.0, 0.0)
+    playback::progress()
 }
 
 #[tauri::command]
 pub async fn seek_to(position: f64) {
-    if let Some(player_arc) = AUDIO_PLAYER.get() {
-        let player = player_arc.lock().unwrap_or_else(|e| e.into_inner());
-        // Demande au decode_thread de seek dans le fichier audio
-        // Met aussi à jour le compteur de position pour le frontend
-        player.seek_to(position);
-    }
+    playback::seek(position).await;
 }

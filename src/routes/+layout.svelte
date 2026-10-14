@@ -6,6 +6,7 @@ import Sidebar from "#lib/components/sidebar/Sidebar.svelte";
 import SwitchTheme from "#lib/components/ui/input/SwitchTheme.svelte";
 import Player from "#lib/components/player/Player.svelte";
 import QueuePanel from "#lib/components/queue/QueuePanel.svelte";
+import AmpRemote from "#lib/components/remote/AmpRemote.svelte";
 import Icon from "@iconify/svelte";
 import SearchAutocomplete from "#lib/components/search/SearchAutocomplete.svelte";
 import Toast from "#lib/components/ui/toast/Toast.svelte";
@@ -31,6 +32,8 @@ import { taskProgressStore } from "#lib/stores/ui/taskProgress.store";
 import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
 import { refreshDlnaStatus } from "#lib/stores/dlna/dlna.store";
 import { initPlaybackPipelineListener } from "#lib/stores/player/playbackPipeline.store";
+import { networkPlayerStore } from "#lib/stores/audio/networkPlayer.store";
+import { ampRemoteStore } from "#lib/stores/audio/ampRemote.store";
 import { initBatchListeners } from "#lib/stores/ui/batch.store";
 import BatchPanel from "#lib/components/ui/batch/BatchPanel.svelte";
 import { trackNotificationService } from "#lib/services/notification/trackNotification.service";
@@ -133,6 +136,10 @@ onMount(async () => {
   // Subscribe to the backend playback-pipeline event so the player status
   // bar can show "source → output" when a conversion happens.
   initPlaybackPipelineListener();
+  // Lecteur réseau mémorisé : retrouvé par le moteur au lancement.
+  networkPlayerStore.init();
+  // Ampli mémorisé : rejoint par le moteur au lancement si la télécommande est active.
+  ampRemoteStore.init();
   initBatchListeners();
 
   // Notif OS sur changement de morceau (cover + titre + artiste).
@@ -333,6 +340,7 @@ function handleKeydown(e: KeyboardEvent) {
   </div>
 
   <Player />
+  <AmpRemote />
   <QueuePanel />
   <SelectionBar />
   <Toast />

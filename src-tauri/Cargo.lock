@@ -4749,13 +4749,14 @@ dependencies = [
 
 [[package]]
 name = "rustmusic"
-version = "0.2.10"
+version = "0.3.0"
 dependencies = [
  "alsa",
  "anyhow",
  "arrayvec",
  "async-trait",
  "audioadapter-buffers",
+ "aws-lc-rs",
  "axum",
  "base64 0.23.1",
  "chrono",
@@ -4764,6 +4765,7 @@ dependencies = [
  "fast_image_resize",
  "image",
  "lazy_static",
+ "libc",
  "log",
  "md5",
  "num-traits",
@@ -4780,6 +4782,7 @@ dependencies = [
  "serde",
  "serde_json",
  "simplelog",
+ "socket2",
  "souvlaki",
  "sqlx",
  "symphonia",

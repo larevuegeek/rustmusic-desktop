@@ -2,6 +2,7 @@
   // Sortie, sourdine et volume du lecteur. En DSD natif (DoP), le volume se règle sur le DAC.
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
   import Icon from "@iconify/svelte";
   import { audioDevicesStore, type AudioDeviceInfo } from "#lib/stores/audio/audioDevices.store";
   import AudioDeviceDetailsModal from "#lib/components/settings/AudioDeviceDetailsModal.svelte";
@@ -13,6 +14,7 @@
   import { t } from "#lib/i18n";
   import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
   import { volume, chargerVolume, reglerVolume } from "#lib/stores/player/volume.store";
+  import { networkIcon, networkPlayerStore, type NetworkRenderer } from "#lib/stores/audio/networkPlayer.store";
 
   const surWindows = detectOS() === "windows";
   const wasapiExclusive = $derived($settingsStore.wasapi_exclusive === "true");
@@ -36,6 +38,16 @@
 
   const devices = $derived($audioDevicesStore.devices);
   const active = $derived(devices.find((d) => d.displayName === $audioDevicesStore.activeDisplayName) ?? null);
+  // Lecteur réseau choisi : c'est lui la sortie, les réglages locaux ne s'appliquent pas.
+  const distant = $derived($networkPlayerStore.selected);
+
+  // Désactivés par défaut : sans le réglage, rien ne part sur le réseau.
+  const reseauActif = $derived($settingsStore.network_players === "true" || $settingsStore.airplay === "true");
+
+  // Première ouverture du menu : on cherche les lecteurs réseau.
+  $effect(() => {
+    if (reseauActif && showDevices && !$networkPlayerStore.searched && !$networkPlayerStore.searching) networkPlayerStore.discover();
+  });
 
   onMount(async () => {
     await chargerVolume();
@@ -61,9 +73,20 @@
     audioDevicesStore.setActive(device.displayName);
     showDevices = false;
     try {
+      if (distant) await networkPlayerStore.select(null);
       await invoke("set_device", { deviceName: device.name });
     } catch (e) {
       console.error("Failed to set device", e);
+    }
+  }
+
+  async function selectRenderer(r: NetworkRenderer) {
+    showDevices = false;
+    if (distant?.id === r.id) return;
+    try {
+      await networkPlayerStore.select(r.id);
+    } catch (e) {
+      console.error("[réseau] choix du lecteur :", e);
     }
   }
 
@@ -96,21 +119,21 @@
     type="button"
     class="{bouton} text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol) {showDevices ? 'text-(--lc-acc)' : ''}"
     onclick={() => (showDevices = !showDevices)}
-    title={active ? `${$t("player.output")} : ${decrireSortie(active).nom}` : $t("player.output")}
+    title={distant ? `${$t("player.output")} : ${distant.name}` : active ? `${$t("player.output")} : ${decrireSortie(active).nom}` : $t("player.output")}
     aria-label={$t("player.output")}
     aria-expanded={showDevices}
   >
-    <Icon icon="material-symbols-light:speaker-outline-rounded" width="22" />
+    <Icon icon={distant ? networkIcon(distant) : "material-symbols-light:speaker-outline-rounded"} width="22" />
   </button>
 
-  {#if showDevices && devices.length > 0}
+  {#if showDevices}
     <div
       class="absolute bottom-full right-2 mb-2 z-50 w-100 p-1.5 rounded-[14px] border
              bg-(--lc-menu) border-(--lc-menu-bd) shadow-[0_18px_40px_rgba(0,0,0,0.35)] text-(--lc-tx)"
     >
       <p class="px-2.5 pt-1.5 pb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">{$t("player.output")}</p>
       {#each devices as device (device.displayName)}
-        {@const choisi = device.displayName === $audioDevicesStore.activeDisplayName}
+        {@const choisi = !distant && device.displayName === $audioDevicesStore.activeDisplayName}
         {@const libelle = decrireSortie(device)}
         {@const qualite = palier(device)}
         <!-- Sortie choisie : le vert des réglages, quelle que soit la pochette. -->
@@ -136,6 +159,57 @@
           </button>
         </div>
       {/each}
+      <!-- Lecteurs réseau : la recherche part à la première ouverture. -->
+      {#if !reseauActif}
+        <div class="mt-1 pt-1 border-t border-(--lc-menu-bd)">
+          <button
+            type="button"
+            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-left cursor-pointer text-(--lc-mu) hover:text-(--lc-tx) hover:bg-(--lc-survol)"
+            onclick={() => { showDevices = false; goto("/settings/network"); }}
+          >
+            <Icon icon="material-symbols-light:cast-rounded" width="18" class="shrink-0" />
+            <span class="flex-1 min-w-0 text-[12px] leading-snug">{$t("network_player.enable_hint")}</span>
+            <Icon icon="material-symbols-light:arrow-forward-rounded" width="16" class="shrink-0" />
+          </button>
+        </div>
+      {:else}
+      <div class="mt-1 pt-1 border-t border-(--lc-menu-bd)">
+        <div class="flex items-center gap-2 px-2.5 pt-1.5 pb-1.5">
+          <p class="flex-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">
+            {$t("network_player.section")}<Badge tone="amber">{$t("settings.beta_badge")}</Badge>
+          </p>
+          <button
+            type="button"
+            class="h-6.5 px-2 flex items-center gap-1 rounded-md text-[11px] font-semibold cursor-pointer text-(--lc-mu) hover:text-(--lc-tx) hover:bg-(--lc-survol) disabled:cursor-default disabled:opacity-60"
+            disabled={$networkPlayerStore.searching}
+            onclick={() => networkPlayerStore.discover()}
+          >
+            <Icon icon="material-symbols-light:refresh-rounded" width="15" class={$networkPlayerStore.searching ? "animate-spin" : ""} />
+            {$networkPlayerStore.searching ? $t("network_player.searching") : $t("network_player.search")}
+          </button>
+        </div>
+        {#each $networkPlayerStore.renderers as r (r.id)}
+          {@const choisi = distant?.id === r.id}
+          <div class="relative flex items-stretch rounded-[10px] transition-colors {choisi ? 'bg-(--rg-g)/12' : 'hover:bg-(--lc-survol)'}">
+            {#if choisi}<span class="absolute left-0 top-2.5 bottom-2.5 w-0.75 rounded-r-[3px] bg-(--rg-g)"></span>{/if}
+            <button type="button" class="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2 text-left cursor-pointer" onclick={() => selectRenderer(r)}>
+              <Icon icon={networkIcon(r)} width="20" class="shrink-0 {choisi ? 'text-(--rg-g)' : 'text-(--lc-mu)'}" />
+              <span class="min-w-0 flex-1 leading-[1.2]">
+                <span class="block truncate text-[13px] font-semibold">{r.name}</span>
+                <span class="block truncate text-[11px] text-(--lc-mu)">{[r.kind === "airplay" ? "AirPlay" : r.manufacturer, r.model].filter(Boolean).join(" · ") || r.ip}</span>
+              </span>
+              <Icon icon="material-symbols-light:check-rounded" width="20" class="shrink-0 text-(--rg-g) {choisi ? '' : 'invisible'}" />
+            </button>
+          </div>
+        {:else}
+          {#if $networkPlayerStore.searched && !$networkPlayerStore.searching}
+            <p class="px-2.5 pb-2 text-[11.5px] leading-snug text-(--lc-mu)">{$t("network_player.none")}</p>
+          {/if}
+        {/each}
+      </div>
+      {/if}
+
+      {#if !distant}
       <div class="mt-1 pt-1 border-t border-(--lc-menu-bd)">
         {#if surWindows}
           <div class="flex items-center gap-2.5 px-2.5 py-2">
@@ -156,6 +230,7 @@
           <ToggleSwitch size="sm" checked={dop} disabled={!dopDisponible} label={$t("settings.dsd_dop")} onclick={() => settingsStore.toggle("dsd_dop")} />
         </div>
       </div>
+      {/if}
     </div>
   {/if}
 </div>

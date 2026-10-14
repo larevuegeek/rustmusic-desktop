@@ -41,7 +41,7 @@ impl CpalSymphoniaOutput {
         device: cpal::Device,
         config: cpal::StreamConfig,
         device_name: String,
-        mut consumer: C,
+        consumer: C,
         atomics: PlaybackAtomics,
         shared: SymphoniaSharedState,
         // `MARGE_PARTAGEE` en partagé ; 1.0 sous le hog mode macOS (bit-perfect).
@@ -54,136 +54,7 @@ impl CpalSymphoniaOutput {
     {
         let sample_rate = config.sample_rate;
         let channels = config.channels;
-        let output_channels = shared.output_channels;
-
-        // ─── Clones pour la closure ───
-        let is_paused = atomics.is_paused.clone();
-        let is_stopped = atomics.is_stopped.clone();
-        let volume = atomics.volume.clone();
-        let current_position_frames = atomics.current_position_frames.clone();
-        let full_buffer_data = shared.full_buffer_data.clone();
-        let full_buffer_cursor = shared.full_buffer_cursor.clone();
-        let is_full_buffer_ready = shared.is_full_buffer_ready.clone();
-        let current_source = shared.current_source.clone();
-        let seek_flush = shared.seek_flush.clone();
-        let pending_seek_frames = shared.pending_seek_frames.clone();
-        let promotion_armed = shared.promotion_armed.clone();
-
-        // Compteur fade-in post-seek, mut local à la closure.
-        let mut fade_in_samples: usize = 0;
-
-        let render = move |output: &mut [f32]| {
-                    // --- Pause & Stop ---
-                    if is_paused.load(Ordering::Relaxed) || is_stopped.load(Ordering::Relaxed) {
-                        output.fill(0.0);
-                        return;
-                    }
-
-                    // --- Seek flush : repositionner après un seek ---
-                    if seek_flush.load(Ordering::Acquire) {
-                        // Drain ring buffer (LiveDecode)
-                        let to_skip = consumer.occupied_len();
-                        consumer.skip(to_skip);
-
-                        // Repositionner le curseur FullBuffer depuis
-                        // pending_seek_frames (single-writer Phase 6 →
-                        // single-reader CPAL). Fallback sur current_position_frames
-                        // en LiveDecode pur.
-                        let target = pending_seek_frames.load(Ordering::Acquire);
-                        let new_frames = if target != usize::MAX {
-                            pending_seek_frames.store(usize::MAX, Ordering::Relaxed);
-                            current_position_frames.store(target, Ordering::Relaxed);
-                            target
-                        } else {
-                            current_position_frames.load(Ordering::Relaxed)
-                        };
-                        let new_cursor = new_frames * output_channels as usize;
-                        full_buffer_cursor.store(new_cursor, Ordering::Relaxed);
-
-                        seek_flush.store(false, Ordering::Release);
-                        fade_in_samples = 2048; // ~42 ms à 48 kHz
-                        output.fill(0.0);
-                        return;
-                    }
-
-                    // --- Lecture audio selon le mode source ---
-                    let source: u8 = current_source.load(Ordering::Acquire);
-                    let mut samples_read: usize = 0;
-
-                    if source == 0 {
-                        // Mode LiveDecode (RingBuffer)
-                        samples_read = consumer.pop_slice(output);
-                        if samples_read < output.len() {
-                            output[samples_read..].fill(0.0);
-                        }
-                    } else {
-                        // Mode FullBuffer
-                        if is_full_buffer_ready.load(Ordering::Relaxed) {
-                            if let Ok(fb) = full_buffer_data.read() {
-                                let cursor: usize = full_buffer_cursor.load(Ordering::Relaxed);
-                                let available: usize = fb.len().saturating_sub(cursor);
-                                samples_read = available.min(output.len());
-
-                                if samples_read > 0 {
-                                    output[..samples_read]
-                                        .copy_from_slice(&fb[cursor..cursor + samples_read]);
-                                    full_buffer_cursor
-                                        .fetch_add(samples_read, Ordering::Relaxed);
-                                }
-                                if samples_read < output.len() {
-                                    output[samples_read..].fill(0.0);
-                                }
-                            } else {
-                                output.fill(0.0);
-                            }
-
-                            // Enchaînement sans blanc : la piste finit au milieu de ce
-                            // tampon, on prend la suivante ici même pour le compléter,
-                            // au lieu de laisser des zéros jusqu'au fil de contrôle.
-                            if samples_read < output.len()
-                                && promotion_armed.load(Ordering::Acquire)
-                                && crate::core::audio_player::preload::gapless_enabled()
-                            {
-                                if let Ok(mut fb) = full_buffer_data.try_write() {
-                                    let cursor: usize = full_buffer_cursor.load(Ordering::Relaxed);
-                                    if cursor >= fb.len()
-                                        && crate::core::audio_player::preload::promote_from_callback(
-                                            &mut fb,
-                                        )
-                                    {
-                                        let n = fb.len().min(output.len() - samples_read);
-                                        output[samples_read..samples_read + n]
-                                            .copy_from_slice(&fb[..n]);
-                                        full_buffer_cursor.store(n, Ordering::Release);
-                                        samples_read += n;
-                                    }
-                                }
-                            }
-                        } else {
-                            output.fill(0.0);
-                        }
-                    }
-
-                    // --- Mise à jour position ---
-                    if samples_read > 0 && !seek_flush.load(Ordering::Relaxed) {
-                        let source_mode = current_source.load(Ordering::Relaxed);
-                        if source_mode == 1 {
-                            // FullBuffer : dériver depuis le curseur (source de vérité)
-                            let cursor = full_buffer_cursor.load(Ordering::Relaxed);
-                            current_position_frames
-                                .store(cursor / output_channels as usize, Ordering::Relaxed);
-                        } else {
-                            // LiveDecode : incrémenter les frames jouées
-                            let frames = samples_read / output_channels as usize;
-                            current_position_frames.fetch_add(frames, Ordering::Relaxed);
-                        }
-                    }
-
-                    // --- Volume + Replay Gain + clipping + fade-in post-seek ---
-                    let vol: f32 = volume.load(Ordering::Relaxed) as f32 / 100.0
-                        * crate::core::audio_player::replay_gain::current_factor();
-                    super::echantillons::appliquer_gain(output, vol, &mut fade_in_samples, marge);
-        };
+        let render = render_fn(consumer, atomics, shared, marge);
 
         if persistent {
             return Ok(Self {
@@ -263,5 +134,147 @@ impl Drop for CpalSymphoniaOutput {
         if let Some(id) = self.track.take() {
             super::shared_engine::detach(id);
         }
+    }
+}
+
+/// Rendu d'une piste (lecture, seek, enchaînement, gain), commun aux sorties qui
+/// tirent le son à leur rythme : carte son partagée, AirPlay.
+pub(super) fn render_fn<C>(
+    mut consumer: C,
+    atomics: PlaybackAtomics,
+    shared: SymphoniaSharedState,
+    marge: f32,
+) -> impl FnMut(&mut [f32]) + Send + 'static
+where
+    C: Consumer<Item = f32> + Send + 'static,
+{
+    let output_channels = shared.output_channels;
+    // ─── Clones pour la closure ───
+    let is_paused = atomics.is_paused.clone();
+    let is_stopped = atomics.is_stopped.clone();
+    let volume = atomics.volume.clone();
+    let current_position_frames = atomics.current_position_frames.clone();
+    let full_buffer_data = shared.full_buffer_data.clone();
+    let full_buffer_cursor = shared.full_buffer_cursor.clone();
+    let is_full_buffer_ready = shared.is_full_buffer_ready.clone();
+    let current_source = shared.current_source.clone();
+    let seek_flush = shared.seek_flush.clone();
+    let pending_seek_frames = shared.pending_seek_frames.clone();
+    let promotion_armed = shared.promotion_armed.clone();
+
+    // Compteur fade-in post-seek, mut local à la closure.
+    let mut fade_in_samples: usize = 0;
+
+    move |output: &mut [f32]| {
+        // --- Pause & Stop ---
+        if is_paused.load(Ordering::Relaxed) || is_stopped.load(Ordering::Relaxed) {
+            output.fill(0.0);
+            return;
+        }
+
+        // --- Seek flush : repositionner après un seek ---
+        if seek_flush.load(Ordering::Acquire) {
+            // Drain ring buffer (LiveDecode)
+            let to_skip = consumer.occupied_len();
+            consumer.skip(to_skip);
+
+            // Repositionner le curseur FullBuffer depuis
+            // pending_seek_frames (single-writer Phase 6 →
+            // single-reader CPAL). Fallback sur current_position_frames
+            // en LiveDecode pur.
+            let target = pending_seek_frames.load(Ordering::Acquire);
+            let new_frames = if target != usize::MAX {
+                pending_seek_frames.store(usize::MAX, Ordering::Relaxed);
+                current_position_frames.store(target, Ordering::Relaxed);
+                target
+            } else {
+                current_position_frames.load(Ordering::Relaxed)
+            };
+            let new_cursor = new_frames * output_channels as usize;
+            full_buffer_cursor.store(new_cursor, Ordering::Relaxed);
+
+            seek_flush.store(false, Ordering::Release);
+            fade_in_samples = 2048; // ~42 ms à 48 kHz
+            output.fill(0.0);
+            return;
+        }
+
+        // --- Lecture audio selon le mode source ---
+        let source: u8 = current_source.load(Ordering::Acquire);
+        let mut samples_read: usize = 0;
+
+        if source == 0 {
+            // Mode LiveDecode (RingBuffer)
+            samples_read = consumer.pop_slice(output);
+            if samples_read < output.len() {
+                output[samples_read..].fill(0.0);
+            }
+        } else {
+            // Mode FullBuffer
+            if is_full_buffer_ready.load(Ordering::Relaxed) {
+                if let Ok(fb) = full_buffer_data.read() {
+                    let cursor: usize = full_buffer_cursor.load(Ordering::Relaxed);
+                    let available: usize = fb.len().saturating_sub(cursor);
+                    samples_read = available.min(output.len());
+
+                    if samples_read > 0 {
+                        output[..samples_read]
+                            .copy_from_slice(&fb[cursor..cursor + samples_read]);
+                        full_buffer_cursor
+                            .fetch_add(samples_read, Ordering::Relaxed);
+                    }
+                    if samples_read < output.len() {
+                        output[samples_read..].fill(0.0);
+                    }
+                } else {
+                    output.fill(0.0);
+                }
+
+                // Enchaînement sans blanc : la piste finit au milieu de ce
+                // tampon, on prend la suivante ici même pour le compléter,
+                // au lieu de laisser des zéros jusqu'au fil de contrôle.
+                if samples_read < output.len()
+                    && promotion_armed.load(Ordering::Acquire)
+                    && crate::core::audio_player::preload::gapless_enabled()
+                {
+                    if let Ok(mut fb) = full_buffer_data.try_write() {
+                        let cursor: usize = full_buffer_cursor.load(Ordering::Relaxed);
+                        if cursor >= fb.len()
+                            && crate::core::audio_player::preload::promote_from_callback(
+                                &mut fb,
+                            )
+                        {
+                            let n = fb.len().min(output.len() - samples_read);
+                            output[samples_read..samples_read + n]
+                                .copy_from_slice(&fb[..n]);
+                            full_buffer_cursor.store(n, Ordering::Release);
+                            samples_read += n;
+                        }
+                    }
+                }
+            } else {
+                output.fill(0.0);
+            }
+        }
+
+        // --- Mise à jour position ---
+        if samples_read > 0 && !seek_flush.load(Ordering::Relaxed) {
+            let source_mode = current_source.load(Ordering::Relaxed);
+            if source_mode == 1 {
+                // FullBuffer : dériver depuis le curseur (source de vérité)
+                let cursor = full_buffer_cursor.load(Ordering::Relaxed);
+                current_position_frames
+                    .store(cursor / output_channels as usize, Ordering::Relaxed);
+            } else {
+                // LiveDecode : incrémenter les frames jouées
+                let frames = samples_read / output_channels as usize;
+                current_position_frames.fetch_add(frames, Ordering::Relaxed);
+            }
+        }
+
+        // --- Volume + Replay Gain + clipping + fade-in post-seek ---
+        let vol: f32 = volume.load(Ordering::Relaxed) as f32 / 100.0
+            * crate::core::audio_player::replay_gain::current_factor();
+        super::echantillons::appliquer_gain(output, vol, &mut fade_in_samples, marge);
     }
 }

@@ -208,6 +208,10 @@ impl AudioPlayer {
                 // pour toujours : l'interface attendrait un `false` que plus
                 // personne n'émettra.
                 let _ = app_handle_guard.emit("playback-preparing", false);
+                // Appareil AirPlay injoignable ou occupé : l'utilisateur doit le savoir.
+                if crate::core::network_player::airplay::sender::is_active() {
+                    let _ = app_handle_guard.emit("network-player-error", format!("AirPlay : {e}"));
+                }
             }
         });
 
@@ -234,8 +238,14 @@ impl AudioPlayer {
             .and_then(|s| s.to_str())
             .map(|e| e.to_ascii_lowercase());
 
+        // Sortie AirPlay choisie : le décodeur produit le 44,1 kHz stéréo qu'elle transporte.
+        let airplay = crate::core::network_player::airplay::sender::selected();
+
         if let Some(ref ext) = ext_lower {
             if ext == "dsf" || ext == "dff" {
+                if airplay.is_some() {
+                    return Err("le DSD n'est pas encore pris en charge en AirPlay".into());
+                }
                 return Self::play_dsd_file_thread(
                     app_handle,
                     file_path,
@@ -397,7 +407,6 @@ impl AudioPlayer {
         let output_config: cpal::SupportedStreamConfig = device.default_output_config()?;
         startup.mark("recherche du périphérique");
         let mut output_sample_rate: u32 = output_config.sample_rate();
-        #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut output_channels: u16 = output_config.channels();
         log::info!(
             "🔊 CPAL device negotiated : {} Hz × {} ch · sample format {:?} · buffer config {:?}",
@@ -441,7 +450,7 @@ impl AudioPlayer {
         #[cfg(target_os = "windows")]
         {
             use crate::core::audio_player::output;
-            if matches!(output::current_preference(), output::AudioBackend::WasapiExclusive) {
+            if airplay.is_none() && matches!(output::current_preference(), output::AudioBackend::WasapiExclusive) {
                 match crate::core::audio_player::audio_output_wasapi::try_negotiate_exclusive_format(
                     source_sample_rate,
                     channels as u16,
@@ -470,7 +479,7 @@ impl AudioPlayer {
         // ─── Pré-négociation ALSA / CoreAudio : même raison que WASAPI ───
         // La sortie exclusive ouvre le DAC au rate source ; le décodeur doit le produire.
         #[cfg(any(target_os = "linux", target_os = "macos"))]
-        if crate::core::audio_player::output::exclusif_au_rate_source(&nom_carte, source_sample_rate, output_channels) {
+        if airplay.is_none() && crate::core::audio_player::output::exclusif_au_rate_source(&nom_carte, source_sample_rate, output_channels) {
             log::info!(
                 "🎚️  Exclusif pré-négocié : décodeur piloté à {} Hz / {} ch (au lieu de {} Hz)",
                 source_sample_rate, output_channels, output_sample_rate
@@ -483,6 +492,11 @@ impl AudioPlayer {
         // ATTENTION : tous les drivers ne supportent pas BufferSize::Fixed
         // (ex : certaines configs PulseAudio refusent, ou la valeur dépasse
         // la plage supportée par le device). On RETRY avec Default si Fixed échoue.
+        if airplay.is_some() {
+            output_sample_rate = crate::core::network_player::airplay::sender::SAMPLE_RATE;
+            output_channels = crate::core::network_player::airplay::sender::CHANNELS;
+        }
+
         let profile_for_cpal = crate::core::audio_quality::current_profile();
         let desired_buffer_size = match profile_for_cpal {
             crate::core::audio_quality::AudioQualityProfile::Minimal => {
@@ -741,19 +755,22 @@ impl AudioPlayer {
         let canaux_sortie = channels as u16;
         #[cfg(not(target_os = "windows"))]
         let canaux_sortie = output_channels;
-        let (mut audio_output, repli) = output::create_symphonia_output(
-            output::current_preference(),
-            source_sample_rate,
-            canaux_sortie,
-            device,
-            config,
-            device_name.clone(),
-            nom_carte,
-            playback_atomics,
-            symphonia_shared,
-            consumer,
-        )
-        .map_err(|e| -> Box<dyn std::error::Error> { format!("AudioOutput: {e}").into() })?;
+        let (mut audio_output, repli) = match airplay {
+            Some(airplay_device) => (output::create_airplay_output(airplay_device, playback_atomics, symphonia_shared, consumer), None),
+            None => output::create_symphonia_output(
+                output::current_preference(),
+                source_sample_rate,
+                canaux_sortie,
+                device,
+                config,
+                device_name.clone(),
+                nom_carte,
+                playback_atomics,
+                symphonia_shared,
+                consumer,
+            )
+            .map_err(|e| -> Box<dyn std::error::Error> { format!("AudioOutput: {e}").into() })?,
+        };
 
         // Ouverture du périphérique et négociation du format. En mode exclusif,
         // c'est ici que le pilote reprend la main sur la carte — et que le DAC
@@ -766,6 +783,8 @@ impl AudioPlayer {
 
         startup.mark("démarrage du flux");
         startup.finish(audio_output.backend().display_name());
+        // AirPlay : titre, artiste et pochette sur l'écran de l'appareil.
+        crate::core::network_player::airplay::sender::now_playing(file_path.clone());
 
         log::debug!("▶️ Lecture en cours via {}", audio_output.backend().display_name());
 
@@ -938,6 +957,7 @@ impl AudioPlayer {
             if let Some(done) = crate::core::audio_player::preload::take_promotion() {
                 total_duration.store(done.duration_secs.to_bits(), Ordering::Relaxed);
                 playing_path = done.path.clone();
+                crate::core::network_player::airplay::sender::now_playing(done.path.clone());
                 log::info!("🔗 Enchaînement sans blanc (callback) → {}", done.path.display());
                 let _ = app_handle.emit(
                     "track-advanced",
@@ -996,6 +1016,7 @@ impl AudioPlayer {
                     current_position_frames.store(0, Ordering::Relaxed);
                     current_position.store(0.0_f64.to_bits(), Ordering::Relaxed);
                     playing_path = next_path.clone();
+                    crate::core::network_player::airplay::sender::now_playing(next_path.clone());
 
                     log::info!("🔗 Enchaînement sans blanc → {}", next_path.display());
                     let _ = app_handle.emit(

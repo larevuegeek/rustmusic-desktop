@@ -28,31 +28,37 @@ pub async fn run_advertiser(
     local_ip: Ipv4Addr,
     mut shutdown: broadcast::Receiver<()>,
 ) -> Result<(), DlnaError> {
-    // Bind on the specific LAN interface (not 0.0.0.0) so multicast packets
-    // exit on the correct adapter — important on Windows where the default
-    // route may go through a VPN or virtual adapter. Binding on local_ip
-    // implicitly sets the multicast send interface to that adapter.
-    let std_sock = std::net::UdpSocket::bind(SocketAddr::new(IpAddr::V4(local_ip), 0))
-        .map_err(DlnaError::Io)?;
-    std_sock.set_nonblocking(true).map_err(DlnaError::Io)?;
-    // Bump multicast TTL to 4 (default is 1) so packets traverse a few hops
-    // if routers/switches reduce TTL on the way.
-    if let Err(e) = std_sock.set_multicast_ttl_v4(4) {
-        log::warn!("set_multicast_ttl_v4 failed: {}", e);
+    // Une annonce par carte locale (Ethernet, Wi-Fi), chacune avec sa propre adresse :
+    // jamais dans un tunnel VPN, l'ampli du salon reçoit l'adresse du réseau local.
+    let mut ips = crate::core::network_player::interfaces::lan_ipv4s();
+    if ips.is_empty() {
+        ips.push(local_ip);
     }
-    let socket = UdpSocket::from_std(std_sock).map_err(DlnaError::Io)?;
-
-    let location = format!("http://{}:{}/description.xml", local_ip, config.port);
+    let mut sockets = Vec::new();
+    for ip in ips {
+        match open(ip) {
+            Ok(socket) => sockets.push((socket, format!("http://{}:{}/description.xml", ip, config.port))),
+            Err(e) => log::debug!("SSDP : annonce impossible sur {ip} ({e})"),
+        }
+    }
+    if sockets.is_empty() {
+        return Err(DlnaError::Io(std::io::Error::other("aucune carte réseau pour annoncer le serveur")));
+    }
     let usns = build_usns(&config.uuid);
 
     log::debug!(
-        "SSDP advertiser bound on {} → multicast 239.255.255.250:1900 (LOCATION={}, re-announce {}s, {} NT)",
-        local_ip, location, ALIVE_INTERVAL_SECS, usns.len()
+        "SSDP advertiser → {} carte(s) [{}] (re-announce {}s, {} NT)",
+        sockets.len(),
+        sockets.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join(", "),
+        ALIVE_INTERVAL_SECS,
+        usns.len()
     );
 
     // Initial burst : send 3 times rapidly so freshly-listening clients catch us.
     for _ in 0..3 {
-        send_alive(&socket, &location, &usns).await;
+        for (socket, location) in &sockets {
+            send_alive(socket, location, &usns).await;
+        }
         tokio::time::sleep(Duration::from_millis(300)).await;
     }
 
@@ -60,17 +66,33 @@ pub async fn run_advertiser(
     loop {
         tokio::select! {
             _ = shutdown.recv() => {
-                send_byebye(&socket, &usns).await;
+                for (socket, _) in &sockets {
+                    send_byebye(socket, &usns).await;
+                }
                 break;
             }
             _ = tokio::time::sleep(Duration::from_secs(ALIVE_INTERVAL_SECS)) => {
-                send_alive(&socket, &location, &usns).await;
+                for (socket, location) in &sockets {
+                    send_alive(socket, location, &usns).await;
+                }
                 log::debug!("SSDP NOTIFY alive sent ({} NT entries)", usns.len());
             }
         }
     }
     log::debug!("SSDP advertiser stopped (byebye sent)");
     Ok(())
+}
+
+/// Socket d'annonce sur la carte `ip` : la lier à son adresse fixe la carte de sortie du multicast.
+fn open(ip: Ipv4Addr) -> std::io::Result<UdpSocket> {
+    let std_sock = std::net::UdpSocket::bind(SocketAddr::new(IpAddr::V4(ip), 0))?;
+    std_sock.set_nonblocking(true)?;
+    // Bump multicast TTL to 4 (default is 1) so packets traverse a few hops
+    // if routers/switches reduce TTL on the way.
+    if let Err(e) = std_sock.set_multicast_ttl_v4(4) {
+        log::warn!("set_multicast_ttl_v4 failed: {}", e);
+    }
+    UdpSocket::from_std(std_sock)
 }
 
 // ─── Message senders ─────────────────────────────────────────────────

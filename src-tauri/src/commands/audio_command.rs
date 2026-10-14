@@ -88,7 +88,7 @@ pub async fn init_from_settings(state: &AppState) {
 /// signifie « rien après » (fin de file, minuterie de fin de morceau).
 #[tauri::command]
 pub fn set_next_track(path: Option<String>) {
-    crate::core::audio_player::preload::announce_next(path.map(std::path::PathBuf::from));
+    crate::commands::playback::set_next(path.map(std::path::PathBuf::from));
 }
 
 /// Synchronise la préférence « lecture sans blanc » vers l'atomique lu par les

@@ -41,6 +41,11 @@ export const settingsSections: SettingsSection[] = [
     cles: ["wasapi_exclusive", "dsd_dop"],
   },
   { id: "network", icon: "material-symbols:cast-rounded", labelKey: "settings.network", hintKey: "settings.network_hint", descKey: "settings.network_desc" },
+  {
+    id: "remote", icon: "material-symbols:settings-remote-outline-rounded",
+    labelKey: "settings.remote", hintKey: "settings.remote_hint", descKey: "settings.remote_desc",
+    cles: ["amp_remote"],
+  },
   { id: "storage", icon: "material-symbols:database-outline-rounded", labelKey: "settings.storage", hintKey: "settings.storage_hint", descKey: "settings.storage_desc" },
   { id: "shortcuts", icon: "material-symbols:keyboard-outline-rounded", labelKey: "settings.shortcuts", hintKey: "settings.shortcuts_hint", descKey: "settings.shortcuts_desc" },
   { id: "guide", icon: "material-symbols:school-outline-rounded", labelKey: "settings.guide", hintKey: "settings.guide_hint", descKey: "settings.guide_desc", groupeKey: "settings.nav_help" },

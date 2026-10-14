@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- macOS 15+ : sans cette mention, la recherche des lecteurs réseau et le serveur DLNA sont bloqués en silence. -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>RustMusic finds and plays on the network players and amplifiers of your home, and shares your library with them.</string>
+</dict>
+</plist>

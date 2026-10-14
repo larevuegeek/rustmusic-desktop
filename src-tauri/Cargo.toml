@@ -1,6 +1,6 @@
 [package]
 name = "rustmusic"
-version = "0.2.10"
+version = "0.3.0"
 description = "Audiophile-grade desktop music player with native DSD playback, multichannel SACD support, DLNA server, synced lyrics, and OS media controls."
 authors = ["LaRevueGeeK <contact@rustmusic.dev>"]
 edition = "2021"
@@ -83,6 +83,11 @@ num_cpus = "1.17.0"
 axum = "0.8"
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.7.1", features = ["fs"] }
+# Choix de l'interface d'envoi multicast (recherche des lecteurs réseau). Déjà tiré par tokio : aucun code en plus.
+socket2 = "0.6.5"
+# AirPlay : AES-128 du flux et RSA-OAEP de sa clé. Déjà compilé pour le HTTPS (rustls),
+# mêmes fonctions activées : aucun code en plus.
+aws-lc-rs = { version = "1.18.1", default-features = false, features = ["aws-lc-sys", "prebuilt-nasm"] }
 async-trait = "0.1"
 souvlaki = "0.8"
 tauri-plugin-window-state = "2.5.0"
@@ -93,7 +98,7 @@ tauri-plugin-window-state = "2.5.0"
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.25"
 # Même version que celle de `wasapi` : bus de l'adaptateur d'une sortie (USB, HDMI…).
-windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties", "Win32_System_Power"] }
+windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties", "Win32_System_Power", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
 
 # CoreAudio direct pour le DoP bit-perfect sur macOS. On ne réimplémente PAS
 # le stream (CPAL suffit : son unité HAL règle déjà le rate nominal du device et
@@ -101,6 +106,10 @@ windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstalla
 # pas : énumération des AudioDeviceID, rates nominaux disponibles, et surtout
 # le **hog mode** (accès exclusif, équivalent macOS du WASAPI exclusive).
 # Versions alignées sur celles que CPAL 0.18 tire déjà → aucun crate en plus.
+# Liste des cartes réseau (getifaddrs) pour chercher les lecteurs réseau. Déjà tiré par d'autres crates.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.190"
+
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware"] }
 objc2-core-audio-types = { version = "0.3", default-features = false, features = ["std", "CoreAudioBaseTypes"] }

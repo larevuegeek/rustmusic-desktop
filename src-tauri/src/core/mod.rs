@@ -134,4 +134,31 @@ pub mod dlna_server {
         pub mod sqlite_provider;
     }
 }
+/// Lecture sur un lecteur réseau (UPnP/DLNA) : RustMusic pilote l'appareil et lui sert les fichiers.
+pub mod network_player {
+    /// AirPlay 1 (RAOP) : RustMusic décode et envoie le son à l'appareil.
+    pub mod airplay {
+        pub mod alac;
+        pub mod crypto;
+        pub mod device;
+        pub mod mdns;
+        pub mod rtsp;
+        pub mod sender;
+    }
+    pub mod control;
+    pub mod didl;
+    pub mod discovery;
+    pub mod interfaces;
+    pub mod media;
+    pub mod session;
+    pub mod sonos;
+    pub mod xml;
+}
+/// Télécommande d'ampli (Onkyo/Pioneer/Integra, Denon/Marantz, Yamaha) : pilotage par le réseau.
+pub mod amp_remote {
+    pub mod discovery;
+    pub mod model;
+    pub mod onkyo;
+    pub mod session;
+}
 pub mod smart_playlist;

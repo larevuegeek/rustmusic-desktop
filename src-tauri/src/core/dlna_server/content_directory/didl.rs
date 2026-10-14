@@ -11,6 +11,10 @@ use crate::core::dlna_server::content_directory::object_id::encode_path;
 use crate::core::dlna_server::library::provider::{DlnaAlbum, DlnaArtist, DlnaLibrary, DlnaTrack};
 use crate::core::dlna_server::xml::{xml_attr, xml_text};
 
+/// Quatrième champ du protocolInfo : saut par octets (OP=01) et pause par
+/// arrêt de la connexion (FLAGS). Sans lui, l'ampli désactive pause et avance.
+pub const DLNA_FEATURES: &str = "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000";
+
 /// Builds a DIDL-Lite XML document one item at a time.
 pub struct DidlBuilder {
     inner: String,
@@ -176,8 +180,9 @@ impl DidlBuilder {
         // protocolInfo first.
         let _ = write!(
             self.inner,
-            "<res protocolInfo=\"http-get:*:{}:*\"",
-            xml_attr(&track.mime_type)
+            "<res protocolInfo=\"http-get:*:{}:{}\"",
+            xml_attr(&track.mime_type),
+            DLNA_FEATURES
         );
         if let Some(size) = track.file_size {
             let _ = write!(self.inner, " size=\"{}\"", size);

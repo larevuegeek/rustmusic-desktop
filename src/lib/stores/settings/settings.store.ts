@@ -64,6 +64,11 @@ export type AppSettings = {
   sidebar_collapsed: string;
   // 'true' | 'false' — sections d'épinglés de la barre latérale. Visibles par défaut.
   show_sidebar_playlists: string;
+  network_players: string;          // 'true' | 'false' — lecteurs réseau (UPnP), désactivés par défaut
+  airplay: string;                  // 'true' | 'false' — appareils AirPlay, désactivés par défaut
+  amp_remote: string;               // 'true' | 'false' — télécommande d'ampli, désactivée par défaut
+  amp_remote_open: string;          // 'true' | 'false' — panneau de la télécommande sorti
+  amp_remote_mini: string;          // 'true' | 'false' — télécommande réduite à l'afficheur et au volume
   show_pinned_albums: string;
   show_pinned_artists: string;
   // 'true' | 'false' — pied de la barre réduit à une ligne, par sa languette.
@@ -110,6 +115,11 @@ export const settingsDefaults: AppSettings = {
   track_column_widths: '{}',
   sidebar_collapsed: 'false',
   show_sidebar_playlists: 'true',
+  network_players: 'false',
+  airplay: 'false',
+  amp_remote: 'false',
+  amp_remote_open: 'false',
+  amp_remote_mini: 'false',
   show_pinned_albums: 'true',
   show_pinned_artists: 'true',
   sidebar_footer_collapsed: 'false',
@@ -173,6 +183,35 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
       await invoke('set_wasapi_exclusive_preference', { enabled: value === 'true' });
     } catch (e) {
       console.error('[settings] Erreur sync WASAPI preference:', e);
+    }
+  },
+
+  // Lecteurs réseau : le moteur refuse recherche et choix tant que c'est coupé.
+  network_players: async (value: string) => {
+    try {
+      const { networkPlayerStore } = await import('#lib/stores/audio/networkPlayer.store');
+      await networkPlayerStore.setEnabled('upnp', value === 'true');
+    } catch (e) {
+      console.error('[settings] Erreur lecteurs réseau:', e);
+    }
+  },
+
+  // Télécommande : le moteur ne contacte aucun ampli tant que c'est coupé.
+  amp_remote: async (value: string) => {
+    try {
+      const { ampRemoteStore } = await import('#lib/stores/audio/ampRemote.store');
+      await ampRemoteStore.setEnabled(value === 'true');
+    } catch (e) {
+      console.error('[settings] Erreur télécommande:', e);
+    }
+  },
+
+  airplay: async (value: string) => {
+    try {
+      const { networkPlayerStore } = await import('#lib/stores/audio/networkPlayer.store');
+      await networkPlayerStore.setEnabled('airplay', value === 'true');
+    } catch (e) {
+      console.error('[settings] Erreur AirPlay:', e);
     }
   },
 

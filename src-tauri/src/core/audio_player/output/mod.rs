@@ -14,6 +14,7 @@
 //! Le caller (`audio_player.rs`) ne connaît que le trait `AudioOutput`, il
 //! n'a aucune dépendance sur cpal ou wasapi en direct.
 
+mod airplay;
 mod cpal_symphonia;
 pub mod preference;
 mod traits;
@@ -126,6 +127,22 @@ pub use traits::{AudioOutput, AudioOutputError};
 pub use types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
 
 use ringbuf::traits::Consumer;
+
+/// Sortie AirPlay : le décodeur produit déjà du 44,1 kHz stéréo.
+pub fn create_airplay_output<C>(
+    device: crate::core::network_player::airplay::device::AirplayDevice,
+    atomics: PlaybackAtomics,
+    shared: SymphoniaSharedState,
+    consumer: C,
+) -> Box<dyn AudioOutput>
+where
+    C: Consumer<Item = f32> + Send + 'static,
+{
+    // La carte son n'est plus utilisée : sa sortie partagée est rendue.
+    shared_engine::close();
+    log::info!("🎚️  Audio backend : AirPlay ({})", device.name);
+    Box::new(airplay::AirplayOutput::new(device, consumer, atomics, shared))
+}
 
 /// Construit le backend audio pour la voie Symphonia.
 ///

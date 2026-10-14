@@ -24,35 +24,12 @@ fn is_alsa_virtual_device(_name: &str) -> bool {
 
 #[tauri::command]
 pub async fn set_volume(volume: u8) {
-    let vol = volume.min(100);
-
-    if let Some(player_arc) = AUDIO_PLAYER.get() {
-        if let Ok(player) = player_arc.lock() {
-            player.set_volume(vol);
-        }
-    }
-
-    // Persister
-    if let Ok(mut config) = SettingsManager::load_config() {
-        config.volume_initial = vol;
-        let _ = SettingsManager::save_config(&config);
-    }
+    crate::commands::playback::set_volume(volume).await;
 }
 
 #[tauri::command]
 pub async fn get_volume() -> u8 {
-    if let Some(player_arc) = AUDIO_PLAYER.get() {
-        if let Ok(player) = player_arc.lock() {
-            return player.get_volume();
-        }
-    }
-
-    // Fallback: lire depuis la config
-    if let Ok(config) = SettingsManager::load_config() {
-        return config.volume_initial;
-    }
-
-    80
+    crate::commands::playback::volume().await
 }
 
 #[tauri::command]

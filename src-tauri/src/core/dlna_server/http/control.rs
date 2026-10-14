@@ -37,7 +37,10 @@ pub async fn soap_control(
     );
 
     match service.as_str() {
-        "ContentDirectory" => content_directory(&state, action, &body).await,
+        "ContentDirectory" => {
+            let base = state.base_url_for(headers.get("host").and_then(|v| v.to_str().ok()));
+            content_directory(&state, &base, action, &body).await
+        }
         "ConnectionManager" => connection_manager(action),
         _ => soap_fault(401, "Unknown service"),
     }
@@ -45,9 +48,9 @@ pub async fn soap_control(
 
 // ─── ContentDirectory ──────────────────────────────────────────────────
 
-async fn content_directory(state: &AppState, action: &str, body: &str) -> Response {
+async fn content_directory(state: &AppState, base: &str, action: &str, body: &str) -> Response {
     if action.contains("#Browse") {
-        handle_browse_action(state.provider.clone(), &state.server_base_url(), body).await
+        handle_browse_action(state.provider.clone(), base, body).await
     } else if action.contains("#GetSearchCapabilities") {
         soap_response("GetSearchCapabilities", "<SearchCaps></SearchCaps>")
     } else if action.contains("#GetSortCapabilities") {

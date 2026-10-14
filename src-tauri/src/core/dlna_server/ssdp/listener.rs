@@ -44,17 +44,20 @@ pub async fn run_listener(
         }
     };
     std_sock.set_nonblocking(true).map_err(DlnaError::Io)?;
-    // Join multicast on the specific LAN interface (not UNSPECIFIED) so we
-    // listen on the right adapter when several are present.
-    std_sock
-        .join_multicast_v4(&MULTICAST_ADDR, &local_ip)
-        .map_err(DlnaError::Io)?;
+    // Groupe rejoint sur chaque carte locale, pas sur les tunnels VPN.
+    let mut joined = Vec::new();
+    for ip in crate::core::network_player::interfaces::lan_ipv4s() {
+        if std_sock.join_multicast_v4(&MULTICAST_ADDR, &ip).is_ok() {
+            joined.push(ip);
+        }
+    }
+    if joined.is_empty() {
+        std_sock.join_multicast_v4(&MULTICAST_ADDR, &local_ip).map_err(DlnaError::Io)?;
+        joined.push(local_ip);
+    }
     let socket = UdpSocket::from_std(std_sock).map_err(DlnaError::Io)?;
 
-    log::debug!(
-        "SSDP listener bound on 0.0.0.0:1900, multicast joined on {} (M-SEARCH responder)",
-        local_ip
-    );
+    log::debug!("SSDP listener bound on 0.0.0.0:1900, multicast joined on {:?} (M-SEARCH responder)", joined);
 
     let mut buf = [0u8; 2048];
     loop {
@@ -65,7 +68,12 @@ pub async fn run_listener(
                     Ok((n, src)) => {
                         let msg = std::str::from_utf8(&buf[..n]).unwrap_or("");
                         if msg.starts_with("M-SEARCH") {
-                            if let Some(responses) = handle_msearch(msg, &config, local_ip) {
+                            // L'adresse donnée est celle de la carte qui mène au demandeur.
+                            let reply_ip = match src.ip() {
+                                std::net::IpAddr::V4(peer) => crate::core::network_player::interfaces::local_ip_toward(peer).unwrap_or(local_ip),
+                                _ => local_ip,
+                            };
+                            if let Some(responses) = handle_msearch(msg, &config, reply_ip) {
                                 log::debug!(
                                     "M-SEARCH from {} → replying with {} USN(s)",
                                     src, responses.len()

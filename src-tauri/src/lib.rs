@@ -29,6 +29,8 @@ use crate::commands::settings_command::{get_setting, set_setting, get_all_settin
 use crate::commands::search_command::search;
 use crate::commands::lyrics_command::{get_lyrics, refresh_lyrics};
 use crate::commands::dlna_command::{dlna_get_settings, dlna_status, dlna_start, dlna_stop, dlna_update_settings};
+use crate::commands::amp_remote_command::{amp_remote_cover, amp_remote_discover, amp_remote_select, amp_remote_send, amp_remote_status, set_amp_remote_enabled};
+use crate::commands::network_player_command::{network_player_select, network_player_selected, network_players_discover, set_airplay_enabled, set_network_players_enabled};
 use crate::commands::audio_command::{
     get_audio_quality_status, get_replay_gain_settings, set_audio_quality_setting, set_gapless, log_player_event,
     set_next_track, set_replay_gain_settings,
@@ -644,6 +646,22 @@ pub async fn run() {
                 crate::commands::dlna_command::auto_start_if_enabled(&dlna_state).await;
             });
 
+            // ─── LECTEUR RÉSEAU ────────────────────────────────
+            // Désactivé par défaut ; activé, le lecteur mémorisé est relu depuis sa description.
+            let np_state = app.state::<AppState>().inner().clone();
+            crate::core::network_player::airplay::sender::set_app(app.handle().clone());
+            tauri::async_runtime::spawn(async move {
+                crate::commands::network_player_command::init(&np_state).await;
+            });
+
+            // ─── TÉLÉCOMMANDE D'AMPLI ──────────────────────────
+            // Désactivée par défaut ; activée, l'ampli mémorisé est rejoint.
+            let remote_state = app.state::<AppState>().inner().clone();
+            crate::core::amp_remote::session::set_app(app.handle().clone());
+            tauri::async_runtime::spawn(async move {
+                crate::commands::amp_remote_command::init(&remote_state).await;
+            });
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -805,6 +823,17 @@ pub async fn run() {
             refresh_lyrics,
             dlna_get_settings,
             dlna_status,
+            network_players_discover,
+            network_player_selected,
+            network_player_select,
+            set_network_players_enabled,
+            set_airplay_enabled,
+            amp_remote_discover,
+            amp_remote_select,
+            amp_remote_status,
+            amp_remote_send,
+            amp_remote_cover,
+            set_amp_remote_enabled,
             dlna_start,
             dlna_stop,
             dlna_update_settings,

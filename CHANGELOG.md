@@ -1,5 +1,80 @@
 # Changelog
 
+## [0.3.0] - à venir
+
+RustMusic sort de l'ordinateur : la musique se lit sur les lecteurs, amplis
+et appareils AirPlay de la maison.
+
+### Réseau
+- **Lire sur un lecteur réseau** (UPnP/DLNA, en bêta), à activer dans Réglages →
+  Réseau (désactivé par défaut : sans lui, RustMusic ne cherche aucun appareil
+  sur le réseau). WiiM, amplis et lecteurs réseau (Onkyo, Denon, Marantz,
+  Yamaha…) apparaissent alors dans le menu de sortie du lecteur, section
+  « Lecteurs réseau ». Une fois choisi, c'est l'appareil qui
+  lit : le fichier lui est envoyé tel quel, sans conversion, donc en hi-res s'il
+  le permet. La file, le seek, la pause, le volume et l'enchaînement sans blanc
+  fonctionnent comme en local ; le titre, l'artiste, l'album et la pochette
+  s'affichent sur l'appareil. Changer de sortie en cours d'écoute reprend le
+  morceau au même endroit. Le lecteur choisi est retrouvé au lancement. Un
+  format que l'appareil annonce ne pas lire (DSD, souvent) est signalé tout de
+  suite.
+- **Sonos** : les enceintes apparaissent sous le nom de leur pièce. Dans un
+  groupe, la lecture est confiée d'elle-même à l'enceinte qui le pilote. Les
+  Sonos lisent jusqu'à 24 bits / 48 kHz, et enchaînent avec un court blanc.
+- **AirPlay** (AirPlay 1, en bêta) : les appareils AirPlay (amplis Onkyo,
+  Denon, Marantz…, AirPort Express, Apple TV, Shairport Sync) apparaissent
+  dans la même section, avec leur icône. Ici, c'est RustMusic qui lit et
+  envoie le son à l'appareil, en qualité CD (16 bits / 44,1 kHz) : la file,
+  l'enchaînement sans blanc, le Replay Gain, le seek et la pause restent ceux
+  de RustMusic. La connexion reste ouverte d'un morceau à l'autre, la fin de
+  l'un couvrant le démarrage du suivant. L'appareil joue environ 2 s après
+  l'envoi : la position affichée suit ce qu'on entend, une pause s'entend
+  aussitôt et la reprise repart de là où l'oreille s'est arrêtée. Le volume
+  agit sur le son envoyé, jamais sur celui de l'ampli. Le titre, l'artiste,
+  l'album, la pochette et la progression s'affichent sur l'appareil (selon ce
+  qu'il sait montrer), au moment où le morceau s'entend. Un appareil protégé
+  par mot de passe, ou qui n'accepte que l'AirPlay 2, n'est pas proposé ; le
+  DSD n'est pas encore pris en charge.
+- UPnP/DLNA et AirPlay s'activent chacun de leur côté, dans Réglages → Réseau
+  (tous deux désactivés par défaut). Dans la barre du lecteur, une seule
+  pastille « Réseau » montre par ses icônes ce qui est actif (lecteurs,
+  AirPlay, partage DLNA), le détail au survol. Un clic ouvre un menu pour
+  activer ou couper chacun d'un geste, avec son état (« Lecture sur
+  TX-RZ900 », « En ligne · 192.168.1.24:8200 ») et un raccourci vers les
+  réglages réseau.
+- La recherche (UPnP et AirPlay en même temps) part de chaque carte réseau
+  de l'ordinateur : un VPN ou une carte virtuelle ne cache plus les
+  appareils du salon.
+- **Serveur DLNA et VPN** : avec un VPN actif (WireGuard, OpenVPN…), le
+  serveur s'annonçait avec l'adresse du tunnel, et les amplis du salon
+  affichaient « Aucun serveur ». Il s'annonce désormais sur chaque carte
+  réseau avec l'adresse qui lui correspond, répond à chaque appareil par la
+  carte qui mène à lui, et l'adresse affichée est celle du réseau local.
+- macOS : RustMusic demande l'autorisation d'accéder au réseau local, sans
+  laquelle macOS 15 bloque en silence la recherche et le serveur DLNA.
+
+### Télécommande d'ampli
+- **Piloter son ampli depuis RustMusic** (en bêta), à activer dans le nouveau
+  menu Réglages → Télécommande (désactivé par défaut : aucun ampli n'est
+  contacté sans lui). Les amplis Onkyo, Pioneer et Integra du réseau sont
+  trouvés d'eux-mêmes ; une fois l'ampli choisi, une télécommande se range au
+  bord droit de la fenêtre et sort par sa languette. En tête, un afficheur
+  façon façade d'ampli montre la source, le mode d'écoute et le volume ;
+  dessous, le volume (boutons, curseur, sourdine) et trois onglets :
+  **Sources** (les vraies entrées de l'ampli, en tuiles), **Son** (modes
+  d'écoute, graves et aigus, zone 2) et **Navigation**. Elle s'adapte à
+  l'ampli : ses entrées, ses plages de volume et de tonalité, sa zone 2 s'il
+  en a une. Ce qu'on change sur l'ampli lui-même (télécommande, façade)
+  s'affiche aussitôt. L'ampli choisi est rejoint au lancement, et retrouvé de
+  lui-même après une coupure.
+- **Navigation** : sur l'entrée NET (ou USB), l'écran de l'ampli s'affiche
+  comme dans son appli : services avec leur logo (Spotify, Deezer, TuneIn,
+  DLNA, AirPlay…), dossiers et morceaux, curseur, puis la lecture en cours
+  avec sa pochette, le temps et les touches lecture/pause, précédent,
+  suivant, aléatoire, répétition. Une ligne s'ouvre d'un clic ; les flèches
+  et OK pilotent la liste, ou le menu affiché sur la TV sur les autres
+  entrées. L'onglet s'ouvre de lui-même au passage sur NET.
+
 ## [0.2.10] - 2026-10-11
 
 Un lecteur qui se fait tout petit, aux couleurs de son choix : volume dans le

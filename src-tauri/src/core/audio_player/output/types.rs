@@ -94,6 +94,8 @@ pub enum AudioBackend {
     /// Bit-perfect, aucun autre client ne peut mixer dans notre flux.
     #[cfg(target_os = "macos")]
     CoreAudioExclusive,
+    /// Appareil AirPlay : le son part sur le réseau en 16 bits / 44,1 kHz.
+    AirPlay,
 }
 
 impl AudioBackend {
@@ -106,6 +108,7 @@ impl AudioBackend {
             AudioBackend::AlsaExclusive => "ALSA exclusive (hw:)",
             #[cfg(target_os = "macos")]
             AudioBackend::CoreAudioExclusive => "CoreAudio exclusive (hog)",
+            AudioBackend::AirPlay => "AirPlay",
         }
     }
 
@@ -114,7 +117,7 @@ impl AudioBackend {
     /// uniquement si le source rate == output rate (pas de resampler actif).
     pub fn is_bit_perfect_capable(self) -> bool {
         match self {
-            AudioBackend::CpalShared => false,
+            AudioBackend::CpalShared | AudioBackend::AirPlay => false,
             #[cfg(target_os = "windows")]
             AudioBackend::WasapiExclusive => true,
             #[cfg(target_os = "linux")]

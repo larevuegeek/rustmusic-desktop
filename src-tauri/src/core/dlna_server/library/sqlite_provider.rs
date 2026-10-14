@@ -336,7 +336,7 @@ fn is_local_path(s: &String) -> bool {
 }
 
 /// Fallback MIME guess when `library_cache.mime_type` is missing.
-fn guess_mime_from_extension(ext: &str) -> String {
+pub(crate) fn guess_mime_from_extension(ext: &str) -> String {
     match ext.to_ascii_lowercase().as_str() {
         "mp3" => "audio/mpeg",
         "flac" => "audio/flac",

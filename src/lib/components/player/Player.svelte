@@ -28,6 +28,8 @@ import { goto } from "$app/navigation";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { detectOS } from "#lib/helper/tools/osDetection";
 import { audioDevicesStore } from "#lib/stores/audio/audioDevices.store";
+import { networkIcon, networkPlayerStore } from "#lib/stores/audio/networkPlayer.store";
+import NetworkMenu from "#lib/components/player/NetworkMenu.svelte";
 import { decrireSortie } from "#lib/helper/audio/deviceLabel";
 import { TEINTE, CHAINE, messageRepli, frequenceLisible } from "#lib/helper/audio/chaineAudio";
 
@@ -326,7 +328,7 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
       {/if}
 
       <div class="shrink-0 ml-auto flex items-center gap-1.5">
-        {#if chaine}
+        {#if chaine && !$networkPlayerStore.selected}
           <button type="button" class="{pastille} {chaine.teinte} {pastilleCliquable}" title={repli ?? $t("pipeline.learn")} onclick={() => goto("/settings/guide")}>
             {#if repli}
               <Icon icon="material-symbols:warning-rounded" width="13" class="shrink-0 text-amber-600 dark:text-amber-400" />
@@ -335,21 +337,22 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
             {/if}{$t(chaine.cle)}
           </button>
         {/if}
-        {#if nomSortie}
+        {#if $networkPlayerStore.selected}
+          <!-- Lecteur réseau : c'est lui qui décode, la chaîne locale ne s'applique pas. -->
+          <span class="{pastille} {TEINTE.vert} max-w-52 max-[1250px]:hidden" title="{$t('network_player.section')} · {$networkPlayerStore.selected.ip}">
+            <Icon icon={networkIcon($networkPlayerStore.selected)} width="14" class="shrink-0" /><span class="truncate">{$networkPlayerStore.selected.name}</span>
+          </span>
+        {:else if nomSortie}
           <button type="button" class="{pastille} {TEINTE.bleu} {pastilleCliquable} max-w-44 max-[1250px]:hidden" title={$t("player.output")} onclick={() => goto("/settings/audio")}>
             <Icon icon="material-symbols-light:speaker-outline-rounded" width="14" class="shrink-0" /><span class="truncate">{nomSortie}</span>
           </button>
         {/if}
-        {#if surWindows && wasapiConfigured && !$playbackPipelineStore?.repli}
+        {#if surWindows && wasapiConfigured && !$playbackPipelineStore?.repli && !$networkPlayerStore.selected}
           <button type="button" class="{pastille} {TEINTE.vert} {pastilleCliquable}" title={$t("player.wasapi_on_short")} onclick={() => goto("/settings/audio")}>
             <span class={voyant}></span>WASAPI
           </button>
         {/if}
-        {#if $dlnaStatusStore?.running}
-          <button type="button" class="{pastille} {TEINTE.vert} {pastilleCliquable}" title={$dlnaStatusStore.url ?? "DLNA"} onclick={() => goto("/settings/network")}>
-            <span class={voyant}></span>DLNA
-          </button>
-        {/if}
+        <NetworkMenu {pastille} {voyant} cliquable={pastilleCliquable} />
         <StatusBar />
       </div>
     </div>

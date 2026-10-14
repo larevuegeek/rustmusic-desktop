@@ -23,3 +23,6 @@ pub mod smart_playlist_command;
 pub mod playlist_view_command;
 pub mod pin_command;
 pub mod sidebar_command;
+pub mod amp_remote_command;
+pub mod network_player_command;
+pub mod playback;
