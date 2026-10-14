@@ -17,6 +17,7 @@
     md: "max-w-md",
     lg: "max-w-2xl",
     xl: "max-w-3xl",
+    xxl: "max-w-[980px]",
   };
 
   let width = $derived(WIDTHS[$popinStore.size] ?? WIDTHS.md);
@@ -60,6 +61,7 @@
              shadow-[0_24px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
       transition:scale={{ duration: 180, start: 0.96 }}
     >
+      {#if !$popinStore.bare}
       <div
         class="shrink-0 px-6 pt-5 pb-4 border-b border-(--rg-bd)
                bg-linear-135 from-(--rg-g)/8 to-transparent to-60%"
@@ -93,6 +95,7 @@
           </button>
         </div>
       </div>
+      {/if}
 
       <div
         class="flex-1 min-h-0 {$popinStore.flush

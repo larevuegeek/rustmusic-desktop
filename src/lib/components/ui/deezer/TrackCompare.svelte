@@ -17,6 +17,7 @@
   import { untrack } from "svelte";
   import { fade } from "svelte/transition";
   import { t } from "#lib/i18n";
+  import { metadataSource } from "#lib/stores/tags/metadataSource.store";
   import {
     formatBytes,
     prepareImageFromUrl,
@@ -57,6 +58,7 @@
     "track_number",
     "total_tracks",
     "disc_number",
+    "composer",
   ] as const;
 
   /** Ce que la source propose, ramené au format du formulaire. */
@@ -70,6 +72,7 @@
     track_number: values.track_number ? String(values.track_number) : "",
     total_tracks: values.total_tracks ? String(values.total_tracks) : "",
     disc_number: values.disc_number ? String(values.disc_number) : "",
+    composer: values.composer ?? "",
   });
 
   type RowState = "differs" | "same" | "absent";
@@ -191,7 +194,7 @@
       <span class="shrink-0 w-3"></span>
       <span class="flex-1 min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.1em]
                    text-emerald-600/70 dark:text-emerald-400/70">
-        Deezer
+        {$metadataSource === "musicbrainz" ? "MusicBrainz" : "Deezer"}
       </span>
     </div>
 
@@ -339,7 +342,7 @@
          y montrer vides laisserait croire que Deezer propose de les effacer. -->
     <p class="mt-2.5 px-2 text-[10px] leading-relaxed
               text-neutral-400 dark:text-neutral-500">
-      {$t('source.limits')}
+      {$t(`source.limits_${$metadataSource}`)}
     </p>
   </div>
 

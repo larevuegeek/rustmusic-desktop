@@ -1,5 +1,5 @@
 /**
- * Récupération de métadonnées depuis une source en ligne.
+ * Récupération de métadonnées depuis une source en ligne (Deezer ou MusicBrainz).
  * Miroir de `src-tauri/src/commands/metadata_command.rs`.
  *
  * Ces appels **n'écrivent rien**. Ils proposent : l'appariement rend un score
@@ -9,31 +9,43 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
+/** Base interrogée. */
+export type MetadataSource = "deezer" | "musicbrainz";
+
 /** Un album trouvé par la recherche. */
 export type AlbumHit = {
-  id: number;
+  /** Propre à la source : nombre Deezer, UUID MusicBrainz. */
+  id: string;
   title: string;
   artist: string;
   cover: string | null;
   /** Nombre de pistes annoncé — le premier indice qu'on tient le bon album. */
   track_count: number;
+  /** Ce qui distingue deux éditions : « 1979 · GB · 2×CD ». */
+  detail: string | null;
 };
 
 export type AlbumTrack = {
+  /** Rang dans tout l'album : unique même quand les disques se suivent. */
+  key: number;
+  /** Numéro sur son disque. */
   position: number;
   disc: number;
   title: string;
   artist: string;
   /** En secondes. */
   duration: number;
+  /** Compositeurs, quand la source les connaît (MusicBrainz). */
+  composer: string | null;
+  id: string;
 };
 
 export type AlbumDetail = {
-  id: number;
+  id: string;
   title: string;
   artist: string;
   year: string | null;
-  /** Genre au niveau de l'album — Deezer n'en donne pas par piste. */
+  /** Genre au niveau de l'album. */
   genre: string | null;
   cover: string | null;
   tracks: AlbumTrack[];
@@ -44,8 +56,8 @@ export type Confidence = "sure" | "doubtful" | "rejected";
 
 export type TrackMatch = {
   local_index: number;
-  /** Position de la piste distante retenue, `null` si aucune ne convient. */
-  remote_position: number | null;
+  /** Clé de la piste distante retenue, `null` si aucune ne convient. */
+  remote_key: number | null;
   /** Entre 0 et 1. */
   score: number;
   confidence: Confidence;
@@ -67,7 +79,7 @@ export type LocalTrackPayload = {
 
 /** Une piste trouvée par la recherche. */
 export type TrackHit = {
-  id: number;
+  id: string;
   title: string;
   artist: string;
   album: string;
@@ -77,7 +89,7 @@ export type TrackHit = {
 };
 
 /**
- * Tout ce que Deezer sait d'une piste, prêt à remplir un formulaire.
+ * Tout ce que la source sait d'une piste, prêt à remplir un formulaire.
  *
  * Les champs absents valent `null` et non `""` : proposer une chaîne vide
  * reviendrait à proposer d'effacer ce qui est déjà écrit dans le fichier.
@@ -92,11 +104,12 @@ export type TrackValues = {
   track_number: number | null;
   total_tracks: number | null;
   disc_number: number | null;
+  composer: string | null;
   cover: string | null;
 };
 
-export async function searchAlbums(query: string, limit = 8): Promise<AlbumHit[]> {
-  return invoke<AlbumHit[]>("metadata_search_albums", { query, limit });
+export async function searchAlbums(source: MetadataSource, query: string, limit = 8): Promise<AlbumHit[]> {
+  return invoke<AlbumHit[]>("metadata_search_albums", { source, query, limit });
 }
 
 /**
@@ -106,12 +119,12 @@ export async function searchAlbums(query: string, limit = 8): Promise<AlbumHit[]
  * désigner son album puis y retrouver sa piste fait deux décisions là où le
  * titre suffit.
  */
-export async function searchTracks(query: string, limit = 8): Promise<TrackHit[]> {
-  return invoke<TrackHit[]>("metadata_search_tracks", { query, limit });
+export async function searchTracks(source: MetadataSource, query: string, limit = 8): Promise<TrackHit[]> {
+  return invoke<TrackHit[]>("metadata_search_tracks", { source, query, limit });
 }
 
-export async function trackValues(trackId: number): Promise<TrackValues> {
-  return invoke<TrackValues>("metadata_track_values", { trackId });
+export async function trackValues(source: MetadataSource, trackId: string): Promise<TrackValues> {
+  return invoke<TrackValues>("metadata_track_values", { source, trackId });
 }
 
 /**
@@ -121,10 +134,11 @@ export async function trackValues(trackId: number): Promise<TrackValues> {
  * à quel fichier laisserait tout le travail d'identification à l'utilisateur.
  */
 export async function matchAlbum(
-  albumId: number,
+  source: MetadataSource,
+  albumId: string,
   tracks: LocalTrackPayload[],
 ): Promise<MatchProposal> {
-  return invoke<MatchProposal>("metadata_match_album", { albumId, tracks });
+  return invoke<MatchProposal>("metadata_match_album", { source, albumId, tracks });
 }
 
 /** Les champs que la source sait renseigner. */
@@ -137,6 +151,8 @@ export const SOURCE_FIELDS = [
   "genre",
   "track_number",
   "total_tracks",
+  "disc_number",
+  "composer",
 ] as const;
 
 export type SourceField = (typeof SOURCE_FIELDS)[number];
@@ -144,13 +160,15 @@ export type SourceField = (typeof SOURCE_FIELDS)[number];
 /**
  * Ce que la source propose pour une piste appariée.
  *
- * Le compositeur et le parolier n'y figurent pas : Deezer ne les donne pas.
- * Mieux vaut ne rien proposer que proposer du vide qui effacerait l'existant.
+ * Un champ que la source ignore (compositeur chez Deezer) reste vide, donc
+ * « non fourni » : mieux vaut ne rien proposer que du vide qui effacerait l'existant.
  */
 export function proposedValues(
   album: AlbumDetail,
   track: AlbumTrack,
 ): Partial<Record<SourceField, string>> {
+  // Total et numéro de disque comptés par disque, comme l'écrivent les lecteurs.
+  const discs = new Set(album.tracks.map((tk) => tk.disc)).size;
   return {
     title: track.title,
     artist: track.artist,
@@ -159,7 +177,10 @@ export function proposedValues(
     year: album.year ?? "",
     genre: album.genre ?? "",
     track_number: String(track.position),
-    total_tracks: String(album.tracks.length),
+    total_tracks: String(album.tracks.filter((tk) => tk.disc === track.disc).length),
+    // Un seul disque : rien à dire, sinon « 1 » serait proposé partout.
+    disc_number: discs > 1 ? String(track.disc) : "",
+    composer: track.composer ?? "",
   };
 }
 

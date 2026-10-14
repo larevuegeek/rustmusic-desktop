@@ -1,6 +1,6 @@
 <script lang="ts">
   import { messageErreur } from "#lib/helper/tools/errorTools";
-  // Recherche d'une piste sur Deezer, pour un seul fichier.
+  // Recherche d'une piste en ligne (Deezer ou MusicBrainz), pour un seul fichier.
   //
   // # Ce que ce composant ne fait pas
   // Il ne décide rien et n'écrit nulle part : il rend les valeurs trouvées à
@@ -13,10 +13,13 @@
   import Icon from "@iconify/svelte";
   import { untrack } from "svelte";
   import { t } from "#lib/i18n";
+  import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
+  import { metadataSource, SOURCE_OPTIONS } from "#lib/stores/tags/metadataSource.store";
   import {
     formatDuration,
     searchTracks,
     trackValues,
+    type MetadataSource,
     type TrackHit,
     type TrackValues,
   } from "#lib/services/tags/metadata.service";
@@ -37,9 +40,13 @@
   // derrière ne réécrive la recherche en cours.
   let query = $state(untrack(() => initialQuery));
   let hits: TrackHit[] = $state([]);
+  /** Source des résultats affichés : c'est elle qu'on interroge au choix d'une piste. */
+  let hitsSource: MetadataSource = $state(untrack(() => $metadataSource));
+  /** Recherche en cours : une réponse plus ancienne (autre source, autre requête) est ignorée. */
+  let searchSeq = 0;
   let searching = $state(false);
   /** Identifiant de la piste en cours de lecture, pour n'animer qu'elle. */
-  let loadingId: number | null = $state(null);
+  let loadingId: string | null = $state(null);
   let error: string | null = $state(null);
   let searched = $state(false);
   let input: HTMLInputElement | null = $state(null);
@@ -65,24 +72,37 @@
   });
 
   async function run() {
-    if (!query.trim() || searching) return;
+    if (!query.trim()) return;
+    const seq = ++searchSeq;
+    const source = $metadataSource;
     searching = true;
     error = null;
     try {
-      hits = await searchTracks(query, 12);
+      const found = await searchTracks(source, query, 12);
+      if (seq !== searchSeq) return;
+      hits = found;
+      hitsSource = source;
       searched = true;
     } catch (e) {
-      error = messageErreur(e);
+      if (seq === searchSeq) error = messageErreur(e);
     } finally {
-      searching = false;
+      if (seq === searchSeq) searching = false;
     }
+  }
+
+  function changeSource(source: MetadataSource) {
+    if (source === $metadataSource) return;
+    metadataSource.set(source);
+    hits = [];
+    searched = false;
+    run();
   }
 
   async function pick(hit: TrackHit) {
     loadingId = hit.id;
     error = null;
     try {
-      onpick(await trackValues(hit.id), hit);
+      onpick(await trackValues(hitsSource, hit.id), hit);
     } catch (e) {
       error = messageErreur(e);
     } finally {
@@ -92,6 +112,15 @@
 </script>
 
 <div class="flex flex-col min-h-0 h-full">
+  <div class="shrink-0 px-4 pt-3">
+    <SegmentedControl
+      variant="discret"
+      value={$metadataSource}
+      options={SOURCE_OPTIONS}
+      label={$t("source.provider")}
+      onchange={(v) => changeSource(v as MetadataSource)}
+    />
+  </div>
   <div class="shrink-0 flex gap-1.5 px-4 py-3">
     <div class="relative flex-1 min-w-0">
       <Icon
@@ -158,7 +187,8 @@
         <span class="shrink-0 w-10 h-10 rounded overflow-hidden
                      bg-neutral-200 dark:bg-white/5">
           {#if hit.cover}
-            <img src={hit.cover} alt="" class="w-full h-full object-cover" />
+            <img src={hit.cover} alt="" loading="lazy" class="w-full h-full object-cover"
+                 onerror={(e) => ((e.currentTarget as HTMLImageElement).style.visibility = "hidden")} />
           {/if}
         </span>
         <span class="min-w-0 flex-1">

@@ -77,6 +77,8 @@ pub mod audio_resampler {
 pub mod metadata_source {
     pub mod deezer;
     pub mod matching;
+    pub mod model;
+    pub mod musicbrainz;
 }
 
 pub mod batch {

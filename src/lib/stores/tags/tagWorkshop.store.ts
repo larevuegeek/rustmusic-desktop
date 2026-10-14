@@ -101,6 +101,10 @@ export type WorkshopState = {
   view: WorkshopView;
   loading: boolean;
   error: string | null;
+  /** Étapes annulables (Ctrl+Z), plafonnées. */
+  undoCount: number;
+  /** Augmente à chaque changement effectif : sert à savoir si une action a agi. */
+  revision: number;
 };
 
 const initialState: WorkshopState = {
@@ -111,9 +115,63 @@ const initialState: WorkshopState = {
   view: "grid",
   loading: false,
   error: null,
+  undoCount: 0,
+  revision: 0,
 };
 
 const store = writable<WorkshopState>(initialState);
+
+// ─── Annulation ───
+// Une étape = les modifications de chaque fichier avant une action. Les chemins
+// servent de clé : un tri entre deux étapes ne fausse rien.
+type Snapshot = Map<string, { edits: Record<string, string>; pendingCover: WorkshopFile["pendingCover"] }>;
+const MAX_UNDO = 50;
+let history: Snapshot[] = [];
+/** Action groupée en cours : une seule étape pour tout le groupe. */
+let grouping = 0;
+
+function snapshot(files: WorkshopFile[]): Snapshot {
+  return new Map(files.map((f) => [f.path, { edits: f.edits, pendingCover: f.pendingCover }]));
+}
+
+function sameAs(snap: Snapshot, files: WorkshopFile[]): boolean {
+  return files.every((f) => {
+    const before = snap.get(f.path);
+    return before !== undefined && sameEdits(before.edits, f.edits) && before.pendingCover === f.pendingCover;
+  });
+}
+
+function sameEdits(a: Record<string, string>, b: Record<string, string>): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k]);
+}
+
+/** Applique `change` comme une étape annulable ; une action sans effet n'en crée pas. */
+function mutate(change: (s: WorkshopState) => WorkshopState) {
+  store.update((s) => {
+    const next = change(s);
+    if (grouping === 0 && next.files !== s.files && !sameAs(snapshot(s.files), next.files)) {
+      history.push(snapshot(s.files));
+      if (history.length > MAX_UNDO) history.shift();
+      return { ...next, undoCount: history.length, revision: s.revision + 1 };
+    }
+    return next;
+  });
+}
+
+function resetHistory() {
+  history = [];
+  grouping = 0;
+}
+
+/**
+ * Majuscule en tête de chaque mot. Le reste est gardé (« AC/DC », « ABBA ») sauf si
+ * tout est en capitales ; pas après une apostrophe (« Don't », « Rock'n'roll »).
+ */
+export function titleCase(value: string): string {
+  const base = value === value.toUpperCase() ? value.toLowerCase() : value;
+  return base.replace(/(^|[\s(\[\-"/])(\p{L})/gu, (_, before, letter) => before + letter.toUpperCase());
+}
 
 /** Valeur affichée : la modification si elle existe, sinon celle du fichier. */
 export function valueOf(file: WorkshopFile, field: string): string {
@@ -169,6 +227,7 @@ export const tagWorkshop = {
    * les effacerait à l'écriture.
    */
   async load(paths: string[], source: string, origin: string | null = null) {
+    resetHistory();
     store.set({ ...initialState, source, origin, loading: true, view: get(store).view });
 
     // Un seul appel pour tout le jeu de travail : cent allers-retours par le
@@ -207,7 +266,7 @@ export const tagWorkshop = {
   setView: (view: WorkshopView) => store.update((s) => ({ ...s, view })),
 
   set(path: string, field: string, value: string) {
-    store.update((s) => ({
+    mutate((s) => ({
       ...s,
       files: replaceFile(s.files, path, (file) => applyValue(file, field, value)),
     }));
@@ -215,7 +274,7 @@ export const tagWorkshop = {
 
   /** Écrit la même valeur sur tous les fichiers cochés — action du panneau. */
   setOnSelected(field: string, value: string) {
-    store.update((s) => ({
+    mutate((s) => ({
       ...s,
       files: s.files.map((file) =>
         s.selected.has(file.path) && file.readable
@@ -232,7 +291,7 @@ export const tagWorkshop = {
    * artiste et la même année, et un seul est juste.
    */
   fillDown(field: string) {
-    store.update((s) => {
+    mutate((s) => {
       const targets = s.files.filter((f) => f.readable && s.selected.has(f.path));
       if (targets.length === 0) return s;
 
@@ -250,7 +309,7 @@ export const tagWorkshop = {
 
   /** Numérote les lignes cochées de 1 à N, dans l'ordre affiché, et pose le total. */
   numberSelected() {
-    store.update((s) => {
+    mutate((s) => {
       const targets = s.files.filter((f) => f.readable && s.selected.has(f.path));
       const total = String(targets.length);
       let position = 0;
@@ -271,9 +330,21 @@ export const tagWorkshop = {
     });
   },
 
+  /** Casse « Titre » sur les lignes cochées. */
+  titleCaseOnSelected(field: string) {
+    mutate((s) => ({
+      ...s,
+      files: s.files.map((file) =>
+        s.selected.has(file.path) && file.readable
+          ? applyValue(file, field, titleCase(valueOf(file, field)))
+          : file,
+      ),
+    }));
+  },
+
   /** Vide la colonne sur les lignes cochées. */
   clearOnSelected(field: string) {
-    store.update((s) => ({
+    mutate((s) => ({
       ...s,
       files: s.files.map((file) =>
         s.selected.has(file.path) && file.readable ? applyValue(file, field, "") : file,
@@ -329,7 +400,7 @@ export const tagWorkshop = {
    * fichier en place — on ignore ce qu'ils contiennent (cf. `ImagePlan::SetCover`).
    */
   setCoverOnSelected(cover: { path: string; src: string }) {
-    store.update((s) => ({
+    mutate((s) => ({
       ...s,
       files: s.files.map((file) =>
         s.selected.has(file.path) && file.readable
@@ -349,7 +420,7 @@ export const tagWorkshop = {
    */
   setCoverOn(paths: string[], cover: { path: string; src: string }) {
     const wanted = new Set(paths);
-    store.update((s) => ({
+    mutate((s) => ({
       ...s,
       files: s.files.map((file) =>
         wanted.has(file.path) && file.readable ? { ...file, pendingCover: cover } : file,
@@ -358,14 +429,14 @@ export const tagWorkshop = {
   },
 
   clearPendingCover(path: string) {
-    store.update((s) => ({
+    mutate((s) => ({
       ...s,
       files: replaceFile(s.files, path, (file) => ({ ...file, pendingCover: null })),
     }));
   },
 
   revertField(path: string, field: string) {
-    store.update((s) => ({
+    mutate((s) => ({
       ...s,
       files: replaceFile(s.files, path, (file) => {
         const edits = { ...file.edits };
@@ -376,7 +447,7 @@ export const tagWorkshop = {
   },
 
   revertAll() {
-    store.update((s) => ({
+    mutate((s) => ({
       ...s,
       files: s.files.map((file) => ({ ...file, edits: {}, pendingCover: null })),
     }));
@@ -400,6 +471,36 @@ export const tagWorkshop = {
 
   selectNone: () => store.update((s) => ({ ...s, selected: new Set() })),
 
+  /** Défait la dernière étape. */
+  undo() {
+    const previous = history.pop();
+    if (!previous) return;
+    store.update((s) => ({
+      ...s,
+      undoCount: history.length,
+      files: s.files.map((file) => {
+        const before = previous.get(file.path);
+        return before ? { ...file, edits: before.edits, pendingCover: before.pendingCover } : file;
+      }),
+    }));
+  },
+
+  /** Plusieurs écritures (récupération en ligne, nettoyage) annulées d'un seul coup. */
+  group(run: () => void) {
+    const before = snapshot(get(store).files);
+    grouping += 1;
+    try {
+      run();
+    } finally {
+      grouping -= 1;
+    }
+    if (grouping === 0 && !sameAs(before, get(store).files)) {
+      history.push(before);
+      if (history.length > MAX_UNDO) history.shift();
+      store.update((s) => ({ ...s, undoCount: history.length, revision: s.revision + 1 }));
+    }
+  },
+
   /**
    * Traduit l'état en charge utile d'écriture.
    *
@@ -420,8 +521,11 @@ export const tagWorkshop = {
   /** Retire les modifications des fichiers écrits avec succès. */
   markWritten(paths: string[]) {
     const written = new Set(paths);
+    // Ce qui est écrit ne se défait plus ici : l'historique des lots s'en charge.
+    resetHistory();
     store.update((s) => ({
       ...s,
+      undoCount: 0,
       files: s.files.map((file) =>
         written.has(file.path)
           ? {
@@ -437,5 +541,8 @@ export const tagWorkshop = {
     }));
   },
 
-  clear: () => store.set({ ...initialState, view: get(store).view }),
+  clear: () => {
+    resetHistory();
+    store.set({ ...initialState, view: get(store).view });
+  },
 };

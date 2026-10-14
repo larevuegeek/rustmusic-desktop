@@ -24,7 +24,8 @@
   import PopinFooter from "#lib/components/ui/popin/PopinFooter.svelte";
 
   /* eslint-disable svelte/valid-prop-names-in-kit-pages */
-  const {} = $props();
+  /** Appelé après application, avec le nombre de valeurs corrigées. */
+  const { onapplied = () => {} }: { onapplied?: (count: number) => void } = $props();
 
   /** Les champs de texte : nettoyer un numéro de piste n'a pas de sens. */
   const TEXT_FIELDS: WorkshopField[] = WORKSHOP_FIELDS.filter(
@@ -86,9 +87,11 @@
   }
 
   function apply() {
-    for (const p of proposals) {
-      tagWorkshop.set(p.path, p.field as WorkshopField, p.to);
-    }
+    // Une seule étape d'annulation pour tout le nettoyage.
+    tagWorkshop.group(() => {
+      for (const p of proposals) tagWorkshop.set(p.path, p.field as WorkshopField, p.to);
+    });
+    onapplied(proposals.length);
     popinStore.close();
   }
 

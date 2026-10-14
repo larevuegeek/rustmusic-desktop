@@ -7,7 +7,7 @@ type AnyComponent = Component<any, any, any>;
 /** Largeur du panneau. Un formulaire court et un outil d'édition n'ont pas
  *  les mêmes besoins : forcer les deux dans la même colonne étroite oblige
  *  l'un à défiler sans fin. */
-export type PopinSize = "md" | "lg" | "xl";
+export type PopinSize = "md" | "lg" | "xl" | "xxl";
 
 export type PopinOptions = {
   /** Défaut `md` — la largeur historique, adaptée aux formulaires courts. */
@@ -23,6 +23,8 @@ export type PopinOptions = {
    * possède l'unique zone de défilement.
    */
   flush?: boolean;
+  /** Sans en-tête : le composant fournit le sien (titre, étapes, fermeture). Implique `flush`. */
+  bare?: boolean;
 };
 
 export type PopinState = {
@@ -32,6 +34,7 @@ export type PopinState = {
     props?: Record<string, any>;
     size: PopinSize;
     flush: boolean;
+    bare: boolean;
     icon: string | null;
 }
 
@@ -42,6 +45,7 @@ const initialState: PopinState = {
   props: {},
   size: "md",
   flush: false,
+  bare: false,
   icon: null
 };
 
@@ -76,7 +80,8 @@ export const popinStore = {
       component,
       props,
       size: options.size ?? "md",
-      flush: options.flush ?? false,
+      flush: (options.flush || options.bare) ?? false,
+      bare: options.bare ?? false,
       icon: options.icon ?? null
     });
   },

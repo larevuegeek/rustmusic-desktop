@@ -3,7 +3,8 @@
 ## [0.3.0] - à venir
 
 RustMusic sort de l'ordinateur : la musique se lit sur les lecteurs, amplis
-et appareils AirPlay de la maison.
+et appareils AirPlay de la maison. L'atelier de tags est refait pour être plus
+simple, et va chercher ses valeurs sur MusicBrainz autant que sur Deezer.
 
 ### Réseau
 - **Lire sur un lecteur réseau** (UPnP/DLNA, en bêta), à activer dans Réglages →
@@ -47,9 +48,13 @@ et appareils AirPlay de la maison.
   appareils du salon.
 - **Serveur DLNA et VPN** : avec un VPN actif (WireGuard, OpenVPN…), le
   serveur s'annonçait avec l'adresse du tunnel, et les amplis du salon
-  affichaient « Aucun serveur ». Il s'annonce désormais sur chaque carte
-  réseau avec l'adresse qui lui correspond, répond à chaque appareil par la
-  carte qui mène à lui, et l'adresse affichée est celle du réseau local.
+  affichaient « Aucun serveur ». Il ne s'annonce plus que sur les cartes du
+  réseau local, jamais dans le tunnel, répond à chaque appareil par la carte
+  qui mène à lui, et l'adresse affichée est celle du réseau local.
+- **Serveur DLNA : pause et déplacement dans le morceau** depuis l'ampli ou
+  son appli. Le serveur ne disait pas qu'il les acceptait, et certains
+  appareils (Onkyo notamment) refusaient la pause. C'est aussi le cas des
+  morceaux envoyés à un lecteur réseau.
 - macOS : RustMusic demande l'autorisation d'accéder au réseau local, sans
   laquelle macOS 15 bloque en silence la recherche et le serveur DLNA.
 
@@ -74,6 +79,48 @@ et appareils AirPlay de la maison.
   suivant, aléatoire, répétition. Une ligne s'ouvre d'un clic ; les flèches
   et OK pilotent la liste, ou le menu affiché sur la TV sur les autres
   entrées. L'onglet s'ouvre de lui-même au passage sur NET.
+- **Mode mini** : la télécommande se réduit à l'afficheur, la mise en marche,
+  la source et le volume ; un clic sur l'afficheur la rouvre en entier. Le
+  choix est retenu.
+- **Mise en veille par appui maintenu** sur le bouton marche (un peu moins
+  d'une seconde, le bouton se remplit de rouge) : un clic égaré n'éteint plus
+  l'ampli. L'allumage, lui, se fait d'un clic.
+
+### Tags
+- **Atelier refait** : un seul tableau, et un panneau d'édition à droite,
+  qu'on replie d'un clic. En tête, l'album, le nombre de modifications en
+  attente, **Annuler** (Ctrl+Z, avec le nombre d'étapes) et **Écrire N
+  fichiers** (Ctrl+S). Les outils sont rangés dans deux menus, **Tags**
+  (Compléter en ligne, Nettoyer, Numéroter, Pochette) et **Fichiers**
+  (Renommer, Historique), chacun avec une ligne qui dit ce qu'il fait.
+- **Points à vérifier** : titre, artiste ou album manquant, genre manquant,
+  artiste de l'album vide, « feat. » dans l'artiste. Chaque point se corrige
+  d'un bouton, ou filtre le tableau sur les morceaux concernés.
+- **Édition dans le tableau** : double-clic ou F2, puis Entrée ou Tab pour
+  passer à la cellule suivante. Sélection au clic, Maj et Ctrl. Chaque
+  colonne a son menu : recopier la valeur sur la sélection, casse Titre,
+  vider, masquer. Les colonnes affichées sont retenues ; l'artiste de
+  l'album est masqué par défaut.
+- **Panneau d'édition** : les champs du morceau, de l'album et des crédits
+  (compositeur, commentaire). Une valeur saisie vaut pour tous les morceaux
+  choisis ; un champ aux valeurs différentes le dit et les garde tant qu'on
+  n'y écrit rien. Un champ modifié se rétablit d'un clic, et les genres déjà
+  présents dans l'album sont proposés.
+- **MusicBrainz** rejoint Deezer pour compléter les tags. Il donne aussi les
+  compositeurs et la pochette en 1200 px (Cover Art Archive). Les éditions d'un même album se distinguent par l'année, le pays
+  et le support (« 1991 · JP · CD »). La source choisie est retenue.
+- **Compléter en ligne** refait, en deux étapes. D'abord l'édition : la
+  recherche part d'elle-même, les éditions au même nombre de pistes que vos
+  fichiers passent en tête, la plus probable est marquée « Meilleur choix ».
+  Puis les champs : **Compléter les vides** (rien n'est écrasé), **Tout
+  mettre à jour** ou **Personnalisé**, avec pour chaque champ la valeur de
+  vos fichiers, celle de la source et l'effet (« Remplit 17 », « Remplace
+  1 »), dépliable morceau par morceau. Un fichier mal associé s'écarte d'un
+  clic. Tout arrive dans l'atelier, à relire avant d'écrire.
+- **Albums à plusieurs disques** : les pistes portant le même numéro sur deux
+  disques ne sont plus confondues, avec Deezer comme avec MusicBrainz, et le
+  numéro de disque est proposé avec le reste.
+- « Corriger les tags » devient « Éditer les tags » dans les menus.
 
 ## [0.2.10] - 2026-10-11
 

@@ -98,6 +98,8 @@ export class SourceSelection {
         this.coverLoading = true;
         prepareImageFromUrl(url)
           .then((img) => {
+            // Une autre édition a pu être retenue pendant le téléchargement.
+            if (this.proposal?.album.cover !== url) return;
             this.remoteCover = img;
             // Cochée d'office sur les seuls fichiers qui n'en ont aucune.
             const next = new Set(this.chosen);
@@ -106,8 +108,12 @@ export class SourceSelection {
             }
             this.chosen = next;
           })
-          .catch((e) => (this.coverError = messageErreur(e)))
-          .finally(() => (this.coverLoading = false));
+          .catch((e) => {
+            if (this.proposal?.album.cover === url) this.coverError = messageErreur(e);
+          })
+          .finally(() => {
+            if (this.proposal?.album.cover === url) this.coverLoading = false;
+          });
       });
     });
   }
@@ -122,14 +128,14 @@ export class SourceSelection {
     this.matches.filter(
       (m) =>
         m.confidence === "rejected" ||
-        m.remote_position === null ||
+        m.remote_key === null ||
         this.excluded.has(m.local_index),
     ),
   );
 
-  remoteTrack(position: number | null): AlbumTrack | null {
-    if (position === null || !this.proposal) return null;
-    return this.proposal.album.tracks.find((tk) => tk.position === position) ?? null;
+  remoteTrack(key: number | null): AlbumTrack | null {
+    if (key === null || !this.proposal) return null;
+    return this.proposal.album.tracks.find((tk) => tk.key === key) ?? null;
   }
 
   localFile(index: number): WorkshopFile | null {
@@ -144,7 +150,7 @@ export class SourceSelection {
     for (const match of this.matches) {
       if (match.confidence === "rejected" || this.excluded.has(match.local_index)) continue;
       const file = this.localFile(match.local_index);
-      const track = this.remoteTrack(match.remote_position);
+      const track = this.remoteTrack(match.remote_key);
       if (!file || !track) continue;
 
       const values = proposedValues(album, track);

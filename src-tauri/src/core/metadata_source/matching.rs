@@ -37,6 +37,9 @@ pub struct LocalTrack {
 /// Une piste telle que la source en ligne la décrit.
 #[derive(Debug, Clone)]
 pub struct RemoteTrack {
+    /// Identifie la piste dans l'album, même quand les disques se suivent.
+    pub key: u16,
+    /// Numéro sur son disque, comparé à celui du fichier.
     pub position: u16,
     pub title: String,
     /// En secondes.
@@ -59,8 +62,8 @@ pub enum Confidence {
 #[derive(Debug, Clone, Serialize)]
 pub struct TrackMatch {
     pub local_index: usize,
-    /// Position de la piste distante retenue, `None` si aucune ne convient.
-    pub remote_position: Option<u16>,
+    /// Clé de la piste distante retenue, `None` si aucune ne convient.
+    pub remote_key: Option<u16>,
     /// Entre 0 et 1.
     pub score: f32,
     pub confidence: Confidence,
@@ -106,16 +109,16 @@ pub fn match_tracks(local: &[LocalTrack], remote: &[RemoteTrack]) -> Vec<TrackMa
         }
         taken_local[li] = true;
         taken_remote[ri] = true;
-        result[li] = Some((remote[ri].position, score));
+        result[li] = Some((remote[ri].key, score));
     }
 
     local
         .iter()
         .enumerate()
         .map(|(li, track)| match result[li] {
-            Some((position, score)) => TrackMatch {
+            Some((key, score)) => TrackMatch {
                 local_index: track.index,
-                remote_position: Some(position),
+                remote_key: Some(key),
                 score,
                 confidence: if score >= SURE {
                     Confidence::Sure
@@ -125,7 +128,7 @@ pub fn match_tracks(local: &[LocalTrack], remote: &[RemoteTrack]) -> Vec<TrackMa
             },
             None => TrackMatch {
                 local_index: track.index,
-                remote_position: None,
+                remote_key: None,
                 score: 0.0,
                 confidence: Confidence::Rejected,
             },
@@ -268,10 +271,26 @@ mod tests {
 
     fn remote(position: u16, title: &str, duration: u32) -> RemoteTrack {
         RemoteTrack {
+            key: position,
             position,
             title: title.into(),
             duration,
         }
+    }
+
+    #[test]
+    fn two_discs_with_the_same_numbers_stay_distinct() {
+        // Disque 1 et disque 2 numérotés chacun à partir de 1 : seule la clé les distingue.
+        let remote = vec![
+            RemoteTrack { key: 1, position: 1, title: "Alpha".into(), duration: 200 },
+            RemoteTrack { key: 2, position: 2, title: "Beta".into(), duration: 210 },
+            RemoteTrack { key: 3, position: 1, title: "Gamma".into(), duration: 220 },
+            RemoteTrack { key: 4, position: 2, title: "Delta".into(), duration: 230 },
+        ];
+        let local = vec![local(0, "Gamma", Some(1), Some(220)), local(1, "Beta", Some(2), Some(210))];
+        let matches = match_tracks(&local, &remote);
+        assert_eq!(matches[0].remote_key, Some(3));
+        assert_eq!(matches[1].remote_key, Some(2));
     }
 
     #[test]
@@ -300,8 +319,8 @@ mod tests {
         let matches = match_tracks(&local, &remote);
         assert_eq!(matches.len(), 2);
         assert!(matches.iter().all(|m| m.confidence == Confidence::Sure));
-        assert_eq!(matches[0].remote_position, Some(1));
-        assert_eq!(matches[1].remote_position, Some(2));
+        assert_eq!(matches[0].remote_key, Some(1));
+        assert_eq!(matches[1].remote_key, Some(2));
     }
 
     #[test]
@@ -324,8 +343,8 @@ mod tests {
         let remote = vec![remote(1, "Main Title", 180), remote(2, "Freeway Chase", 240)];
 
         let matches = match_tracks(&local, &remote);
-        assert_eq!(matches[0].remote_position, Some(2), "le titre doit primer");
-        assert_eq!(matches[1].remote_position, Some(1));
+        assert_eq!(matches[0].remote_key, Some(2), "le titre doit primer");
+        assert_eq!(matches[1].remote_key, Some(1));
     }
 
     #[test]
@@ -340,7 +359,7 @@ mod tests {
 
         let matches = match_tracks(&local, &remote);
         assert_eq!(matches[0].confidence, Confidence::Sure);
-        assert_eq!(matches[1].remote_position, None);
+        assert_eq!(matches[1].remote_key, None);
         assert_eq!(matches[1].confidence, Confidence::Rejected);
     }
 
@@ -355,7 +374,7 @@ mod tests {
         let remote = vec![remote(1, "Intro", 60)];
 
         let matches = match_tracks(&local, &remote);
-        let used: Vec<_> = matches.iter().filter_map(|m| m.remote_position).collect();
+        let used: Vec<_> = matches.iter().filter_map(|m| m.remote_key).collect();
         assert_eq!(used.len(), 1, "la même piste distante a servi deux fois");
     }
 
@@ -366,7 +385,7 @@ mod tests {
 
         let matches = match_tracks(&local, &remote);
         assert_eq!(
-            matches[0].remote_position,
+            matches[0].remote_key,
             Some(2),
             "la durée doit départager deux titres identiques"
         );
@@ -379,7 +398,7 @@ mod tests {
         let remote = vec![remote(7, "Freeway Chase", 240)];
 
         let matches = match_tracks(&local, &remote);
-        assert_eq!(matches[0].remote_position, Some(7));
+        assert_eq!(matches[0].remote_key, Some(7));
         assert_ne!(matches[0].confidence, Confidence::Rejected);
     }
 }
