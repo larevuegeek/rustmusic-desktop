@@ -3,6 +3,8 @@
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { listen } from "@tauri-apps/api/event";
+  import { detectOS } from "#lib/helper/tools/osDetection";
   import AnneauAttente from "#lib/components/ui/loader/AnneauAttente.svelte";
   import MiniVolume from "./MiniVolume.svelte";
   import PlayerProgressBar from "./PlayerProgressBar.svelte";
@@ -17,6 +19,24 @@
   import { exitMicroPlayer, exitMiniPlayer, miniPinned, toggleMiniPin, resizeMicroPlayer, endMicroResize, currentMicroSize } from "#lib/stores/ui/miniPlayer.store";
 
   const NO_COVER = "/images/no-cd.png";
+
+  // Linux : WebKitGTK garde le survol quand le pointeur quitte la fenêtre ; GTK signale la sortie.
+  const gtkHover = detectOS() === "linux";
+  let pointerInside = $state(true);
+  $effect(() => {
+    if (!gtkHover) return;
+    const off = listen<boolean>("window-pointer", (e) => (pointerInside = e.payload));
+    return () => void off.then((f) => f());
+  });
+  // WebKit rejoue de faux mouvements à la dernière position connue : seul un vrai déplacement réaffiche.
+  let lastPointer = { x: NaN, y: NaN };
+  function onPointerMove(e: PointerEvent) {
+    if (!gtkHover || (e.screenX === lastPointer.x && e.screenY === lastPointer.y)) return;
+    lastPointer = { x: e.screenX, y: e.screenY };
+    pointerInside = true;
+  }
+  const hoverShow = $derived(gtkHover ? (pointerInside ? "opacity-100" : "") : "group-hover:opacity-100");
+  const hoverHide = $derived(gtkHover ? (pointerInside ? "opacity-0" : "") : "group-hover:opacity-0");
 
   const hasTrack = $derived(!!$player?.pathFile);
   const coverSrc = $derived($player?.audioFile?.tags?.attached_images?.[0]?.image_src ?? null);
@@ -87,13 +107,14 @@
   style:--ls={$couleurMorceau.s}
   role="presentation"
   onpointerdown={onPointerDown}
+  onpointermove={onPointerMove}
   onwheel={onWheel}
 >
   <img src={hasTrack && coverSrc ? coverSrc : NO_COVER} alt="" class="absolute inset-0 w-full h-full object-cover pointer-events-none"
        onerror={(e) => ((e.currentTarget as HTMLImageElement).src = NO_COVER)} />
 
-  <!-- Voile et commandes au survol -->
-  <div class="absolute inset-0 flex flex-col opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200
+  <!-- Voile et commandes au survol ; au clavier seulement pour le focus : un bouton cliqué le garde -->
+  <div class="absolute inset-0 flex flex-col opacity-0 {hoverShow} has-[:focus-visible]:opacity-100 transition-opacity duration-200
               bg-[linear-gradient(to_bottom,rgba(0,0,0,0.7),rgba(0,0,0,0.5)_35%,rgba(0,0,0,0.5)_65%,rgba(0,0,0,0.75))]">
     <div class="flex items-center gap-0.5 p-1.5">
       {#if hasTrack}
@@ -142,7 +163,7 @@
   <!-- Poignée de redimensionnement -->
   <div
     class="absolute bottom-0 right-0 w-4 h-4 flex items-end justify-end p-0.5 cursor-nwse-resize touch-none text-white/70
-           opacity-0 group-hover:opacity-100 transition-opacity"
+           opacity-0 {hoverShow} transition-opacity"
     data-no-drag
     role="presentation"
     title={$t("mini.resize")}
@@ -165,7 +186,7 @@
 
   <!-- Progression au repos ; au survol, la timeline prend le relais -->
   {#if hasTrack}
-    <div class="absolute inset-x-0 bottom-0 h-0.75 bg-white/20 pointer-events-none group-hover:opacity-0 transition-opacity">
+    <div class="absolute inset-x-0 bottom-0 h-0.75 bg-white/20 pointer-events-none {hoverHide} transition-opacity">
       <div class="h-full bg-(--lc-play)" style:width="{percent}%"></div>
     </div>
   {/if}

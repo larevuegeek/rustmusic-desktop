@@ -130,7 +130,9 @@ raccourcis clavier personnalisables. Les playlists passent au tableau de la
 bibliothèque, les grandes collections s'ouvrent plus vite, les morceaux
 démarrent sans attendre la carte son, et l'enchaînement sans blanc gagne en
 précision. Sur une machine modeste ou virtuelle, l'interface s'allège et ne
-clignote plus au défilement.
+clignote plus au défilement. La reprise au démarrage repart vraiment, la
+fenêtre rouvre comme on l'a laissée, et sous Linux le mini et le micro-lecteur
+se comportent enfin comme ailleurs.
 
 ### Lecture
 - **Volume dans le mini-lecteur** : un bouton au bout des commandes ouvre la
@@ -144,6 +146,22 @@ clignote plus au défilement.
 - Le mini et le micro-lecteur restent entiers dans l'écran : collés au bord,
   ils ne débordent plus en grandissant (retour au mini, panneau File ou
   Paroles).
+- **Linux : le mini et le micro-lecteur prennent leur vraie taille** : la
+  fenêtre gardait la taille du mode normal, GTK ignorant tout redimensionnement
+  d'une fenêtre figée. La taille passe désormais par GTK directement, et la
+  poignée du micro-lecteur fonctionne.
+- **Linux : les commandes du micro-lecteur disparaissent** quand la souris
+  quitte la fenêtre. WebKitGTK croyait la souris encore dessus ; la sortie est
+  maintenant lue auprès de GTK.
+- **Reprise au démarrage qui repart vraiment** : relancer le dernier morceau là
+  où on l'avait laissé ne donnait souvent que du silence, le temps que le
+  décodage rattrape la position (plusieurs secondes sur un fichier réseau ou
+  rééchantillonné). Un saut au-delà de ce qui est décodé relance désormais le
+  décodage à la position visée ; le début du morceau se décode ensuite. Un
+  saut loin dans un morceau à peine lancé est lui aussi immédiat, et la barre
+  de lecture se recale si le son tarde. Le bouton « Reprendre » de l'accueil
+  suit le réglage « Reprendre là où je m'étais arrêté » (Réglages → Général) :
+  coupé, le morceau repart du début.
 - **Enchaînement sans blanc plus précis** : la piste suivante démarre dans le
   même bloc de son que la fin de la précédente, au lieu d'attendre un tour du
   lecteur. Avec un rééchantillonnage (fichier 44,1 kHz sur une sortie 48 kHz,
@@ -206,6 +224,12 @@ clignote plus au défilement.
   dans « Gérer ».
 
 ### Apparence
+- **La fenêtre rouvre comme on l'a laissée** : taille, fenêtre agrandie ou plein
+  écran, et position (sauf sous Wayland, qui place lui-même les fenêtres). Elles
+  sont enregistrées au fil des changements, et plus seulement à la sortie de
+  l'appli, qui n'a souvent pas lieu avec l'icône de notification. Quitter en
+  mini-lecteur ne les écrase plus. Le micro-lecteur retient aussi sa position
+  (Windows, macOS).
 - **Couleur d'accent au choix** (Apparence → Thème) : dix teintes prêtes ou
   une couleur libre. Le logo, les boutons, les sélections, les liens et
   l'écran de chargement la suivent ; le vert des états validés ne change pas.
@@ -251,6 +275,8 @@ clignote plus au défilement.
   piste, seeks) et reçoit les incidents de lecture vus par l'interface.
 - Dépendances JavaScript et Rust mises à jour (TypeScript reste en 6 : SvelteKit
   3 ne suit pas encore la 7).
+- Tests du décodeur : après un saut lointain dès le démarrage, le tampon est
+  identique, échantillon pour échantillon, à un décodage d'une traite.
 
 ## [0.2.9] - 2026-10-05
 

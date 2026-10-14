@@ -35,7 +35,7 @@ use crate::commands::audio_command::{
     get_audio_quality_status, get_replay_gain_settings, set_audio_quality_setting, set_gapless, log_player_event,
     set_next_track, set_replay_gain_settings,
 };
-use crate::commands::system_command::{get_light_effects_auto, get_render_mode, notify_ui_ready, set_dmabuf_mode, set_render_mode};
+use crate::commands::system_command::{get_light_effects_auto, get_render_mode, notify_ui_ready, set_compact_mode, set_compact_window_size, set_dmabuf_mode, set_render_mode};
 use crate::commands::audit_command::audit_library;
 use crate::commands::rename_command::{
     apply_rename, check_pattern, clean_tags, list_batch_journal, order_moves, preview_rename,
@@ -585,6 +585,32 @@ pub async fn run() {
                 })
                 .build(app)?;
 
+            // Linux : WebKitGTK ne voit pas toujours le pointeur quitter la fenêtre et garde
+            // le survol ; GTK reçoit l'entrée et la sortie, relayées au micro-lecteur.
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(gtk_window) = app.get_webview_window("main").and_then(|w| w.gtk_window().ok()) {
+                    use gtk::gdk::{EventMask, NotifyType};
+                    use gtk::prelude::{WidgetExt, WidgetExtManual};
+                    use tauri::Emitter;
+                    gtk_window.add_events(EventMask::ENTER_NOTIFY_MASK | EventMask::LEAVE_NOTIFY_MASK);
+                    let handle = app.handle().clone();
+                    gtk_window.connect_enter_notify_event(move |_, event| {
+                        if event.detail() != NotifyType::Inferior {
+                            let _ = handle.emit("window-pointer", true);
+                        }
+                        gtk::glib::Propagation::Proceed
+                    });
+                    let handle = app.handle().clone();
+                    gtk_window.connect_leave_notify_event(move |_, event| {
+                        if event.detail() != NotifyType::Inferior {
+                            let _ = handle.emit("window-pointer", false);
+                        }
+                        gtk::glib::Propagation::Proceed
+                    });
+                }
+            }
+
             // ─── DÉTECTION CRASH DU WEB PROCESS (Linux) ───────────
             // Si le processus de rendu WebKit meurt (SIGABRT EGL/DMABUF, mix
             // AppImage/libs hôte…), la fenêtre reste blanche mais le process
@@ -683,15 +709,12 @@ pub async fn run() {
                 // dans la zone de notification, et peut donc survivre à la
                 // fermeture de sa fenêtre. Le moment sûr, c'est **maintenant** —
                 // la fenêtre existe encore, ses dimensions sont lisibles.
-                use tauri_plugin_window_state::{AppHandleExt, StateFlags};
-                if let Err(e) = window.app_handle().save_window_state(
-                    StateFlags::SIZE
-                        | StateFlags::POSITION
-                        | StateFlags::MAXIMIZED
-                        | StateFlags::FULLSCREEN,
-                ) {
-                    log::warn!("État de la fenêtre non sauvegardé : {e}");
-                }
+                crate::core::window_geometry::save_now(window.app_handle());
+            }
+
+            // Et au fil des redimensionnements : l'appli finit souvent sans sortie propre.
+            if matches!(event, tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_)) {
+                crate::core::window_geometry::schedule_save(window.app_handle().clone());
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -882,18 +905,19 @@ pub async fn run() {
             set_wasapi_exclusive_preference,
             set_dop_preference,
             set_dmabuf_mode,
+            set_compact_window_size,
+            set_compact_mode,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
-        .run(|_app, event| {
-            // Quitter pendant une lecture exclusive, ou dans les 5 s qui suivent :
-            // la carte mise hors service (profil « off ») revient à PipeWire.
-            #[cfg(target_os = "linux")]
+        .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
+                crate::core::window_geometry::on_exit(app);
+                // Quitter pendant une lecture exclusive, ou dans les 5 s qui suivent :
+                // la carte mise hors service (profil « off ») revient à PipeWire.
+                #[cfg(target_os = "linux")]
                 crate::core::audio_player::output::profil_pipewire::restore_all();
             }
-            #[cfg(not(target_os = "linux"))]
-            let _ = event;
         });
 }
 

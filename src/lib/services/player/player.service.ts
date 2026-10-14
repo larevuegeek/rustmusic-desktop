@@ -19,6 +19,9 @@ let baseTime = 0;
 let playRequestId = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let seekPending = false;
+// Cible et heure du dernier saut : la position Rust est jugée à leur aune, pas à celle de l'animation.
+let seekTarget = 0;
+let seekAt = 0;
 
 // Dernière position écrite en base, pour n'y revenir que toutes les cinq
 // secondes. Remise à zéro à chaque nouveau morceau.
@@ -548,6 +551,8 @@ class PlayerService {
         basePos = positionSeconds;
         baseTime = Date.now();
         seekPending = true; // Ignorer les prochaines rustPosition stale
+        seekTarget = positionSeconds;
+        seekAt = Date.now();
     }
 
     // ==========================================
@@ -658,10 +663,11 @@ class PlayerService {
             if (get(player).status !== "playing") return;
 
             if (seekPending) {
-                // Après un seek, ignorer les positions Rust stale
-                // Accepter seulement quand Rust a rattrapé la position seekée
-                const expectedPos = get(player).jsPosition;
-                if (Math.abs(current - expectedPos) < 1.5) {
+                // Après un seek, ignorer les positions Rust stale.
+                // Rust a rejoint la cible quand il est entre elle et ce qui a pu
+                // être joué depuis ; au bout de 5 s, on le croit quoi qu'il dise.
+                const ecoule = (Date.now() - seekAt) / 1000;
+                if ((current >= seekTarget - 0.5 && current <= seekTarget + ecoule + 1.5) || ecoule > 5) {
                     seekPending = false;
                 } else {
                     // Position stale, on skip cette mise à jour

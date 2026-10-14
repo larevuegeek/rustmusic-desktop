@@ -104,6 +104,7 @@ pub mod audio_quality;
 pub mod fontconfig_cache;
 pub mod gpu_sentinel;
 pub mod render_mode;
+pub mod window_geometry;
 pub mod system_detect;
 pub mod media_controls;
 pub mod veille;

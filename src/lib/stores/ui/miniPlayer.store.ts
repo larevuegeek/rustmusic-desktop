@@ -8,7 +8,9 @@
  */
 
 import { writable, get } from "svelte/store";
-import { currentMonitor, getCurrentWindow, LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
+import { availableMonitors, currentMonitor, getCurrentWindow, LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
+import { detectOS } from "#lib/helper/tools/osDetection";
 
 export const miniPlayerActive = writable(false);
 /** Micro-lecteur : sous-mode du mini, la pochette seule dans un carré. */
@@ -59,11 +61,55 @@ let tailleMini = false;
 // Une bascule à la fois : un double clic capturait la taille réduite comme « taille normale ».
 let bascule = false;
 
+// GTK ignore `setSize` sur une fenêtre non redimensionnable : sous Linux, la taille du
+// mode mini passe par la taille demandée au widget (commande `set_compact_window_size`).
+const gtkSize = detectOS() === "linux";
+
+async function applyMiniSize(width: number, height: number): Promise<void> {
+  if (gtkSize) await invoke("set_compact_window_size", { width: Math.round(width), height: Math.round(height) });
+  else await getCurrentWindow().setSize(new LogicalSize(width, height));
+}
+
+// Position du micro-lecteur, retenue d'une fois sur l'autre. Wayland ne donne ni ne
+// laisse choisir la position d'une fenêtre : rien à retenir sous Linux.
+const MICRO_POS_KEY = "rustmusic:micro-pos";
+let stopTrackingMicroPos: (() => void) | null = null;
+
+async function restoreMicroPosition(): Promise<void> {
+  if (gtkSize) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(MICRO_POS_KEY) ?? "null");
+    if (typeof saved?.x !== "number" || typeof saved?.y !== "number") return;
+    // Écran débranché depuis : on laisse la fenêtre où elle est.
+    const visible = (await availableMonitors()).some(({ workArea: a }) =>
+      saved.x >= a.position.x && saved.x < a.position.x + a.size.width &&
+      saved.y >= a.position.y && saved.y < a.position.y + a.size.height);
+    if (visible) await getCurrentWindow().setPosition(new PhysicalPosition(saved.x, saved.y));
+  } catch (e) {
+    console.error("[micro-player] position restore failed:", e);
+  }
+}
+
+async function trackMicroPosition(): Promise<void> {
+  if (gtkSize) return;
+  untrackMicroPosition();
+  stopTrackingMicroPos = await getCurrentWindow().onMoved(({ payload }) => {
+    try {
+      localStorage.setItem(MICRO_POS_KEY, JSON.stringify({ x: payload.x, y: payload.y }));
+    } catch {}
+  });
+}
+
+function untrackMicroPosition(): void {
+  stopTrackingMicroPos?.();
+  stopTrackingMicroPos = null;
+}
+
 async function setH(h: number): Promise<void> {
   if (!tailleMini) return;
   currentH = h;
   try {
-    await getCurrentWindow().setSize(new LogicalSize(MINI_W, h));
+    await applyMiniSize(MINI_W, h);
   } catch (e) {
     console.error("[mini-player] setSize failed:", e);
   }
@@ -112,6 +158,8 @@ export async function enterMiniPlayer(): Promise<void> {
   if (get(miniPlayerActive) || bascule) return;
   bascule = true;
   try {
+    // Avant tout changement : la taille et la position du mode normal sont enregistrées telles quelles.
+    await invoke("set_compact_mode", { active: true });
     const win = getCurrentWindow();
     savedFullscreen = await win.isFullscreen();
     if (savedFullscreen) await quitterPleinEcran(win);
@@ -124,12 +172,13 @@ export async function enterMiniPlayer(): Promise<void> {
     await win.setResizable(false);
     expanded = false;
     currentH = collapsedH;
-    await win.setSize(new LogicalSize(MINI_W, collapsedH));
+    await applyMiniSize(MINI_W, collapsedH);
     await keepOnScreen(MINI_W, collapsedH);
     tailleMini = true;
     miniPlayerActive.set(true);
   } catch (e) {
     console.error("[mini-player] enter failed:", e);
+    void invoke("set_compact_mode", { active: false });
   } finally {
     bascule = false;
   }
@@ -140,10 +189,12 @@ export async function exitMiniPlayer(): Promise<void> {
   bascule = true;
   tailleMini = false;
   cancelAnimationFrame(resizeRaf);
+  untrackMicroPosition();
   try {
     const win = getCurrentWindow();
     await win.setAlwaysOnTop(false);
     await win.setResizable(true);
+    if (gtkSize) await invoke("set_compact_window_size", { width: null, height: null });
     await win.setMinSize(new LogicalSize(NORMAL_MIN_W, NORMAL_MIN_H));
     // Une taille gardée trop petite (bascule ratée) ne se restaure pas : on repart de la taille d'origine.
     const avant = savedSize?.toLogical(await win.scaleFactor());
@@ -153,6 +204,7 @@ export async function exitMiniPlayer(): Promise<void> {
     else await win.center();
     if (savedMaximized) await win.maximize();
     if (savedFullscreen) await win.setFullscreen(true);
+    await invoke("set_compact_mode", { active: false });
     microPlayerActive.set(false);
     miniPlayerActive.set(false);
   } catch (e) {
@@ -198,9 +250,11 @@ export async function enterMicroPlayer(): Promise<void> {
   tailleMini = false;
   cancelAnimationFrame(resizeRaf);
   try {
-    await getCurrentWindow().setSize(new LogicalSize(microSize, microSize));
+    await applyMiniSize(microSize, microSize);
+    await restoreMicroPosition();
     await keepOnScreen(microSize, microSize);
     microPlayerActive.set(true);
+    await trackMicroPosition();
   } catch (e) {
     console.error("[micro-player] enter failed:", e);
   } finally {
@@ -213,7 +267,7 @@ export async function resizeMicroPlayer(size: number): Promise<void> {
   if (!get(microPlayerActive)) return;
   microSize = Math.round(Math.max(MICRO_MIN, Math.min(MICRO_MAX, size)));
   try {
-    await getCurrentWindow().setSize(new LogicalSize(microSize, microSize));
+    await applyMiniSize(microSize, microSize);
   } catch (e) {
     console.error("[micro-player] resize failed:", e);
   }
@@ -235,10 +289,11 @@ export function currentMicroSize(): number {
 export async function exitMicroPlayer(): Promise<void> {
   if (!get(microPlayerActive) || bascule) return;
   bascule = true;
+  untrackMicroPosition();
   try {
     expanded = false;
     currentH = collapsedH;
-    await getCurrentWindow().setSize(new LogicalSize(MINI_W, collapsedH));
+    await applyMiniSize(MINI_W, collapsedH);
     await keepOnScreen(MINI_W, collapsedH);
     tailleMini = true;
     microPlayerActive.set(false);

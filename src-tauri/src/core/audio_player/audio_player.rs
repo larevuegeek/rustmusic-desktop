@@ -2249,6 +2249,47 @@ impl AudioPlayer {
     }
 }
 
+/// La fin retenue par le rééchantillonneur : sans elle, le morceau est écourté.
+fn flush_resampler_tail<P: Producer<Item = f32>>(
+    resampler: &mut Option<Resampler>,
+    channels: usize,
+    output_channels: u16,
+    full_buffer_data: &RwLock<Vec<f32>>,
+    current_source: &AtomicU8,
+    producer: &mut P,
+    is_stopped: &AtomicBool,
+) {
+    let Some(rs) = resampler.as_mut() else { return };
+    let tail = rs.finish();
+    if tail.is_empty() {
+        return;
+    }
+    let adapted: Vec<f32> = if channels as u16 != output_channels {
+        let mut out: Vec<f32> = vec![0.0f32; (tail.len() / channels) * output_channels as usize];
+        adapt_channels(&tail, channels, &mut out, output_channels.into());
+        out
+    } else {
+        tail
+    };
+
+    full_buffer_data
+        .write()
+        .unwrap_or_else(|e| e.into_inner())
+        .extend_from_slice(&adapted);
+
+    // Encore en LiveDecode (piste très courte) : l'anneau aussi.
+    if current_source.load(Ordering::Relaxed) == 0 {
+        let mut offset: usize = 0;
+        while offset < adapted.len() && !is_stopped.load(Ordering::Relaxed) {
+            let written: usize = producer.push_slice(&adapted[offset..]);
+            offset += written;
+            if written == 0 {
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        }
+    }
+}
+
 // ===============
 // DECODER THREAD
 // ===============
@@ -2293,6 +2334,16 @@ where
     let mut total_frames_decoded: u64 = 0;
     let mut packet_count: u64 = 0;
 
+    // Un saut au-delà du décodé relance le décodage à la cible : le tampon garde
+    // ses indices absolus, le début [0, hole_end) reste à zéro et se décode à la
+    // fin du fichier (`fill_pos` = prochain échantillon à écrire).
+    let out_ch = output_channels as usize;
+    let near = output_sample_rate as usize * out_ch;
+    let mut hole_end: usize = 0;
+    let mut fill_pos: Option<usize> = None;
+    let mut deferred_seek: Option<usize> = None;
+    let mut tail_flushed = false;
+
     loop {
         if is_stopped.load(Ordering::Relaxed) {
             log::debug!("Stop détecté — on quitte le décodage");
@@ -2308,38 +2359,66 @@ where
             let seek_seconds = f64::from_bits(seek_bits).max(0.0).min(total_dur.max(0.0));
             let new_frames = (seek_seconds * output_sample_rate as f64) as usize;
 
-            // CAS 1 : FullBuffer prêt — le fichier est entièrement décodé en RAM.
-            // Le décodeur n'a pas accès direct à `full_buffer_cursor`, on passe
-            // donc par `seek_flush` que CPAL traitera à son prochain callback
-            // (~1 ms) en repositionnant le curseur depuis `current_position_frames`.
-            if is_full_buffer_ready.load(Ordering::Relaxed) {
+            let target = new_frames * out_ch;
+            let decoded_end = full_buffer_data.read().map(|fb| fb.len()).unwrap_or(0);
+
+            // Début en cours de décodage : tout ce qui suit est déjà là.
+            if let Some(pos) = fill_pos {
+                if target >= pos && target < hole_end {
+                    deferred_seek = Some(new_frames);
+                    log::debug!("Seek à {:.1}s différé : début du morceau en cours de décodage", seek_seconds);
+                } else {
+                    deferred_seek = None;
+                    current_position_frames.store(new_frames, Ordering::Relaxed);
+                    seek_flush.store(true, Ordering::Relaxed);
+                    log::debug!("Seek FullBuffer à {:.1}s (instantané)", seek_seconds);
+                }
+                continue;
+            }
+
+            // Déjà décodé, ou atteint dans la seconde : la sortie repositionne
+            // son curseur depuis `current_position_frames` au prochain callback.
+            if is_full_buffer_ready.load(Ordering::Relaxed)
+                && target >= hole_end
+                && target <= decoded_end + near
+            {
                 current_position_frames.store(new_frames, Ordering::Relaxed);
                 seek_flush.store(true, Ordering::Relaxed);
                 log::debug!("Seek FullBuffer à {:.1}s (instantané)", seek_seconds);
                 continue;
             }
 
-            // CAS 2 : LiveDecode — seek dans symphonia + flush ring buffer
+            // Plus loin : attendre le décodeur coûterait plusieurs secondes de
+            // silence (reprise au démarrage, saut juste après le lancement).
             let seek_ts = (seek_seconds * sample_rate_for_seek as f64) as i64;
             match format.seek(
                 symphonia::core::formats::SeekMode::Coarse,
                 symphonia::core::formats::SeekTo::Timestamp { ts: Timestamp::from(seek_ts), track_id },
             ) {
                 Ok(seeked) => {
-                    current_position_frames.store(new_frames, Ordering::Relaxed);
-
-                    // Reset resampler (clear accumulator + rubato state)
                     if let Some(ref mut rs) = resampler {
                         rs.reset();
                     }
-                    total_frames_decoded = (seek_seconds * source_sample_rate as f64) as u64;
+                    let actual_ts = seeked.actual_ts.get().max(0) as u64;
+                    let actual_secs = actual_ts as f64 / sample_rate_for_seek as f64;
+                    let start_frames = (actual_ts * output_sample_rate as u64 / sample_rate_for_seek as u64) as usize;
+                    let play_frames = new_frames.max(start_frames);
+                    total_frames_decoded = (actual_secs * source_sample_rate as f64) as u64;
 
-                    // Flush le ring buffer — wait que CPAL ACK le flush.
-                    // En conditions normales CPAL répond en 5-20 ms (un cycle
-                    // de callback). On poll à 1 ms avec timeout 80 ms : safety
-                    // net si CPAL est bloqué (driver freeze), mais sans pénalité
-                    // perçue par l'utilisateur.
-                    seek_flush.store(true, Ordering::Relaxed);
+                    {
+                        let mut fb = full_buffer_data.write().unwrap_or_else(|e| e.into_inner());
+                        fb.clear();
+                        fb.resize(start_frames * out_ch, 0.0);
+                        hole_end = fb.len();
+                        full_buffer_cursor.store(play_frames * out_ch, Ordering::Release);
+                        current_position_frames.store(play_frames, Ordering::Relaxed);
+                        is_full_buffer_ready.store(true, Ordering::Relaxed);
+                        current_source.store(1, Ordering::Release);
+                    }
+
+                    // Vide l'anneau et applique le fondu ; on attend l'accusé
+                    // (un cycle de callback) avec un plafond de 80 ms.
+                    seek_flush.store(true, Ordering::Release);
                     let flush_start = std::time::Instant::now();
                     while seek_flush.load(Ordering::Relaxed) {
                         std::thread::sleep(std::time::Duration::from_millis(1));
@@ -2349,15 +2428,11 @@ where
                         }
                     }
 
-                    // Clear le FullBuffer — il contient des données pré-seek corrompues
-                    // Le FullBuffer sera reconstruit proprement depuis la nouvelle position
-                    if let Ok(mut fb) = full_buffer_data.write() {
-                        fb.clear();
-                    }
-                    is_full_buffer_ready.store(false, Ordering::Relaxed);
-                    current_source.store(0, Ordering::Relaxed);
-
-                    log::debug!("Seek LiveDecode à {:.1}s (actual_ts={:?})", seek_seconds, seeked.actual_ts);
+                    log::debug!(
+                        "Seek à {:.1}s hors du décodé : décodage relancé à {:.2}s, début comblé en fin de fichier",
+                        seek_seconds,
+                        actual_secs
+                    );
                 }
                 Err(e) => {
                     log::error!("Seek échoué: {:?}", e);
@@ -2371,8 +2446,44 @@ where
         let packet: symphonia::core::packet::Packet = match format.next_packet() {
             Ok(Some(p)) => p,
             Ok(None) => {
+                if fill_pos.is_some() {
+                    log::warn!("Fin du fichier avant la fin du début à combler");
+                    break;
+                }
                 log::debug!("Fin du fichier - {} packets décodés", packet_count);
-                break;
+                if !is_stopped.load(Ordering::Relaxed) && seek_position.load(Ordering::Relaxed) == u64::MAX {
+                    flush_resampler_tail(
+                        &mut resampler,
+                        channels,
+                        output_channels,
+                        &full_buffer_data,
+                        &current_source,
+                        &mut producer,
+                        &is_stopped,
+                    );
+                }
+                tail_flushed = true;
+                if hole_end == 0 {
+                    break;
+                }
+                match format.seek(
+                    symphonia::core::formats::SeekMode::Accurate,
+                    symphonia::core::formats::SeekTo::Timestamp { ts: Timestamp::ZERO, track_id },
+                ) {
+                    Ok(seeked) => {
+                        if let Some(ref mut rs) = resampler {
+                            rs.reset();
+                        }
+                        let start_ts = seeked.actual_ts.get().max(0) as u64;
+                        fill_pos = Some((start_ts * output_sample_rate as u64 / sample_rate_for_seek as u64) as usize * out_ch);
+                        log::debug!("Décodage du début du morceau ({:.1}s)", hole_end as f64 / near as f64);
+                        continue;
+                    }
+                    Err(e) => {
+                        log::warn!("Début du morceau non décodé : {:?}", e);
+                        break;
+                    }
+                }
             }
             Err(e) => {
                 log::error!("Erreur lecture packet: {:?}", e);
@@ -2425,6 +2536,27 @@ where
         };
 
         // ==== 1. FULL BUFFER WRITER (Nouveau) ====
+        if let Some(pos) = fill_pos {
+            let end = (pos + adapted_samples.len()).min(hole_end);
+            if end > pos {
+                let mut fb = full_buffer_data.write().unwrap_or_else(|e| e.into_inner());
+                fb[pos..end].copy_from_slice(&adapted_samples[..end - pos]);
+            }
+            let done = end >= hole_end;
+            if let Some(frames) = deferred_seek {
+                if done || frames * out_ch + near / 4 <= end {
+                    deferred_seek = None;
+                    current_position_frames.store(frames, Ordering::Relaxed);
+                    seek_flush.store(true, Ordering::Relaxed);
+                }
+            }
+            if done {
+                log::debug!("Début du morceau décodé : tampon complet");
+                break;
+            }
+            fill_pos = Some(end);
+            continue;
+        }
         {
             // On récupère le lock en écriture (ça va très vite, CPAL ne fait que lire)
             let mut fb = full_buffer_data.write().unwrap_or_else(|e| e.into_inner());
@@ -2493,38 +2625,16 @@ where
         }
     }
 
-    // La fin retenue par le rééchantillonneur : sans elle, le morceau est écourté.
-    if !is_stopped.load(Ordering::Relaxed) && seek_position.load(Ordering::Relaxed) == u64::MAX {
-        if let Some(rs) = resampler.as_mut() {
-            let tail = rs.finish();
-            if !tail.is_empty() {
-                let adapted: Vec<f32> = if channels as u16 != output_channels {
-                    let mut out: Vec<f32> =
-                        vec![0.0f32; (tail.len() / channels) * output_channels as usize];
-                    adapt_channels(&tail, channels, &mut out, output_channels.into());
-                    out
-                } else {
-                    tail
-                };
-
-                full_buffer_data
-                    .write()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .extend_from_slice(&adapted);
-
-                // Encore en LiveDecode (piste très courte) : l'anneau aussi.
-                if current_source.load(Ordering::Relaxed) == 0 {
-                    let mut offset: usize = 0;
-                    while offset < adapted.len() && !is_stopped.load(Ordering::Relaxed) {
-                        let written: usize = producer.push_slice(&adapted[offset..]);
-                        offset += written;
-                        if written == 0 {
-                            std::thread::sleep(std::time::Duration::from_millis(1));
-                        }
-                    }
-                }
-            }
-        }
+    if !tail_flushed && !is_stopped.load(Ordering::Relaxed) && seek_position.load(Ordering::Relaxed) == u64::MAX {
+        flush_resampler_tail(
+            &mut resampler,
+            channels,
+            output_channels,
+            &full_buffer_data,
+            &current_source,
+            &mut producer,
+            &is_stopped,
+        );
     }
 
     log::debug!(
@@ -2534,4 +2644,98 @@ where
     );
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_thread;
+    use ringbuf::traits::Split;
+    use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize};
+    use std::sync::{Arc, RwLock};
+    use symphonia::core::formats::probe::Hint;
+    use symphonia::core::formats::FormatOptions;
+    use symphonia::core::io::MediaSourceStream;
+    use symphonia::core::meta::MetadataOptions;
+
+    const RATE: u32 = 44_100;
+    const SECONDS: u32 = 10;
+
+    fn wav_bytes() -> Vec<u8> {
+        let frames = RATE * SECONDS;
+        let data_len = frames * 4;
+        let mut v = Vec::with_capacity(44 + data_len as usize);
+        v.extend(b"RIFF");
+        v.extend((36 + data_len).to_le_bytes());
+        v.extend(b"WAVEfmt ");
+        v.extend(16u32.to_le_bytes());
+        v.extend(1u16.to_le_bytes());
+        v.extend(2u16.to_le_bytes());
+        v.extend(RATE.to_le_bytes());
+        v.extend((RATE * 4).to_le_bytes());
+        v.extend(4u16.to_le_bytes());
+        v.extend(16u16.to_le_bytes());
+        v.extend(b"data");
+        v.extend(data_len.to_le_bytes());
+        let mut x: u32 = 1;
+        for _ in 0..frames * 2 {
+            x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            v.extend(((x >> 16) as i16).to_le_bytes());
+        }
+        v
+    }
+
+    /// Decodes the whole file, with an optional seek requested before the first packet.
+    fn decode_all(output_rate: u32, seek: Option<f64>) -> Vec<f32> {
+        let mss = MediaSourceStream::new(Box::new(std::io::Cursor::new(wav_bytes())), Default::default());
+        let mut hint = Hint::new();
+        hint.with_extension("wav");
+        let format = symphonia::default::get_probe()
+            .probe(&hint, mss, FormatOptions::default(), MetadataOptions::default())
+            .unwrap();
+        let track = format.tracks().iter().find(|t| t.codec_params.as_ref().and_then(|c| c.audio()).is_some()).unwrap();
+        let track_id = track.id;
+        let params = track.codec_params.as_ref().unwrap().audio().unwrap().clone();
+        let (producer, _consumer) = ringbuf::HeapRb::<f32>::new(1 << 18).split();
+        let full_buffer = Arc::new(RwLock::new(Vec::new()));
+        decode_thread(
+            format,
+            params,
+            track_id,
+            RATE,
+            output_rate,
+            2,
+            2,
+            producer,
+            full_buffer.clone(),
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicU8::new(0)),
+            Arc::new(AtomicUsize::new(0)),
+            Arc::new(AtomicUsize::new(0)),
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicU64::new(seek.map_or(u64::MAX, f64::to_bits))),
+            RATE,
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicU64::new((SECONDS as f64).to_bits())),
+        )
+        .unwrap();
+        Arc::try_unwrap(full_buffer).unwrap().into_inner().unwrap()
+    }
+
+    #[test]
+    fn far_seek_rebuilds_the_whole_buffer() {
+        let reference = decode_all(RATE, None);
+        assert_eq!(reference.len(), (RATE * SECONDS * 2) as usize);
+        let seeked = decode_all(RATE, Some(7.0));
+        assert_eq!(seeked.len(), reference.len());
+        assert!(seeked == reference, "seeked buffer differs from a straight decode");
+    }
+
+    #[test]
+    fn far_seek_with_resampling_fills_the_start() {
+        let reference = decode_all(48_000, None);
+        let seeked = decode_all(48_000, Some(7.0));
+        let start = (48_000 * 2 * 69 / 10) as usize;
+        assert!(seeked[..start] == reference[..start], "start of the track was not rebuilt");
+        assert!(seeked.len().abs_diff(reference.len()) <= 4096 * 2);
+    }
 }

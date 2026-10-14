@@ -5,6 +5,7 @@ import { t, currentLocale } from "#lib/i18n";
 import { player } from "#lib/stores/player/player.store";
 import { queueState } from "#lib/stores/queue/queueState.store";
 import { recent } from "#lib/stores/recent/recent.store";
+import { settingsStore } from "#lib/stores/settings/settings.store";
 import { liked } from "#lib/stores/playlist/like.store";
 import { playerService } from "#lib/services/player/player.service";
 import { openQueuePanel } from "#lib/stores/queue/queueUi.store";
@@ -64,7 +65,9 @@ const fiche = $derived.by((): Fiche | null => {
 });
 
 // La position vivante n'est lue que dans le gabarit : jamais dans un effet.
-const positionSauvee = $derived(!enCours ? (dernier?.last_position ?? 0) : 0);
+// Réglage « Reprendre là où je m'étais arrêté » coupé : le morceau repart du début.
+const reprise = $derived($settingsStore.resume_playback !== 'false');
+const positionSauvee = $derived(!enCours && reprise ? (dernier?.last_position ?? 0) : 0);
 
 // Quatre lignes, comme la maquette : la file, puis les derniers écoutés, puis du hasard.
 const TOTAL = 4;
@@ -154,7 +157,7 @@ async function reprendre() {
   try {
     const file = await fileDeLAlbum(cible.path);
     await handlePlayTrack(cible.path, file ?? undefined);
-    const pos = cible.last_position ?? 0;
+    const pos = reprise ? (cible.last_position ?? 0) : 0;
     if (pos > 5 && await playerService.attendrePret()) await playerService.seekTo(pos);
   } finally {
     occupe = false;

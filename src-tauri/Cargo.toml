@@ -128,6 +128,8 @@ alsa = "0.11"
 # v2_20 = version mini du signal ; wry active de toute façon des features
 # plus récentes.
 webkit2gtk = { version = "=2.0.2", features = ["v2_20"] }
+# Taille fixe du mini-lecteur (GtkWindow::set_size_request) ; version tirée par tao.
+gtk = "0.18"
 # Réservation de carte audio via org.freedesktop.ReserveDevice1 (D-Bus) pour
 # que PipeWire/Pulse libère le `hw:` avant le DoP exclusif. Version alignée sur
 # l'arbre existant (contrôles média).

@@ -190,3 +190,40 @@ fn light_effects_reason() -> Option<String> {
     }
     crate::core::system_detect::modest_hardware()
 }
+
+/// Taille du mini et du micro-lecteur sous Linux : GTK ignore tout redimensionnement
+/// d'une fenêtre non redimensionnable, sauf la taille demandée au widget. La fenêtre
+/// reste fixe, sans les bords saisissables que tao ajoute aux fenêtres redimensionnables.
+#[tauri::command]
+pub fn set_compact_window_size(
+    window: tauri::WebviewWindow,
+    width: Option<i32>,
+    height: Option<i32>,
+) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        let target = window.clone();
+        window
+            .run_on_main_thread(move || {
+                use gtk::prelude::{GtkWindowExt, WidgetExt};
+                let Ok(gtk_window) = target.gtk_window() else { return };
+                match (width, height) {
+                    (Some(w), Some(h)) => {
+                        gtk_window.set_size_request(w, h);
+                        gtk_window.resize(w, h);
+                    }
+                    _ => gtk_window.set_size_request(-1, -1),
+                }
+            })
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = (window, width, height);
+    Ok(())
+}
+
+/// Mini ou micro-lecteur actif : la taille et la position du mode normal ne sont plus réécrites.
+#[tauri::command]
+pub fn set_compact_mode(app: tauri::AppHandle, active: bool) {
+    crate::core::window_geometry::set_compact(&app, active);
+}
