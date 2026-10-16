@@ -1,6 +1,7 @@
 <script lang="ts">
   // Sortie, sourdine et volume du lecteur. En DSD natif (DoP), le volume se règle sur le DAC.
   import { invoke } from "@tauri-apps/api/core";
+  import { playerService } from "#lib/services/player/player.service";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import Icon from "@iconify/svelte";
@@ -73,8 +74,13 @@
     audioDevicesStore.setActive(device.displayName);
     showDevices = false;
     try {
-      if (distant) await networkPlayerStore.select(null);
-      await invoke("set_device", { deviceName: device.name });
+      // Depuis un lecteur réseau : le périphérique d'abord, la reprise locale part dessus.
+      if (distant) {
+        await invoke("set_device", { deviceName: device.name });
+        await networkPlayerStore.select(null);
+      } else {
+        await playerService.applyOutputChange(() => invoke("set_device", { deviceName: device.name }));
+      }
     } catch (e) {
       console.error("Failed to set device", e);
     }

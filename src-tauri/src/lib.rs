@@ -680,6 +680,9 @@ pub async fn run() {
                 crate::commands::network_player_command::init(&np_state).await;
             });
 
+            // Sortie audio perdue en pleine lecture : l'interface est prévenue.
+            crate::core::audio_player::output::shared_engine::set_app(app.handle().clone());
+
             // ─── TÉLÉCOMMANDE D'AMPLI ──────────────────────────
             // Désactivée par défaut ; activée, l'ampli mémorisé est rejoint.
             let remote_state = app.state::<AppState>().inner().clone();

@@ -411,7 +411,8 @@
             <p class="text-[15px] font-semibold tracking-[-0.01em] truncate">{vue.amp.name}</p>
             <p class="flex items-center gap-1.5 text-[12px] truncate {etat.connected ? 'text-(--rg-mu)' : 'text-(--rg-am)'}">
               <span class="w-1.5 h-1.5 shrink-0 rounded-full {!etat.connected ? 'bg-(--rg-am)' : allume ? 'bg-(--rg-g)' : 'bg-(--rg-off)'}"></span>
-              {etat.connected ? (allume ? `${MARQUE[vue.amp.brand]} · ${vue.amp.ip}` : $t("amp_remote.standby")) : $t("amp_remote.reconnecting")}
+              <!-- Le modèle quand le nom ne le dit pas : un Marantz passe par le pilote Denon. -->
+              {etat.connected ? (allume ? `${vue.amp.model && vue.amp.model !== vue.amp.name ? vue.amp.model : MARQUE[vue.amp.brand]} · ${vue.amp.ip}` : $t("amp_remote.standby")) : $t("amp_remote.reconnecting")}
             </p>
           </div>
           <button type="button" class={fantomeBtn} title={$t("amp_remote.mini")} aria-label={$t("amp_remote.mini")} onclick={basculerMini}>

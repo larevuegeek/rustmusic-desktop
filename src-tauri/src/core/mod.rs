@@ -159,9 +159,11 @@ pub mod network_player {
 }
 /// Télécommande d'ampli (Onkyo/Pioneer/Integra, Denon/Marantz, Yamaha) : pilotage par le réseau.
 pub mod amp_remote {
+    pub mod denon;
     pub mod discovery;
     pub mod model;
     pub mod onkyo;
     pub mod session;
+    pub mod yamaha;
 }
 pub mod smart_playlist;

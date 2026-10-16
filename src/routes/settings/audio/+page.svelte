@@ -2,6 +2,7 @@
   import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
   import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { playerService } from "#lib/services/player/player.service";
   import { audioDevicesStore } from "#lib/stores/audio/audioDevices.store";
   import { t, currentLocale } from "#lib/i18n";
   import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
@@ -76,7 +77,10 @@
     if (audioQualitySaving) return;
     audioQualitySaving = true;
     try {
-      audioQuality = await setAudioQualitySetting(value);
+      // Tampons et rééchantillonnage sont fixés au lancement : on relance au même endroit.
+      await playerService.applyOutputChange(async () => {
+        audioQuality = await setAudioQualitySetting(value);
+      }, { localOnly: true });
     } catch (e) {
       console.error("[audio quality] save failed:", e);
     } finally {

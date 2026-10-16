@@ -18,7 +18,7 @@ export async function getReplayGainSettings(): Promise<ReplayGainSettings> {
   return invoke<ReplayGainSettings>("get_replay_gain_settings");
 }
 
-/** Applies and persists. Takes effect on the next track. */
+/** Applique et enregistre : effet immédiat sur le morceau en cours. */
 export async function setReplayGainSettings(
   mode: ReplayGainMode,
   preampDb: number,

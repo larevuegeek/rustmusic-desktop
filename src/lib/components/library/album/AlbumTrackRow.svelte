@@ -9,6 +9,7 @@ import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import { liked } from "#lib/stores/playlist/like.store";
 import { lecture } from "#lib/stores/player/lecture.store";
 import { selectionStore } from "#lib/stores/ui/selection.store";
+import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { minutesSecondes } from "#lib/helper/tools/dateTools";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
@@ -86,10 +87,7 @@ const ib = "w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-[9px] 
     <!-- Numéro ; au survol, lecture ; en cours, égaliseur ; en sélection, case. -->
     <div class="relative w-8 h-8 flex items-center justify-center">
         {#if selection.active}
-            <span class="w-5 h-5 rounded-md border-2 flex items-center justify-center
-                         {coche ? 'bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)' : 'border-(--rg-bd2) text-transparent'}">
-                <Icon icon="material-symbols:check-rounded" width="14" />
-            </span>
+            <SelectionCheck {coche} />
         {:else}
             <span class="text-[15px] tabular-nums group-hover:invisible {enCours ? 'hidden' : ''} {track.track_number == null && numero == null ? 'text-(--rg-mu2)' : 'text-(--rg-mu)'}"
                   title={numero == null && track.track_number == null && position ? $t("album_view.no_number") : undefined}>{numero ?? track.track_number ?? position ?? "—"}</span>

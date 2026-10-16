@@ -7,6 +7,7 @@ import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import CollectionContextMenu from "#lib/components/ui/contextmenu/CollectionContextMenu.svelte";
 import { handleGenrePlay } from "#lib/actions/queue/QueueAction";
 import { selectionStore } from "#lib/stores/ui/selection.store";
+import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 import { teinte } from "#lib/helper/tools/teinte";
 import type { GenreView } from "#lib/types/ui/library/genre/GenreView";
@@ -76,12 +77,7 @@ const act = "w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-p
     onclick={clic}
     oncontextmenu={(e) => { if (special) return; e.preventDefault(); menu = { x: e.clientX, y: e.clientY }; }}
 >
-    {#if selection.active}
-        <span class="w-5 h-5 rounded-md border-2 flex items-center justify-center {special ? 'invisible' : ''}
-                     {isSelected ? 'bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)' : 'border-(--rg-bd2) text-transparent'}">
-            <Icon icon="material-symbols:check-rounded" width="14" />
-        </span>
-    {/if}
+    {#if selection.active}<SelectionCheck coche={isSelected} class={special ? "invisible" : ""} />{/if}
 
     <div class="w-14 h-14 rounded-[9px] overflow-hidden grid grid-cols-2 grid-rows-2 gap-px bg-(--rg-bg) shadow-[0_4px_12px_rgba(0,0,0,0.2)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
         {#each [0, 1, 2, 3] as k (k)}

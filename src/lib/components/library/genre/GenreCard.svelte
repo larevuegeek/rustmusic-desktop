@@ -7,6 +7,7 @@ import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import CollectionContextMenu from "#lib/components/ui/contextmenu/CollectionContextMenu.svelte";
 import { handleGenrePlay } from "#lib/actions/queue/QueueAction";
 import { selectionStore } from "#lib/stores/ui/selection.store";
+import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 import { teinte } from "#lib/helper/tools/teinte";
 import type { GenreView } from "#lib/types/ui/library/genre/GenreView";
@@ -87,10 +88,7 @@ const rond = "w-10 h-10 rounded-full flex items-center justify-center cursor-poi
         </div>
 
         {#if selection.active && !special}
-            <span class="absolute left-3 top-3 z-3 w-6 h-6 rounded-[7px] border-2 flex items-center justify-center
-                         {isSelected ? 'bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)' : 'bg-black/35 border-white/85 text-transparent'}">
-                <Icon icon="material-symbols:check-rounded" width="16" />
-            </span>
+            <SelectionCheck coche={isSelected} surImage class="absolute left-3 top-3 z-3" />
         {:else if !special}
             <div class="absolute right-3 top-3 z-3 flex gap-1.5 opacity-0 -translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 transition-all duration-150">
                 <button type="button" class="{rond} bg-black/60 text-white hover:bg-black/80" title={$t("genres_view.more")} aria-label={$t("genres_view.more")}

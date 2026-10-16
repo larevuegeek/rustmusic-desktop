@@ -12,6 +12,7 @@ import { settingsStore } from "#lib/stores/settings/settings.store";
 import { sleepTimer } from "#lib/stores/player/sleepTimer.store";
 import { sendNotification, isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { t } from "#lib/i18n";
+import { toasts } from "#lib/stores/ui/toast.store";
 
 let raf: number = 0;
 let basePos = 0;
@@ -30,6 +31,9 @@ let trackPlaybackEnded: UnlistenFn | null = null;
 let preparingUnlisten: UnlistenFn | null = null;
 let queueUnsubscribe: (() => void) | null = null;
 let trackAdvancedUnlisten: UnlistenFn | null = null;
+let outputLostUnlisten: UnlistenFn | null = null;
+/** Sortie changée pendant la pause : la reprise relance le morceau dessus. */
+let outputStale = false;
 let sleepUnsubscribe: (() => void) | null = null;
 let playStartedAt = 0; // timestamp (Date.now()) au moment où CPAL démarre vraiment
 
@@ -106,6 +110,7 @@ class PlayerService {
         await this.initPlaybackListener();
         await this.initPreparingListener();
         await this.initTrackAdvancedListener();
+        await this.initOutputLostListener();
         this.initQueueSync();
 
         // La minuterie « fin du morceau » doit empêcher tout préchargement :
@@ -123,6 +128,7 @@ class PlayerService {
         if (trackPlaybackEnded) trackPlaybackEnded();
         if (preparingUnlisten) preparingUnlisten();
         if (trackAdvancedUnlisten) trackAdvancedUnlisten();
+        if (outputLostUnlisten) outputLostUnlisten();
         if (queueUnsubscribe) queueUnsubscribe();
         if (sleepUnsubscribe) sleepUnsubscribe();
         this.stopAnimation();
@@ -155,6 +161,33 @@ class PlayerService {
                 playStartedAt = Date.now();
                 this.startAnimation();
             }
+        });
+    }
+
+    // ==========================================
+    // 🔌 SORTIE AUDIO PERDUE (DAC débranché…)
+    // ==========================================
+    // Le Rust a basculé sur la sortie du système, ou n'a rien trouvé : on arrête.
+    private async initOutputLostListener() {
+        outputLostUnlisten = await listen<{ device: string; fallback: string | null }>("audio-output-lost", (e) => {
+            const { device, fallback } = e.payload;
+            const tr = get(t);
+            if (fallback) {
+                toasts.push({
+                    type: "warning",
+                    title: tr("player.output_lost"),
+                    message: tr("player.output_fallback").replace("{lost}", device).replace("{device}", fallback),
+                    duration: 8000,
+                });
+                return;
+            }
+            this.stopPlay();
+            toasts.push({
+                type: "error",
+                title: tr("player.output_lost"),
+                message: tr("player.output_stopped").replace("{lost}", device),
+                duration: 8000,
+            });
         });
     }
 
@@ -414,6 +447,7 @@ class PlayerService {
     async playFile(track: QueueTrack) {
         actionExplicite = false;
         premiereLecture = false;
+        outputStale = false;
 
 
         const currentRequestId = ++playRequestId;
@@ -579,6 +613,37 @@ class PlayerService {
         }
     }
 
+    /**
+     * Change la sortie (périphérique, exclusif, DSD, profil) et relance le morceau dessus,
+     * au même endroit : le Rust ne lit ces réglages qu'au lancement d'un morceau.
+     * `localOnly` : rien à relancer quand un lecteur réseau joue.
+     */
+    async applyOutputChange(change: () => Promise<void>, { replay = true, localOnly = false } = {}) {
+        const before = get(player);
+        const position = before.jsPosition ?? 0;
+        await change();
+        if (!replay || !before.trackId) return;
+        if (localOnly) {
+            const { networkPlayerStore } = await import("#lib/stores/audio/networkPlayer.store");
+            if (get(networkPlayerStore).selected) return;
+        }
+        if (before.status === "paused") {
+            outputStale = true;
+            return;
+        }
+        if (before.status !== "playing") return;
+        await this.replayAt(position);
+    }
+
+    /** Relance le morceau courant de la file à `position`. */
+    private async replayAt(position: number) {
+        const qs = get(queueState);
+        const track = qs.tracks[qs.currentIndex];
+        if (!track) return;
+        await this.playFile(track);
+        if (position > 2 && (await this.attendrePret(10000))) await this.seekTo(position);
+    }
+
     /** Attend que le son parte vraiment : un saut pendant le pré-décodage se perdrait. */
     async attendrePret(delaiMs = 6000): Promise<boolean> {
         const debut = Date.now();
@@ -591,6 +656,11 @@ class PlayerService {
     }
 
     async resumePlay() {
+        if (outputStale) {
+            outputStale = false;
+            await this.replayAt(get(player).jsPosition ?? 0);
+            return;
+        }
         try {
             await invoke("pause_play");
             player.update({ status: "playing" });

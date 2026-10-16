@@ -141,7 +141,7 @@ const selectRecent = () =>
                     { value: "size", label: $t("playlists_view.sort_size"), icon: "material-symbols:format-list-numbered-rounded" },
                     { value: "sidebar", label: $t("playlists_view.sort_sidebar"), icon: "material-symbols:side-navigation-rounded" },
                   ]} />
-      <SelectionToggle avecLibelle />
+      <SelectionToggle />
       <ViewModeSwitch />
     </div>
   </div>

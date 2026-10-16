@@ -55,14 +55,19 @@ simple, et va chercher ses valeurs sur MusicBrainz autant que sur Deezer.
   son appli. Le serveur ne disait pas qu'il les acceptait, et certains
   appareils (Onkyo notamment) refusaient la pause. C'est aussi le cas des
   morceaux envoyés à un lecteur réseau.
+- **Serveur DLNA : enchaînement des morceaux** d'un album ou d'un dossier.
+  Interrogé sur un morceau, le serveur répondait par un dossier vide sans
+  fichier : l'ampli s'arrêtait après le premier morceau et ne trouvait pas
+  la pause. Il décrit maintenant le morceau (fichier, format, pause et saut
+  permis), et un album ou un dossier annonce son vrai nombre de morceaux.
 - macOS : RustMusic demande l'autorisation d'accéder au réseau local, sans
   laquelle macOS 15 bloque en silence la recherche et le serveur DLNA.
 
 ### Télécommande d'ampli
 - **Piloter son ampli depuis RustMusic** (en bêta), à activer dans le nouveau
   menu Réglages → Télécommande (désactivé par défaut : aucun ampli n'est
-  contacté sans lui). Les amplis Onkyo, Pioneer et Integra du réseau sont
-  trouvés d'eux-mêmes ; une fois l'ampli choisi, une télécommande se range au
+  contacté sans lui). Les amplis Onkyo, Pioneer, Integra, Denon, Marantz et
+  Yamaha (MusicCast) du réseau sont trouvés d'eux-mêmes ; une fois l'ampli choisi, une télécommande se range au
   bord droit de la fenêtre et sort par sa languette. En tête, un afficheur
   façon façade d'ampli montre la source, le mode d'écoute et le volume ;
   dessous, le volume (boutons, curseur, sourdine) et trois onglets :
@@ -71,14 +76,24 @@ simple, et va chercher ses valeurs sur MusicBrainz autant que sur Deezer.
   l'ampli : ses entrées, ses plages de volume et de tonalité, sa zone 2 s'il
   en a une. Ce qu'on change sur l'ampli lui-même (télécommande, façade)
   s'affiche aussitôt. L'ampli choisi est rejoint au lancement, et retrouvé de
-  lui-même après une coupure.
+  lui-même après une coupure, même s'il a changé d'adresse sur le réseau. La
+  recherche trouve aussi les amplis qui ne répondent pas aux annonces
+  diffusées : elle interroge chaque adresse du réseau local.
 - **Navigation** : sur l'entrée NET (ou USB), l'écran de l'ampli s'affiche
   comme dans son appli : services avec leur logo (Spotify, Deezer, TuneIn,
   DLNA, AirPlay…), dossiers et morceaux, curseur, puis la lecture en cours
   avec sa pochette, le temps et les touches lecture/pause, précédent,
-  suivant, aléatoire, répétition. Une ligne s'ouvre d'un clic ; les flèches
-  et OK pilotent la liste, ou le menu affiché sur la TV sur les autres
-  entrées. L'onglet s'ouvre de lui-même au passage sur NET.
+  suivant, aléatoire, répétition. Une ligne s'ouvre d'un clic. Une molette
+  façon iPod pilote la liste, ou le menu affiché sur la TV sur les autres
+  entrées : un appui sur l'anneau pour une direction, un tour du doigt (ou
+  la molette de la souris) pour défiler, OK au centre. Au choix, une ligne de
+  touches plus compacte la remplace. Une longue liste
+  défile dans sa case et suit le curseur. L'onglet s'ouvre de lui-même au
+  passage sur NET.
+- **Denon, Marantz et Yamaha** : mêmes réglages que sur Onkyo (marche,
+  volume au demi-décibel, entrées avec leurs noms personnalisés, modes,
+  graves et aigus, zone 2). Sur l'entrée réseau, la liste et la lecture en
+  cours s'affichent ; chez Yamaha, avec la pochette.
 - **Mode mini** : la télécommande se réduit à l'afficheur, la mise en marche,
   la source et le volume ; un clic sur l'afficheur la rouvre en entier. Le
   choix est retenu.
@@ -121,6 +136,34 @@ simple, et va chercher ses valeurs sur MusicBrainz autant que sur Deezer.
   disques ne sont plus confondues, avec Deezer comme avec MusicBrainz, et le
   numéro de disque est proposé avec le reste.
 - « Corriger les tags » devient « Éditer les tags » dans les menus.
+
+### Bibliothèque
+- **Sélection** : la même case à cocher partout. Dans les listes de
+  morceaux (onglet Morceaux, fiches album, artiste, genre, période et
+  playlist), elle apparaît même quand la colonne « # » est masquée : la
+  colonne revient le temps de la sélection. Un seul bouton « Sélectionner »
+  par fiche, celui de la barre du haut, et toujours en toutes lettres.
+
+### Lecture
+- **Sortie audio perdue en pleine lecture** (câble USB capricieux, DAC
+  réinitialisé, format changé dans Windows) : en mode partagé, le son se
+  coupait jusqu'au morceau suivant alors que le compteur continuait. La sortie
+  est maintenant rouverte d'elle-même et le morceau reprend là où il s'était
+  coupé. Si elle ne revient pas en 5 s, la lecture passe sur la sortie du
+  système, avec un message ; sans aucune sortie, elle s'arrête et le dit. Le
+  morceau suivant retente la sortie choisie.
+- **Réglages de sortie appliqués tout de suite** : changer de sortie, passer
+  en exclusif ou en partagé, activer le DSD natif ou changer le profil de
+  qualité relance le morceau en cours au même endroit, avec la nouvelle
+  configuration. Jusque-là, rien ne changeait avant un morceau lancé à la
+  main, et pas même au morceau suivant quand ils s'enchaînaient sans blanc :
+  il fallait souvent relancer l'appli. En pause, le changement s'applique à
+  la reprise.
+- **Linux, mode exclusif** : le DAC, retiré à PipeWire le temps de la
+  lecture, disparaissait de la liste des sorties, qui ne montrait plus que
+  « Dummy Output ». Il y reste désormais, sélectionné.
+- Quitter un lecteur réseau pour une sortie locale reprend directement sur
+  la sortie choisie, et non sur la précédente.
 
 ## [0.2.10] - 2026-10-11
 

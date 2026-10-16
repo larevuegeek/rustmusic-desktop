@@ -11,6 +11,7 @@ import StarRating from "#lib/components/ui/rating/StarRating.svelte";
 import { liked } from "#lib/stores/playlist/like.store";
 import { lecture } from "#lib/stores/player/lecture.store";
 import { selectionStore } from "#lib/stores/ui/selection.store";
+import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import type { TrackColumn } from "#lib/config/trackColumns";
 import { formatBitrate, formatCourt, palierPiste } from "#lib/helper/tools/audioFormatTools";
@@ -119,10 +120,7 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
             <!-- Numéro ; au survol, lecture ; en cours, égaliseur ; en sélection, case. -->
             <div class="relative shrink-0 flex items-center justify-center" style={w}>
                 {#if selection.active}
-                    <span class="w-5 h-5 rounded-md border-2 flex items-center justify-center
-                                 {coche ? 'bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)' : 'border-(--rg-bd2) text-transparent'}">
-                        <Icon icon="material-symbols:check-rounded" width="14" />
-                    </span>
+                    <SelectionCheck {coche} />
                 {:else}
                     <span class="text-[13px] tabular-nums text-(--rg-mu2) group-hover:invisible {enCours ? 'hidden' : ''}"
                           title={track.track_number == null && rang ? $t("album_view.no_number") : undefined}>{track.track_number ?? rang ?? "—"}</span>

@@ -15,6 +15,17 @@ fn names(device: &cpal::Device) -> Option<(String, String)> {
     Some((name, display))
 }
 
+/// Nom complet « Nom (Fabricant) », celui que l'interface enregistre.
+pub fn full_name(device: &cpal::Device) -> Option<String> {
+    let d = device.description().ok()?;
+    let name = d.name().to_string();
+    Some(match (d.manufacturer(), d.driver()) {
+        (Some(mfr), _) => format!("{name} ({mfr})"),
+        (_, Some(drv)) => format!("{name} ({drv})"),
+        _ => name,
+    })
+}
+
 pub fn find(host: &cpal::Host, name: &str) -> Option<cpal::Device> {
     let mut outputs: Vec<cpal::Device> = host.output_devices().ok()?.collect();
     if let Some(i) = outputs
@@ -76,6 +87,12 @@ pub fn sound_server_period(host: &cpal::Host, rate: u32) -> Option<u32> {
     }
     let _ = (host, rate);
     None
+}
+
+/// Sortie retirée à PipeWire par notre lecture exclusive (elle reviendra après).
+#[cfg(target_os = "linux")]
+pub fn is_held(name: &str) -> bool {
+    held_card(name).is_some()
 }
 
 #[cfg(target_os = "linux")]

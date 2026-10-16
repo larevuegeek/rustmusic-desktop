@@ -3,6 +3,7 @@
   import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { playerService } from "#lib/services/player/player.service";
   import { t } from "#lib/i18n";
   import { audioDevicesStore, formatSampleRate, type AudioDeviceInfo } from "#lib/stores/audio/audioDevices.store";
   import { capacitesSortie, decrireSortie, palierQualite, PALIERS } from "#lib/helper/audio/deviceLabel";
@@ -22,7 +23,7 @@
   async function choisir(device: AudioDeviceInfo) {
     if (device.displayName === $audioDevicesStore.activeDisplayName) return;
     try {
-      await invoke("set_device", { deviceName: device.name });
+      await playerService.applyOutputChange(() => invoke("set_device", { deviceName: device.name }), { localOnly: true });
       audioDevicesStore.setActive(device.displayName);
     } catch (err) {
       console.error("Failed to set device", err);

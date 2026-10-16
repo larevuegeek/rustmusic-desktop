@@ -11,6 +11,7 @@ import { dureeEcoute } from "#lib/helper/tools/dateTools";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import { handleAlbumAddToQueue, handleAlbumEnqueue } from "#lib/actions/queue/QueueAction";
 import { selectionStore } from "#lib/stores/ui/selection.store";
+import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 
 let { libraryId, album, onopen }: {
@@ -74,12 +75,7 @@ const act = "w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-p
     oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY }; }}
     onclick={handleCardClick}
 >
-    {#if selection.active}
-        <span class="w-5 h-5 rounded-md border-2 flex items-center justify-center
-                     {isSelected ? 'bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)' : 'border-(--rg-bd2) text-transparent'}">
-            <Icon icon="material-symbols:check-rounded" width="14" />
-        </span>
-    {/if}
+    {#if selection.active}<SelectionCheck coche={isSelected} />{/if}
 
     <div class="relative w-16 h-16 max-[900px]:w-14 max-[900px]:h-14 rounded-lg overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.2)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.35)] bg-(--rg-s2)">
         {#if album.cover_url}

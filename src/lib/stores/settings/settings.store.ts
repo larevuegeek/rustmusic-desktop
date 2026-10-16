@@ -174,13 +174,15 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
     }
   },
 
-  // WASAPI exclusive : pousse la préférence vers l'atomique global Rust qui
-  // sera lu par le thread de playback au prochain morceau lancé. Cette command
-  // est cross-OS — sur les non-Windows elle est no-op à l'intérieur du backend.
+  // Exclusif : lu par le Rust au lancement d'un morceau, d'où la relance au même endroit.
   wasapi_exclusive: async (value: string) => {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('set_wasapi_exclusive_preference', { enabled: value === 'true' });
+      const { playerService } = await import('#lib/services/player/player.service');
+      await playerService.applyOutputChange(
+        () => invoke('set_wasapi_exclusive_preference', { enabled: value === 'true' }),
+        { localOnly: true },
+      );
     } catch (e) {
       console.error('[settings] Erreur sync WASAPI preference:', e);
     }
@@ -230,7 +232,14 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
   dsd_dop: async (value: string) => {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('set_dop_preference', { enabled: value === 'true' });
+      const { playerService } = await import('#lib/services/player/player.service');
+      const { player } = await import('#lib/stores/player/player.store');
+      // Relance seulement si le morceau en cours est un DSD : rien ne change pour un PCM.
+      const dsd = /\.(dsf|dff|dsd)$/i.test(get(player).pathFile ?? '');
+      await playerService.applyOutputChange(
+        () => invoke('set_dop_preference', { enabled: value === 'true' }),
+        { replay: dsd, localOnly: true },
+      );
     } catch (e) {
       console.error('[settings] Erreur sync DoP preference:', e);
     }

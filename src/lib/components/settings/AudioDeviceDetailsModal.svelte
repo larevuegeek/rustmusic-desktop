@@ -2,6 +2,7 @@
   import Icon from "@iconify/svelte";
   import { fade, scale } from "svelte/transition";
   import { invoke } from "@tauri-apps/api/core";
+  import { playerService } from "#lib/services/player/player.service";
   import { t, currentLocale } from "#lib/i18n";
   import { portal } from "#lib/helper/portal";
   import Badge from "#lib/components/ui/text/Badge.svelte";
@@ -54,7 +55,7 @@
     selecting = true;
     selectError = null;
     try {
-      await invoke("set_device", { deviceName: device.name });
+      await playerService.applyOutputChange(() => invoke("set_device", { deviceName: device.name }), { localOnly: true });
       onSelect?.(device);
       onClose();
     } catch (e) {

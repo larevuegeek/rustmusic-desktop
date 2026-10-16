@@ -11,6 +11,7 @@ import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import { preload, preloadAlbumData } from "#lib/actions/preload/preloadAction";
 import { handleAlbumEnqueue } from "#lib/actions/queue/QueueAction";
 import { selectionStore } from "#lib/stores/ui/selection.store";
+import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 import { etiquetteHiRes } from "#lib/helper/tools/audioFormatTools";
 
@@ -87,10 +88,7 @@ async function loadAlbumTracks() {
         {#if selection.active}
             <!-- Cadre posé par-dessus l'image : un anneau extérieur serait coupé par la carte. -->
             {#if isSelected}<span class="absolute inset-0 z-2 rounded-[10px] ring-3 ring-inset ring-(--rg-g) pointer-events-none"></span>{/if}
-            <span class="absolute left-2 top-2 z-3 w-6 h-6 rounded-[7px] border-2 flex items-center justify-center
-                         {isSelected ? 'bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)' : 'bg-black/35 border-white/80 text-transparent'}">
-                <Icon icon="material-symbols:check-rounded" width="16" />
-            </span>
+            <SelectionCheck coche={isSelected} surImage class="absolute left-2 top-2 z-3" />
         {:else}
             {#if hiRes}
                 <span class="absolute left-2 top-2 z-2 px-1.5 py-0.5 rounded-[5px] text-[10px] font-bold tracking-[0.03em] bg-black/65 text-[#f3d38a]">{hiRes}</span>

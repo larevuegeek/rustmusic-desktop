@@ -46,8 +46,17 @@ pub async fn handle_browse(
     request: &BrowseRequest,
 ) -> Result<BrowseResponse, DlnaError> {
     if request.browse_flag == BrowseFlag::BrowseMetadata {
+        // L'ampli relit la fiche d'un morceau (fichier, pause permise) et le nombre
+        // d'éléments d'un dossier avant d'en faire sa file : il les faut vrais.
+        if let Some(r) = track_metadata(&provider, server_base_url, &request.object_id).await {
+            return Ok(r);
+        }
         let langue = provider.language().await;
-        return Ok(metadata_for(&request.object_id, server_base_url, &langue));
+        let mut r = metadata_for(&request.object_id, server_base_url, &langue);
+        if let Some((title, count)) = container_details(&provider, &request.object_id).await {
+            r = container_metadata(&request.object_id, server_base_url, &title, count);
+        }
+        return Ok(r);
     }
 
     match parse_object_id(&request.object_id) {
@@ -342,6 +351,53 @@ fn empty_response(server_base_url: &str) -> BrowseResponse {
     }
 }
 
+/// Fiche d'un morceau (`<parent>/tracks/<id>`), retrouvé dans son album ou son dossier.
+async fn track_metadata(
+    provider: &Arc<dyn LibraryProvider>,
+    server_base_url: &str,
+    object_id: &str,
+) -> Option<BrowseResponse> {
+    let (parent_id, track_id) = object_id.rsplit_once("/tracks/")?;
+    let tracks = match parse_object_id(parent_id) {
+        ObjectId::Album(lib, id) => provider.list_tracks_by_album(lib, &id).await.ok()?,
+        ObjectId::Folder(lib, path) => provider.list_folder_entries(lib, &path).await.ok()?.tracks,
+        _ => return None,
+    };
+    let track = tracks.iter().find(|t| t.id == track_id)?;
+    let mut didl = DidlBuilder::new(server_base_url.to_string());
+    didl.add_track(track, parent_id);
+    Some(fixed_response(didl.build(), 1))
+}
+
+/// Titre et nombre d'éléments d'un album, d'un artiste ou d'un dossier ; `None` pour les menus fixes.
+async fn container_details(provider: &Arc<dyn LibraryProvider>, object_id: &str) -> Option<(String, u32)> {
+    match parse_object_id(object_id) {
+        ObjectId::Album(lib, id) => {
+            let tracks = provider.list_tracks_by_album(lib, &id).await.ok()?;
+            let title = tracks.iter().find_map(|t| t.album.clone()).unwrap_or_else(|| "Album".into());
+            Some((title, tracks.len() as u32))
+        }
+        ObjectId::Folder(lib, path) => {
+            let entries = provider.list_folder_entries(lib, &path).await.ok()?;
+            let name = path.trim_end_matches(['/', '\\']).rsplit(['/', '\\']).next().unwrap_or(&path).to_string();
+            Some((name, (entries.subfolders.len() + entries.tracks.len()) as u32))
+        }
+        ObjectId::Artist(lib, id) => {
+            let albums = provider.list_albums_by_artist(lib, &id).await.ok()?;
+            let name = albums.iter().find_map(|a| a.artist.clone()).unwrap_or_else(|| "Artist".into());
+            Some((name, albums.len() as u32))
+        }
+        _ => None,
+    }
+}
+
+fn container_metadata(object_id: &str, server_base_url: &str, title: &str, count: u32) -> BrowseResponse {
+    let parent = object_id.rsplit_once('/').map_or("0", |(p, _)| p);
+    let mut didl = DidlBuilder::new(server_base_url.to_string());
+    didl.add_container(object_id, parent, title, count, "object.container.storageFolder");
+    fixed_response(didl.build(), 1)
+}
+
 /// Minimal `BrowseMetadata` response : describe the queried object as a
 /// generic container. Sufficient for most amps' probe step.
 fn metadata_for(object_id: &str, server_base_url: &str, langue: &str) -> BrowseResponse {
@@ -371,6 +427,73 @@ fn metadata_for(object_id: &str, server_base_url: &str, langue: &str) -> BrowseR
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::path::PathBuf;
+    use async_trait::async_trait;
+    use crate::core::dlna_server::content_directory::object_id::encode_path;
+    use crate::core::dlna_server::library::provider::{CoverKind, DlnaAlbum, DlnaArtist, DlnaFolder, DlnaLibrary, DlnaTrack, FolderEntries};
+
+    /// Un album de trois morceaux, rangé aussi dans un dossier.
+    struct Fake;
+
+    fn piste(n: u16) -> DlnaTrack {
+        DlnaTrack {
+            id: format!("t{n}"), title: format!("Titre {n}"), artist: Some("Muse".into()), album: Some("The 2nd Law".into()),
+            track_number: Some(n), duration_seconds: Some(200), sample_rate: Some(96_000), bits_per_sample: Some(24),
+            bitrate: None, channels: Some(2), file_size: Some(1000), mime_type: "audio/flac".into(), format: "flac".into(), has_cover: false,
+        }
+    }
+
+    #[async_trait]
+    impl LibraryProvider for Fake {
+        async fn list_libraries(&self) -> Result<Vec<DlnaLibrary>, DlnaError> { Ok(vec![]) }
+        async fn list_artists(&self, _: i64) -> Result<Vec<DlnaArtist>, DlnaError> { Ok(vec![]) }
+        async fn list_albums(&self, _: i64) -> Result<Vec<DlnaAlbum>, DlnaError> { Ok(vec![]) }
+        async fn list_albums_by_artist(&self, _: i64, _: &str) -> Result<Vec<DlnaAlbum>, DlnaError> { Ok(vec![]) }
+        async fn list_tracks_by_album(&self, _: i64, id: &str) -> Result<Vec<DlnaTrack>, DlnaError> {
+            Ok(if id == "a1" { (1..=3).map(piste).collect() } else { vec![] })
+        }
+        async fn track_path(&self, _: &str) -> Result<PathBuf, DlnaError> { Ok(PathBuf::new()) }
+        async fn cover_path(&self, _: CoverKind, _: &str) -> Result<PathBuf, DlnaError> { Ok(PathBuf::new()) }
+        async fn list_root_folders(&self, _: i64) -> Result<Vec<DlnaFolder>, DlnaError> { Ok(vec![]) }
+        async fn list_folder_entries(&self, _: i64, _: &str) -> Result<FolderEntries, DlnaError> {
+            Ok(FolderEntries { subfolders: vec![], tracks: (1..=3).map(piste).collect() })
+        }
+    }
+
+    async fn metadata(id: &str) -> BrowseResponse {
+        let provider: Arc<dyn LibraryProvider> = Arc::new(Fake);
+        let req = BrowseRequest { object_id: id.into(), browse_flag: BrowseFlag::BrowseMetadata, starting_index: 0, requested_count: 0 };
+        handle_browse(provider, "http://h:8200", &req).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_track_is_described_as_a_playable_item() {
+        // Sans sa fiche, l'ampli ne savait ni enchaîner ni mettre en pause.
+        let r = metadata("0/lib/1/albums/a1/tracks/t2").await;
+        assert!(r.didl_xml.contains(r#"<item id="0/lib/1/albums/a1/tracks/t2" parentID="0/lib/1/albums/a1""#));
+        assert!(r.didl_xml.contains("Titre 2"));
+        assert!(r.didl_xml.contains("DLNA.ORG_OP=01"));
+        assert!(r.didl_xml.contains("http://h:8200/media/t2"));
+
+        let dossier = format!("0/lib/1/folders/{}", encode_path("/musique/Muse"));
+        let r = metadata(&format!("{dossier}/tracks/t3")).await;
+        assert!(r.didl_xml.contains("<item ") && r.didl_xml.contains("Titre 3"));
+    }
+
+    #[tokio::test]
+    async fn a_container_announces_its_real_size() {
+        let r = metadata("0/lib/1/albums/a1").await;
+        assert!(r.didl_xml.contains(r#"childCount="3""#), "{}", r.didl_xml);
+        assert!(r.didl_xml.contains("The 2nd Law"));
+
+        let r = metadata(&format!("0/lib/1/folders/{}", encode_path("/musique/Muse"))).await;
+        assert!(r.didl_xml.contains(r#"childCount="3""#) && r.didl_xml.contains(">Muse<"), "{}", r.didl_xml);
+
+        // Morceau inconnu : retombe sur la fiche générique, sans erreur.
+        let r = metadata("0/lib/1/albums/a1/tracks/absent").await;
+        assert!(r.didl_xml.contains("<container "));
+    }
 
     #[test]
     fn menus_dans_la_langue_de_l_app() {

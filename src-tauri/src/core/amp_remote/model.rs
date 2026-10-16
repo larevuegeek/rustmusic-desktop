@@ -168,6 +168,10 @@ pub trait Codec: Send {
     fn hello(&self) -> Vec<Vec<u8>>;
     /// Question légère posée régulièrement : une connexion morte se voit vite.
     fn keepalive(&self) -> Vec<u8>;
+    /// Pause entre deux envois : certains amplis perdent les commandes reçues à la file.
+    fn gap(&self) -> std::time::Duration {
+        std::time::Duration::ZERO
+    }
     fn encode(&self, cmd: &Command, status: &Status) -> Vec<Vec<u8>>;
     /// Lit les messages complets de `buf` ; rend le nombre d'octets consommés.
     fn feed(&mut self, buf: &[u8], status: &mut Status) -> usize;

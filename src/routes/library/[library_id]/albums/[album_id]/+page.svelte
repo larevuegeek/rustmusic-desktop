@@ -317,7 +317,7 @@ const grille = $derived($viewMode !== "list");
     <span class="shrink-0 text-[13px] text-(--rg-mu) max-sm:hidden">{album?.artist ?? ""}</span>
   {/snippet}
   {#snippet barre()}
-    <SelectionToggle avecLibelle />
+    <SelectionToggle />
     <ViewModeSwitch class="bg-(--rg-carte)/80" />
     <div class="flex gap-0.5">
       {#each [{ id: precedent, i: "material-symbols:chevron-left-rounded", l: "album_view.prev" }, { id: suivant, i: "material-symbols:chevron-right-rounded", l: "album_view.next" }] as o (o.l)}
@@ -414,7 +414,6 @@ const grille = $derived($viewMode !== "list");
     {:else}
       <TrackColumnsButton {libraryId} avecLibelle />
     {/if}
-    <SelectionToggle avecLibelle />
   </div>
 
   {#if tracks.length === 0}

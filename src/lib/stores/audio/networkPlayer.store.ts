@@ -10,7 +10,6 @@ import { writable, get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { player } from "#lib/stores/player/player.store";
-import { queueState } from "#lib/stores/queue/queueState.store";
 import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
 import { chargerVolume } from "#lib/stores/player/volume.store";
 import { toasts } from "#lib/stores/ui/toast.store";
@@ -104,21 +103,13 @@ function createStore() {
 
   /** Bascule de sortie ; si un morceau jouait, il reprend sur la nouvelle au même endroit. */
   async function switchOutput(change: () => Promise<void>, resume = true): Promise<void> {
-    const before = get(player);
-    const enCours = resume && before.status === "playing" && before.trackId;
-    const position = before.jsPosition ?? 0;
-    await change();
-    // La chaîne locale ne décrit plus la sortie.
-    playbackPipelineStore.set(null);
-    await chargerVolume();
-
-    if (!enCours) return;
-    const qs = get(queueState);
-    const track = qs.tracks[qs.currentIndex];
-    if (!track) return;
     const { playerService } = await import("#lib/services/player/player.service");
-    await playerService.playFile(track);
-    if (position > 2 && (await playerService.attendrePret(10000))) await playerService.seekTo(position);
+    await playerService.applyOutputChange(async () => {
+      await change();
+      // La chaîne locale ne décrit plus la sortie.
+      playbackPipelineStore.set(null);
+      await chargerVolume();
+    }, { replay: resume });
   }
 
   return { subscribe, init, discover, select, setEnabled };

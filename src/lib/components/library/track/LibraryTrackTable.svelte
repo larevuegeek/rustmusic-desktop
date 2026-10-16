@@ -6,13 +6,13 @@
   import LibraryTrackRow from "./LibraryTrackRow.svelte";
   import { settingsStore } from "#lib/stores/settings/settings.store";
   import { selectionStore } from "#lib/stores/ui/selection.store";
-  import { largeurDe, largeurAjustee, libelleColonne, LARGEUR_MIN, LARGEUR_MAX, LARGEUR_MAX_SOUPLE, type SortDir, type TrackColumn } from "#lib/config/trackColumns";
+  import { COLONNES_FIXES, largeurDe, largeurAjustee, libelleColonne, LARGEUR_MIN, LARGEUR_MAX, LARGEUR_MAX_SOUPLE, type SortDir, type TrackColumn } from "#lib/config/trackColumns";
   import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
   let {
     libraryId,
     tracks,
-    columns,
+    columns: colonnesChoisies,
     largeurs,
     detaille = false,
     artisteSousTitre = true,
@@ -50,6 +50,14 @@
     onremove?: (track: TrackListView) => void;
     removeLabel?: string;
   } = $props();
+
+  // La case de sélection vit dans « # » : masquée, la colonne revient le temps de choisir.
+  const colonneIndex = COLONNES_FIXES.find((c) => c.widget === "index");
+  const columns = $derived(
+    $selectionStore.active && colonneIndex && !colonnesChoisies.some((c) => c.widget === "index")
+      ? [colonneIndex, ...colonnesChoisies]
+      : colonnesChoisies,
+  );
 
   // ─── Défilement horizontal propre au tableau ───
   // `overflow-x: clip` ne crée pas de zone de défilement : les en-têtes collants suivent toujours la page.

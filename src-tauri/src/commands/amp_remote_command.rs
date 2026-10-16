@@ -76,6 +76,14 @@ pub async fn set_amp_remote_enabled(state: State<'_, AppState>, enabled: bool) -
 
 /// Au lancement : lit le réglage, puis reprend l'ampli mémorisé.
 pub async fn init(state: &AppState) {
+    // Ampli retrouvé à une autre adresse : la nouvelle est gardée pour le prochain lancement.
+    let pool = state.pool.clone();
+    session::on_moved(move |amp| {
+        let (pool, json) = (pool.clone(), serde_json::to_string(amp).unwrap_or_default());
+        tauri::async_runtime::spawn(async move {
+            let _ = SettingsRepository::set(&pool, DEVICE_KEY, &json).await;
+        });
+    });
     let on = SettingsRepository::get(&state.pool, ENABLED_KEY).await.ok().flatten().as_deref() == Some("true");
     ENABLED.store(on, Ordering::Relaxed);
     if on {

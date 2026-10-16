@@ -70,7 +70,14 @@ async fn handle_browse_action(
     let req = parse_browse_request(body);
 
     match handle_browse(provider, server_base_url, &req).await {
-        Ok(r) => browse_response(&r.didl_xml, r.number_returned, r.total_matches, r.update_id),
+        Ok(r) => {
+            // Ce que l'ampli demande vraiment : sans ça, enchaînement et pause se devinent.
+            log::debug!(
+                "Browse {:?} « {} » [{}+{}] → {}/{}",
+                req.browse_flag, req.object_id, req.starting_index, req.requested_count, r.number_returned, r.total_matches
+            );
+            browse_response(&r.didl_xml, r.number_returned, r.total_matches, r.update_id)
+        }
         Err(e) => {
             log::error!("Browse handler error: {}", e);
             soap_fault(501, "Action Failed")

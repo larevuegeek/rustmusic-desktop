@@ -338,10 +338,12 @@ pub async fn get_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
 
     // La sortie du lecteur, sous le nom qu'elle porte aujourd'hui (un ancien
     // nom ALSA enregistré désigne la même carte sous un autre nom).
-    let choisie = crate::commands::player_command::AUDIO_PLAYER
+    let enregistree = crate::commands::player_command::AUDIO_PLAYER
         .get()
-        .and_then(|p| p.lock().ok().and_then(|p| p.get_selected_device_name()))
-        .and_then(|nom| crate::core::audio_player::output::peripherique::find(&host, &nom))
+        .and_then(|p| p.lock().ok().and_then(|p| p.get_selected_device_name()));
+    let choisie = enregistree
+        .as_deref()
+        .and_then(|nom| crate::core::audio_player::output::peripherique::find(&host, nom))
         .and_then(|d| d.description().ok())
         .map(|d| d.name().to_string());
 
@@ -381,6 +383,30 @@ pub async fn get_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
                 out.push(info);
             }
         }
+    }
+
+    // Exclusif Linux : la carte est retirée à PipeWire le temps de la lecture. Sans
+    // elle, la liste ne montrait plus que « Dummy Output », qu'on finissait par choisir.
+    #[cfg(target_os = "linux")]
+    if let Some(nom) = enregistree.filter(|n| {
+        choisie.is_none() && crate::core::audio_player::output::peripherique::is_held(n)
+    }) {
+        out.push(AudioDeviceInfo {
+            name: nom.clone(),
+            display_name: nom,
+            manufacturer: None,
+            driver: None,
+            is_default: false,
+            sample_rates: Vec::new(),
+            sample_formats: Vec::new(),
+            max_channels: 0,
+            wasapi_id: None,
+            min_buffer_frames: None,
+            max_buffer_frames: None,
+            is_hires: false,
+            bus: None,
+            is_selected: true,
+        });
     }
 
     // Tri : défaut en tête, puis alpha.

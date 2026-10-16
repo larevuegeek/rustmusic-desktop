@@ -9,6 +9,7 @@ import { preload, preloadArtistData } from "#lib/actions/preload/preloadAction";
 import { handleArtistPlay } from "#lib/actions/queue/QueueAction";
 import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
 import { selectionStore } from "#lib/stores/ui/selection.store";
+import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 
 let { libraryId, artist }: { libraryId: number; artist: ArtistListView } = $props();
@@ -61,10 +62,7 @@ function sansNaviguer(e: MouseEvent, action: () => void) {
         </div>
 
         {#if selection.active}
-            <span class="absolute left-1 top-1 z-3 w-6 h-6 rounded-[7px] border-2 flex items-center justify-center
-                         {isSelected ? 'bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)' : 'bg-black/35 border-white/80 text-transparent'}">
-                <Icon icon="material-symbols:check-rounded" width="16" />
-            </span>
+            <SelectionCheck coche={isSelected} surImage class="absolute left-1 top-1 z-3" />
         {:else}
             <button type="button" class="absolute right-1 top-1 z-2 w-7.5 h-7.5 rounded-lg flex items-center justify-center cursor-pointer
                                         bg-black/55 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-black/75"
