@@ -9,25 +9,25 @@ use tauri::AppHandle;
 static ORDRES: OnceLock<Mutex<Sender<bool>>> = OnceLock::new();
 
 /// Lance le fil qui tient le blocage de la veille, et l'écoute de la mise en veille.
-pub fn demarrer(app: AppHandle) {
+pub fn start(app: AppHandle) {
     let (tx, rx) = channel::<bool>();
     let _ = ORDRES.set(Mutex::new(tx));
     // Un seul fil pour tout : sous Windows, l'état demandé est attaché au fil appelant.
     let _ = std::thread::Builder::new().name("veille".into()).spawn(move || {
         let mut verrou = plateforme::Verrou::default();
         for bloquer in rx {
-            verrou.regler(bloquer);
+            verrou.set(bloquer);
         }
     });
 
     #[cfg(target_os = "linux")]
-    linux::ecouter_mise_en_veille(app);
+    linux::watch_sleep(app);
     #[cfg(not(target_os = "linux"))]
     let _ = app;
 }
 
 /// Empêche (ou rend possible) la mise en veille automatique de la machine.
-pub fn bloquer(bloquer: bool) {
+pub fn set_blocked(bloquer: bool) {
     if let Some(tx) = ORDRES.get() {
         if let Ok(tx) = tx.lock() {
             let _ = tx.send(bloquer);
@@ -44,7 +44,7 @@ mod plateforme {
 
     impl Verrou {
         /// Sans ES_DISPLAY_REQUIRED : l'écran garde le droit de s'éteindre.
-        pub fn regler(&mut self, bloquer: bool) {
+        pub fn set(&mut self, bloquer: bool) {
             let etat = if bloquer { ES_CONTINUOUS | ES_SYSTEM_REQUIRED } else { ES_CONTINUOUS };
             unsafe {
                 SetThreadExecutionState(etat);
@@ -62,11 +62,11 @@ mod plateforme {
     pub struct Verrou(Option<OwnedFd>);
 
     impl Verrou {
-        pub fn regler(&mut self, bloquer: bool) {
+        pub fn set(&mut self, bloquer: bool) {
             if !bloquer {
                 self.0 = None;
             } else if self.0.is_none() {
-                match super::linux::inhiber("block", "Lecture en cours") {
+                match super::linux::inhibit("block", "Lecture en cours") {
                     Ok(fd) => self.0 = Some(fd),
                     Err(e) => log::warn!("[veille] blocage refusé par logind : {e}"),
                 }
@@ -90,7 +90,7 @@ mod plateforme {
     pub struct Verrou(Option<u32>);
 
     impl Verrou {
-        pub fn regler(&mut self, bloquer: bool) {
+        pub fn set(&mut self, bloquer: bool) {
             match (bloquer, self.0) {
                 (true, None) => {
                     let kind = CFString::from_static_str("PreventUserIdleSystemSleep");
@@ -119,7 +119,7 @@ mod plateforme {
     pub struct Verrou;
 
     impl Verrou {
-        pub fn regler(&mut self, _bloquer: bool) {}
+        pub fn set(&mut self, _bloquer: bool) {}
     }
 }
 
@@ -136,26 +136,26 @@ mod linux {
     }
 
     /// Inhibiteur de veille logind (`block` ou `delay`), levé quand le descripteur se ferme.
-    pub fn inhiber(mode: &str, pourquoi: &str) -> zbus::Result<OwnedFd> {
+    pub fn inhibit(mode: &str, pourquoi: &str) -> zbus::Result<OwnedFd> {
         let conn = Connection::system()?;
         let fd: OwnedFd = logind(&conn)?.call("Inhibit", &("sleep", "RustMusic", pourquoi, mode))?;
         Ok(fd)
     }
 
     /// Prévient l'interface avant la veille (elle met en pause) et au réveil.
-    pub fn ecouter_mise_en_veille(app: AppHandle) {
+    pub fn watch_sleep(app: AppHandle) {
         let _ = std::thread::Builder::new().name("veille-logind".into()).spawn(move || {
-            if let Err(e) = boucle(&app) {
+            if let Err(e) = run_loop(&app) {
                 log::warn!("[veille] écoute de logind impossible : {e}");
             }
         });
     }
 
-    fn boucle(app: &AppHandle) -> zbus::Result<()> {
+    fn run_loop(app: &AppHandle) -> zbus::Result<()> {
         let conn = Connection::system()?;
         let proxy = logind(&conn)?;
         // « delay » : logind attend qu'on rende ce descripteur avant d'endormir la machine.
-        let mut retard = inhiber("delay", "Mise en pause avant la veille").ok();
+        let mut retard = inhibit("delay", "Mise en pause avant la veille").ok();
         for signal in proxy.receive_signal("PrepareForSleep")? {
             let (entre,): (bool,) = signal.body().deserialize()?;
             let _ = app.emit("systeme-veille", entre);
@@ -164,7 +164,7 @@ mod linux {
                 std::thread::sleep(Duration::from_millis(1500));
                 retard = None;
             } else if retard.is_none() {
-                retard = inhiber("delay", "Mise en pause avant la veille").ok();
+                retard = inhibit("delay", "Mise en pause avant la veille").ok();
             }
         }
         Ok(())

@@ -4,6 +4,7 @@ import { get } from "svelte/store";
 import { t } from "#lib/i18n";
 
 import { derniereVerification, updaterState } from "#lib/stores/updater/updater.store";
+import { loadPlatformFeatures } from "#lib/stores/settings/platform.store";
 
 // ============================================================================
 // SERVICE D'AUTO-UPDATE
@@ -28,6 +29,8 @@ let pendingUpdate: Update | null = null;
  * cas "pas d'update" et "erreur" pour donner du feedback.
  */
 export async function checkForUpdate(silent = true): Promise<void> {
+  // Flatpak : les mises à jour viennent de Flathub, jamais de l'appli.
+  if ((await loadPlatformFeatures()).flatpak) return;
   // Si déjà en train de télécharger, on ne relance pas une nouvelle check
   const current = get(updaterState);
   if (current.kind === "downloading" || current.kind === "installing") {

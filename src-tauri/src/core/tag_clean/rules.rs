@@ -236,12 +236,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn souligne_remplace() {
+    fn underscore_replaced() {
         assert_eq!(apply("Ma_Chanson", &[Rule::Underscores]), "Ma Chanson");
     }
 
     #[test]
-    fn numero_de_piste_retire() {
+    fn track_number_removed() {
         let r = [Rule::LeadingNumber];
         assert_eq!(apply("01 - Titre", &r), "Titre");
         assert_eq!(apply("01. Titre", &r), "Titre");
@@ -249,7 +249,7 @@ mod tests {
     }
 
     #[test]
-    fn un_titre_qui_commence_par_un_chiffre_est_epargne() {
+    fn a_title_starting_with_a_digit_is_spared() {
         let r = [Rule::LeadingNumber];
         // Sans séparateur, ce n'est pas une numérotation.
         assert_eq!(apply("7 Nation Army", &r), "7 Nation Army");
@@ -259,13 +259,13 @@ mod tests {
     }
 
     #[test]
-    fn un_numero_seul_reste() {
+    fn a_lone_number_stays() {
         // Retirer le « 01 » laisserait un titre vide.
         assert_eq!(apply("01 - ", &[Rule::LeadingNumber]), "01 - ");
     }
 
     #[test]
-    fn featuring_normalise() {
+    fn featuring_normalised() {
         let r = [Rule::Featuring];
         assert_eq!(apply("Titre ft Angèle", &r), "Titre feat. Angèle");
         assert_eq!(apply("Titre FT. Angèle", &r), "Titre feat. Angèle");
@@ -274,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn featuring_deja_correct_inchange() {
+    fn correct_featuring_left_unchanged() {
         assert_eq!(
             apply("Titre feat. Angèle", &[Rule::Featuring]),
             "Titre feat. Angèle"
@@ -282,7 +282,7 @@ mod tests {
     }
 
     #[test]
-    fn un_mot_qui_contient_feat_est_epargne() {
+    fn a_word_containing_feat_is_spared() {
         let r = [Rule::Featuring];
         assert_eq!(apply("Defeat", &r), "Defeat");
         assert_eq!(apply("Aftermath", &r), "Aftermath");
@@ -290,12 +290,12 @@ mod tests {
     }
 
     #[test]
-    fn espaces_reduits() {
+    fn spaces_collapsed() {
         assert_eq!(apply("  Trop   d'espaces  ", &[Rule::Spaces]), "Trop d'espaces");
     }
 
     #[test]
-    fn capitales_a_l_anglaise() {
+    fn english_title_case() {
         let r = [Rule::TitleCase];
         assert_eq!(apply("the dark side of the moon", &r), "The Dark Side of the Moon");
         // Le dernier mot prend la capitale, même petit.
@@ -303,14 +303,14 @@ mod tests {
     }
 
     #[test]
-    fn les_sigles_survivent_a_la_casse() {
+    fn acronyms_survive_case_changes() {
         let r = [Rule::TitleCase];
         assert_eq!(apply("DNA", &r), "DNA");
         assert_eq!(apply("live at BBC", &r), "Live at BBC");
     }
 
     #[test]
-    fn les_regles_s_enchainent_dans_l_ordre() {
+    fn rules_chain_in_order() {
         // Souligné, puis numéro, puis espaces : chacune prépare la suivante.
         assert_eq!(
             apply("01_-_Ma__Chanson  ", &[Rule::Underscores, Rule::LeadingNumber, Rule::Spaces]),
@@ -319,12 +319,12 @@ mod tests {
     }
 
     #[test]
-    fn aucune_regle_ne_change_rien() {
+    fn no_rule_changes_nothing() {
         assert_eq!(apply("  01_Titre  ", &[]), "  01_Titre  ");
     }
 
     #[test]
-    fn les_noms_de_regles_font_l_aller_retour() {
+    fn rule_names_round_trip() {
         for rule in ALL {
             assert_eq!(Rule::parse(rule.as_str()), Some(rule));
         }

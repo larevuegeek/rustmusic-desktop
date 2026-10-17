@@ -7,8 +7,8 @@
   import { selectionStore } from "#lib/stores/ui/selection.store";
   import { viewMode } from "#lib/stores/ui/viewMode.store";
   import { handleTracksPlay } from "#lib/actions/queue/QueueAction";
-  import { clesAffichees, resoudreColonnes, lireLargeurs, trierPistes, type SortDir } from "#lib/config/trackColumns";
-  import { dureeEcoute } from "#lib/helper/tools/dateTools";
+  import { shownKeys, resolveColumns, readWidths, sortTracks, type SortDir } from "#lib/config/trackColumns";
+  import { listenDuration } from "#lib/helper/tools/dateTools";
   import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
   import DetailPage from "#lib/components/ui/layout/DetailPage.svelte";
   import PlayButton from "#lib/components/ui/button/PlayButton.svelte";
@@ -63,7 +63,7 @@
   // ─── Tri : l'ordre de la playlist d'abord ───
   let sortKey = $state<string>("order");
   let sortDir = $state<SortDir>("asc");
-  const sorted = $derived(sortKey === "order" ? (sortDir === "asc" ? tracks : [...tracks].reverse()) : trierPistes(tracks, sortKey, sortDir));
+  const sorted = $derived(sortKey === "order" ? (sortDir === "asc" ? tracks : [...tracks].reverse()) : sortTracks(tracks, sortKey, sortDir));
   function sortBy(key: string) {
     if (sortKey === key) sortDir = sortDir === "asc" ? "desc" : "asc";
     else {
@@ -73,8 +73,8 @@
   }
   const arrow = (key: string) => (sortKey === key ? (sortDir === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded") : null);
 
-  const columns = $derived(resoudreColonnes(clesAffichees($settingsStore.track_columns)));
-  const widths = $derived(lireLargeurs($settingsStore.track_column_widths));
+  const columns = $derived(resolveColumns(shownKeys($settingsStore.track_columns)));
+  const widths = $derived(readWidths($settingsStore.track_column_widths));
   const grid = $derived($viewMode !== "list");
   $effect(() => {
     if (grid) selectionStore.setOrder(sorted.map((x) => ({ id: x.id, track: x })));
@@ -121,7 +121,7 @@
         <span><b class="font-bold text-(--rg-tx)">{count(tracks.length)}</b> {tracksLabel(tracks.length)}</span>
         {#if duration}
           <span class="text-(--rg-mu2)">·</span>
-          <span>{dureeEcoute(duration)}</span>
+          <span>{listenDuration(duration)}</span>
         {/if}
       </div>
 
@@ -136,7 +136,7 @@
   <!-- ─── Titres ─── -->
   <section class="mt-6">
     <div class="flex flex-wrap items-center gap-2.5 pt-1 pb-3.5">
-      <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{count(tracks.length)}</b> {tracksLabel(tracks.length)}{#if duration}{" · "}{dureeEcoute(duration)}{/if}</span>
+      <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{count(tracks.length)}</b> {tracksLabel(tracks.length)}{#if duration}{" · "}{listenDuration(duration)}{/if}</span>
       <SegmentedControl variant="discret" label={$t("common.sort")} value={sortKey} onchange={sortBy}
                         options={[
                           { value: "order", label: $t("playlist_page.sort_order"), after: arrow("order") },

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   // Recherche d'une piste en ligne (Deezer ou MusicBrainz), pour un seul fichier.
   //
   // # Ce que ce composant ne fait pas
@@ -84,7 +84,7 @@
       hitsSource = source;
       searched = true;
     } catch (e) {
-      if (seq === searchSeq) error = messageErreur(e);
+      if (seq === searchSeq) error = errorMessage(e);
     } finally {
       if (seq === searchSeq) searching = false;
     }
@@ -104,7 +104,7 @@
     try {
       onpick(await trackValues(hitsSource, hit.id), hit);
     } catch (e) {
-      error = messageErreur(e);
+      error = errorMessage(e);
     } finally {
       loadingId = null;
     }

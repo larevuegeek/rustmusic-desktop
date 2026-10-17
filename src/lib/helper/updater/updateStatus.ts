@@ -3,7 +3,7 @@ import type { UpdateState } from "#lib/stores/updater/updater.store";
 type Verification = "jamais" | "a-jour" | "maj" | "echec";
 
 /** Où en sont les mises à jour, en une ligne : partagé par la carte version et « À propos ». */
-export function libelleMiseAJour(t: (cle: string) => string, etat: UpdateState, derniere: Verification): string {
+export function updateLabel(t: (cle: string) => string, etat: UpdateState, derniere: Verification): string {
   switch (etat.kind) {
     case "checking": return t("settings.update_checking");
     case "available": return t("settings.update_available").replace("{version}", etat.version);

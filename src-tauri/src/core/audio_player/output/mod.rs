@@ -22,7 +22,7 @@ mod types;
 #[cfg(target_os = "windows")]
 mod wasapi_exclusive;
 #[cfg(target_os = "windows")]
-pub use wasapi_exclusive::fermer_moteur;
+pub use wasapi_exclusive::close_engine;
 #[cfg(target_os = "linux")]
 mod exclusive_alsa;
 #[cfg(target_os = "macos")]
@@ -34,12 +34,12 @@ pub mod dop_alsa;
 #[cfg(target_os = "linux")]
 pub mod device_reservation;
 #[cfg(target_os = "linux")]
-pub mod profil_pipewire;
+pub mod pipewire_profile;
 #[cfg(target_os = "macos")]
 pub mod dop_coreaudio;
 
-pub mod echantillons;
-pub mod peripherique;
+pub mod samples;
+pub mod device_lookup;
 pub mod shared_engine;
 
 use crate::core::audio_player::pipeline_info::Repli;
@@ -211,7 +211,7 @@ where
                     Repli::Indisponible
                 };
                 // Le consumer a été rendu, on peut le passer à CPAL ; le DAC doit être libre.
-                wasapi_exclusive::fermer_moteur();
+                wasapi_exclusive::close_engine();
                 return cpal_symphonia::CpalSymphoniaOutput::try_new(
                     cpal_device,
                     cpal_config,
@@ -219,7 +219,7 @@ where
                     build_err.consumer,
                     atomics,
                     shared,
-                    echantillons::MARGE_PARTAGEE,
+                    samples::MARGE_PARTAGEE,
                     true,
                 )
                 .map(|o| {
@@ -322,12 +322,12 @@ where
 
     // ─── Path CPAL (default, cross-platform) ───
     #[cfg(target_os = "windows")]
-    wasapi_exclusive::fermer_moteur();
+    wasapi_exclusive::close_engine();
     // Carte choisie encore hors service (délai de grâce d'une lecture exclusive,
     // ou sonde exclusive refusée à l'instant) : elle revient à PipeWire, et le
     // flux partagé l'ouvre au lieu de la sortie système.
     #[cfg(target_os = "linux")]
-    let (cpal_device, cpal_device_name) = match peripherique::reclaim_if_held(&nom_carte) {
+    let (cpal_device, cpal_device_name) = match device_lookup::reclaim_if_held(&nom_carte) {
         Some(device) => {
             use cpal::traits::DeviceTrait;
             let nom = device.description().map(|d| d.name().to_string()).unwrap_or(nom_carte);
@@ -345,7 +345,7 @@ where
         consumer,
         atomics,
         shared,
-        echantillons::MARGE_PARTAGEE,
+        samples::MARGE_PARTAGEE,
         true,
     )
     .map(|o| {

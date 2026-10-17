@@ -6,7 +6,7 @@
   import { playerService } from "#lib/services/player/player.service";
   import { t } from "#lib/i18n";
   import { audioDevicesStore, formatSampleRate, type AudioDeviceInfo } from "#lib/stores/audio/audioDevices.store";
-  import { capacitesSortie, decrireSortie, palierQualite, PALIERS } from "#lib/helper/audio/deviceLabel";
+  import { outputCapabilities, describeOutput, qualityTier, PALIERS } from "#lib/helper/audio/deviceLabel";
   import { detectOS } from "#lib/helper/tools/osDetection";
   import Badge from "#lib/components/ui/text/Badge.svelte";
   import AudioDeviceDetailsModal from "./AudioDeviceDetailsModal.svelte";
@@ -20,7 +20,7 @@
     audioDevicesStore.ensureLoaded();
   });
 
-  async function choisir(device: AudioDeviceInfo) {
+  async function selectDevice(device: AudioDeviceInfo) {
     if (device.displayName === $audioDevicesStore.activeDisplayName) return;
     try {
       await playerService.applyOutputChange(() => invoke("set_device", { deviceName: device.name }), { localOnly: true });
@@ -30,9 +30,9 @@
     }
   }
 
-  function fiche(d: AudioDeviceInfo) {
-    const { taux, bits, canaux } = capacitesSortie(d, $audioDevicesStore.exclusive[d.displayName]);
-    const palier = palierQualite(taux, bits);
+  function deviceCard(d: AudioDeviceInfo) {
+    const { taux, bits, canaux } = outputCapabilities(d, $audioDevicesStore.exclusive[d.displayName]);
+    const palier = qualityTier(taux, bits);
     return {
       palier: palier ? PALIERS[palier] : null,
       specs: [taux ? formatSampleRate(taux) : null, bits ? `${bits} bit` : null, `${canaux} ch`].filter((s): s is string => !!s),
@@ -57,8 +57,8 @@
   <div role="radiogroup" aria-label={$t("settings.output_group")}>
     {#each $audioDevicesStore.devices as device (device.displayName)}
       {@const actif = $audioDevicesStore.activeDisplayName === device.displayName}
-      {@const libelle = decrireSortie(device)}
-      {@const f = fiche(device)}
+      {@const libelle = describeOutput(device)}
+      {@const f = deviceCard(device)}
       <div
         role="radio"
         aria-checked={actif}
@@ -68,8 +68,8 @@
                border-t border-(--rg-line) first:border-t-0
                focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--rg-g)
                {actif ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-hover)'}"
-        onclick={() => choisir(device)}
-        onkeydown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); choisir(device); } }}
+        onclick={() => selectDevice(device)}
+        onkeydown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); selectDevice(device); } }}
       >
         {#if actif}<span class="absolute left-0 top-2.5 bottom-2.5 w-0.75 rounded-r-[3px] bg-(--rg-g)"></span>{/if}
         <span class="relative shrink-0 w-5 h-5 rounded-full border-2 {actif ? 'border-(--rg-g)' : 'border-(--rg-bd2)'}">
@@ -118,6 +118,6 @@
     device={detailsOf}
     isActive={$audioDevicesStore.activeDisplayName === detailsOf.displayName}
     onClose={() => (detailsOf = null)}
-    onSelect={(d) => choisir(d)}
+    onSelect={(d) => selectDevice(d)}
   />
 {/if}

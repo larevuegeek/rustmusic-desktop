@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   // Historique des lots, et retour en arrière.
   //
   // # Pourquoi un écran et pas seulement le bouton du compte rendu
@@ -51,7 +51,7 @@
       entries = await listBatchJournal(50);
       error = null;
     } catch (e) {
-      error = messageErreur(e);
+      error = errorMessage(e);
     } finally {
       loading = false;
     }
@@ -66,7 +66,7 @@
       onundone(result.moved);
       await load();
     } catch (e) {
-      error = messageErreur(e);
+      error = errorMessage(e);
     } finally {
       working = null;
     }

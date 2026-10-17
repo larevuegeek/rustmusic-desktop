@@ -2,7 +2,7 @@
 import { volume } from "#lib/stores/player/volume.store";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import Icon from "@iconify/svelte";
-import AnneauAttente from "#lib/components/ui/loader/AnneauAttente.svelte";
+import LoadingRing from "#lib/components/ui/loader/LoadingRing.svelte";
 import { t, currentLocale } from "#lib/i18n";
 import PlayerProgressBar from "./PlayerProgressBar.svelte";
 import PlayerSoundBar from "./PlayerSoundBar.svelte";
@@ -12,7 +12,7 @@ import LyricsPanel from "#lib/components/lyrics/LyricsPanel.svelte";
 import { player } from "#lib/stores/player/player.store";
 import { queueState } from "#lib/stores/queue/queueState.store";
 import { displayTitle } from "#lib/helper/tools/stringTools";
-import { dateToYear, minutesSecondes } from "#lib/helper/tools/dateTools";
+import { dateToYear, minutesSeconds } from "#lib/helper/tools/dateTools";
 import ImgZoom from "#lib/components/ui/tools/ImgZoom.svelte";
 import { playerService } from "#lib/services/player/player.service";
 import { liked } from "#lib/stores/playlist/like.store";
@@ -21,7 +21,7 @@ import { couleurMorceau } from "#lib/stores/player/trackColor.store";
 import { dsdLabel, formatBitrate, formatDsdRate, isDsdFormat } from "#lib/helper/tools/audioFormatTools";
 import { dlnaStatusStore } from "#lib/stores/dlna/dlna.store";
 import { get } from "svelte/store";
-import { localiserUn, lienTitre, lienArtiste, lienAlbum, lienAnnee, type TrackLocation } from "#lib/helper/library/trackLocation";
+import { locateOne, trackLink, artistLink, albumLink, yearLink, type TrackLocation } from "#lib/helper/library/trackLocation";
 import { playbackPipelineStore, pipelineMode } from "#lib/stores/player/playbackPipeline.store";
 import PipelineInfoPopover from "#lib/components/player/PipelineInfoPopover.svelte";
 import { goto } from "$app/navigation";
@@ -30,8 +30,8 @@ import { detectOS } from "#lib/helper/tools/osDetection";
 import { audioDevicesStore } from "#lib/stores/audio/audioDevices.store";
 import { networkIcon, networkPlayerStore } from "#lib/stores/audio/networkPlayer.store";
 import NetworkMenu from "#lib/components/player/NetworkMenu.svelte";
-import { decrireSortie } from "#lib/helper/audio/deviceLabel";
-import { TEINTE, CHAINE, messageRepli, frequenceLisible } from "#lib/helper/audio/chaineAudio";
+import { describeOutput } from "#lib/helper/audio/deviceLabel";
+import { TEINTE, CHAINE, fallbackMessage, readableRate } from "#lib/helper/audio/audioChain";
 
 const audioFile = $derived($player?.audioFile);
 const audioTags = $derived(audioFile?.tags);
@@ -66,7 +66,7 @@ $effect(() => {
   cheminResolu = chemin;
   lieu = null;
   if (!chemin) return;
-  localiserUn(chemin).then((trouve) => {
+  locateOne(chemin).then((trouve) => {
     if (get(player)?.pathFile === chemin) lieu = trouve;
   });
 });
@@ -101,7 +101,7 @@ const cheminDecoupe = $derived.by(() => {
 
 const chaine = $derived(modeChaine ? CHAINE[modeChaine] : null);
 // Sortie demandée non obtenue : la pastille porte un avertissement et le motif.
-const repli = $derived($playbackPipelineStore ? messageRepli($playbackPipelineStore, $t, (hz) => frequenceLisible(hz, $currentLocale)) : null);
+const repli = $derived($playbackPipelineStore ? fallbackMessage($playbackPipelineStore, $t, (hz) => readableRate(hz, $currentLocale)) : null);
 
 // « 16 bit · 44,1 kHz » ; le DSD n'a qu'une fréquence.
 const qualite = $derived(
@@ -114,7 +114,7 @@ const nomSortie = $derived.by(() => {
   const brut = $playbackPipelineStore?.device_name;
   const d = $audioDevicesStore.devices.find((x) => (brut ? x.name === brut || x.displayName === brut : x.displayName === $audioDevicesStore.activeDisplayName));
   // Nom WASAPI absent de la liste (« Haut-parleurs (3- Fosi Audio K7) ») : on le lit quand même.
-  return d ? decrireSortie(d).nom : brut ? decrireSortie({ name: brut }).nom : null;
+  return d ? describeOutput(d).nom : brut ? describeOutput({ name: brut }).nom : null;
 });
 
 // Marque LTR : le chemin tronqué par la gauche garde ses « \ » à leur place.
@@ -126,7 +126,7 @@ const voyant = "w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor
 const pastilleCliquable = "cursor-pointer transition-colors hover:border-current/50";
 
 let copie = $state(false);
-async function copierChemin() {
+async function copyPath() {
   const p = $player?.pathFile;
   if (!p) return;
   try {
@@ -191,16 +191,16 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
             {/if}
           </div>
           <div class="min-w-0 flex flex-col gap-0.75 leading-tight">
-            {@render info(trackTitle, "text-[17px] font-bold tracking-[-0.01em] text-(--lc-tx)", lienTitre(lieu))}
+            {@render info(trackTitle, "text-[17px] font-bold tracking-[-0.01em] text-(--lc-tx)", trackLink(lieu))}
             <span class="flex items-center gap-1 min-w-0 text-sm font-medium text-(--lc-tx2) whitespace-nowrap">
-              {#if audioTags?.artist}{@render info(audioTags.artist, "text-(--lc-acc) shrink-0 max-w-[75%]", lienArtiste(lieu))}{/if}
+              {#if audioTags?.artist}{@render info(audioTags.artist, "text-(--lc-acc) shrink-0 max-w-[75%]", artistLink(lieu))}{/if}
               {#if audioTags?.album}
                 <span class="shrink-0 text-(--lc-mu)">·</span>
-                {@render info(audioTags.album, "text-(--lc-mu)", lienAlbum(lieu))}
+                {@render info(audioTags.album, "text-(--lc-mu)", albumLink(lieu))}
               {/if}
             </span>
             {#if annee}
-              {@const cible = lienAnnee(lieu, annee)}
+              {@const cible = yearLink(lieu, annee)}
               {#if cible}
                 <button type="button" class="self-start text-xs font-medium tabular-nums text-(--lc-mu) cursor-pointer hover:text-(--lc-tx2) hover:underline underline-offset-3"
                         title={$t("player.year_albums").replace("{y}", annee)} onclick={() => goto(cible)}>{annee}</button>
@@ -240,7 +240,7 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
             onclick={() => playerService.handleTogglePlay()}
           >
             <Icon icon={isPlaying ? "material-symbols-light:pause-rounded" : "material-symbols-light:play-arrow-rounded"} width="32" />
-            <AnneauAttente actif={enAttente} />
+            <LoadingRing actif={enAttente} />
           </button>
           <button type="button" class={gros} title={$t("player.next")} aria-label={$t("player.next")} onclick={() => playerService.nextTrack()}>
             <Icon icon="material-symbols-light:skip-next-rounded" width="32" />
@@ -259,9 +259,9 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
           </button>
         </div>
         <div class="flex items-center gap-3 w-full font-mono text-[11px] tabular-nums text-(--lc-mu)">
-          <span class="min-w-9 text-right">{minutesSecondes(jsPosition)}</span>
+          <span class="min-w-9 text-right">{minutesSeconds(jsPosition)}</span>
           <div class="flex-1 min-w-0"><PlayerProgressBar position={jsPositionPercent} onseek={handleSeek} /></div>
-          <span class="min-w-9">{minutesSecondes(audioFile?.duration ?? 0)}</span>
+          <span class="min-w-9">{minutesSeconds(audioFile?.duration ?? 0)}</span>
         </div>
       </div>
 
@@ -313,7 +313,7 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
             <span class="min-w-8 truncate text-(--lc-tx2)" title={cheminDecoupe.fichier}>{cheminDecoupe.fichier}</span>
           </button>
           <button type="button" class="shrink-0 w-5.5 h-5.5 flex items-center justify-center rounded-md cursor-pointer opacity-0 group-hover/chemin:opacity-100 focus-visible:opacity-100 hover:bg-(--lc-survol) hover:text-(--lc-tx)"
-                  title={copie ? $t("player.path_copied") : $t("player.copy_path")} aria-label={$t("player.copy_path")} onclick={copierChemin}>
+                  title={copie ? $t("player.path_copied") : $t("player.copy_path")} aria-label={$t("player.copy_path")} onclick={copyPath}>
             <Icon icon={copie ? "material-symbols-light:check-rounded" : "material-symbols-light:content-copy-outline-rounded"} width="14" />
           </button>
           {#if !isPlaying && $player?.trackId}

@@ -2,9 +2,9 @@
   // Ligne d'une carte `OptionGroup`. Avec `onclick`, toute la ligne agit
   // (interrupteur) ; masquée quand la recherche des réglages ne la trouve pas.
   import type { Snippet } from "svelte";
-  import { correspond, rechercheReglages } from "#lib/stores/ui/settingsSearch.store";
-  import { texteBrut } from "#lib/helper/tools/texteAide";
-  import TexteAide from "#lib/components/ui/aide/TexteAide.svelte";
+  import { matches, rechercheReglages } from "#lib/stores/ui/settingsSearch.store";
+  import { plainText } from "#lib/helper/tools/helpText";
+  import HelpText from "#lib/components/ui/help/HelpText.svelte";
 
   let {
     title,
@@ -30,7 +30,7 @@
     children?: Snippet;
   } = $props();
 
-  const visible = $derived(correspond($rechercheReglages, title, desc && texteBrut(desc), keywords));
+  const visible = $derived(matches($rechercheReglages, title, desc && plainText(desc), keywords));
 </script>
 
 <!-- La ligne double l'interrupteur à la souris ; au clavier, c'est lui qui a le focus. -->
@@ -45,7 +45,7 @@
   {#if lead}{@render lead()}{/if}
   <div class="flex-1 min-w-0">
     <p class="text-[15px] font-semibold text-(--rg-tx)">{title}</p>
-    {#if desc}<p class="mt-0.75 text-[13px] leading-[1.25] text-(--rg-mu) text-pretty"><TexteAide texte={desc} /></p>{/if}
+    {#if desc}<p class="mt-0.75 text-[13px] leading-[1.25] text-(--rg-mu) text-pretty"><HelpText texte={desc} /></p>{/if}
     {#if value}<p class="mt-1.5 font-mono text-xs text-(--rg-mu2) truncate" title={value}>{value}</p>{/if}
   </div>
   {#if children}

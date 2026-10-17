@@ -6,7 +6,7 @@
   import { fade } from "svelte/transition";
   import { t } from "#lib/i18n";
   import { settingsSections } from "#lib/config/settingsSections";
-  import { lireOnglets } from "#lib/config/libraryTabs";
+  import { readTabs } from "#lib/config/libraryTabs";
   import { settingsDefaults, settingsStore } from "#lib/stores/settings/settings.store";
   import { rechercheReglages } from "#lib/stores/ui/settingsSearch.store";
   import VersionCard from "#lib/components/settings/VersionCard.svelte";
@@ -43,10 +43,10 @@
   const actif = $derived(page.url.pathname.split("/")[2] ?? "general");
   const section = $derived(settingsSections.find((s) => s.id === actif) ?? settingsSections[0]);
 
-  const normal = (cle: string, v: string) => (cle === "library_tabs" ? JSON.stringify(lireOnglets(v)) : v);
+  const normal = (cle: string, v: string) => (cle === "library_tabs" ? JSON.stringify(readTabs(v)) : v);
   const modifiees = $derived((section.cles ?? []).filter((cle) => normal(cle, $settingsStore[cle]) !== normal(cle, settingsDefaults[cle])));
 
-  async function retablir() {
+  async function restore() {
     for (const cle of modifiees) await settingsStore.set(cle, settingsDefaults[cle]);
   }
 </script>
@@ -136,7 +136,7 @@
                 class="h-7.5 px-3 rounded-lg border border-(--rg-off) hover:border-(--rg-bd2) cursor-pointer
                        text-[13px] font-semibold text-(--rg-tx2) hover:text-(--rg-tx) transition-colors"
                 title={$t("settings.restore_defaults_hint")}
-                onclick={retablir}
+                onclick={restore}
               >
                 {$t("settings.restore_defaults")}
               </button>

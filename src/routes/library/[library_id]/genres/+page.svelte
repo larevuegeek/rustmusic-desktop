@@ -1,5 +1,5 @@
 <script lang="ts">
-import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+import { readLocal, writeLocal } from "#lib/helper/tools/storage";
 import EmptyResult from "#lib/components/ui/feedback/EmptyResult.svelte";
 import SearchField from "#lib/components/ui/input/SearchField.svelte";
 import TextButton from "#lib/components/ui/button/TextButton.svelte";
@@ -16,7 +16,7 @@ import { libraryStore } from "#lib/stores/library/library.store";
 import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
 import { viewMode } from "#lib/stores/ui/viewMode.store";
 import { handleRandomMix } from "#lib/actions/queue/QueueAction";
-import { cleTri, lettreTri } from "#lib/helper/library/cleTri";
+import { sortKey, sortLetter } from "#lib/helper/library/sortKey";
 import LibraryImportingLoader from "#lib/components/library/common/loader/LibraryImportingLoader.svelte";
 import { importAffiche, importsTermines } from "#lib/stores/library/importProgress.store";
 import GenreCard from "#lib/components/library/genre/GenreCard.svelte";
@@ -44,7 +44,7 @@ $effect(() => {
 });
 
 // Artistes phares et dernière écoute : calculés par la base (plus besoin de charger tous les titres).
-const artistesDe = (g: GenreView) => (g.top_artists ?? []).join(", ");
+const artistsOf = (g: GenreView) => (g.top_artists ?? []).join(", ");
 
 // Albums sans genre : un pseudo-genre qui mène à la vue Albums filtrée.
 const sansGenre = $derived.by((): GenreView => {
@@ -66,16 +66,16 @@ const TRIS: { cle: Tri; libelle: string; icone: string }[] = [
   { cle: "recent", libelle: "genres_view.sort_recent", icone: "material-symbols:history-rounded" },
 ];
 const CLE_TRI = "genres:tri";
-const triLu = lireLocal(CLE_TRI, "tracks");
+const triLu = readLocal(CLE_TRI, "tracks");
 let tri = $state<Tri>(TRIS.some((x) => x.cle === triLu) ? (triLu as Tri) : "tracks");
-$effect(() => ecrireLocal(CLE_TRI, tri));
+$effect(() => writeLocal(CLE_TRI, tri));
 
 // ─── Filtres ───
 let recherche = $state("");
 let principaux = $state(false);
 let voirSansGenre = $state(false);
 const filtresActifs = $derived(!!recherche.trim() || principaux || voirSansGenre);
-function effacerFiltres() {
+function clearFilters() {
   recherche = "";
   principaux = voirSansGenre = false;
 }
@@ -86,19 +86,19 @@ const seuil = $derived(Math.max(50, totalTitres * 0.03));
 const maxTitres = $derived(Math.max(1, ...genres.map((g) => g.total_tracks)));
 
 const comparer = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
-const parNom = (x: GenreView, y: GenreView) => comparer.compare(cleTri(x.name), cleTri(y.name));
+const byName = (x: GenreView, y: GenreView) => comparer.compare(sortKey(x.name), sortKey(y.name));
 const TRI_FN: Record<Tri, (x: GenreView, y: GenreView) => number> = {
-  tracks: (x, y) => y.total_tracks - x.total_tracks || parNom(x, y),
-  albums: (x, y) => y.total_albums - x.total_albums || parNom(x, y),
-  name: parNom,
-  recent: (x, y) => (y.last_played_at ?? "").localeCompare(x.last_played_at ?? "") || parNom(x, y),
+  tracks: (x, y) => y.total_tracks - x.total_tracks || byName(x, y),
+  albums: (x, y) => y.total_albums - x.total_albums || byName(x, y),
+  name: byName,
+  recent: (x, y) => (y.last_played_at ?? "").localeCompare(x.last_played_at ?? "") || byName(x, y),
 };
 
 const visibles = $derived.by(() => {
   if (voirSansGenre) return [];
   const q = recherche.trim().toLowerCase();
   return genres
-    .filter((g) => (!q || `${g.name} ${artistesDe(g)}`.toLowerCase().includes(q)) && (!principaux || g.total_tracks >= seuil))
+    .filter((g) => (!q || `${g.name} ${artistsOf(g)}`.toLowerCase().includes(q)) && (!principaux || g.total_tracks >= seuil))
     .sort(TRI_FN[tri]);
 });
 
@@ -121,13 +121,13 @@ onDestroy(() => libraryHeader.update((h) => ({ ...h, action: null, chiffres: nul
 
 // ─── Navigation A–Z (tri par nom seulement) ───
 let defilement = $state<HTMLDivElement | null>(null);
-const lettres = $derived(new Set(visibles.map((g) => lettreTri(g.name))));
-const premiere = (i: number) => tri === "name" && (i === 0 || lettreTri(visibles[i - 1].name) !== lettreTri(visibles[i].name));
-function allerLettre(l: string) {
+const lettres = $derived(new Set(visibles.map((g) => sortLetter(g.name))));
+const isLetterStart = (i: number) => tri === "name" && (i === 0 || sortLetter(visibles[i - 1].name) !== sortLetter(visibles[i].name));
+function goToLetter(l: string) {
   defilement?.querySelector(`[data-letter="${l}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-const nombre = (n: number) => n.toLocaleString($currentLocale);
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 const lienSansGenre = $derived(`/library/${libraryId}/albums?genre=__sans__`);
 </script>
 
@@ -153,7 +153,7 @@ const lienSansGenre = $derived(`/library/${libraryId}/albums?genre=__sans__`);
     <!-- ─── Outils : une ligne si la place le permet ; sinon recherche + vue en haut, filtres dessous ─── -->
     <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
       <div class="flex flex-wrap items-center gap-2.5">
-        <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={$t("genres_view.filter").replace("{n}", nombre(genres.length))} clearLabel={$t("genres_view.clear_filters")} />
+        <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={$t("genres_view.filter").replace("{n}", formatNumber(genres.length))} clearLabel={$t("genres_view.clear_filters")} />
 
         <div class="order-2 @max-6xl:order-4 @max-6xl:basis-full flex flex-wrap items-center gap-2.5">
           <FilterChip icon="material-symbols:trending-up-rounded" pressed={principaux} title={$t("genres_view.main")} onclick={() => { principaux = !principaux; voirSansGenre = false; }}>
@@ -162,11 +162,11 @@ const lienSansGenre = $derived(`/library/${libraryId}/albums?genre=__sans__`);
           {#if sansGenre.total_albums > 0}
             <FilterChip icon="material-symbols:label-off-outline-rounded" pressed={voirSansGenre} title={$t("genres_view.untagged_hint")} onclick={() => { voirSansGenre = !voirSansGenre; principaux = false; }}>
               <span class="@max-xl:hidden">{$t("genres_view.untagged")}</span>
-              <span class="text-[11px] font-medium text-(--rg-mu2)">{nombre(sansGenre.total_albums)}</span>
+              <span class="text-[11px] font-medium text-(--rg-mu2)">{formatNumber(sansGenre.total_albums)}</span>
             </FilterChip>
           {/if}
           {#if filtresActifs}
-            <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("genres_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={effacerFiltres} />
+            <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("genres_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={clearFilters} />
           {/if}
         </div>
 
@@ -198,21 +198,21 @@ const lienSansGenre = $derived(`/library/${libraryId}/albums?genre=__sans__`);
             </div>
           {/if}
         {:else if visibles.length === 0}
-          <EmptyResult message={$t("genres_view.no_match")} effacerLabel={$t("genres_view.clear_filters")} oneffacer={filtresActifs ? effacerFiltres : null} />
+          <EmptyResult message={$t("genres_view.no_match")} effacerLabel={$t("genres_view.clear_filters")} oneffacer={filtresActifs ? clearFilters : null} />
         {:else if $viewMode === "grid"}
           <div class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] max-[900px]:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-x-4.5 gap-y-5.5 pt-3">
             {#each visibles as genre, i (genre.name)}
               <div class="relative min-w-0">
-                {#if premiere(i)}<span class="absolute -top-3 left-0 h-0 scroll-mt-4" data-letter={lettreTri(genre.name)}></span>{/if}
-                <GenreCard {libraryId} {genre} artistes={artistesDe(genre)} />
+                {#if isLetterStart(i)}<span class="absolute -top-3 left-0 h-0 scroll-mt-4" data-letter={sortLetter(genre.name)}></span>{/if}
+                <GenreCard {libraryId} {genre} artistes={artistsOf(genre)} />
               </div>
             {/each}
           </div>
         {:else}
           <div class="flex flex-col pt-2">
             {#each visibles as genre, i (genre.name)}
-              {#if premiere(i)}<span class="h-0 scroll-mt-4" data-letter={lettreTri(genre.name)}></span>{/if}
-              <GenreListRow {libraryId} {genre} artistes={artistesDe(genre)}
+              {#if isLetterStart(i)}<span class="h-0 scroll-mt-4" data-letter={sortLetter(genre.name)}></span>{/if}
+              <GenreListRow {libraryId} {genre} artistes={artistsOf(genre)}
                             part={(genre.total_tracks / Math.max(1, totalTitres)) * 100} barre={(genre.total_tracks / maxTitres) * 100} />
             {/each}
           </div>
@@ -220,7 +220,7 @@ const lienSansGenre = $derived(`/library/${libraryId}/albums?genre=__sans__`);
       </div>
 
       {#if tri === "name" && visibles.length > 0}
-        <AlphabetNav availableLetters={lettres} onletter={allerLettre} toujours />
+        <AlphabetNav availableLetters={lettres} onletter={goToLetter} toujours />
       {/if}
     </div>
   </div>

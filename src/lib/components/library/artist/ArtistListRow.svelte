@@ -9,8 +9,8 @@ import { handleArtistAddToQueue, handleArtistPlay } from "#lib/actions/queue/Que
 import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
-import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
-import { dureeEcoute } from "#lib/helper/tools/dateTools";
+import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+import { listenDuration } from "#lib/helper/tools/dateTools";
 
 let { libraryId, artist }: { libraryId: number; artist: ArtistListView } = $props();
 
@@ -18,7 +18,7 @@ let menu = $state<{ x: number; y: number } | null>(null);
 const portrait = $derived(artistImageReadyStore.get(artist.id, $artistImageReadyStore) ?? artist.thumbnail_path ?? null);
 
 const selection = $derived($selectionStore);
-const isSelected = $derived(selection.groupes.has(cleGroupe("artist", libraryId, artist.id)));
+const isSelected = $derived(selection.groupes.has(groupKey("artist", libraryId, artist.id)));
 
 // En mode sélection, cocher au lieu de naviguer ; le lien reste un lien.
 function handleCardClick(e: MouseEvent) {
@@ -28,7 +28,7 @@ function handleCardClick(e: MouseEvent) {
     toggleGroupSelection("artist", libraryId, artist.id);
 }
 
-function sansNaviguer(e: MouseEvent, action: () => void) {
+function withoutNavigating(e: MouseEvent, action: () => void) {
     e.preventDefault();
     e.stopPropagation();
     action();
@@ -65,7 +65,7 @@ const chiffre = "text-right text-[13px] tabular-nums whitespace-nowrap text-(--r
         {/if}
         {#if !selection.active}
             <button type="button" class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity cursor-pointer"
-                    title={$t("artists_view.play")} aria-label={`${$t("artists_view.play")} ${artist.name}`} onclick={(e) => sansNaviguer(e, () => handleArtistPlay(libraryId, artist.id))}>
+                    title={$t("artists_view.play")} aria-label={`${$t("artists_view.play")} ${artist.name}`} onclick={(e) => withoutNavigating(e, () => handleArtistPlay(libraryId, artist.id))}>
                 <span class="w-8 h-8 rounded-full flex items-center justify-center bg-(--rg-g) text-(--rg-on-g)">
                     <Icon icon="material-symbols:play-arrow-rounded" width="20" />
                 </span>
@@ -77,15 +77,15 @@ const chiffre = "text-right text-[13px] tabular-nums whitespace-nowrap text-(--r
 
     <span class={chiffre}><b class="font-medium text-(--rg-tx2)">{artist.total_albums}</b> {$t(artist.total_albums === 1 ? "library_head.albums_one" : "library_head.albums_n")}</span>
     <span class="{chiffre} max-[900px]:hidden"><b class="font-medium text-(--rg-tx2)">{artist.total_tracks}</b> {$t(artist.total_tracks === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}</span>
-    <span class="{chiffre} max-[900px]:hidden">{artist.total_duration ? dureeEcoute(artist.total_duration) : ""}</span>
+    <span class="{chiffre} max-[900px]:hidden">{artist.total_duration ? listenDuration(artist.total_duration) : ""}</span>
 
     <div class="flex items-center justify-end gap-0.5 {selection.active ? 'invisible' : ''}">
         <button type="button" class="{act} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-[900px]:hidden" title={$t("artists_view.enqueue")} aria-label={$t("artists_view.enqueue")}
-                onclick={(e) => sansNaviguer(e, () => handleArtistAddToQueue(libraryId, artist.id))}>
+                onclick={(e) => withoutNavigating(e, () => handleArtistAddToQueue(libraryId, artist.id))}>
             <Icon icon="material-symbols:queue-music-rounded" width="19" />
         </button>
         <button type="button" class="{act} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-[900px]:hidden" title={$t("artists_view.more")} aria-label={$t("artists_view.more")}
-                onclick={(e) => sansNaviguer(e, () => (menu = { x: e.clientX, y: e.clientY }))}>
+                onclick={(e) => withoutNavigating(e, () => (menu = { x: e.clientX, y: e.clientY }))}>
             <Icon icon="material-symbols:more-horiz" width="19" />
         </button>
         <span class="w-8.5 h-8.5 flex items-center justify-center text-(--rg-mu2) group-hover:text-(--rg-tx2)" title={$t("artists_view.open")}>

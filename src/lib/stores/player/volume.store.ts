@@ -7,7 +7,7 @@ export const volume = writable(80);
 let minuteur: ReturnType<typeof setTimeout> | null = null;
 
 /** Relit le volume du moteur (au démarrage, après une sourdine par raccourci). */
-export async function chargerVolume(): Promise<void> {
+export async function loadVolume(): Promise<void> {
   try {
     volume.set(await invoke<number>("get_volume"));
   } catch (e) {
@@ -16,7 +16,7 @@ export async function chargerVolume(): Promise<void> {
 }
 
 /** Tout de suite à l'écran, au plus toutes les 50 ms vers le moteur. */
-export function reglerVolume(v: number): void {
+export function applyVolume(v: number): void {
   const borne = Math.max(0, Math.min(100, Math.round(v)));
   volume.set(borne);
   if (minuteur) clearTimeout(minuteur);

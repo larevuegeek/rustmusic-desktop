@@ -63,7 +63,7 @@ export function formatBitrate(kbps: number | null | undefined): string {
  * Badge Hi-Res d'un album d'après sa meilleure piste : « 24/96 », « DSD64 » ;
  * `null` en qualité CD (16 bits, 48 kHz au plus) ou inconnue.
  */
-export function etiquetteHiRes(bits: number | null | undefined, frequence: number | null | undefined): string | null {
+export function hiResLabel(bits: number | null | undefined, frequence: number | null | undefined): string | null {
   if (bits === 1) return dsdLabel(frequence);
   if (!bits || !frequence || (bits <= 16 && frequence <= 48000)) return null;
   return `${bits}/${Math.floor(frequence / 1000)}`;
@@ -76,7 +76,7 @@ const SANS_PERTE = new Set(["FLAC", "ALAC", "WAV", "AIFF", "AIF", "APE", "WV", "
  * Palier d'une piste, mêmes critères que les filtres de la base :
  * Hi-Res au-delà de 16 bits ou 48 kHz (DSD compris), sinon sans perte selon le format.
  */
-export function palierPiste(format: string | null | undefined, bits: number | null | undefined, frequence: number | null | undefined): PalierPiste {
+export function trackTier(format: string | null | undefined, bits: number | null | undefined, frequence: number | null | undefined): PalierPiste {
   if ((bits ?? 0) > 16 || (frequence ?? 0) > 48000) return "hires";
   return SANS_PERTE.has((format ?? "").toUpperCase()) ? "lossless" : "lossy";
 }
@@ -93,13 +93,13 @@ export function formatCourt(format: string | null | undefined, bits: number | nu
 type PisteQualite = { audio_format: string | null; extension?: string | null; bits_per_sample: number | null; sample_rate: number | null; bitrate: number | null };
 
 /** La meilleure piste d'un ensemble (DSD, puis profondeur, fréquence, débit) : palier et « FLAC 24 bit / 96 kHz ». */
-export function meilleureQualite(pistes: PisteQualite[]): { palier: PalierPiste; texte: string } | null {
-  const rang = (x: PisteQualite) => (x.bits_per_sample === 1 ? 1e9 : (x.bits_per_sample ?? 0) * 1e6) + (x.sample_rate ?? 0) + (x.bitrate ?? 0) / 1e4;
+export function bestQuality(pistes: PisteQualite[]): { palier: PalierPiste; texte: string } | null {
+  const rank = (x: PisteQualite) => (x.bits_per_sample === 1 ? 1e9 : (x.bits_per_sample ?? 0) * 1e6) + (x.sample_rate ?? 0) + (x.bitrate ?? 0) / 1e4;
   let m: PisteQualite | null = null;
-  for (const x of pistes) if (!m || rang(x) > rang(m)) m = x;
+  for (const x of pistes) if (!m || rank(x) > rank(m)) m = x;
   if (!m) return null;
   const f = (m.audio_format ?? m.extension ?? "").toUpperCase();
-  const palier = palierPiste(m.audio_format, m.bits_per_sample, m.sample_rate);
+  const palier = trackTier(m.audio_format, m.bits_per_sample, m.sample_rate);
   const khz = (r: number) => (r % 1000 ? (r / 1000).toFixed(1).replace(".", ",") : String(r / 1000));
   if (m.bits_per_sample === 1 || f === "DSF" || f === "DFF") return { palier, texte: dsdLabel(m.sample_rate) };
   if (palier !== "lossy" && m.bits_per_sample && m.sample_rate) return { palier, texte: `${f} ${m.bits_per_sample} bit / ${khz(m.sample_rate)} kHz` };

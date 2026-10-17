@@ -6,7 +6,7 @@
   import { t } from "#lib/i18n";
   import { detectOS } from "#lib/helper/tools/osDetection";
   import LogoRustMusic from "#lib/components/ui/logo/LogoRustMusic.svelte";
-  import SidebarBouton from "#lib/components/sidebar/SidebarBouton.svelte";
+  import SidebarButton from "#lib/components/sidebar/SidebarButton.svelte";
   import type { Snippet } from "svelte";
 
   /**
@@ -42,14 +42,14 @@
 
   // Suit l'état réel : bouton, Win+↑, double clic ou fenêtre tirée vers le haut.
   $effect(() => {
-    const lire = () => {
+    const syncState = () => {
       appWindow.isMaximized().then((v) => { isMaximized = v; }).catch(() => {});
       appWindow.isFullscreen().then((v) => { isFullscreen = v; }).catch(() => {});
     };
-    lire();
+    syncState();
     let arreter: (() => void) | null = null;
     let fini = false;
-    appWindow.onResized(lire).then((u) => { if (fini) u(); else arreter = u; }).catch(() => {});
+    appWindow.onResized(syncState).then((u) => { if (fini) u(); else arreter = u; }).catch(() => {});
     return () => { fini = true; arreter?.(); };
   });
 
@@ -57,13 +57,13 @@
   function toggleMaximize() { appWindow.toggleMaximize(); }
 
   // Sur Mac, le vert passe en plein écran comme ailleurs dans le système ; ⌥ + clic agrandit.
-  function boutonVert(e: MouseEvent) {
+  function handleGreenButton(e: MouseEvent) {
     if (osDetected !== 'macos' || e.altKey) toggleMaximize();
     else appWindow.isFullscreen().then((v) => appWindow.setFullscreen(!v)).catch(() => {});
   }
 
   // Seulement sur le vide : un double clic dans la recherche n'agrandit pas la fenêtre.
-  function doubleClic(e: MouseEvent) {
+  function handleDoubleClick(e: MouseEvent) {
     if ((e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) toggleMaximize();
   }
   function close() {
@@ -124,7 +124,7 @@
   class="relative z-30 flex items-center h-15 select-none shrink-0
          bg-(--c-barre) dark:bg-zinc-950/50 backdrop-blur-md
          border-b border-(--c-bord) dark:border-white/6"
-  ondblclick={doubleClic}
+  ondblclick={handleDoubleClick}
 >
   {#snippet separateur()}
     <span class="w-px h-6 shrink-0 bg-(--c-bord) dark:bg-white/10"></span>
@@ -136,7 +136,7 @@
     <span class="flex pointer-events-none"><LogoRustMusic width={140} /></span>
     {#if avecSidebar}
       <span class="hidden md:flex">
-        <SidebarBouton
+        <SidebarButton
           icon={replie ? 'material-symbols:left-panel-open-outline-rounded' : 'material-symbols:left-panel-close-outline-rounded'}
           label={replie ? $t('sidebar.expand') : $t('sidebar.collapse')}
           taille={18}
@@ -171,7 +171,7 @@
         {@render trafficLight("#febc2e", "#dea123", "#985700", $t("window.minimize"), minimize, "minimize")}
         {@render trafficLight("#28c840", "#1aab29", "#006500",
           osDetected !== 'macos' ? $t("window.maximize") : isFullscreen ? $t("window.exit_fullscreen") : $t("window.fullscreen"),
-          boutonVert, isFullscreen ? "exit_fullscreen" : "fullscreen")}
+          handleGreenButton, isFullscreen ? "exit_fullscreen" : "fullscreen")}
       </div>
     </div>
 

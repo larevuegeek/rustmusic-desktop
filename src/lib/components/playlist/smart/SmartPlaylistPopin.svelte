@@ -6,12 +6,12 @@
   import { playlistStore } from "#lib/stores/playlist/playlist.store";
   import { profilSelector } from "#lib/stores/profil/profil.store";
   import { libraryStore } from "#lib/stores/library/library.store";
-  import { oublier } from "#lib/stores/mix/mix.store";
+  import { forget } from "#lib/stores/mix/mix.store";
   import { PLAYLIST_COLORS, PLAYLIST_ICONS } from "../playlistConfig";
   import RuleGroup from "./RuleGroup.svelte";
   import { PRESETS, type Preset } from "./presets";
   import {
-    libelleChamp,
+    fieldLabel,
     pruneGroup,
     type FieldOption,
     type Group,
@@ -40,7 +40,7 @@
   const mix = $derived(mixDemande || !!$playlistStore.playlists.find((p) => p.id === playlistId)?.is_mix);
   // Les tailles proposées pour un mix ; le tirage est toujours au hasard.
   const TAILLES = [30, 50, 100];
-  const tirage = (n: number | null | undefined): Limit => ({ count: n ?? 50, sort: "random", desc: false });
+  const limitOf = (n: number | null | undefined): Limit => ({ count: n ?? 50, sort: "random", desc: false });
 
   let name = $state("");
   let colorIndex = $state(0);
@@ -62,10 +62,10 @@
   const libraryId = $derived($libraryStore.libraries[0]?.id ?? null);
 
   $effect(() => {
-    charger();
+    load();
   });
 
-  async function charger() {
+  async function load() {
     chargement = true;
     try {
       const voc = await invoke<Vocabulary>("get_rule_vocabulary");
@@ -119,7 +119,7 @@
       }
 
       // Un mix tire toujours au hasard, même si ses règles viennent d'ailleurs.
-      if (mix) limit = tirage(limit.count);
+      if (mix) limit = limitOf(limit.count);
 
       if (group.rules.length === 0) {
         group = { match: "all", rules: [{ field: "rating", op: "gte", value: "4" }] };
@@ -144,14 +144,14 @@
     if (!vocabulary) return;
 
     if (minuterie) clearTimeout(minuterie);
-    minuterie = setTimeout(recompter, 250);
+    minuterie = setTimeout(recount, 250);
 
     return () => {
       if (minuterie) clearTimeout(minuterie);
     };
   });
 
-  async function recompter() {
+  async function recount() {
     if (!vocabulary) return;
     comptage = true;
     erreur = null;
@@ -191,10 +191,10 @@
    * Les copies profondes évitent que modifier une règle ensuite ne salisse la
    * recette pour la fois d'après.
    */
-  function appliquerRecette(p: Preset) {
+  function applyPreset(p: Preset) {
     recette = p.key;
     group = structuredClone(p.rules);
-    limit = mix ? tirage(limit.count) : { ...p.limit };
+    limit = mix ? limitOf(limit.count) : { ...p.limit };
 
     if (!name.trim() || name === nomPoseParRecette) {
       name = $t(p.name);
@@ -209,7 +209,7 @@
 
   const champsTriables = $derived([
     { key: "random", label: $t("smart.random") },
-    ...fields.map((f) => ({ key: f.key, label: libelleChamp(f, $t) })),
+    ...fields.map((f) => ({ key: f.key, label: fieldLabel(f, $t) })),
   ]);
 
   async function enregistrer() {
@@ -236,7 +236,7 @@
           rules: regles,
         });
         // Les règles ont changé : le tirage du jour ne vaut plus.
-        if (mix) oublier(`perso:${playlistId}`);
+        if (mix) forget(`perso:${playlistId}`);
       } else {
         const profilId = $profilSelector.profilSelected?.id;
         if (!profilId) throw new Error($t("smart.no_profile"));
@@ -321,7 +321,7 @@
         </h3>
         <div class="grid grid-cols-4 max-[760px]:grid-cols-2 gap-2">
           {#each PRESETS as p (p.key)}
-            <button type="button" onclick={() => appliquerRecette(p)} title={$t(p.hint)}
+            <button type="button" onclick={() => applyPreset(p)} title={$t(p.hint)}
                     class="group min-w-0 flex flex-col gap-2 p-3 rounded-xl border text-left cursor-pointer transition-colors
                            {recette === p.key ? 'bg-(--rg-creux-on)' : 'border-(--rg-bd) bg-(--rg-creux) hover:border-(--rg-bd2)'}"
                     style={recette === p.key ? `border-color: ${p.color}` : ""}>
@@ -349,7 +349,7 @@
           <h3 class="mb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{$t("mix_view.size")}</h3>
           <div class="grid grid-cols-3 gap-2">
             {#each TAILLES as n (n)}
-              <button type="button" onclick={() => (limit = tirage(n))} aria-pressed={limit.count === n}
+              <button type="button" onclick={() => (limit = limitOf(n))} aria-pressed={limit.count === n}
                       class="relative h-18 flex flex-col items-center justify-center rounded-xl border cursor-pointer transition-colors
                              {limit.count === n ? 'border-(--rg-g) bg-(--rg-creux-on)' : 'border-(--rg-bd) bg-(--rg-creux) hover:border-(--rg-bd2)'}">
                 <span class="text-[22px] font-extrabold leading-none tabular-nums {limit.count === n ? 'text-(--rg-gtx)' : 'text-(--rg-tx)'}">{n}</span>

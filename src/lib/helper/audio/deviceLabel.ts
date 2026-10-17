@@ -9,7 +9,7 @@ const ECRAN = /hdmi|displayport|(nvidia|amd|ati|intel\(r\)) (high definition|dis
 const NUMERIQUE = /digital output|s\/?pdif|optical|optique/i;
 
 /** « Rôle (Appareil) » → [rôle, appareil], parenthèses internes comprises (« Realtek(R) Audio »). */
-function scinder(nom: string): [string, string | null] {
+function splitName(nom: string): [string, string | null] {
   if (!nom.endsWith(")")) return [nom, null];
   let profondeur = 0;
   for (let i = nom.length - 1; i >= 0; i--) {
@@ -22,7 +22,7 @@ function scinder(nom: string): [string, string | null] {
 // Un nom brut suffit (celui que renvoie la lecture) ; bus et pilote affinent le détail.
 type SortieDecrite = Pick<AudioDeviceInfo, "name"> & Partial<Pick<AudioDeviceInfo, "bus" | "manufacturer" | "driver">>;
 
-function connexion(d: SortieDecrite, texte: string): string | null {
+function connectionLabel(d: SortieDecrite, texte: string): string | null {
   if (ECRAN.test(texte)) return "HDMI";
   if (NUMERIQUE.test(texte)) return "S/PDIF";
   const bus = d.bus?.toUpperCase() ?? "";
@@ -32,8 +32,8 @@ function connexion(d: SortieDecrite, texte: string): string | null {
 }
 
 /** Nom lisible d'une sortie, sa ligne de détail (rôle ou pilote · connexion) et son icône. */
-export function decrireSortie(d: SortieDecrite): LibelleSortie {
-  let [avant, dedans] = scinder(d.name);
+export function describeOutput(d: SortieDecrite): LibelleSortie {
+  let [avant, dedans] = splitName(d.name);
   // ALSA : « Fosi Audio K7, USB Audio ».
   if (!dedans && d.name.includes(", ")) {
     const i = d.name.indexOf(", ");
@@ -42,7 +42,7 @@ export function decrireSortie(d: SortieDecrite): LibelleSortie {
   const appareil = dedans?.replace(/^\d+-\s*/, "") ?? null;
   const role = !!appareil && ROLE.test(avant);
   const detail = (role ? avant : appareil) ?? d.manufacturer ?? d.driver ?? "";
-  const lien = connexion(d, d.name);
+  const lien = connectionLabel(d, d.name);
 
   return {
     nom: role ? appareil! : avant,
@@ -56,7 +56,7 @@ export function decrireSortie(d: SortieDecrite): LibelleSortie {
 }
 
 /** Plus grande profondeur exposée : « 32-bit float » → 32. */
-export function profondeurMax(formats: string[]): number | null {
+export function maxBitDepth(formats: string[]): number | null {
   const bits = formats.map((f) => parseInt(f, 10)).filter((n) => !Number.isNaN(n));
   return bits.length ? Math.max(...bits) : null;
 }
@@ -64,7 +64,7 @@ export function profondeurMax(formats: string[]): number | null {
 export type Palier = "cd" | "hires" | "ultra";
 
 /** Palier de qualité d'une sortie ; sous 24 bits, elle reste « CD » quelle que soit sa fréquence. */
-export function palierQualite(taux: number | null, bits: number | null): Palier | null {
+export function qualityTier(taux: number | null, bits: number | null): Palier | null {
   if (!taux) return null;
   if (taux < 88_200 || (bits !== null && bits < 24)) return "cd";
   return taux >= 352_800 ? "ultra" : "hires";
@@ -81,7 +81,7 @@ export const PALIERS: Record<Palier, { labelKey: string; ton: "neutral" | "amber
  * Ce que la sortie sait vraiment faire : l'exclusif sondé ; sans exclusif, le format du mixeur
  * Windows (la table CPAL y est la même pour tous) ; hors Windows, ce que déclare CPAL.
  */
-export function capacitesSortie(d: AudioDeviceInfo, caps?: WasapiDeviceCapabilities) {
+export function outputCapabilities(d: AudioDeviceInfo, caps?: WasapiDeviceCapabilities) {
   if (caps?.exclusiveRates.length) {
     return {
       taux: Math.max(...caps.exclusiveRates),
@@ -90,5 +90,5 @@ export function capacitesSortie(d: AudioDeviceInfo, caps?: WasapiDeviceCapabilit
     };
   }
   if (caps?.mixRate) return { taux: caps.mixRate, bits: caps.mixBitDepth, canaux: caps.mixChannels ?? d.maxChannels };
-  return { taux: maxSampleRate(d.sampleRates), bits: profondeurMax(d.sampleFormats), canaux: d.maxChannels };
+  return { taux: maxSampleRate(d.sampleRates), bits: maxBitDepth(d.sampleFormats), canaux: d.maxChannels };
 }

@@ -17,14 +17,14 @@ import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
 import { ordreAlbums } from "#lib/stores/library/albumOrder.store";
 import { loadAlbum, loadTracksByAlbum } from "#lib/services/library/library.service";
 import { handleTracksPlay } from "#lib/actions/queue/QueueAction";
-import { clesAffichees, resoudreColonnes, lireLargeurs, resetTagCache, trierPistes, type SortDir } from "#lib/config/trackColumns";
-import { dureeEcoute } from "#lib/helper/tools/dateTools";
-import { tailleLisible } from "#lib/helper/tools/sizeTools";
-import { meilleureQualite } from "#lib/helper/tools/audioFormatTools";
-import { echantillonAleatoire } from "#lib/helper/tools/randomTools";
-import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
-import { cleTri, comparerNaturel, ordreDisque } from "#lib/helper/library/cleTri";
-import { lireTagsFichier } from "#lib/helper/library/tagsFichier";
+import { shownKeys, resolveColumns, readWidths, resetTagCache, sortTracks, type SortDir } from "#lib/config/trackColumns";
+import { listenDuration } from "#lib/helper/tools/dateTools";
+import { readableSize } from "#lib/helper/tools/sizeTools";
+import { bestQuality } from "#lib/helper/tools/audioFormatTools";
+import { randomSample } from "#lib/helper/tools/randomTools";
+import { readLocal, writeLocal } from "#lib/helper/tools/storage";
+import { sortKey, comparerNaturel, discOrder } from "#lib/helper/library/sortKey";
+import { readFileTags } from "#lib/helper/library/fileTags";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import ImgZoom from "#lib/components/ui/tools/ImgZoom.svelte";
 import QualityBadge from "#lib/components/ui/text/QualityBadge.svelte";
@@ -78,10 +78,10 @@ $effect(() => {
   }
   // Hors suivi : `charger` lit `album`, l'effet se relancerait à chaque chargement.
   const n = ++tour;
-  untrack(() => charger(id, aid, p.id, n));
+  untrack(() => load(id, aid, p.id, n));
 });
 
-async function charger(libId: number, aid: string, profilId: number, n: number) {
+async function load(libId: number, aid: string, profilId: number, n: number) {
   erreur = false;
   isLoading = album === null;
   try {
@@ -117,7 +117,7 @@ async function charger(libId: number, aid: string, profilId: number, n: number) 
   }
 }
 
-async function pistesPourMenu() {
+async function menuTracks() {
   return album ? ((await loadTracksByAlbum(libraryId, album.id)) ?? []) : [];
 }
 
@@ -128,12 +128,12 @@ $effect(() => {
 });
 
 // ─── Chiffres de l'album ───
-const nombre = (n: number) => n.toLocaleString($currentLocale);
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 const duree = $derived(tracks.reduce((s, x) => s + (x.duration ?? 0), 0) || album?.total_duration || 0);
 const poids = $derived(tracks.reduce((s, x) => s + (x.file_size ?? x.size ?? 0), 0));
 const nbTitres = $derived(tracks.length || album?.total_tracks || 0);
-const titresLibelle = $derived(`${nombre(nbTitres)} ${$t(nbTitres === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}`);
-const qualite = $derived(meilleureQualite(tracks));
+const titresLibelle = $derived(`${formatNumber(nbTitres)} ${$t(nbTitres === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}`);
+const qualite = $derived(bestQuality(tracks));
 
 // Genres des titres (l'album n'en porte qu'un), chacun mène à sa page.
 const genres = $derived.by(() => {
@@ -148,7 +148,7 @@ const fiche = $derived.by(() => {
   let date: string | null = null;
   let label: string | null = null;
   for (const x of tracks) {
-    const tg = lireTagsFichier(x.tags);
+    const tg = readFileTags(x.tags);
     if (!tg) continue;
     const { champs, perso } = tg;
     label ??= (champs.publisher as string) || perso.get("LABEL") || perso.get("ORGANIZATION") || perso.get("PUBLISHER") || null;
@@ -182,7 +182,7 @@ const dossier = $derived.by(() => {
 
 // ─── Favoris : l'album l'est quand tous ses titres le sont ───
 const tousAimes = $derived(tracks.length > 0 && tracks.every((x) => $liked.paths.has(x.path)));
-async function basculerFavori() {
+async function toggleFavorite() {
   const aimer = !tousAimes;
   try {
     await liked.toggleAll(tracks.map((x) => x.path), aimer);
@@ -196,10 +196,10 @@ async function basculerFavori() {
 let tri = $state<string | null>(null);
 let sens = $state<SortDir>("asc");
 // Sans numéro dans les tags, l'ordre naturel des noms de fichier (« 2-13 » avant « 10-13 »).
-const pistesAlbum = $derived(tracks.every((x) => x.track_number != null) ? tracks : [...tracks].sort(ordreDisque));
-const pistesTriees = $derived(trierPistes(pistesAlbum, tri, sens));
+const pistesAlbum = $derived(tracks.every((x) => x.track_number != null) ? tracks : [...tracks].sort(discOrder));
+const pistesTriees = $derived(sortTracks(pistesAlbum, tri, sens));
 
-function trierPar(cle: string) {
+function changeSort(cle: string) {
   if (cle === "n") {
     tri = null;
     sens = "asc";
@@ -209,7 +209,7 @@ function trierPar(cle: string) {
     sens = "asc";
   }
 }
-const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded") : null);
+const sortArrow = (cle: string) => (tri === cle ? (sens === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded") : null);
 
 // Dans l'ordre du disque, un album en plusieurs disques se lit disque par disque.
 const disques = $derived.by(() => {
@@ -229,28 +229,28 @@ $effect(() => {
 });
 
 // Jaquettes de la vue grille, retenues d'une visite à l'autre.
-let jaquettes = $state(lireLocal("album:jaquettes", "1") !== "0");
-function basculerJaquettes() {
+let jaquettes = $state(readLocal("album:jaquettes", "1") !== "0");
+function toggleCovers() {
   jaquettes = !jaquettes;
-  ecrireLocal("album:jaquettes", jaquettes ? "1" : "0");
+  writeLocal("album:jaquettes", jaquettes ? "1" : "0");
 }
 
 // Colonnes du tableau : les mêmes que l'onglet Morceaux.
-const colonnes = $derived(resoudreColonnes(clesAffichees($settingsStore.track_columns)).filter((c) => c.key !== "artist"));
-const largeurs = $derived(lireLargeurs($settingsStore.track_column_widths));
+const colonnes = $derived(resolveColumns(shownKeys($settingsStore.track_columns)).filter((c) => c.key !== "artist"));
+const largeurs = $derived(readWidths($settingsStore.track_column_widths));
 
 // ─── Autour de l'album ───
 const tousAlbums = $derived($libraryContentStore.albums.filter((a) => a.library_id === libraryId));
 const tousArtistes = $derived($libraryContentStore.artists);
 const artiste = $derived(album?.artist_id ? tousArtistes.find((a) => a.id === album!.artist_id) ?? null : null);
-const parTitre = (x: AlbumListView, y: AlbumListView) => comparerNaturel.compare(cleTri(x.title), cleTri(y.title));
+const byTitle = (x: AlbumListView, y: AlbumListView) => comparerNaturel.compare(sortKey(x.title), sortKey(y.title));
 
 let triAutres = $state<"year" | "title">("year");
 const autresAlbums = $derived.by(() => {
   const a = album;
   if (!a?.artist_id) return [];
   const liste = tousAlbums.filter((x) => x.artist_id === a.artist_id && x.id !== a.id);
-  return triAutres === "year" ? liste.sort((x, y) => (y.year ?? 0) - (x.year ?? 0) || parTitre(x, y)) : liste.sort(parTitre);
+  return triAutres === "year" ? liste.sort((x, y) => (y.year ?? 0) - (x.year ?? 0) || byTitle(x, y)) : liste.sort(byTitle);
 });
 
 // Dix au hasard, tirés une fois par album : deux albums du même genre ne proposent pas la même sélection.
@@ -271,16 +271,16 @@ $effect(() => {
     return;
   }
   const memeGenre = als.filter((x) => x.genre?.toLowerCase() === genre && x.artist_id !== a.artist_id);
-  similaires = echantillonAleatoire(memeGenre, 10);
+  similaires = randomSample(memeGenre, 10);
   const ids = new Set(memeGenre.map((x) => x.artist_id).filter(Boolean));
-  artistesSimilaires = echantillonAleatoire(ars.filter((x) => ids.has(x.id)), 10);
+  artistesSimilaires = randomSample(ars.filter((x) => ids.has(x.id)), 10);
 });
 
 // ─── Précédent / suivant : l'ordre de la vue Albums, sinon l'ordre alphabétique ───
 const ordre = $derived.by(() => {
   const o = $ordreAlbums;
   if (o && o.libraryId === libraryId && album && o.ids.includes(album.id)) return o.ids;
-  return [...tousAlbums].sort(parTitre).map((x) => x.id);
+  return [...tousAlbums].sort(byTitle).map((x) => x.id);
 });
 const rang = $derived(album ? ordre.indexOf(album.id) : -1);
 const precedent = $derived(rang > 0 ? ordre[rang - 1] : null);
@@ -377,15 +377,15 @@ const grille = $derived($viewMode !== "list");
         {/if}
         <span class="text-(--rg-mu2)">·</span>
         <span>{titresLibelle}</span>
-        {#if duree}<span class="text-(--rg-mu2)">·</span><span>{dureeEcoute(duree)}</span>{/if}
-        {#if poids}<span class="text-(--rg-mu2)">·</span><span>{tailleLisible(poids, $currentLocale)}</span>{/if}
+        {#if duree}<span class="text-(--rg-mu2)">·</span><span>{listenDuration(duree)}</span>{/if}
+        {#if poids}<span class="text-(--rg-mu2)">·</span><span>{readableSize(poids, $currentLocale)}</span>{/if}
       </div>
 
       <div class="flex flex-wrap items-center gap-2.5 mt-2">
         <PlayButton label={$t("album_view.play")} onclick={() => handleTracksPlay(pistesAlbum)} />
         <RoundButton icon="material-symbols:shuffle-rounded" title={$t("album_view.shuffle")} onclick={() => handleTracksPlay(pistesAlbum, true)} />
         <RoundButton icon={tousAimes ? "material-symbols:favorite-rounded" : "material-symbols:favorite-outline-rounded"} pressed={tousAimes}
-                     title={$t(tousAimes ? "album_view.fav_remove" : "album_view.fav_add")} onclick={basculerFavori} />
+                     title={$t(tousAimes ? "album_view.fav_remove" : "album_view.fav_add")} onclick={toggleFavorite} />
         <RoundButton icon="material-symbols:more-horiz" title={$t("album_view.more")}
                      onclick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); albumMenu = { x: r.left, y: r.bottom + 6 }; }} />
         {#if genres.length}
@@ -399,18 +399,18 @@ const grille = $derived($viewMode !== "list");
 
   <!-- ─── Titres ─── -->
   <div class="flex flex-wrap items-center gap-2.5 pt-1 pb-3.5">
-    <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{nombre(nbTitres)}</b> {$t(nbTitres === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}{#if duree}{" · "}{dureeEcoute(duree)}{/if}</span>
+    <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{formatNumber(nbTitres)}</b> {$t(nbTitres === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}{#if duree}{" · "}{listenDuration(duree)}{/if}</span>
 
     {#if tracks.length > 1}
-      <SegmentedControl variant="discret" label={$t("common.sort")} value={tri ?? "n"} onchange={trierPar}
+      <SegmentedControl variant="discret" label={$t("common.sort")} value={tri ?? "n"} onchange={changeSort}
                         options={[
                           { value: "n", label: $t("album_view.sort_number") },
-                          { value: "title", label: $t("album_view.sort_title"), after: flecheSens("title") },
-                          { value: "duration", label: $t("album_view.sort_duration"), after: flecheSens("duration") },
+                          { value: "title", label: $t("album_view.sort_title"), after: sortArrow("title") },
+                          { value: "duration", label: $t("album_view.sort_duration"), after: sortArrow("duration") },
                         ]} />
     {/if}
     {#if grille}
-      <ToolbarButton icon="material-symbols:image-outline-rounded" label={$t("album_view.covers")} title={$t("album_view.covers_title")} pressed={jaquettes} onclick={basculerJaquettes} />
+      <ToolbarButton icon="material-symbols:image-outline-rounded" label={$t("album_view.covers")} title={$t("album_view.covers_title")} pressed={jaquettes} onclick={toggleCovers} />
     {:else}
       <TrackColumnsButton {libraryId} avecLibelle />
     {/if}
@@ -457,7 +457,7 @@ const grille = $derived($viewMode !== "list");
 
   {#if autresAlbums.length > 0}
     <CarouselSection titre={album.artist ? $t("album_view.other_albums").replace("{a}", album.artist) : $t("album_view.other_albums_same")}
-                     sousTitre={`${nombre(autresAlbums.length)} ${$t(autresAlbums.length === 1 ? "library_head.albums_one" : "library_head.albums_n")}`}
+                     sousTitre={`${formatNumber(autresAlbums.length)} ${$t(autresAlbums.length === 1 ? "library_head.albums_one" : "library_head.albums_n")}`}
                      {grille} items={autresAlbums} cle={(a) => a.id} carte={carteAlbum} ligne={ligneAlbum} extra={triAutresSeg} reinit={triAutres} />
   {/if}
   {#if similaires.length > 0}
@@ -474,7 +474,7 @@ const grille = $derived($viewMode !== "list");
   <CollectionContextMenu
     title={album.title}
     type="album"
-    loadTracks={pistesPourMenu}
+    loadTracks={menuTracks}
     x={albumMenu.x}
     y={albumMenu.y}
     onclose={() => (albumMenu = null)}

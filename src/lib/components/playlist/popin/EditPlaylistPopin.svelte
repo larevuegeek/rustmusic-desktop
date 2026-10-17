@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import { playlistStore } from "#lib/stores/playlist/playlist.store";
   import { PLAYLIST_COLORS, PLAYLIST_ICONS } from "../playlistConfig";
@@ -50,7 +50,7 @@
       await playlistStore.updatePlaylist(playlistId, name, description || null, selectedColor, selectedIcon.id);
       close();
     } catch (error) {
-      const message = messageErreur(error);
+      const message = errorMessage(error);
       if (message.includes("UNIQUE") || message.includes("duplicate")) {
         errorName = "forms.name_taken";
       } else {

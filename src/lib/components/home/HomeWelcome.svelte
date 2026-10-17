@@ -1,7 +1,7 @@
 <script lang="ts">
 // Accueil sans bibliothèque.
 import Icon from "@iconify/svelte";
-import DisqueFiligrane from "#lib/components/ui/deco/DisqueFiligrane.svelte";
+import DiscWatermark from "#lib/components/ui/deco/DiscWatermark.svelte";
 import { goto } from "$app/navigation";
 import { t } from "#lib/i18n";
 import { handleClickOpenDirectory } from "#lib/actions/player/PlayerAction";
@@ -20,7 +20,7 @@ const etapes = [
 <section class="relative overflow-hidden rounded-[24px] p-8 md:p-12 text-(--rg-tx) select-none">
   <div class="hero-vert absolute inset-0 pointer-events-none" aria-hidden="true"></div>
 
-  <DisqueFiligrane class="absolute -right-20 -bottom-28 w-[440px] h-[440px] max-md:hidden" />
+  <DiscWatermark class="absolute -right-20 -bottom-28 w-[440px] h-[440px] max-md:hidden" />
 
   <div class="relative flex flex-col gap-4 max-w-2xl">
     <p class="text-[13px] font-semibold uppercase tracking-[0.08em] text-(--rg-gtx)">{$t("home_welcome.kicker")}</p>

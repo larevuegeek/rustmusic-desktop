@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fiche AppStream de RustMusic : ce que montrent Flathub, GNOME Logiciels et KDE Discover. -->
+<component type="desktop-application">
+  <id>dev.rustmusic.RustMusic</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+
+  <name>RustMusic</name>
+  <summary>Music player for audiophiles</summary>
+  <summary xml:lang="fr">Lecteur de musique pour audiophiles</summary>
+
+  <developer id="dev.rustmusic">
+    <name>LaRevueGeeK</name>
+  </developer>
+
+  <description>
+    <p>
+      RustMusic is a free, open-source music player for people who care about sound.
+      It plays your FLAC, ALAC, WAV, AIFF, MP3 and DSD files in Hi-Res, and manages
+      large libraries without slowing down.
+    </p>
+    <ul>
+      <li>Hi-Res files, gapless transitions and ReplayGain</li>
+      <li>DSD files (DSF and DFF) played through high-quality conversion</li>
+      <li>Fast library with albums, artists, genres, decades and folders</li>
+      <li>Tag workshop: edit in a table, fill in from MusicBrainz or Deezer</li>
+      <li>Synced lyrics</li>
+      <li>Built-in DLNA server: play your library from your amplifier or TV</li>
+      <li>Play to UPnP/DLNA network players and AirPlay devices</li>
+      <li>Remote control for Onkyo, Pioneer, Integra, Denon, Marantz and Yamaha amplifiers</li>
+    </ul>
+    <p xml:lang="fr">
+      RustMusic est un lecteur de musique libre et gratuit, pour ceux qui tiennent au son.
+      Il lit vos fichiers FLAC, ALAC, WAV, AIFF, MP3 et DSD en Hi-Res, et gère les grandes
+      bibliothèques sans ralentir.
+    </p>
+    <ul xml:lang="fr">
+      <li>Fichiers Hi-Res, enchaînement sans blanc et Replay Gain</li>
+      <li>Fichiers DSD (DSF et DFF) lus par une conversion de haute qualité</li>
+      <li>Bibliothèque rapide : albums, artistes, genres, décennies et dossiers</li>
+      <li>Atelier de tags : édition en tableau, complétée par MusicBrainz ou Deezer</li>
+      <li>Paroles synchronisées</li>
+      <li>Serveur DLNA intégré : votre bibliothèque sur votre ampli ou votre TV</li>
+      <li>Lecture sur les lecteurs réseau UPnP/DLNA et les appareils AirPlay</li>
+      <li>Télécommande pour les amplis Onkyo, Pioneer, Integra, Denon, Marantz et Yamaha</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">dev.rustmusic.RustMusic.desktop</launchable>
+  <provides>
+    <binary>rustmusic</binary>
+  </provides>
+
+  <url type="homepage">https://rustmusic.dev</url>
+  <url type="bugtracker">https://github.com/larevuegeek/rustmusic-desktop/issues</url>
+  <url type="vcs-browser">https://github.com/larevuegeek/rustmusic-desktop</url>
+  <url type="donation">https://rustmusic.dev/#support</url>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#c9f2d6</color>
+    <color type="primary" scheme_preference="dark">#16391f</color>
+  </branding>
+
+  <content_rating type="oars-1.1"/>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <keywords>
+    <keyword>music</keyword>
+    <keyword>player</keyword>
+    <keyword>flac</keyword>
+    <keyword>dsd</keyword>
+    <keyword>hi-res</keyword>
+    <keyword>dlna</keyword>
+    <keyword>audiophile</keyword>
+  </keywords>
+
+  <!-- Captures servies par GitHub au tag de la version : elles doivent être poussées avant la soumission. -->
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.3.1/packaging/flatpak/screenshots/1-accueil.png</image>
+      <caption>Pick up where you left off</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.3.1/packaging/flatpak/screenshots/2-bibliotheque.png</image>
+      <caption>Your library, album by album</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.3.1/packaging/flatpak/screenshots/3-album.png</image>
+      <caption>Album page with Hi-Res details</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.3.1/packaging/flatpak/screenshots/4-ampli.png</image>
+      <caption>Remote control for your amplifier</caption>
+    </screenshot>
+  </screenshots>
+
+  <!-- Une entrée par version, la plus récente en tête ; la date à corriger le jour de la sortie. -->
+  <releases>
+    <release version="0.3.1" date="2026-10-17">
+      <description>
+        <ul>
+          <li>Amplifier remote for Denon, Marantz and Yamaha, and an amplifier is found again after its network address changes</li>
+          <li>Output settings apply right away, and a lost audio output reopens by itself</li>
+          <li>The DLNA server lets amplifiers play an album or folder track after track</li>
+          <li>Same checkboxes everywhere when selecting</li>
+          <li>Licence text in About now matches the GPL-3.0</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.3.0" date="2026-10-14">
+      <description>
+        <ul>
+          <li>Play on UPnP/DLNA network players and AirPlay devices</li>
+          <li>Remote control for Onkyo, Pioneer and Integra amplifiers</li>
+          <li>Redesigned tag workshop, with MusicBrainz alongside Deezer</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+</component>

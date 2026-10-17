@@ -5,7 +5,7 @@
   import { t, currentLocale } from "#lib/i18n";
   import { updaterState } from "#lib/stores/updater/updater.store";
   import { supportPageUrl } from "#lib/config/support";
-  import { messageSoutienAttendu, messageSoutienVu, messageSoutienJamais } from "#lib/helper/support/supportPrompt";
+  import { isSupportMessageDue, markSupportMessageSeen, disableSupportMessage } from "#lib/helper/support/supportPrompt";
 
   // ─── Merci après une mise à jour ─────────────────────────────────────────
   // Carte discrète en bas à droite, comme la bannière de mise à jour : jamais
@@ -14,7 +14,7 @@
   let attendu = $state(false);
 
   onMount(() => {
-    if (!messageSoutienAttendu(version)) return;
+    if (!isSupportMessageDue(version)) return;
     const minuterie = setTimeout(() => (attendu = true), 8000);
     return () => clearTimeout(minuterie);
   });
@@ -23,8 +23,8 @@
 
   function fermer(jamais = false) {
     attendu = false;
-    if (jamais) messageSoutienJamais(version);
-    else messageSoutienVu(version);
+    if (jamais) disableSupportMessage(version);
+    else markSupportMessageSeen(version);
   }
 </script>
 

@@ -19,17 +19,17 @@
   // Le parent contient le bouton : un clic dessus le laisse basculer le menu lui-même.
   $effect(() => {
     if (!open) return;
-    const dehors = (e: MouseEvent) => {
+    const handleOutside = (e: MouseEvent) => {
       if (el && !el.parentElement?.contains(e.target as Node)) open = false;
     };
-    const echap = (e: KeyboardEvent) => {
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") open = false;
     };
-    document.addEventListener("mousedown", dehors);
-    document.addEventListener("keydown", echap);
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("keydown", handleEscape);
     return () => {
-      document.removeEventListener("mousedown", dehors);
-      document.removeEventListener("keydown", echap);
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("keydown", handleEscape);
     };
   });
 </script>

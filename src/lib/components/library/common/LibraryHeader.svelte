@@ -5,9 +5,9 @@ import { goto } from "$app/navigation";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
 import { t, currentLocale } from "#lib/i18n";
-import { ilYA, dureeEcoute } from "#lib/helper/tools/dateTools";
+import { ilYA, listenDuration } from "#lib/helper/tools/dateTools";
 import { libraryHeader } from "#lib/stores/library/libraryHeader";
-import { tailleLisible } from "#lib/helper/tools/sizeTools";
+import { readableSize } from "#lib/helper/tools/sizeTools";
 import { ONGLETS_BIBLIOTHEQUE, ongletCourant } from "#lib/config/libraryTabs";
 import { libraryStore } from "#lib/stores/library/library.store";
 import { pistesAvecImport } from "#lib/stores/library/importProgress.store";
@@ -23,7 +23,7 @@ const section = $derived(ONGLETS_BIBLIOTHEQUE.find((o) => o.key === ongletCouran
 
 // Dossiers : poids total, dernier scan, état (pour le menu « Gérer »).
 let dirs = $state<LibraryDir[]>([]);
-async function chargerDossiers() {
+async function loadFolders() {
   const id = library.id;
   try {
     const liste = await invoke<LibraryDir[]>("get_library_dirs", { libraryId: id });
@@ -34,7 +34,7 @@ async function chargerDossiers() {
 }
 $effect(() => {
   void library.id;
-  chargerDossiers();
+  loadFolders();
 });
 
 const taille = $derived(dirs.reduce((s, d) => s + (d.total_size ?? 0), 0));
@@ -42,7 +42,7 @@ const dernierScan = $derived(
   dirs.map((d) => d.last_scan_at).filter((d): d is string => !!d).sort().at(-1) ?? null,
 );
 
-const nombre = (n: number) => n.toLocaleString($currentLocale);
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 const morceaux = $derived(section?.key === "tracks");
 // Chaque section met ses propres chiffres en tête : les titres sur Morceaux, les albums ailleurs.
 const chiffres = $derived.by(() => {
@@ -67,7 +67,7 @@ $effect(() => {
 
 // Autre bibliothèque : même section, comme le sélecteur de la barre latérale.
 let choix = $state(false);
-function changer(lib: Library) {
+function switchLibrary(lib: Library) {
   choix = false;
   if (lib.id === library.id) return;
   libraryStore.selectLibrary(lib);
@@ -95,9 +95,9 @@ function changer(lib: Library) {
           </button>
           <Menu bind:open={choix} align="left" class="w-64 text-base font-normal tracking-normal">
             {#each $libraryStore.libraries as lib (lib.id)}
-              <MenuItem icon="material-symbols:library-music-outline-rounded" actif={lib.id === library.id} onclick={() => changer(lib)}>
+              <MenuItem icon="material-symbols:library-music-outline-rounded" actif={lib.id === library.id} onclick={() => switchLibrary(lib)}>
                 {lib.name}
-                {#snippet fin()}<span class="font-mono text-[11px] text-(--rg-mu2)">{nombre($pistesAvecImport(lib))}</span>{/snippet}
+                {#snippet fin()}<span class="font-mono text-[11px] text-(--rg-mu2)">{formatNumber($pistesAvecImport(lib))}</span>{/snippet}
               </MenuItem>
             {/each}
           </Menu>
@@ -106,15 +106,15 @@ function changer(lib: Library) {
     </h1>
     <div class="flex flex-wrap items-baseline gap-x-4.5 gap-y-1.5 text-sm text-(--rg-mu)">
       {#each chiffres as c (c.un)}
-        <span class="whitespace-nowrap"><b class="font-bold text-(--rg-tx)">{nombre(c.n)}</b> {$t(c.n === 1 ? c.un : c.plusieurs)}</span>
+        <span class="whitespace-nowrap"><b class="font-bold text-(--rg-tx)">{formatNumber(c.n)}</b> {$t(c.n === 1 ? c.un : c.plusieurs)}</span>
       {/each}
       {#if $libraryHeader.chiffres}
         <!-- La page donne ses propres chiffres. -->
       {:else if morceaux && ecoute}
-        {@const d = dureeEcoute(ecoute)}
+        {@const d = listenDuration(ecoute)}
         <span class="whitespace-nowrap"><b class="font-bold text-(--rg-tx)">{d}</b> {$t("library_head.listening")}</span>
       {:else if taille}
-        {@const poids = tailleLisible(taille, $currentLocale)}
+        {@const poids = readableSize(taille, $currentLocale)}
         <span class="whitespace-nowrap"><b class="font-bold text-(--rg-tx)">{poids.slice(0, poids.lastIndexOf(" "))}</b> {poids.slice(poids.lastIndexOf(" ") + 1)}</span>
       {/if}
       {#if dernierScan}
@@ -123,5 +123,5 @@ function changer(lib: Library) {
     </div>
   </div>
 
-  <LibraryActionBar {library} {dirs} onchange={chargerDossiers} action={$libraryHeader.action ?? null} />
+  <LibraryActionBar {library} {dirs} onchange={loadFolders} action={$libraryHeader.action ?? null} />
 </div>

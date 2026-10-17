@@ -41,7 +41,7 @@ impl TrackLikedRepository {
     }
 
 
-    pub async fn fin_all_by_profil<'e, E>(
+    pub async fn find_all_by_profile<'e, E>(
         exec: E,
         profil_id: i64,
     ) -> Result<Vec<TrackLikedView>, sqlx::Error>

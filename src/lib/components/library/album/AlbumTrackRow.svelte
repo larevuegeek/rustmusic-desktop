@@ -3,15 +3,15 @@
 import Icon from "@iconify/svelte";
 import { t } from "#lib/i18n";
 import { handleSelectTrack, handlePlayTrack } from "#lib/actions/player/PlayerAction";
-import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
 import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import { liked } from "#lib/stores/playlist/like.store";
-import { lecture } from "#lib/stores/player/lecture.store";
+import { lecture } from "#lib/stores/player/playback.store";
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { settingsStore } from "#lib/stores/settings/settings.store";
-import { minutesSecondes } from "#lib/helper/tools/dateTools";
+import { minutesSeconds } from "#lib/helper/tools/dateTools";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
 let {
@@ -56,17 +56,17 @@ const enCours = $derived($lecture.path === track.path);
 const joue = $derived(enCours && $lecture.status === "playing");
 const invite = $derived(sousTitre ?? (track.artist && track.artist !== artisteAlbum ? track.artist : null));
 
-function lire() {
-    handlePlayTrack(track.path, versFileDAttente(tracks));
+function play() {
+    handlePlayTrack(track.path, toQueue(tracks));
 }
 
 // Toute la ligne : cocher, lire ou précharger, selon le mode et le réglage « un clic ».
-function clic(e: MouseEvent) {
+function handleClick(e: MouseEvent) {
     if (selection.active) {
         if (e.shiftKey) selectionStore.selectRange(track.id);
         else selectionStore.toggle(track.id, track);
-    } else if (unClic) lire();
-    else handleSelectTrack(track.path, versFileDAttente(tracks));
+    } else if (unClic) play();
+    else handleSelectTrack(track.path, toQueue(tracks));
 }
 
 const ib = "w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)";
@@ -80,8 +80,8 @@ const ib = "w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-[9px] 
            {jaquette ? 'grid-cols-[32px_46px_minmax(0,1fr)_48px_72px]' : 'grid-cols-[32px_minmax(0,1fr)_48px_72px]'}
            {coche ? 'bg-(--rg-creux-on)' : marque ? 'bg-(--rg-carte) shadow-[inset_0_0_0_1px_var(--rg-bd)]' : 'hover:bg-(--rg-carte)'}
            {selection.active ? 'cursor-pointer select-none' : 'cursor-default'}"
-    ondblclick={() => { if (!selection.active && !unClic) lire(); }}
-    onclick={clic}
+    ondblclick={() => { if (!selection.active && !unClic) play(); }}
+    onclick={handleClick}
     oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY }; }}
 >
     <!-- Numéro ; au survol, lecture ; en cours, égaliseur ; en sélection, case. -->
@@ -95,7 +95,7 @@ const ib = "w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-[9px] 
                 <span class="mini-eq flex items-end gap-0.5 h-3.5 group-hover:hidden" style="--eq: var(--rg-g)" data-pause={joue ? undefined : ""}><i></i><i></i><i></i></span>
             {/if}
             <button type="button" class="absolute inset-0 hidden group-hover:flex items-center justify-center cursor-pointer text-(--rg-tx)"
-                    title={$t("tracks_view.play")} aria-label={$t("tracks_view.play")} onclick={(e) => { e.stopPropagation(); lire(); }} ondblclick={(e) => e.stopPropagation()}>
+                    title={$t("tracks_view.play")} aria-label={$t("tracks_view.play")} onclick={(e) => { e.stopPropagation(); play(); }} ondblclick={(e) => e.stopPropagation()}>
                 <Icon icon="material-symbols:play-arrow-rounded" width="26" />
             </button>
         {/if}
@@ -121,7 +121,7 @@ const ib = "w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-[9px] 
         {/if}
     </div>
 
-    <span class="text-right text-sm tabular-nums text-(--rg-mu)">{track.duration ? minutesSecondes(track.duration) : ""}</span>
+    <span class="text-right text-sm tabular-nums text-(--rg-mu)">{track.duration ? minutesSeconds(track.duration) : ""}</span>
 
     <div class="flex justify-end gap-0.5 {selection.active ? 'invisible' : ''}">
         <button type="button" class="{ib} {aime ? 'text-(--rg-g)! opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}"

@@ -14,7 +14,7 @@
 //!
 //! # PipeWire d'abord
 //! Quand PipeWire répond, on ne passe pas par D-Bus : on lui fait mettre la
-//! carte hors service (profil « off », voir [`super::profil_pipewire`]). La
+//! carte hors service (profil « off », voir [`super::pipewire_profile`]). La
 //! réservation D-Bus fait recréer la carte à WirePlumber 0.4, qui la renomme et
 //! perd la sortie par défaut. Elle reste le repli des systèmes sans PipeWire.
 //!
@@ -90,7 +90,7 @@ impl DeviceReservation {
     /// sinon (pas de session D-Bus, propriétaire qui refuse, etc.) → l'appelant
     /// retombe alors sur le chemin PCM classique.
     pub fn acquire(card_index: u32) -> Result<Self, String> {
-        match super::profil_pipewire::acquire(card_index) {
+        match super::pipewire_profile::acquire(card_index) {
             Ok(()) => return Ok(Self { card_index, mode: Mode::Profil }),
             Err(e) => log::debug!("🔒 PipeWire indisponible pour la carte {card_index} ({e}) → réservation D-Bus"),
         }
@@ -163,7 +163,7 @@ impl DeviceReservation {
 impl Drop for DeviceReservation {
     fn drop(&mut self) {
         match &self.mode {
-            Mode::Profil => super::profil_pipewire::release(self.card_index),
+            Mode::Profil => super::pipewire_profile::release(self.card_index),
             Mode::DBus { conn, name } => {
                 let _ = conn.release_name(name.as_str());
                 log::info!("🔓 Carte audio {} relâchée (D-Bus)", self.card_index);

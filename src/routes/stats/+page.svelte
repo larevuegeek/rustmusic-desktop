@@ -7,8 +7,8 @@ import { libraryStore } from "#lib/stores/library/library.store";
 import { profilSelector } from "#lib/stores/profil/profil.store";
 import type { LibraryStats } from "#lib/types/ui/library/stats/LibraryStats";
 import { formatBitrate } from "#lib/helper/tools/audioFormatTools";
-import { tailleLisible } from "#lib/helper/tools/sizeTools";
-import { dureeEcoute } from "#lib/helper/tools/dateTools";
+import { readableSize } from "#lib/helper/tools/sizeTools";
+import { listenDuration } from "#lib/helper/tools/dateTools";
 
 let stats: LibraryStats | null = $state(null);
 let isLoading = $state(true);
@@ -99,7 +99,7 @@ let qualityTotal = $derived.by(() => {
             <Icon icon="lucide:clock" width={14} />
             <span class="text-[10px] uppercase tracking-widest font-medium">{$t('stats.total_duration')}</span>
           </div>
-          <p class="text-3xl font-bold text-neutral-900 dark:text-white">{dureeEcoute(stats.total_duration_sec)}</p>
+          <p class="text-3xl font-bold text-neutral-900 dark:text-white">{listenDuration(stats.total_duration_sec)}</p>
         </div>
       </div>
 
@@ -111,7 +111,7 @@ let qualityTotal = $derived.by(() => {
         </div>
         <div class="p-4 rounded-2xl bg-neutral-100/60 dark:bg-white/4 border border-neutral-200/50 dark:border-white/6">
           <span class="text-[10px] uppercase tracking-widest text-neutral-400 font-medium">{$t('stats.size')}</span>
-          <p class="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{tailleLisible(stats.total_size_bytes, $currentLocale)}</p>
+          <p class="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{readableSize(stats.total_size_bytes, $currentLocale)}</p>
         </div>
         <div class="p-4 rounded-2xl bg-neutral-100/60 dark:bg-white/4 border border-neutral-200/50 dark:border-white/6">
           <span class="text-[10px] uppercase tracking-widest text-neutral-400 font-medium">{$t('stats.avg_bitrate')}</span>

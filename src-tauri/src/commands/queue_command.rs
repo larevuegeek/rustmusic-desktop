@@ -28,7 +28,7 @@ pub async fn get_queue(
             .map_err(|e| format!("Failed to get queue state : {}", e))?;
 
     // Réparée une fois puis enregistrée : les lectures suivantes ne repassent plus par là.
-    if reparer_pistes(&state.pool, &mut queue_state_view.tracks).await {
+    if repair_tracks(&state.pool, &mut queue_state_view.tracks).await {
         if let Err(e) = QueueTrackRepository::replace_all(&state.pool, profil_id, queue_state_view.tracks.clone()).await {
             eprintln!("[file] réparation non enregistrée : {e}");
         }
@@ -40,7 +40,7 @@ pub async fn get_queue(
 /// Une file lancée depuis la vue Dossiers avant son correctif porte des chemins `\\?\UNC\…`
 /// et des noms de fichier en guise de titres : on revient à la forme des dossiers importés,
 /// puis on complète titre, artiste, durée et pochette. Vrai si quelque chose a changé.
-async fn reparer_pistes(pool: &SqlitePool, pistes: &mut [QueueTrack]) -> bool {
+async fn repair_tracks(pool: &SqlitePool, pistes: &mut [QueueTrack]) -> bool {
     const VERBATIM: &str = r"\\?\";
     let mut change = false;
 
@@ -75,7 +75,7 @@ async fn reparer_pistes(pool: &SqlitePool, pistes: &mut [QueueTrack]) -> bool {
     if incomplets.is_empty() {
         return change;
     }
-    let fiches = LibraryTrackRepository::find_fiches_by_paths(pool, None, &incomplets).await;
+    let fiches = LibraryTrackRepository::find_entries_by_paths(pool, None, &incomplets).await;
     for p in pistes.iter_mut() {
         let Some(f) = fiches.get(&p.path) else { continue };
         // Un titre égal au nom du fichier n'était qu'un repli.

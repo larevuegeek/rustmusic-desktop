@@ -10,11 +10,11 @@ import { selectionStore } from "#lib/stores/ui/selection.store";
 import { viewMode } from "#lib/stores/ui/viewMode.store";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { handleTracksPlay } from "#lib/actions/queue/QueueAction";
-import { clesAffichees, resoudreColonnes, lireLargeurs, resetTagCache, trierPistes, type SortDir } from "#lib/config/trackColumns";
-import { dureeEcoute } from "#lib/helper/tools/dateTools";
-import { teinte } from "#lib/helper/tools/teinte";
-import { iconeGenre } from "#lib/helper/tools/iconeGenre";
-import { cleTri, comparerNaturel } from "#lib/helper/library/cleTri";
+import { shownKeys, resolveColumns, readWidths, resetTagCache, sortTracks, type SortDir } from "#lib/config/trackColumns";
+import { listenDuration } from "#lib/helper/tools/dateTools";
+import { hue } from "#lib/helper/tools/hue";
+import { genreIcon } from "#lib/helper/tools/genreIcon";
+import { sortKey, comparerNaturel } from "#lib/helper/library/sortKey";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import DetailPage from "#lib/components/ui/layout/DetailPage.svelte";
 import PageState from "#lib/components/ui/layout/PageState.svelte";
@@ -53,10 +53,10 @@ $effect(() => {
   const g = genre;
   if (!id || !g) return;
   const n = ++tour;
-  untrack(() => charger(id, g, n));
+  untrack(() => load(id, g, n));
 });
 
-async function charger(id: number, g: string, n: number) {
+async function load(id: number, g: string, n: number) {
   charge = false;
   erreur = false;
   tracks = [];
@@ -75,11 +75,11 @@ async function charger(id: number, g: string, n: number) {
 }
 
 // ─── Albums et artistes du genre (déjà en mémoire) ───
-const parTitre = (x: string, y: string) => comparerNaturel.compare(cleTri(x), cleTri(y));
+const byTitle = (x: string, y: string) => comparerNaturel.compare(sortKey(x), sortKey(y));
 const albums = $derived(
   $libraryContentStore.albums
     .filter((a) => a.genre?.toLowerCase() === genre.toLowerCase())
-    .sort((x, y) => (y.year ?? 0) - (x.year ?? 0) || parTitre(x.title, y.title)),
+    .sort((x, y) => (y.year ?? 0) - (x.year ?? 0) || byTitle(x.title, y.title)),
 );
 // Les plus présents d'abord : le nombre de titres du genre, pas de toute leur carrière.
 const artistes = $derived.by((): ArtistListView[] => {
@@ -93,11 +93,11 @@ const artistes = $derived.by((): ArtistListView[] => {
 });
 
 // ─── Chiffres et teinte ───
-const h = $derived(teinte(genre));
+const h = $derived(hue(genre));
 const couleur = $derived(`oklch(0.7 0.17 ${h})`);
 const pochettes = $derived(albums.map((a) => a.cover_url).filter((c): c is string => !!c).slice(0, 4));
-const nombre = (n: number) => n.toLocaleString($currentLocale);
-const plusieurs = (n: number, un: string, n_: string) => $t(n === 1 ? un : n_);
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
+const plural = (n: number, un: string, n_: string) => $t(n === 1 ? un : n_);
 const duree = $derived(tracks.reduce((s, x) => s + (x.duration ?? 0), 0));
 const periode = $derived.by(() => {
   const ans = albums.map((a) => a.year ?? 0).filter((y) => y > 0);
@@ -109,7 +109,7 @@ const periode = $derived.by(() => {
 // ─── Tous les titres ───
 let tri = $state<string>("title");
 let sens = $state<SortDir>("asc");
-const tries = $derived(trierPistes(tracks, tri, sens));
+const tries = $derived(sortTracks(tracks, tri, sens));
 // Un genre peut compter des milliers de titres : un lot d'abord, le reste à la demande.
 const LOT = 200;
 let affiches = $state(LOT);
@@ -119,22 +119,22 @@ $effect(() => {
 });
 const visibles = $derived(tries.slice(0, affiches));
 
-function trierPar(cle: string) {
+function changeSort(cle: string) {
   if (tri === cle) sens = sens === "asc" ? "desc" : "asc";
   else {
     tri = cle;
     sens = cle === "year" || cle === "created_at" ? "desc" : "asc";
   }
 }
-const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded") : null);
+const sortArrow = (cle: string) => (tri === cle ? (sens === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded") : null);
 
 const grille = $derived($viewMode !== "list");
 $effect(() => {
   if (grille) selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
 });
 
-const colonnes = $derived(resoudreColonnes(clesAffichees($settingsStore.track_columns)).filter((c) => c.key !== "genre"));
-const largeurs = $derived(lireLargeurs($settingsStore.track_column_widths));
+const colonnes = $derived(resolveColumns(shownKeys($settingsStore.track_columns)).filter((c) => c.key !== "genre"));
+const largeurs = $derived(readWidths($settingsStore.track_column_widths));
 
 let menu = $state<{ x: number; y: number } | null>(null);
 </script>
@@ -157,7 +157,7 @@ let menu = $state<{ x: number; y: number } | null>(null);
       {/if}
     {/each}
     {#if pochettes.length === 0}
-      <span class="absolute inset-0 flex items-center justify-center text-white/85"><Icon icon={iconeGenre(genre)} width={icone} /></span>
+      <span class="absolute inset-0 flex items-center justify-center text-white/85"><Icon icon={genreIcon(genre)} width={icone} /></span>
     {/if}
     <span class="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-black/5 dark:ring-white/6 pointer-events-none"></span>
   </div>
@@ -191,17 +191,17 @@ let menu = $state<{ x: number; y: number } | null>(null);
 
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[15px] text-(--rg-mu)">
           {#if albums.length}
-            <span><b class="font-bold text-(--rg-tx)">{nombre(albums.length)}</b> {plusieurs(albums.length, "library_head.albums_one", "library_head.albums_n")}</span>
+            <span><b class="font-bold text-(--rg-tx)">{formatNumber(albums.length)}</b> {plural(albums.length, "library_head.albums_one", "library_head.albums_n")}</span>
             <span class="text-(--rg-mu2)">·</span>
           {/if}
-          <span><b class="font-bold text-(--rg-tx)">{nombre(tracks.length)}</b> {plusieurs(tracks.length, "library_head.tracks_one", "library_head.tracks_n")}</span>
+          <span><b class="font-bold text-(--rg-tx)">{formatNumber(tracks.length)}</b> {plural(tracks.length, "library_head.tracks_one", "library_head.tracks_n")}</span>
           {#if artistes.length}
             <span class="text-(--rg-mu2)">·</span>
-            <span><b class="font-bold text-(--rg-tx)">{nombre(artistes.length)}</b> {plusieurs(artistes.length, "library_head.artists_one", "library_head.artists_n")}</span>
+            <span><b class="font-bold text-(--rg-tx)">{formatNumber(artistes.length)}</b> {plural(artistes.length, "library_head.artists_one", "library_head.artists_n")}</span>
           {/if}
           {#if duree}
             <span class="text-(--rg-mu2)">·</span>
-            <span>{dureeEcoute(duree)}</span>
+            <span>{listenDuration(duree)}</span>
           {/if}
           {#if periode}
             <span class="text-(--rg-mu2)">·</span>
@@ -225,7 +225,7 @@ let menu = $state<{ x: number; y: number } | null>(null);
 
     {#if albums.length > 0}
       <CarouselSection class="mt-3" titre={$t("genre_view.albums")}
-                       sousTitre={`${nombre(albums.length)} ${plusieurs(albums.length, "library_head.albums_one", "library_head.albums_n")}`}
+                       sousTitre={`${formatNumber(albums.length)} ${plural(albums.length, "library_head.albums_one", "library_head.albums_n")}`}
                        {grille} items={albums} cle={(a) => a.id} carte={carteAlbum} ligne={ligneAlbum} />
     {/if}
     {#if artistes.length > 0}
@@ -238,14 +238,14 @@ let menu = $state<{ x: number; y: number } | null>(null);
       <h2 class="mb-2 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{$t("artist_view.all_tracks")}</h2>
 
       <div class="flex flex-wrap items-center gap-2.5 pt-1 pb-3.5">
-        <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{nombre(tracks.length)}</b> {plusieurs(tracks.length, "library_head.tracks_one", "library_head.tracks_n")}{#if duree}{" · "}{dureeEcoute(duree)}{/if}</span>
+        <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{formatNumber(tracks.length)}</b> {plural(tracks.length, "library_head.tracks_one", "library_head.tracks_n")}{#if duree}{" · "}{listenDuration(duree)}{/if}</span>
 
-        <SegmentedControl variant="discret" label={$t("common.sort")} value={tri} onchange={trierPar}
+        <SegmentedControl variant="discret" label={$t("common.sort")} value={tri} onchange={changeSort}
                           options={[
-                            { value: "title", label: $t("artist_view.sort_title"), after: flecheSens("title") },
-                            { value: "artist", label: $t("genre_view.sort_artist"), after: flecheSens("artist") },
-                            { value: "year", label: $t("artist_view.sort_year"), after: flecheSens("year") },
-                            { value: "created_at", label: $t("genre_view.sort_added"), after: flecheSens("created_at") },
+                            { value: "title", label: $t("artist_view.sort_title"), after: sortArrow("title") },
+                            { value: "artist", label: $t("genre_view.sort_artist"), after: sortArrow("artist") },
+                            { value: "year", label: $t("artist_view.sort_year"), after: sortArrow("year") },
+                            { value: "created_at", label: $t("genre_view.sort_added"), after: sortArrow("created_at") },
                           ]} />
         {#if !grille}<TrackColumnsButton {libraryId} avecLibelle />{/if}
       </div>
@@ -271,7 +271,7 @@ let menu = $state<{ x: number; y: number } | null>(null);
 
       {#if tries.length > affiches}
         <div class="flex justify-center mt-5">
-          <ToolbarButton icon="material-symbols:expand-more-rounded" label={$t("genre_view.show_more").replace("{n}", nombre(Math.min(LOT, tries.length - affiches)))}
+          <ToolbarButton icon="material-symbols:expand-more-rounded" label={$t("genre_view.show_more").replace("{n}", formatNumber(Math.min(LOT, tries.length - affiches)))}
                          onclick={() => (affiches += LOT)} />
         </div>
       {/if}

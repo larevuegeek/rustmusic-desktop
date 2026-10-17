@@ -343,7 +343,7 @@ pub async fn get_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
         .and_then(|p| p.lock().ok().and_then(|p| p.get_selected_device_name()));
     let choisie = enregistree
         .as_deref()
-        .and_then(|nom| crate::core::audio_player::output::peripherique::find(&host, nom))
+        .and_then(|nom| crate::core::audio_player::output::device_lookup::find(&host, nom))
         .and_then(|d| d.description().ok())
         .map(|d| d.name().to_string());
 
@@ -389,7 +389,7 @@ pub async fn get_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
     // elle, la liste ne montrait plus que « Dummy Output », qu'on finissait par choisir.
     #[cfg(target_os = "linux")]
     if let Some(nom) = enregistree.filter(|n| {
-        choisie.is_none() && crate::core::audio_player::output::peripherique::is_held(n)
+        choisie.is_none() && crate::core::audio_player::output::device_lookup::is_held(n)
     }) {
         out.push(AudioDeviceInfo {
             name: nom.clone(),

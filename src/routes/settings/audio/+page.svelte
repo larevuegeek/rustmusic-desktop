@@ -6,8 +6,9 @@
   import { audioDevicesStore } from "#lib/stores/audio/audioDevices.store";
   import { t, currentLocale } from "#lib/i18n";
   import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
-  import { messageRepli, frequenceLisible } from "#lib/helper/audio/chaineAudio";
+  import { fallbackMessage, readableRate } from "#lib/helper/audio/audioChain";
   import { detectOS } from "#lib/helper/tools/osDetection";
+  import { platformFeatures } from "#lib/stores/settings/platform.store";
   import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
   import OptionItem from "#lib/components/ui/input/OptionItem.svelte";
   import OptionBlock from "#lib/components/ui/input/OptionBlock.svelte";
@@ -18,7 +19,7 @@
   import Badge from "#lib/components/ui/text/Badge.svelte";
   import AudioOutputList from "#lib/components/settings/AudioOutputList.svelte";
   import DacTest from "#lib/components/settings/DacTest.svelte";
-  import { decrireSortie } from "#lib/helper/audio/deviceLabel";
+  import { describeOutput } from "#lib/helper/audio/deviceLabel";
   import {
     getAudioQualityStatus,
     setAudioQualitySetting,
@@ -45,7 +46,7 @@
   // Ce qui n'a pas marché au dernier morceau : exclusif ou DoP refusés.
   const repli = $derived(
     $playbackPipelineStore && (exclusif || dop)
-      ? messageRepli($playbackPipelineStore, $t, (hz) => frequenceLisible(hz, $currentLocale))
+      ? fallbackMessage($playbackPipelineStore, $t, (hz) => readableRate(hz, $currentLocale))
       : null,
   );
 
@@ -168,14 +169,23 @@
       onclick={() => audioDevicesStore.refresh()}
     />
   {/snippet}
-  <OptionBlock keywords="{$t('settings.output_group')} DAC {$audioDevicesStore.devices.map((d) => decrireSortie(d).nom).join(' ')}">
+  <OptionBlock keywords="{$t('settings.output_group')} DAC {$audioDevicesStore.devices.map((d) => describeOutput(d).nom).join(' ')}">
     <AudioOutputList />
   </OptionBlock>
 </OptionGroup>
 
 <!-- ─── Mode de sortie ─── -->
 <OptionGroup title={$t("settings.output_mode")} hint={$t("settings.output_mode_hint")}>
-  {#snippet action()}<Badge tone="amber">{$t("settings.beta_badge")}</Badge>{/snippet}
+  {#snippet action()}{#if $platformFeatures.exclusive}<Badge tone="amber">{$t("settings.beta_badge")}</Badge>{/if}{/snippet}
+  {#if !$platformFeatures.exclusive}
+    <!-- Flatpak sans accès à la carte son : lecture partagée seulement, on dit pourquoi. -->
+    <OptionBlock keywords="{$t('settings.output_mode')} {$t('settings.output_exclusive')} bit-perfect dsd flatpak" class="flex gap-2.5 p-4">
+      <Icon icon="material-symbols:info-outline-rounded" width="18" class="shrink-0 mt-0.5 text-(--rg-mu)" />
+      <p class="text-[13px] leading-normal text-(--rg-mu)">
+        {$t($platformFeatures.flatpak ? "settings.exclusive_unavailable_flatpak" : "settings.exclusive_unavailable")}
+      </p>
+    </OptionBlock>
+  {:else}
   <OptionBlock keywords="{$t('settings.output_mode')} {$t('settings.output_shared')} {$t('settings.output_exclusive')} wasapi alsa bit-perfect" class="flex flex-col gap-4 p-4">
     <div class="grid grid-cols-2 max-sm:grid-cols-1 gap-3" role="radiogroup" aria-label={$t("settings.output_mode")}>
       <ChoiceTile
@@ -218,6 +228,7 @@
   >
     <ToggleSwitch checked={dop} disabled={!dopDisponible} label={$t("settings.dsd_dop")} onclick={() => settingsStore.toggle("dsd_dop")} />
   </OptionItem>
+  {/if}
   {#if surWindows}
     <OptionBlock keywords="{$t('settings.dac_test')} wasapi">
       <DacTest device={actif} />

@@ -2,16 +2,16 @@
 // Point de départ d'un import : page /import, ou bibliothèque encore vide (`library`).
 // On choisit d'abord (annuler ne crée rien), puis la bibliothèque est créée si besoin.
 import Icon from "@iconify/svelte";
-import DisqueFiligrane from "#lib/components/ui/deco/DisqueFiligrane.svelte";
+import DiscWatermark from "#lib/components/ui/deco/DiscWatermark.svelte";
 import { goto } from "$app/navigation";
 import { t } from "#lib/i18n";
 import { libraryStore } from "#lib/stores/library/library.store";
 import { profilSelector } from "#lib/stores/profil/profil.store";
 import { importProgressStore } from "#lib/stores/library/importProgress.store";
-import { choisirDossier, choisirFichiers } from "#lib/services/library/library.service";
+import { pickFolder, pickFiles } from "#lib/services/library/library.service";
 import { handleAddDirectory, handleAddFiles } from "#lib/actions/library/LibraryAction";
-import { ONGLETS_BIBLIOTHEQUE, memoriserOnglet } from "#lib/config/libraryTabs";
-import { messageErreur } from "#lib/helper/tools/errorTools";
+import { ONGLETS_BIBLIOTHEQUE, rememberTab } from "#lib/config/libraryTabs";
+import { errorMessage } from "#lib/helper/tools/errorTools";
 import type { Library } from "#lib/types/db/library/Library";
 
 let { section: cleSection = null, library = null }: { section?: string | null; library?: Library | null } = $props();
@@ -27,7 +27,7 @@ let enCours = $state(false);
 
 const imp = $derived($importProgressStore);
 
-async function bibliotheque(): Promise<number | null> {
+async function ensureLibrary(): Promise<number | null> {
   if (existante?.id) return existante.id;
   const profilId = $profilSelector.profilSelected?.id;
   if (!profilId) {
@@ -37,7 +37,7 @@ async function bibliotheque(): Promise<number | null> {
   try {
     await libraryStore.addLibrary(profilId, nom.trim() || $t("import_page.name_default"), null);
   } catch (e) {
-    const m = messageErreur(e);
+    const m = errorMessage(e);
     erreur = m.includes("UNIQUE") || m.includes("duplicate") ? $t("import_page.name_taken") : $t("import_page.error");
     return null;
   }
@@ -49,15 +49,15 @@ async function importer(type: "dossier" | "fichiers") {
   erreur = null;
   enCours = true;
   try {
-    const dossier = type === "dossier" ? await choisirDossier() : null;
-    const fichiers = type === "fichiers" ? await choisirFichiers() : [];
+    const dossier = type === "dossier" ? await pickFolder() : null;
+    const fichiers = type === "fichiers" ? await pickFiles() : [];
     if (!dossier && fichiers.length === 0) return;
 
-    const id = await bibliotheque();
+    const id = await ensureLibrary();
     if (!id) return;
     // Dans une bibliothèque vide, on reste sur l'onglet : la progression s'y affiche.
     const rediriger = !library;
-    if (rediriger && section) memoriserOnglet(id, section.key);
+    if (rediriger && section) rememberTab(id, section.key);
 
     if (dossier) handleAddDirectory(id, rediriger, dossier);
     else handleAddFiles(id, rediriger, fichiers);
@@ -74,7 +74,7 @@ async function importer(type: "dossier" | "fichiers") {
     <section class="relative overflow-hidden rounded-[24px] p-8 md:p-12 text-(--rg-tx)">
       <div class="hero-vert absolute inset-0 pointer-events-none" aria-hidden="true"></div>
 
-      <DisqueFiligrane class="absolute -right-24 -top-24 w-[420px] h-[420px] max-md:hidden" />
+      <DiscWatermark class="absolute -right-24 -top-24 w-[420px] h-[420px] max-md:hidden" />
 
       <div class="relative flex flex-col gap-4 max-w-2xl">
         <p class="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-(--rg-gtx)">

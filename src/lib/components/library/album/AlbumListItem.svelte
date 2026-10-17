@@ -12,8 +12,8 @@ import { preload, preloadAlbumData } from "#lib/actions/preload/preloadAction";
 import { handleAlbumEnqueue } from "#lib/actions/queue/QueueAction";
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
-import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
-import { etiquetteHiRes } from "#lib/helper/tools/audioFormatTools";
+import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+import { hiResLabel } from "#lib/helper/tools/audioFormatTools";
 
 let { libraryId, album, onopen }: {
     libraryId: number;
@@ -25,8 +25,8 @@ let { libraryId, album, onopen }: {
 let contextMenu = $state<{ x: number; y: number } | null>(null);
 
 const selection = $derived($selectionStore);
-const isSelected = $derived(selection.groupes.has(cleGroupe("album", libraryId, album.id)));
-const hiRes = $derived(etiquetteHiRes(album.max_bits, album.max_sample_rate));
+const isSelected = $derived(selection.groupes.has(groupKey("album", libraryId, album.id)));
+const hiRes = $derived(hiResLabel(album.max_bits, album.max_sample_rate));
 const titres = $derived(album.total_tracks === 1 ? $t("home.track_one") : $t("home.tracks_n").replace("{n}", String(album.total_tracks)));
 
 // En mode sélection, la carte coche au lieu de naviguer ; le lien reste un lien (survol, clic milieu, préchargement).
@@ -49,7 +49,7 @@ function menu(e: MouseEvent) {
     contextMenu = { x: e.clientX, y: e.clientY };
 }
 
-function lire(e: MouseEvent) {
+function play(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     handleAlbumEnqueue(album.id);
@@ -101,7 +101,7 @@ async function loadAlbumTracks() {
             <button type="button" class="absolute right-2.5 bottom-2.5 z-2 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer
                                         bg-(--rg-g) text-(--rg-on-g) shadow-[0_6px_16px_rgba(0,0,0,0.5)]
                                         opacity-0 translate-y-1.5 group-hover:opacity-100 group-hover:translate-y-0 focus-visible:opacity-100 transition-all duration-150 hover:scale-105"
-                    title={$t("albums_view.play")} aria-label={`${$t("albums_view.play")} ${album.title}`} onclick={lire}>
+                    title={$t("albums_view.play")} aria-label={`${$t("albums_view.play")} ${album.title}`} onclick={play}>
                 <Icon icon="material-symbols:play-arrow-rounded" width="28" />
             </button>
         {/if}

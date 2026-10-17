@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { recupererPochettes, recupererPortraits, nettoyerImages } from "#lib/actions/library/ImageAction";
+  import { fetchCovers, fetchPortraits, cleanImages } from "#lib/actions/library/ImageAction";
   import { onMount } from "svelte";
-  import { oublierLocalisations } from "#lib/helper/library/trackLocation";
+  import { forgetLocations } from "#lib/helper/library/trackLocation";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { openPath } from "@tauri-apps/plugin-opener";
@@ -157,7 +157,7 @@
       const libraries = $libraryStore.libraries;
       for (const lib of libraries) {
         await invoke('rescan_library', { libraryId: lib.id });
-        oublierLocalisations();
+        forgetLocations();
         if (arrete) break;
       }
     } catch (e) {
@@ -172,7 +172,7 @@
   async function handleFetchArtistImages() {
     fetchingImages = true;
     try {
-      await recupererPortraits(true);
+      await fetchPortraits(true);
     } finally {
       fetchingImages = false;
     }
@@ -182,7 +182,7 @@
   async function handleCleanImages() {
     cleaningImages = true;
     try {
-      await nettoyerImages();
+      await cleanImages();
     } finally {
       cleaningImages = false;
     }
@@ -191,7 +191,7 @@
   async function handleFetchAlbumCovers() {
     fetchingCovers = true;
     try {
-      await recupererPochettes($libraryStore.libraries.map((l) => l.id).filter((id): id is number => id != null));
+      await fetchCovers($libraryStore.libraries.map((l) => l.id).filter((id): id is number => id != null));
     } finally {
       fetchingCovers = false;
     }

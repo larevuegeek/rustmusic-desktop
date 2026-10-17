@@ -120,11 +120,11 @@ export const libraryStore = {
     if (library.id === null) return;
     const nom = name.trim();
     await invoke('rename_library', { libraryId: library.id, name: nom });
-    const renomme = (l: Library) => (l.id === library.id ? { ...l, name: nom } : l);
+    const withNewName = (l: Library) => (l.id === library.id ? { ...l, name: nom } : l);
     libraryWriter.update(state => ({
       ...state,
-      libraries: state.libraries.map(renomme),
-      librarySelected: state.librarySelected && renomme(state.librarySelected),
+      libraries: state.libraries.map(withNewName),
+      librarySelected: state.librarySelected && withNewName(state.librarySelected),
     }));
   },
   setImporting: (importing: boolean) => {

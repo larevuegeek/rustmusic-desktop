@@ -110,7 +110,7 @@ struct Index {
 /// fichier peut s'écrire `S:\Musique\a.flac` ou `s:/musique/a.flac`. Comparer
 /// les chaînes brutes ferait échouer l'appariement sur des différences qui n'en
 /// sont pas.
-fn cle_chemin(path: &str) -> String {
+fn path_key(path: &str) -> String {
     path.replace('\\', "/").to_lowercase()
 }
 
@@ -118,7 +118,7 @@ fn cle_chemin(path: &str) -> String {
 ///
 /// La durée n'y entre pas : deux encodages du même morceau diffèrent souvent
 /// d'une seconde, et l'exiger ferait manquer des correspondances justes.
-fn cle_tags(titre: Option<&str>, artiste: Option<&str>, album: Option<&str>) -> Option<String> {
+fn tags_key(titre: Option<&str>, artiste: Option<&str>, album: Option<&str>) -> Option<String> {
     let titre = titre?.trim().to_lowercase();
     if titre.is_empty() {
         return None;
@@ -144,8 +144,8 @@ async fn build_index(pool: &SqlitePool) -> Result<Index, sqlx::Error> {
     let mut par_tags = HashMap::with_capacity(lignes.len());
 
     for (id, path, titre, artiste, album) in lignes {
-        par_chemin.insert(cle_chemin(&path), id.clone());
-        if let Some(cle) = cle_tags(titre.as_deref(), artiste.as_deref(), album.as_deref()) {
+        par_chemin.insert(path_key(&path), id.clone());
+        if let Some(cle) = tags_key(titre.as_deref(), artiste.as_deref(), album.as_deref()) {
             // Première occurrence gardée : plusieurs fichiers peuvent porter les
             // mêmes tags — un même morceau en FLAC et en MP3. N'importe lequel
             // fait l'affaire, mais il en faut un seul, et toujours le même.
@@ -166,11 +166,11 @@ enum Trouvee {
     Aucune,
 }
 
-fn apparier(index: &Index, piste: &ExportTrackRef) -> Trouvee {
-    if let Some(id) = index.par_chemin.get(&cle_chemin(&piste.path)) {
+fn pair_up(index: &Index, piste: &ExportTrackRef) -> Trouvee {
+    if let Some(id) = index.par_chemin.get(&path_key(&piste.path)) {
         return Trouvee::ParChemin(id.clone());
     }
-    if let Some(cle) = cle_tags(
+    if let Some(cle) = tags_key(
         piste.title.as_deref(),
         piste.artist.as_deref(),
         piste.album.as_deref(),
@@ -223,7 +223,7 @@ pub async fn apply(
     }
 
     for profil in &bundle.profils {
-        let profil_id = resoudre_profil(pool, &profil.name, profil, dry_run, &mut rapport).await?;
+        let profil_id = resolve_profile(pool, &profil.name, profil, dry_run, &mut rapport).await?;
 
         // En simulation, un profil absent n'a pas d'identifiant : on ne peut
         // pas apparier ses playlists à des lignes existantes, mais on compte
@@ -231,7 +231,7 @@ pub async fn apply(
         if options.playlists {
             for liste in &profil.playlists {
                 let existante = match profil_id {
-                    Some(pid) => playlist_existante(pool, pid, &liste.name).await?,
+                    Some(pid) => existing_playlist(pool, pid, &liste.name).await?,
                     None => None,
                 };
 
@@ -243,7 +243,7 @@ pub async fn apply(
                 // Apparier d'abord : on veut les comptes même en simulation.
                 let mut appariees: Vec<String> = Vec::with_capacity(liste.tracks.len());
                 for piste in &liste.tracks {
-                    match apparier(&index, piste) {
+                    match pair_up(&index, piste) {
                         Trouvee::ParChemin(id) => {
                             rapport.tracks_matched_by_path += 1;
                             appariees.push(id);
@@ -385,7 +385,7 @@ pub async fn apply(
 ///
 /// Le nom est la seule identité portable : les identifiants sont locaux, et
 /// deux installations n'attribuent pas les mêmes.
-async fn resoudre_profil(
+async fn resolve_profile(
     pool: &SqlitePool,
     nom: &str,
     profil: &super::export_service::ExportProfil,
@@ -422,7 +422,7 @@ async fn resoudre_profil(
     Ok(Some(id))
 }
 
-async fn playlist_existante(
+async fn existing_playlist(
     pool: &SqlitePool,
     profil_id: i64,
     nom: &str,
@@ -439,13 +439,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn un_fichier_etranger_est_refuse() {
+    fn a_foreign_file_is_refused() {
         let err = read_bundle(r#"{"hello":"world"}"#).unwrap_err();
         assert!(err.contains("illisible"), "message : {err}");
     }
 
     #[test]
-    fn un_json_valide_mais_d_une_autre_nature_est_refuse() {
+    fn a_valid_json_of_another_kind_is_refused() {
         // Le marqueur existe pour ça : un JSON qui a la bonne forme mais vient
         // d'ailleurs ne doit pas être rejoué dans la base.
         let faux = r#"{"format":"autre-chose","version":1,"app_version":"1",
@@ -455,7 +455,7 @@ mod tests {
     }
 
     #[test]
-    fn un_format_plus_recent_est_refuse() {
+    fn a_newer_format_is_refused() {
         // Importer la moitié d'un fichier qu'on ne comprend pas est pire que
         // de ne rien importer.
         let futur = format!(
@@ -468,35 +468,35 @@ mod tests {
     }
 
     #[test]
-    fn les_chemins_se_comparent_sans_casse_ni_separateur() {
+    fn paths_compare_ignoring_case_and_separator() {
         // Le même fichier s'écrit de plusieurs façons sous Windows.
-        assert_eq!(cle_chemin(r"S:\Musique\a.flac"), cle_chemin("s:/musique/A.FLAC"));
-        assert_ne!(cle_chemin(r"S:\Musique\a.flac"), cle_chemin(r"S:\Musique\b.flac"));
+        assert_eq!(path_key(r"S:\Musique\a.flac"), path_key("s:/musique/A.FLAC"));
+        assert_ne!(path_key(r"S:\Musique\a.flac"), path_key(r"S:\Musique\b.flac"));
     }
 
     #[test]
-    fn la_signature_par_tags_ignore_casse_et_espaces() {
-        let a = cle_tags(Some(" Bohemian Rhapsody "), Some("Queen"), Some("A Night At The Opera"));
-        let b = cle_tags(Some("bohemian rhapsody"), Some("queen"), Some("a night at the opera"));
+    fn the_tag_signature_ignores_case_and_spaces() {
+        let a = tags_key(Some(" Bohemian Rhapsody "), Some("Queen"), Some("A Night At The Opera"));
+        let b = tags_key(Some("bohemian rhapsody"), Some("queen"), Some("a night at the opera"));
         assert_eq!(a, b);
         assert!(a.is_some());
     }
 
     #[test]
-    fn une_piste_sans_titre_n_a_pas_de_signature() {
+    fn a_track_without_title_has_no_signature() {
         // Sans titre, la signature ne distinguerait plus rien : deux morceaux
         // du même album s'apparieraient l'un à l'autre.
-        assert!(cle_tags(None, Some("Queen"), Some("Opera")).is_none());
-        assert!(cle_tags(Some("   "), Some("Queen"), None).is_none());
+        assert!(tags_key(None, Some("Queen"), Some("Opera")).is_none());
+        assert!(tags_key(Some("   "), Some("Queen"), None).is_none());
     }
 
     #[test]
-    fn le_chemin_prime_sur_les_tags() {
+    fn the_path_wins_over_the_tags() {
         let index = Index {
-            par_chemin: [(cle_chemin("S:/m/a.flac"), "par-chemin".to_string())]
+            par_chemin: [(path_key("S:/m/a.flac"), "par-chemin".to_string())]
                 .into_iter()
                 .collect(),
-            par_tags: [(cle_tags(Some("t"), Some("a"), Some("al")).unwrap(), "par-tags".to_string())]
+            par_tags: [(tags_key(Some("t"), Some("a"), Some("al")).unwrap(), "par-tags".to_string())]
                 .into_iter()
                 .collect(),
         };
@@ -509,19 +509,19 @@ mod tests {
             duration: None,
         };
 
-        match apparier(&index, &piste) {
+        match pair_up(&index, &piste) {
             Trouvee::ParChemin(id) => assert_eq!(id, "par-chemin"),
             _ => panic!("le chemin doit primer"),
         }
     }
 
     #[test]
-    fn les_tags_rattrapent_un_chemin_devenu_faux() {
+    fn tags_catch_a_stale_path() {
         // Le cas qui justifie tout le mécanisme : la bibliothèque a changé de
         // lettre de lecteur, aucun chemin ne répond plus.
         let index = Index {
             par_chemin: HashMap::new(),
-            par_tags: [(cle_tags(Some("t"), Some("a"), Some("al")).unwrap(), "trouve".to_string())]
+            par_tags: [(tags_key(Some("t"), Some("a"), Some("al")).unwrap(), "trouve".to_string())]
                 .into_iter()
                 .collect(),
         };
@@ -534,14 +534,14 @@ mod tests {
             duration: None,
         };
 
-        match apparier(&index, &piste) {
+        match pair_up(&index, &piste) {
             Trouvee::ParTags(id) => assert_eq!(id, "trouve"),
             _ => panic!("les tags devaient rattraper"),
         }
     }
 
     #[test]
-    fn une_piste_inconnue_reste_introuvable() {
+    fn an_unknown_track_stays_unfound() {
         let index = Index {
             par_chemin: HashMap::new(),
             par_tags: HashMap::new(),
@@ -553,11 +553,11 @@ mod tests {
             album: None,
             duration: None,
         };
-        assert!(matches!(apparier(&index, &piste), Trouvee::Aucune));
+        assert!(matches!(pair_up(&index, &piste), Trouvee::Aucune));
     }
 
     #[test]
-    fn l_identite_dlna_n_est_jamais_importee() {
+    fn the_dlna_identity_is_never_imported() {
         // Deux serveurs sous la même identité sur un réseau, c'est un défaut
         // qu'on ne diagnostique jamais.
         assert!(REGLAGES_NON_IMPORTABLES.contains(&"dlna_uuid"));
@@ -591,7 +591,7 @@ mod tests {
     /// Les clés étrangères sont actives — sqlx les allume sur chaque connexion —
     /// donc l'ordre d'insertion n'est pas négociable : profil, puis
     /// bibliothèque, puis fichiers et pistes.
-    async fn poser_socle(pool: &SqlitePool) {
+    async fn insert_base(pool: &SqlitePool) {
         sqlx::query("INSERT OR IGNORE INTO profil (id, name) VALUES (1, 'Socle')")
             .execute(pool)
             .await
@@ -603,8 +603,8 @@ mod tests {
     }
 
     /// Pose une piste complète — fichier, artiste, piste.
-    async fn poser_piste(pool: &SqlitePool, id: &str, path: &str, titre: &str, artiste: &str) {
-        poser_socle(pool).await;
+    async fn insert_track(pool: &SqlitePool, id: &str, path: &str, titre: &str, artiste: &str) {
+        insert_base(pool).await;
         sqlx::query("INSERT INTO library_files (id, library_id, path, filename, extension, size, status) VALUES (?, 1, ?, 'f', 'flac', 1, 'ok')")
             .bind(format!("f-{id}"))
             .bind(path)
@@ -643,7 +643,7 @@ mod tests {
             .expect("piste");
     }
 
-    fn bundle_avec(pistes: Vec<ExportTrackRef>) -> ExportBundle {
+    fn bundle_with(pistes: Vec<ExportTrackRef>) -> ExportBundle {
         ExportBundle {
             format: FORMAT.to_string(),
             version: VERSION,
@@ -683,7 +683,7 @@ mod tests {
         }
     }
 
-    fn piste_ref(path: &str, titre: &str, artiste: &str) -> ExportTrackRef {
+    fn track_ref(path: &str, titre: &str, artiste: &str) -> ExportTrackRef {
         ExportTrackRef {
             path: path.into(),
             title: Some(titre.into()),
@@ -694,14 +694,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn un_import_reconstruit_la_playlist_et_ses_pistes() {
+    async fn an_import_rebuilds_the_playlist_and_its_tracks() {
         let pool = base_de_test().await;
-        poser_piste(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
-        poser_piste(&pool, "t2", r"S:\m\b.flac", "B", "Nirvana").await;
+        insert_track(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
+        insert_track(&pool, "t2", r"S:\m\b.flac", "B", "Nirvana").await;
 
-        let bundle = bundle_avec(vec![
-            piste_ref(r"S:\m\a.flac", "A", "Nirvana"),
-            piste_ref(r"S:\m\b.flac", "B", "Nirvana"),
+        let bundle = bundle_with(vec![
+            track_ref(r"S:\m\a.flac", "A", "Nirvana"),
+            track_ref(r"S:\m\b.flac", "B", "Nirvana"),
         ]);
 
         let r = apply(&pool, &bundle, ImportOptions::default(), false)
@@ -734,9 +734,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn le_reglage_dlna_ne_franchit_pas_l_import() {
+    async fn the_dlna_setting_does_not_cross_the_import() {
         let pool = base_de_test().await;
-        let bundle = bundle_avec(vec![]);
+        let bundle = bundle_with(vec![]);
 
         let r = apply(&pool, &bundle, ImportOptions::default(), false)
             .await
@@ -754,11 +754,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn une_playlist_existante_est_laissee_intacte() {
+    async fn an_existing_playlist_is_left_intact() {
         let pool = base_de_test().await;
-        poser_piste(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
+        insert_track(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
 
-        let bundle = bundle_avec(vec![piste_ref(r"S:\m\a.flac", "A", "Nirvana")]);
+        let bundle = bundle_with(vec![track_ref(r"S:\m\a.flac", "A", "Nirvana")]);
 
         // Premier import : la playlist est créée.
         apply(&pool, &bundle, ImportOptions::default(), false)
@@ -781,10 +781,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn le_remplacement_se_demande_et_ne_duplique_rien() {
+    async fn replacement_is_requested_and_duplicates_nothing() {
         let pool = base_de_test().await;
-        poser_piste(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
-        let bundle = bundle_avec(vec![piste_ref(r"S:\m\a.flac", "A", "Nirvana")]);
+        insert_track(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
+        let bundle = bundle_with(vec![track_ref(r"S:\m\a.flac", "A", "Nirvana")]);
 
         apply(&pool, &bundle, ImportOptions::default(), false)
             .await
@@ -806,12 +806,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn un_chemin_devenu_faux_est_rattrape_par_les_tags() {
+    async fn a_stale_path_is_caught_by_the_tags() {
         let pool = base_de_test().await;
         // La bibliothèque est sur D:, l'export venait de S:.
-        poser_piste(&pool, "t1", r"D:\ailleurs\a.flac", "A", "Nirvana").await;
+        insert_track(&pool, "t1", r"D:\ailleurs\a.flac", "A", "Nirvana").await;
 
-        let bundle = bundle_avec(vec![piste_ref(r"S:\m\a.flac", "A", "Nirvana")]);
+        let bundle = bundle_with(vec![track_ref(r"S:\m\a.flac", "A", "Nirvana")]);
 
         let r = apply(&pool, &bundle, ImportOptions::default(), false)
             .await
@@ -823,10 +823,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn l_apercu_n_ecrit_rien() {
+    async fn the_preview_writes_nothing() {
         let pool = base_de_test().await;
-        poser_piste(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
-        let bundle = bundle_avec(vec![piste_ref(r"S:\m\a.flac", "A", "Nirvana")]);
+        insert_track(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
+        let bundle = bundle_with(vec![track_ref(r"S:\m\a.flac", "A", "Nirvana")]);
 
         let r = apply(&pool, &bundle, ImportOptions::default(), true)
             .await
@@ -852,13 +852,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn une_piste_introuvable_est_signalee_sans_bloquer_le_reste() {
+    async fn an_unfound_track_is_reported_without_blocking_the_rest() {
         let pool = base_de_test().await;
-        poser_piste(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
+        insert_track(&pool, "t1", r"S:\m\a.flac", "A", "Nirvana").await;
 
-        let bundle = bundle_avec(vec![
-            piste_ref(r"S:\m\a.flac", "A", "Nirvana"),
-            piste_ref(r"S:\m\disparu.flac", "Disparu", "Inconnu"),
+        let bundle = bundle_with(vec![
+            track_ref(r"S:\m\a.flac", "A", "Nirvana"),
+            track_ref(r"S:\m\disparu.flac", "Disparu", "Inconnu"),
         ]);
 
         let r = apply(&pool, &bundle, ImportOptions::default(), false)
@@ -878,9 +878,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn les_titres_aimes_sont_restaures_sans_doublon() {
+    async fn liked_tracks_are_restored_without_duplicates() {
         let pool = base_de_test().await;
-        let bundle = bundle_avec(vec![]);
+        let bundle = bundle_with(vec![]);
 
         apply(&pool, &bundle, ImportOptions::default(), false)
             .await

@@ -7,9 +7,9 @@
   import {
     COLONNES_FIXES,
     COLONNES_PAR_DEFAUT,
-    intituleDeTag,
-    libelleColonne,
-    tagProposable,
+    tagTitle,
+    columnLabel,
+    isOfferableTag,
     type TrackColumn,
   } from "#lib/config/trackColumns";
 
@@ -46,11 +46,11 @@
   $effect(() => {
     if (open) {
       choix = [...colonnes];
-      charger();
+      load();
     }
   });
 
-  async function charger() {
+  async function load() {
     chargement = true;
     try {
       if (libraryId == null) {
@@ -58,7 +58,7 @@
         return;
       }
       const trouves = await invoke<TagCandidate[]>("get_library_tag_keys", { libraryId });
-      tags = trouves.filter((tg) => tagProposable(tg.key));
+      tags = trouves.filter((tg) => isOfferableTag(tg.key));
     } catch (e) {
       console.error("Failed to load tag keys:", e);
       tags = [];
@@ -67,17 +67,17 @@
     }
   }
 
-  function estAffichee(cle: string): boolean {
+  function isShown(cle: string): boolean {
     return choix.includes(cle);
   }
 
-  function basculer(cle: string) {
+  function toggleColumn(cle: string) {
     // L'ajout se fait en fin de liste : une colonne qu'on vient de cocher
     // apparaît là où le regard la cherche, à droite, sans bousculer les autres.
-    choix = estAffichee(cle) ? choix.filter((c) => c !== cle) : [...choix, cle];
+    choix = isShown(cle) ? choix.filter((c) => c !== cle) : [...choix, cle];
   }
 
-  function deplacer(index: number, sens: -1 | 1) {
+  function move(index: number, sens: -1 | 1) {
     const cible = index + sens;
     if (cible < 0 || cible >= choix.length) return;
     const copie = [...choix];
@@ -86,30 +86,30 @@
   }
 
   /** Intitulé d'une clé, qu'elle vienne des colonnes bâties ou d'un tag. */
-  function intitule(cle: string): string {
-    if (cle.startsWith("tag:")) return intituleDeTag(cle.slice("tag:".length), $t);
+  function columnTitle(cle: string): string {
+    if (cle.startsWith("tag:")) return tagTitle(cle.slice("tag:".length), $t);
     const col = COLONNES_FIXES.find((c) => c.key === cle);
-    return col ? libelleColonne(col, $t) : cle;
+    return col ? columnLabel(col, $t) : cle;
   }
 
   const filtre = $derived(recherche.trim().toLowerCase());
 
   const fixesVisibles = $derived(
     COLONNES_FIXES.filter((c: TrackColumn) =>
-      !filtre || libelleColonne(c, $t).toLowerCase().includes(filtre)
+      !filtre || columnLabel(c, $t).toLowerCase().includes(filtre)
     )
   );
 
   const tagsVisibles = $derived(
-    tags.filter((tg) => !filtre || intituleDeTag(tg.key, $t).toLowerCase().includes(filtre))
+    tags.filter((tg) => !filtre || tagTitle(tg.key, $t).toLowerCase().includes(filtre))
   );
 
-  function valider() {
+  function confirm() {
     onchange(choix);
     open = false;
   }
 
-  function reinitialiser() {
+  function reset() {
     choix = [...COLONNES_PAR_DEFAUT];
   }
 </script>
@@ -197,13 +197,13 @@
                               hover:bg-(--rg-hover) has-checked:bg-(--rg-creux-on)">
                   <input
                     type="checkbox"
-                    checked={estAffichee(col.key)}
-                    onchange={() => basculer(col.key)}
+                    checked={isShown(col.key)}
+                    onchange={() => toggleColumn(col.key)}
                     class="peer sr-only"
                   />
                   {@render coche()}
                   <span class="text-[13px] truncate text-(--rg-tx2) peer-checked:text-(--rg-tx) peer-checked:font-semibold">
-                    {libelleColonne(col, $t)}
+                    {columnLabel(col, $t)}
                   </span>
                 </label>
               {/each}
@@ -231,13 +231,13 @@
                                 hover:bg-(--rg-hover) has-checked:bg-(--rg-creux-on)">
                     <input
                       type="checkbox"
-                      checked={estAffichee(`tag:${tag.key}`)}
-                      onchange={() => basculer(`tag:${tag.key}`)}
+                      checked={isShown(`tag:${tag.key}`)}
+                      onchange={() => toggleColumn(`tag:${tag.key}`)}
                       class="peer sr-only"
                     />
                     {@render coche()}
                     <span class="text-[13px] truncate flex-1 text-(--rg-tx2) peer-checked:text-(--rg-tx) peer-checked:font-semibold">
-                      {intituleDeTag(tag.key, $t)}
+                      {tagTitle(tag.key, $t)}
                     </span>
                     <!-- L'effectif dit d'un coup d'œil si la colonne sera
                          majoritairement vide. -->
@@ -270,11 +270,11 @@
                         bg-(--rg-carte) border border-(--rg-bd) hover:border-(--rg-bd2)">
               <span class="w-5 shrink-0 text-[11px] font-semibold tabular-nums text-(--rg-mu2)">{i + 1}</span>
               <span class="text-[13px] font-medium text-(--rg-tx) truncate flex-1">
-                {intitule(cle)}
+                {columnTitle(cle)}
               </span>
               <button
                 type="button"
-                onclick={() => deplacer(i, -1)}
+                onclick={() => move(i, -1)}
                 disabled={i === 0}
                 class="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors
                        text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)
@@ -285,7 +285,7 @@
               </button>
               <button
                 type="button"
-                onclick={() => deplacer(i, 1)}
+                onclick={() => move(i, 1)}
                 disabled={i === choix.length - 1}
                 class="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors
                        text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)
@@ -296,7 +296,7 @@
               </button>
               <button
                 type="button"
-                onclick={() => basculer(cle)}
+                onclick={() => toggleColumn(cle)}
                 class="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors
                        text-(--rg-mu) hover:bg-red-500/8 hover:text-red-600 dark:hover:text-red-400"
                 aria-label={$t("mini.remove")}
@@ -314,12 +314,12 @@
       oncancel={() => (open = false)}
       submitLabel={$t("source.apply")}
       submitIcon="material-symbols:check-rounded"
-      onsubmit={valider}
+      onsubmit={confirm}
     >
       {#snippet start()}
         <button
           type="button"
-          onclick={reinitialiser}
+          onclick={reset}
           class="h-8 px-3 rounded-lg flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-colors
                  text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
         >

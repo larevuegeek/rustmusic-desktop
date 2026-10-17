@@ -83,7 +83,7 @@ export async function initBatchListeners() {
   });
 
   await listen<BatchReport>("batch-done", (event) => {
-    dataCache.invalidateFiches();
+    dataCache.invalidateDetails();
     store.update((s) =>
       s.jobId === event.payload.job_id
         ? { ...s, report: event.payload, running: false, cancelling: false }

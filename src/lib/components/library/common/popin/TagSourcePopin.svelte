@@ -4,7 +4,7 @@
   import Icon from "@iconify/svelte";
   import { untrack } from "svelte";
   import { t } from "#lib/i18n";
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import { tagWorkshop, valueOf } from "#lib/stores/tags/tagWorkshop.store";
   import { metadataSource, SOURCE_OPTIONS } from "#lib/stores/tags/metadataSource.store";
@@ -73,7 +73,7 @@
       picked = found.find((h) => h.track_count === count) ?? found[0] ?? null;
     } catch (e) {
       if (seq !== searchSeq) return;
-      error = messageErreur(e);
+      error = errorMessage(e);
     } finally {
       if (seq === searchSeq) {
         searching = false;
@@ -116,7 +116,7 @@
       opened = new Set();
       step = 2;
     } catch (e) {
-      error = messageErreur(e);
+      error = errorMessage(e);
     } finally {
       matching = false;
     }

@@ -395,7 +395,7 @@ fn decode_track(
         return Ok(None);
     }
 
-    let mut decoder: Box<dyn AudioDecoder> = crate::core::audio_player::codecs::registre()
+    let mut decoder: Box<dyn AudioDecoder> = crate::core::audio_player::codecs::codec_registry()
         .make_audio_decoder(&codec_params, &AudioDecoderOptions::default())
         .map_err(|e| format!("création décodeur : {e:?}"))?;
 

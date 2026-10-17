@@ -43,7 +43,7 @@ const REGLES: [RegExp, string][] = [
 
 export const ICONE_GENRE_DEFAUT = "ph:music-notes-duotone";
 
-export function iconeGenre(nom: string | null | undefined): string {
+export function genreIcon(nom: string | null | undefined): string {
   const n = (nom ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   for (const [motif, icone] of REGLES) if (motif.test(n)) return icone;
   return ICONE_GENRE_DEFAUT;

@@ -37,8 +37,8 @@ pub async fn get_sidebar_covers(
 
     for (id, regles) in playlists {
         let covers = match regles {
-            Some(json) => pochettes_intelligentes(pool, id, &json).await.unwrap_or_default(),
-            None => pochettes(pool, format!(
+            Some(json) => smart_covers(pool, id, &json).await.unwrap_or_default(),
+            None => cover_paths(pool, format!(
                 "SELECT {POCHETTE} FROM playlist_items pi
                  JOIN library_tracks lt ON lt.id = pi.library_track_id
                  LEFT JOIN library_albums la ON la.id = lt.library_album_id
@@ -50,7 +50,7 @@ pub async fn get_sidebar_covers(
         sortie.push(CollectionCovers { key: format!("playlist:{id}"), covers });
     }
 
-    let aimes = pochettes(pool, format!(
+    let aimes = cover_paths(pool, format!(
         "SELECT {POCHETTE} FROM track_liked tl
          JOIN library_files lf ON lf.path = tl.path
          JOIN library_tracks lt ON lt.file_id = lf.id
@@ -62,7 +62,7 @@ pub async fn get_sidebar_covers(
     sortie.push(CollectionCovers { key: "liked".into(), covers: aimes });
 
     // L'historique n'est pas rangé par profil.
-    let recents = pochettes(pool, format!(
+    let recents = cover_paths(pool, format!(
         "SELECT {POCHETTE} FROM recent_files rf
          JOIN library_files lf ON lf.path = rf.path
          JOIN library_tracks lt ON lt.file_id = lf.id
@@ -76,7 +76,7 @@ pub async fn get_sidebar_covers(
     Ok(sortie)
 }
 
-async fn pochettes(pool: &SqlitePool, sql: String, param: Option<i64>) -> Result<Vec<String>, String> {
+async fn cover_paths(pool: &SqlitePool, sql: String, param: Option<i64>) -> Result<Vec<String>, String> {
     let mut q = sqlx::query_scalar::<_, String>(sqlx::AssertSqlSafe(sql));
     if let Some(p) = param {
         q = q.bind(p);
@@ -85,11 +85,11 @@ async fn pochettes(pool: &SqlitePool, sql: String, param: Option<i64>) -> Result
         .fetch_all(pool)
         .await
         .map_err(|e| format!("Pochettes : {e}"))?;
-    Ok(distinctes(lignes))
+    Ok(distinct(lignes))
 }
 
 /// Le moteur de règles reste seul juge du contenu : on lui demande ses pistes.
-async fn pochettes_intelligentes(pool: &SqlitePool, playlist_id: i64, json: &str) -> Result<Vec<String>, String> {
+async fn smart_covers(pool: &SqlitePool, playlist_id: i64, json: &str) -> Result<Vec<String>, String> {
     let rules: crate::core::smart_playlist::rules::SmartRules =
         serde_json::from_str(json).map_err(|e| format!("Règles illisibles : {e}"))?;
     let pistes = crate::core::smart_playlist::engine::evaluate(pool, playlist_id, &rules).await?;
@@ -117,10 +117,10 @@ async fn pochettes_intelligentes(pool: &SqlitePool, playlist_id: i64, json: &str
         .collect();
 
     // Dans l'ordre de la playlist, pas dans celui de la base.
-    Ok(distinctes(ids.iter().filter_map(|id| trouvees.get(id).cloned()).collect()))
+    Ok(distinct(ids.iter().filter_map(|id| trouvees.get(id).cloned()).collect()))
 }
 
-fn distinctes(lignes: Vec<String>) -> Vec<String> {
+fn distinct(lignes: Vec<String>) -> Vec<String> {
     let mut vues = Vec::new();
     for p in lignes {
         if !vues.contains(&p) {

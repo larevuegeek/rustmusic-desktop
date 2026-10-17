@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   // Ce qu'il y a à corriger dans la bibliothèque.
   //
   // # Pourquoi c'est l'écran d'accueil de l'atelier
@@ -50,7 +50,7 @@
     try {
       report = await auditLibrary(id);
     } catch (e) {
-      error = messageErreur(e);
+      error = errorMessage(e);
     } finally {
       loading = false;
     }

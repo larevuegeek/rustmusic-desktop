@@ -13,7 +13,7 @@ static DISQUE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Sépare un chemin sur le dernier séparateur, quel qu'il soit.
-fn couper(chemin: &str) -> (&str, &str) {
+fn split_path(chemin: &str) -> (&str, &str) {
     match chemin.rfind(['/', '\\']) {
         Some(i) => (&chemin[..i], &chemin[i + 1..]),
         None => ("", chemin),
@@ -21,12 +21,12 @@ fn couper(chemin: &str) -> (&str, &str) {
 }
 
 /// Le dossier de l'album pour le fichier donné. Vide si le chemin n'en a pas.
-pub fn racine_album(chemin: &str) -> String {
-    let (dossier, _) = couper(chemin);
+pub fn album_root(chemin: &str) -> String {
+    let (dossier, _) = split_path(chemin);
     if dossier.is_empty() {
         return String::new();
     }
-    let (parent, nom) = couper(dossier);
+    let (parent, nom) = split_path(dossier);
     if !parent.is_empty() && DISQUE.is_match(nom) {
         parent.to_string()
     } else {
@@ -39,26 +39,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn un_album_ordinaire_garde_son_dossier() {
+    fn an_ordinary_album_keeps_its_folder() {
         assert_eq!(
-            racine_album(r"S:\Musique\Daft Punk\1997 - Homework\01.flac"),
+            album_root(r"S:\Musique\Daft Punk\1997 - Homework\01.flac"),
             r"S:\Musique\Daft Punk\1997 - Homework"
         );
     }
 
     #[test]
-    fn les_disques_d_un_coffret_se_rejoignent() {
-        let un = racine_album(r"S:\Musique\NRJ\2019 - Hits\CD1\01.flac");
-        let deux = racine_album(r"S:\Musique\NRJ\2019 - Hits\CD3\04.flac");
+    fn box_set_discs_come_together() {
+        let un = album_root(r"S:\Musique\NRJ\2019 - Hits\CD1\01.flac");
+        let deux = album_root(r"S:\Musique\NRJ\2019 - Hits\CD3\04.flac");
         assert_eq!(un, r"S:\Musique\NRJ\2019 - Hits");
         assert_eq!(un, deux);
     }
 
     #[test]
-    fn les_ecritures_du_numero_de_disque() {
+    fn disc_number_spellings() {
         for nom in ["CD 1", "cd2", "Disc 3", "Disque 1", "disk4", "Vol. 2", "CD10"] {
             assert_eq!(
-                racine_album(&format!(r"S:\A\Album\{nom}\01.flac")),
+                album_root(&format!(r"S:\A\Album\{nom}\01.flac")),
                 r"S:\A\Album",
                 "« {nom} » aurait dû être reconnu"
             );
@@ -66,27 +66,27 @@ mod tests {
     }
 
     #[test]
-    fn un_dossier_qui_ressemble_a_un_disque_sans_l_etre() {
+    fn a_folder_that_looks_like_a_disc_but_is_not() {
         // Un vrai titre d'album, pas un numéro de disque.
         assert_eq!(
-            racine_album(r"S:\A\CD Single Collection\01.flac"),
+            album_root(r"S:\A\CD Single Collection\01.flac"),
             r"S:\A\CD Single Collection"
         );
     }
 
     #[test]
-    fn les_barres_obliques_marchent_aussi() {
-        assert_eq!(racine_album("/home/d/Musique/Album/CD2/01.flac"), "/home/d/Musique/Album");
+    fn forward_slashes_work_too() {
+        assert_eq!(album_root("/home/d/Musique/Album/CD2/01.flac"), "/home/d/Musique/Album");
     }
 
     #[test]
-    fn un_chemin_sans_dossier_ne_donne_rien() {
-        assert_eq!(racine_album("01.flac"), "");
+    fn a_path_without_folder_gives_nothing() {
+        assert_eq!(album_root("01.flac"), "");
     }
 
     #[test]
-    fn un_disque_a_la_racine_reste_ou_il_est() {
+    fn a_disc_at_the_root_stays_where_it_is() {
         // Remonter donnerait une chaîne vide : on préfère garder le dossier.
-        assert_eq!(racine_album(r"CD1\01.flac"), "CD1");
+        assert_eq!(album_root(r"CD1\01.flac"), "CD1");
     }
 }

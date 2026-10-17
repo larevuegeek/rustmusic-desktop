@@ -2,7 +2,7 @@
   // Bouton « Colonnes » et sa popin : les colonnes et largeurs du tableau des titres (réglages partagés).
   import { t } from "#lib/i18n";
   import { settingsStore } from "#lib/stores/settings/settings.store";
-  import { clesAffichees } from "#lib/config/trackColumns";
+  import { shownKeys } from "#lib/config/trackColumns";
   import ToolbarButton from "#lib/components/ui/button/ToolbarButton.svelte";
   import TrackColumnsPopin from "#lib/components/library/common/popin/TrackColumnsPopin.svelte";
 
@@ -18,7 +18,7 @@
   <TrackColumnsPopin
     bind:open={ouverte}
     {libraryId}
-    colonnes={clesAffichees($settingsStore.track_columns)}
+    colonnes={shownKeys($settingsStore.track_columns)}
     onchange={(c) => settingsStore.set("track_columns", JSON.stringify(c))}
     onresetwidths={() => settingsStore.set("track_column_widths", "{}")}
   />

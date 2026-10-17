@@ -5,8 +5,8 @@
   import { t, currentLocale } from "#lib/i18n";
   import { sidebarStore } from "#lib/stores/ui/sidebar.store";
   import PlaylistContextMenu from "#lib/components/ui/contextmenu/PlaylistContextMenu.svelte";
-  import SidebarLigne from "./SidebarLigne.svelte";
-  import SidebarVignette from "./SidebarVignette.svelte";
+  import SidebarRow from "./SidebarRow.svelte";
+  import SidebarThumbnail from "./SidebarThumbnail.svelte";
 
   let { playlist, couvertures = [], replie = false }: {
     playlist: Playlist;
@@ -26,7 +26,7 @@
   });
 </script>
 
-<SidebarLigne
+<SidebarRow
   titre={playlist.name}
   {sousTitre}
   {replie}
@@ -35,9 +35,9 @@
   onmenu={(x, y) => menu = { x, y }}
 >
   {#snippet vignette()}
-    <SidebarVignette {couvertures} couleur={playlist.color} icone={playlist.icon} />
+    <SidebarThumbnail {couvertures} couleur={playlist.color} icone={playlist.icon} />
   {/snippet}
-</SidebarLigne>
+</SidebarRow>
 
 {#if menu}
   <PlaylistContextMenu {playlist} x={menu.x} y={menu.y} onclose={() => menu = null} />

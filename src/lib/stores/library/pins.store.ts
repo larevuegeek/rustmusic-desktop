@@ -18,7 +18,7 @@ const pinsWriter = writable<PinsState>({ libraryId: null, pins: [] });
 
 let demande = 0;
 
-async function charger(libraryId: number | null) {
+async function load(libraryId: number | null) {
   const n = ++demande;
   if (libraryId == null) {
     pinsWriter.set({ libraryId: null, pins: [] });
@@ -35,12 +35,12 @@ async function charger(libraryId: number | null) {
 
 export const pinsStore = {
   subscribe: pinsWriter.subscribe,
-  load: charger,
+  load: load,
 
   async setPinned(kind: PinKind, libraryId: number, id: string, pinned: boolean) {
     const commande = `${pinned ? "pin" : "unpin"}_${kind}`;
     await invoke(commande, kind === "album" ? { libraryId, albumId: id } : { libraryId, artistId: id });
-    if (get(pinsWriter).libraryId === libraryId) await charger(libraryId);
+    if (get(pinsWriter).libraryId === libraryId) await load(libraryId);
   },
 };
 

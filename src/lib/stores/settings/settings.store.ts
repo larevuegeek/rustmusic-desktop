@@ -1,5 +1,6 @@
 import { writable, get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
+import { platformFeatures, loadPlatformFeatures } from "#lib/stores/settings/platform.store";
 import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from "@tauri-apps/plugin-autostart";
 import {
   applyThemeMode,
@@ -134,6 +135,11 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
   // Il écrit/supprime l'entrée dans le registre Windows (ou LaunchAgent macOS)
   auto_start: async (value: string) => {
     try {
+      // Flatpak : le fichier d'autostart du plugin resterait dans le bac à sable ; le portail du système s'en charge.
+      if (get(platformFeatures).flatpak) {
+        await invoke('set_autostart_portal', { enabled: value === 'true' });
+        return;
+      }
       if (value === 'true') {
         await enableAutostart();
       } else {
@@ -300,11 +306,12 @@ export const settingsStore = {
       // L'autostart en fond, sans retenir `init` : il interroge le registre et
       // peut prendre des secondes, pendant lesquelles l'interface attendrait
       // ses réglages. Personne ne le regarde au démarrage.
-      isAutostartEnabled()
-        .then(reel => settingsWriter.update(state => ({
-          ...state,
-          auto_start: reel ? 'true' : 'false',
-        })))
+      // En Flatpak, le portail ne dit pas l'état : le réglage enregistré fait foi.
+      loadPlatformFeatures()
+        .then(({ flatpak }) => (flatpak ? undefined : isAutostartEnabled()))
+        .then(reel => {
+          if (reel !== undefined) settingsWriter.update(state => ({ ...state, auto_start: reel ? 'true' : 'false' }));
+        })
         .catch(e => console.warn('[settings] Impossible de vérifier autostart:', e));
     } catch (e) {
       console.error('[settingsStore] Failed to load settings', e);

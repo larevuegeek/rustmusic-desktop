@@ -27,8 +27,8 @@
   import {
     ONGLETS_BIBLIOTHEQUE,
     ORDRE_ONGLETS,
-    lireOnglets,
-    lirePlacement,
+    readTabs,
+    readPlacement,
     type LibraryTabKey,
     type PlacementOnglets,
   } from "#lib/config/libraryTabs";
@@ -76,8 +76,8 @@
   ]);
 
   // ─── Sections de la bibliothèque ───
-  const placement = $derived(lirePlacement($settingsStore.library_tabs_position));
-  const ongletsRetenus = $derived(lireOnglets($settingsStore.library_tabs));
+  const placement = $derived(readPlacement($settingsStore.library_tabs_position));
+  const ongletsRetenus = $derived(readTabs($settingsStore.library_tabs));
   const placements: { valeur: PlacementOnglets; labelKey: string }[] = [
     { valeur: "sidebar", labelKey: "settings.library_nav_sidebar" },
     { valeur: "top", labelKey: "settings.library_nav_top" },
@@ -85,7 +85,7 @@
   ];
 
   /** Conserve l'ordre d'origine : la voir sauter en dernier désorienterait. */
-  function basculerOnglet(cle: LibraryTabKey) {
+  function toggleTab(cle: LibraryTabKey) {
     const suivant = ongletsRetenus.includes(cle)
       ? ongletsRetenus.filter((c) => c !== cle)
       : ORDRE_ONGLETS.filter((c) => c === cle || ongletsRetenus.includes(c));
@@ -146,7 +146,7 @@
   const dmabufChanged = $derived(!!renderMode && dmabufAuLancement !== null && renderMode.dmabuf_mode !== dmabufAuLancement);
   let relance = $state(false);
 
-  async function relancer() {
+  async function restart() {
     relance = true;
     try {
       const { relaunch } = await import("@tauri-apps/plugin-process");
@@ -334,7 +334,7 @@
           checked={coche}
           disabled={dernier}
           title={dernier ? $t("settings.library_tabs_last") : undefined}
-          onclick={() => basculerOnglet(onglet.key)}
+          onclick={() => toggleTab(onglet.key)}
         />
       {/each}
     </div>
@@ -416,7 +416,7 @@
       <OptionItem title={$t("settings.restart_now_title")} desc={$t("settings.render_mode_restart_required")}>
         <button
           type="button"
-          onclick={relancer}
+          onclick={restart}
           disabled={relance}
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500
                  text-white text-xs font-medium transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"

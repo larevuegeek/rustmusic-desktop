@@ -62,7 +62,7 @@
     internalValue = newRating;
     try {
       await invoke('set_track_rating', { trackId, rating: newRating });
-      dataCache.invalidateFiches();
+      dataCache.invalidateDetails();
       onchange?.(newRating);
     } catch (e) {
       internalValue = previous;

@@ -35,12 +35,12 @@
 
   // Tout est lu avant `onclose()` : les props peuvent venir d'un état que la
   // fermeture remet à `null` (la barre latérale).
-  function figer() {
+  function snapshot() {
     return { kind, id, title, libraryId, epingle, lien };
   }
 
-  async function lire() {
-    const m = figer();
+  async function play() {
+    const m = snapshot();
     onclose();
     try {
       const pistes = m.kind === 'album'
@@ -55,14 +55,14 @@
     }
   }
 
-  function ouvrir() {
-    const m = figer();
+  function openItem() {
+    const m = snapshot();
     onclose();
     goto(m.lien);
   }
 
-  async function basculer() {
-    const m = figer();
+  async function togglePin() {
+    const m = snapshot();
     onclose();
     try {
       await pinsStore.setPinned(m.kind, m.libraryId, m.id, !m.epingle);
@@ -98,19 +98,19 @@
 >
   <p class="px-3.5 pt-1 pb-1.5 text-[10px] uppercase tracking-widest text-(--rg-mu) truncate">{title}</p>
 
-  <button class="{ligne} text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx)" onclick={lire}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx)" onclick={play}>
     <Icon icon="lucide:play" width="14" class="opacity-60" />
     {$t('sidebar.play')}
   </button>
 
-  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={ouvrir}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={openItem}>
     <Icon icon="lucide:arrow-up-right" width="14" class="opacity-60" />
     {$t('sidebar.open')}
   </button>
 
   <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
-  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={basculer}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={togglePin}>
     <Icon icon={epingle ? 'material-symbols:keep-off-outline-rounded' : 'material-symbols:keep-outline-rounded'} width="15" class="opacity-60" />
     {$t(epingle ? 'sidebar.unpin' : 'sidebar.pin')}
   </button>

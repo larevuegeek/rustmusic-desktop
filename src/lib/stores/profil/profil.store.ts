@@ -21,7 +21,7 @@ export const profilSelector = {
     if (initialized) return;
 
     try {
-      const profils = await invoke<Profil[]>('get_all_profils');
+      const profils = await invoke<Profil[]>('get_all_profiles');
 
       const adminProfil = profils.find(p => p.id === 1) ?? profils[0] ?? null;
 
@@ -39,7 +39,7 @@ export const profilSelector = {
       });
     }
   },
-  setProfil: (profil: Profil | null) => {
+  setProfile: (profil: Profil | null) => {
     profilSelectorWriter.update((state) => ({
       ...state,
       profilSelected: profil
@@ -47,7 +47,7 @@ export const profilSelector = {
   },
   refresh: async () => {
     try {
-      const profils = await invoke<Profil[]>('get_all_profils');
+      const profils = await invoke<Profil[]>('get_all_profiles');
       profilSelectorWriter.update((state) => ({
         ...state,
         profils
@@ -56,8 +56,8 @@ export const profilSelector = {
       console.error('[profilSelector] Erreur refresh profils', e);
     }
   },
-  createProfil: async (name: string, color: string = 'violet', avatar: string | null = null) => {
-    const profil = await invoke<Profil>('create_profil', {
+  createProfile: async (name: string, color: string = 'violet', avatar: string | null = null) => {
+    const profil = await invoke<Profil>('create_profile', {
       payload: { name: name.trim(), avatar, color }
     });
 
@@ -68,8 +68,8 @@ export const profilSelector = {
 
     return profil;
   },
-  updateProfil: async (id: number, name: string, color: string, avatar: string | null = null) => {
-    const profil = await invoke<Profil>('update_profil', {
+  updateProfile: async (id: number, name: string, color: string, avatar: string | null = null) => {
+    const profil = await invoke<Profil>('update_profile', {
       payload: { id, name: name.trim(), avatar, color }
     });
 
@@ -81,8 +81,8 @@ export const profilSelector = {
 
     return profil;
   },
-  deleteProfil: async (id: number) => {
-    await invoke('delete_profil', { profilId: id });
+  deleteProfile: async (id: number) => {
+    await invoke('delete_profile', { profilId: id });
 
     profilSelectorWriter.update((state) => {
       const profils = state.profils.filter(p => p.id !== id);

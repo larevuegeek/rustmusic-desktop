@@ -1,4 +1,4 @@
-import { estTerme, type TermeId } from "#lib/config/glossaire";
+import { isTerm, type TermeId } from "#lib/config/glossary";
 
 // Balisage des traductions : « [[dac|convertisseur]] » marque un terme expliqué.
 const BALISE = /\[\[([a-z_]+)\|([^\]]+)\]\]/g;
@@ -6,12 +6,12 @@ const BALISE = /\[\[([a-z_]+)\|([^\]]+)\]\]/g;
 export type Morceau = { texte: string; terme?: TermeId };
 
 /** Découpe un texte traduit en morceaux simples et termes expliqués. */
-export function decouper(texte: string): Morceau[] {
+export function splitHelp(texte: string): Morceau[] {
   const morceaux: Morceau[] = [];
   let fin = 0;
   for (const m of texte.matchAll(BALISE)) {
     if (m.index > fin) morceaux.push({ texte: texte.slice(fin, m.index) });
-    morceaux.push(estTerme(m[1]) ? { texte: m[2], terme: m[1] } : { texte: m[2] });
+    morceaux.push(isTerm(m[1]) ? { texte: m[2], terme: m[1] } : { texte: m[2] });
     fin = m.index + m[0].length;
   }
   if (fin < texte.length) morceaux.push({ texte: texte.slice(fin) });
@@ -19,4 +19,4 @@ export function decouper(texte: string): Morceau[] {
 }
 
 /** Le texte sans balisage, pour la recherche et les attributs. */
-export const texteBrut = (texte: string) => texte.replace(BALISE, "$2");
+export const plainText = (texte: string) => texte.replace(BALISE, "$2");

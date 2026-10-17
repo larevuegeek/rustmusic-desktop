@@ -23,7 +23,7 @@
   };
 
   // Sans ton : vert une fois choisi, gris sinon.
-  const teinte = (o: Option, actif: boolean) =>
+  const tint = (o: Option, actif: boolean) =>
     o.tone ? `${BARRES[o.tone]} ${actif ? "" : "opacity-80"}` : actif ? "bg-(--rg-g)" : "bg-(--rg-mu2)";
 
   let {
@@ -63,7 +63,7 @@
           {#each [6, 10, 14, 18] as hauteur, i (i)}
             <i
               class="block w-1.5 rounded-[2px]
-                     {i >= option.level ? 'bg-(--rg-off)' : teinte(option, actif)}"
+                     {i >= option.level ? 'bg-(--rg-off)' : tint(option, actif)}"
               style:height="{hauteur}px"
             ></i>
           {/each}

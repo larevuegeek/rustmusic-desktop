@@ -8,7 +8,8 @@
   import Badge from "#lib/components/ui/text/Badge.svelte";
   import { derniereVerification, updaterState } from "#lib/stores/updater/updater.store";
   import { checkForUpdate, downloadAndInstall } from "#lib/services/updater/updater.service";
-  import { libelleMiseAJour } from "#lib/helper/updater/updateStatus";
+  import { updateLabel } from "#lib/helper/updater/updateStatus";
+  import { platformFeatures } from "#lib/stores/settings/platform.store";
   import { SUPPORT_LINKS } from "#lib/config/support";
 
   let licenceOuverte = $state(false);
@@ -22,7 +23,8 @@
   ]);
 
   const etat = $derived($updaterState);
-  const statut = $derived(libelleMiseAJour($t, etat, $derniereVerification));
+  // Flatpak : Flathub tient l'appli à jour, pas de vérification ici.
+  const statut = $derived($platformFeatures.flatpak ? $t("settings.update_flathub") : updateLabel($t, etat, $derniereVerification));
   const installer = $derived(etat.kind === "available");
   const occupe = $derived(["checking", "downloading", "installing", "ready"].includes(etat.kind));
 
@@ -71,6 +73,7 @@
         <a href="https://larevuegeek.fr" target="_blank" rel="noopener noreferrer" class="font-semibold text-(--rg-tx2) hover:text-(--rg-gtx) transition-colors">LaRevueGeeK</a>
       </p>
     </div>
+    {#if !$platformFeatures.flatpak}
     <div class="relative">
       <GhostButton
         icon={installer ? "material-symbols:download-rounded" : "material-symbols:sync-rounded"}
@@ -79,6 +82,7 @@
         onclick={() => (installer ? downloadAndInstall() : checkForUpdate(false))}
       />
     </div>
+    {/if}
   </OptionBlock>
 </OptionGroup>
 

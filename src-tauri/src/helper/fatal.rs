@@ -114,7 +114,7 @@ mod tests {
     }
 
     #[test]
-    fn une_base_plus_recente_dit_quoi_faire() {
+    fn a_newer_database_says_what_to_do() {
         let error = migrate_error(sqlx::migrate::MigrateError::VersionMissing(202608170001));
         let message = explain_migration(&error);
 
@@ -127,13 +127,13 @@ mod tests {
     }
 
     #[test]
-    fn une_migration_modifiee_est_distinguee() {
+    fn a_modified_migration_is_told_apart() {
         let error = migrate_error(sqlx::migrate::MigrateError::VersionMismatch(202608170001));
         assert!(explain_migration(&error).contains("modifiée depuis"));
     }
 
     #[test]
-    fn les_autres_pannes_restent_lisibles() {
+    fn other_failures_stay_readable() {
         let error = sqlx::Error::PoolTimedOut;
         let message = explain_migration(&error);
         assert!(message.contains("Impossible de préparer la base"));

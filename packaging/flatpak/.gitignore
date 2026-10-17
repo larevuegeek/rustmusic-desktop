@@ -1,0 +1,13 @@
+# Outils téléchargés et constructions d'essai.
+.outils/
+build-dir/
+.flatpak-builder/
+repo/
+essai-local.yml
+# Listes de dépendances générées : elles vont dans le dépôt Flathub, pas ici.
+node-sources.json
+cargo-sources.json
+# Outils personnels de construction et d'essai : gardés en local, jamais publiés.
+generer-sources.sh
+construire-local.sh
+README.md

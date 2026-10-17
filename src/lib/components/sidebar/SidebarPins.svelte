@@ -10,13 +10,13 @@ import { pinsStore, type LibraryPin, type PinKind } from "#lib/stores/library/pi
 import { player } from "#lib/stores/player/player.store";
 import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
 import { sidebarStore } from "#lib/stores/ui/sidebar.store";
-import { localiserUn, type TrackLocation } from "#lib/helper/library/trackLocation";
-import { teinte } from "#lib/helper/tools/teinte";
+import { locateOne, type TrackLocation } from "#lib/helper/library/trackLocation";
+import { hue } from "#lib/helper/tools/hue";
 import { settingsStore } from "#lib/stores/settings/settings.store";
-import SidebarBouton from "./SidebarBouton.svelte";
-import SidebarLigne from "./SidebarLigne.svelte";
-import SidebarTitre from "./SidebarTitre.svelte";
-import SidebarVignette from "./SidebarVignette.svelte";
+import SidebarButton from "./SidebarButton.svelte";
+import SidebarRow from "./SidebarRow.svelte";
+import SidebarTitle from "./SidebarTitle.svelte";
+import SidebarThumbnail from "./SidebarThumbnail.svelte";
 
 let { libraryId, replie = false }: { libraryId: number; replie?: boolean } = $props();
 
@@ -28,7 +28,7 @@ const artistes = $derived(montrerArtistes ? $pinsStore.pins.filter((p) => p.kind
 // Une section n'apparaît qu'avec au moins une épingle ; sans aucune, la carte d'accueil.
 const accueil = $derived(!replie && (montrerAlbums || montrerArtistes) && albums.length === 0 && artistes.length === 0);
 
-function masquerEpingles() {
+function hidePins() {
   settingsStore.set("show_pinned_albums", "false");
   settingsStore.set("show_pinned_artists", "false");
 }
@@ -45,20 +45,20 @@ let lieu = $state<TrackLocation | null>(null);
 $effect(() => {
   const chemin = cheminEnLecture;
   if (!chemin) { lieu = null; return; }
-  localiserUn(chemin).then((l) => { if (cheminEnLecture === chemin) lieu = l; });
+  locateOne(chemin).then((l) => { if (cheminEnLecture === chemin) lieu = l; });
 });
 
 const albumEnLecture = $derived(lieu?.library_id === libraryId ? lieu.library_album_id : null);
 const artisteEnLecture = $derived(lieu?.library_id === libraryId ? lieu.artist_id : null);
 
-const lien = (pin: LibraryPin) => `/library/${libraryId}/${pin.kind === "album" ? "albums" : "artists"}/${pin.id}`;
+const pinLink = (pin: LibraryPin) => `/library/${libraryId}/${pin.kind === "album" ? "albums" : "artists"}/${pin.id}`;
 
-function aller(pin: LibraryPin) {
-  goto(lien(pin));
+function goTo(pin: LibraryPin) {
+  goto(pinLink(pin));
   sidebarStore.close();
 }
 
-function ouvrirSection(kind: PinKind, e: MouseEvent) {
+function openSection(kind: PinKind, e: MouseEvent) {
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
   menuSection = { kind, x: r.right, y: r.bottom + 4 };
 }
@@ -71,7 +71,7 @@ function ouvrirSection(kind: PinKind, e: MouseEvent) {
       type="button"
       class="absolute top-1.5 right-1.5 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-colors
              text-(--sb-mu) hover:bg-(--sb-s2) hover:text-(--sb-tx)"
-      onclick={masquerEpingles}
+      onclick={hidePins}
       title={`${$t("sidebar.hide_section")} — ${$t("sidebar.hide_section_note")}`}
       aria-label={$t("sidebar.hide_section")}
     >
@@ -107,50 +107,50 @@ function ouvrirSection(kind: PinKind, e: MouseEvent) {
 
 <!-- ─── Albums ─── -->
 {#if !replie && albums.length > 0}
-  <SidebarTitre titre={$t("sidebar.pinned_albums")}>
+  <SidebarTitle titre={$t("sidebar.pinned_albums")}>
     {#snippet actions()}
-      <SidebarBouton icon="material-symbols:more-horiz" label={$t("sidebar.pinned_albums")} taille={16}
-                     onclick={(e) => ouvrirSection("album", e)} />
+      <SidebarButton icon="material-symbols:more-horiz" label={$t("sidebar.pinned_albums")} taille={16}
+                     onclick={(e) => openSection("album", e)} />
     {/snippet}
-  </SidebarTitre>
+  </SidebarTitle>
 {/if}
 
 {#each albums as pin (pin.id)}
-  <SidebarLigne
+  <SidebarRow
     titre={pin.title}
     sousTitre={[$t("sidebar.album"), pin.subtitle].filter(Boolean).join(" · ")}
     {replie}
-    actif={pathname === lien(pin)}
+    actif={pathname === pinLink(pin)}
     enLecture={albumEnLecture === pin.id}
-    onclick={() => aller(pin)}
+    onclick={() => goTo(pin)}
     onmenu={(x, y) => menu = { pin, x, y }}
   >
     {#snippet vignette()}
-      <SidebarVignette couvertures={pin.cover ? [pin.cover] : []} couleur="oklch(0.62 0.12 {teinte(pin.title)})"
+      <SidebarThumbnail couvertures={pin.cover ? [pin.cover] : []} couleur="oklch(0.62 0.12 {hue(pin.title)})"
                        icone="material-symbols:album-rounded" />
     {/snippet}
-  </SidebarLigne>
+  </SidebarRow>
 {/each}
 
 <!-- ─── Artistes ─── -->
 {#if !replie && artistes.length > 0}
-  <SidebarTitre titre={$t("sidebar.pinned_artists")}>
+  <SidebarTitle titre={$t("sidebar.pinned_artists")}>
     {#snippet actions()}
-      <SidebarBouton icon="material-symbols:more-horiz" label={$t("sidebar.pinned_artists")} taille={16}
-                     onclick={(e) => ouvrirSection("artist", e)} />
+      <SidebarButton icon="material-symbols:more-horiz" label={$t("sidebar.pinned_artists")} taille={16}
+                     onclick={(e) => openSection("artist", e)} />
     {/snippet}
-  </SidebarTitre>
+  </SidebarTitle>
 {/if}
 
 {#if artistes.length > 0}
   <div class="flex {replie ? 'flex-col items-center gap-2' : 'flex-wrap gap-3 px-1 pb-3'}">
     {#each artistes as pin (pin.id)}
       {@const image = artistImageReadyStore.get(pin.id, $artistImageReadyStore) ?? pin.cover}
-      {@const actif = pathname === lien(pin)}
+      {@const actif = pathname === pinLink(pin)}
       <button
         type="button"
         class="group flex flex-col items-center gap-1.5 text-xs text-center cursor-pointer {replie ? '' : 'w-16'}"
-        onclick={() => aller(pin)}
+        onclick={() => goTo(pin)}
         oncontextmenu={(e) => { e.preventDefault(); menu = { pin, x: e.clientX, y: e.clientY }; }}
         title={pin.title}
         aria-current={actif ? "page" : undefined}
@@ -162,7 +162,7 @@ function ouvrirSection(kind: PinKind, e: MouseEvent) {
           {#if image}
             <CoverImg path={image} alt="" size="1x" class="w-full h-full object-cover" />
           {:else}
-            <span class="sb-vignette text-base font-bold" style="--c: oklch(0.62 0.12 {teinte(pin.title)});">
+            <span class="sb-vignette text-base font-bold" style="--c: oklch(0.62 0.12 {hue(pin.title)});">
               {pin.title.charAt(0).toUpperCase()}
             </span>
           {/if}

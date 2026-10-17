@@ -7,12 +7,12 @@ import { libraryStore } from "#lib/stores/library/library.store";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { sidebarStore } from "#lib/stores/ui/sidebar.store";
 import {
-  lireOnglets,
-  lienOnglet,
-  lirePlacement,
-  memoriserOnglet,
+  readTabs,
+  tabLink,
+  readPlacement,
+  rememberTab,
   ongletCourant,
-  resoudreOnglets,
+  resolveTabs,
 } from "#lib/config/libraryTabs";
 
 let { replie = false }: { replie?: boolean } = $props();
@@ -26,13 +26,13 @@ const libraryId = $derived($libraryStore.librarySelected?.id ?? null);
 // « Les deux » = barre latérale + onglets en haut. En haut seul, l'accueil et les
 // sections sont dans la barre d'onglets : plus aucune tuile ici.
 const tuiles = $derived.by((): Tuile[] => {
-  if (lirePlacement($settingsStore.library_tabs_position) === "top") return [];
+  if (readPlacement($settingsStore.library_tabs_position) === "top") return [];
   const accueil: Tuile = {
     cle: "home", label: $t("nav.home"), icone: "material-symbols:home-outline-rounded",
     actif: pathname === "/", aller: () => nav("/"),
   };
   const id = libraryId;
-  const onglets = resoudreOnglets(lireOnglets($settingsStore.library_tabs));
+  const onglets = resolveTabs(readTabs($settingsStore.library_tabs));
 
   // Sans bibliothèque, les sections mènent à l'import ; les playlists, au profil, restent accessibles.
   if (id == null) {
@@ -46,7 +46,7 @@ const tuiles = $derived.by((): Tuile[] => {
 
   return [accueil, ...onglets.map((o) => ({
     cle: o.key, label: $t(o.labelKey), icone: o.icon, actif: ouvert === o.key,
-    aller: () => { memoriserOnglet(id, o.key); nav(lienOnglet(id, o.key)); },
+    aller: () => { rememberTab(id, o.key); nav(tabLink(id, o.key)); },
   }))];
 });
 

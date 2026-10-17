@@ -5,7 +5,7 @@
   import { queueState } from "#lib/stores/queue/queueState.store";
   import { playerService } from "#lib/services/player/player.service";
   import { playlistStore } from "#lib/stores/playlist/playlist.store";
-  import { playlistsRangees } from "#lib/stores/playlist/couvertures.store";
+  import { playlistsRangees } from "#lib/stores/playlist/covers.store";
   import { invoke } from "@tauri-apps/api/core";
   import { toasts } from "#lib/stores/ui/toast.store";
   import type { Playlist } from "#lib/types/db/playlist/Playlist";

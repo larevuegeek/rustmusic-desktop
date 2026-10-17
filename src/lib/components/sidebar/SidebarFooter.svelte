@@ -3,8 +3,8 @@ import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
 import { goto } from "$app/navigation";
 import { t, currentLocale } from "#lib/i18n";
-import { oublierLocalisations } from "#lib/helper/library/trackLocation";
-import { depuisCourt } from "#lib/helper/tools/dateTools";
+import { forgetLocations } from "#lib/helper/library/trackLocation";
+import { shortSince } from "#lib/helper/tools/dateTools";
 import { libraryStore } from "#lib/stores/library/library.store";
 import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
 import { profilSelector } from "#lib/stores/profil/profil.store";
@@ -46,7 +46,7 @@ const statut = $derived.by(() => {
     return `${$t("sidebar.scanning")} ${p}`;
   }
   return dernierScan
-    ? $t("sidebar.scanned").replace("{ago}", depuisCourt(dernierScan, maintenant, $t))
+    ? $t("sidebar.scanned").replace("{ago}", shortSince(dernierScan, maintenant, $t))
     : $t("sidebar.never_scanned");
 });
 
@@ -63,14 +63,14 @@ $effect(() => {
   return () => clearInterval(minuterie);
 });
 
-async function rescanner() {
+async function rescanLibrary() {
   const id = library?.id;
   if (id == null || enScan) return;
   rescanEnCours = true;
   try {
     await invoke("rescan_library", { libraryId: id });
     // Un scan renumérote : les fiches mises en cache peuvent ne plus exister.
-    oublierLocalisations();
+    forgetLocations();
     libraryContentStore.refresh();
     libraryStore.refresh();
   } catch (e) {
@@ -80,7 +80,7 @@ async function rescanner() {
   }
 }
 
-function ouvrirProfil() {
+function openProfile() {
   profilPopinStore.open();
 }
 
@@ -94,7 +94,7 @@ const texteAvatar = $derived.by(() => {
 });
 
 const reduit = $derived($settingsStore.sidebar_footer_collapsed === "true");
-function basculerReduit() {
+function toggleCollapsed() {
   settingsStore.set("sidebar_footer_collapsed", reduit ? "false" : "true");
 }
 
@@ -136,7 +136,7 @@ const titreRescan = $derived(enScan ? `${statut} ${compte}`.trim() : `${$t("side
 {/snippet}
 
 {#snippet rescan(grand: boolean)}
-  {@render bouton("material-symbols:refresh-rounded", titreRescan, rescanner, grand, enScan,
+  {@render bouton("material-symbols:refresh-rounded", titreRescan, rescanLibrary, grand, enScan,
     enScan ? "animate-spin text-amber-400" : "")}
 {/snippet}
 
@@ -150,7 +150,7 @@ const titreRescan = $derived(enScan ? `${statut} ${compte}`.trim() : `${$t("side
                      {enScan ? 'bg-amber-400 animate-pulse' : 'bg-(--sb-point)'}"></span>
       </span>
     {/if}
-    <button type="button" class="mt-1 cursor-pointer rounded-full" onclick={ouvrirProfil} title={titreProfil}>
+    <button type="button" class="mt-1 cursor-pointer rounded-full" onclick={openProfile} title={titreProfil}>
       {@render avatar()}
     </button>
   </div>
@@ -162,7 +162,7 @@ const titreRescan = $derived(enScan ? `${statut} ${compte}`.trim() : `${$t("side
     type="button"
     class="pointer-events-auto relative z-10 -mb-px w-10 h-4 flex items-center justify-center rounded-t-lg cursor-pointer
            bg-(--sb-pied) border border-b-0 border-(--sb-piedbd) text-(--sb-mu) hover:text-(--sb-tx) transition-colors"
-    onclick={basculerReduit}
+    onclick={toggleCollapsed}
     title={reduit ? $t("sidebar.footer_expand") : $t("sidebar.footer_collapse")}
     aria-label={reduit ? $t("sidebar.footer_expand") : $t("sidebar.footer_collapse")}
     aria-expanded={!reduit}
@@ -181,7 +181,7 @@ const titreRescan = $derived(enScan ? `${statut} ${compte}`.trim() : `${$t("side
       <button
         type="button"
         class="flex items-center gap-2 py-1.5 pl-2 pr-2.5 min-w-0 text-left cursor-pointer"
-        onclick={basculerReduit}
+        onclick={toggleCollapsed}
         title={$t("sidebar.footer_expand")}
         transition:slide={{ duration: 180 }}
       >
@@ -203,7 +203,7 @@ const titreRescan = $derived(enScan ? `${statut} ${compte}`.trim() : `${$t("side
     <div transition:slide={{ duration: 180 }}>
     <div class="flex items-center gap-2.5 pt-2 pb-1.5 pl-2 pr-1.5">
       <button type="button" class="group flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer"
-              onclick={ouvrirProfil} title={titreProfil}>
+              onclick={openProfile} title={titreProfil}>
         {@render avatar()}
         <span class="flex flex-col gap-px min-w-0">
           <b class="text-sm font-bold truncate text-(--sb-tx) group-hover:underline underline-offset-2 decoration-(--sb-mu)">

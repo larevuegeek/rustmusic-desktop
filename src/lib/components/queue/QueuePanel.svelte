@@ -1,6 +1,6 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
-import { lecture } from "#lib/stores/player/lecture.store";
+import { lecture } from "#lib/stores/player/playback.store";
 import { queueState } from "#lib/stores/queue/queueState.store";
 import { queuePanelOpened, closeQueuePanel } from "#lib/stores/queue/queueUi.store";
 import { formatTime } from "#lib/helper/tools/dateTools";

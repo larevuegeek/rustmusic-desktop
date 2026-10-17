@@ -185,7 +185,7 @@ mod tests {
         pool
     }
 
-    fn lien() -> LibraryTrackArtistCreate {
+    fn link() -> LibraryTrackArtistCreate {
         LibraryTrackArtistCreate {
             library_id: 1,
             library_track_id: "t-1".to_string(),
@@ -195,10 +195,10 @@ mod tests {
 
     /// L'indexation ignore ce qu'elle renvoie : un échec ne se voit nulle part.
     #[tokio::test]
-    async fn la_liaison_piste_artiste_s_insere() {
+    async fn the_track_artist_link_is_inserted() {
         let pool = base().await;
 
-        let lien = LibraryTrackArtistRepository::insert_library_track_artist(&pool, lien())
+        let lien = LibraryTrackArtistRepository::insert_library_track_artist(&pool, link())
             .await
             .expect("l'insertion doit réussir");
 
@@ -208,7 +208,7 @@ mod tests {
 
     /// La séquence de `save_analysed_to_db`, en transaction comme à l'import.
     #[tokio::test]
-    async fn la_sequence_d_indexation_lie_tous_les_artistes() {
+    async fn the_indexing_sequence_links_every_artist() {
         use crate::entity::artist::artist::ArtistCreate;
         use crate::entity::library::library_artist::LibraryArtistCreate;
         use crate::entity::library::library_track::LibraryTrackCreate;
@@ -268,13 +268,13 @@ mod tests {
 
     /// Réindexer repasse sur les mêmes liaisons : ni échec, ni doublon.
     #[tokio::test]
-    async fn reinserer_la_meme_liaison_ne_double_pas() {
+    async fn reinserting_the_same_link_does_not_duplicate() {
         let pool = base().await;
 
-        LibraryTrackArtistRepository::insert_library_track_artist(&pool, lien())
+        LibraryTrackArtistRepository::insert_library_track_artist(&pool, link())
             .await
             .expect("première insertion");
-        LibraryTrackArtistRepository::insert_library_track_artist(&pool, lien())
+        LibraryTrackArtistRepository::insert_library_track_artist(&pool, link())
             .await
             .expect("seconde insertion");
 

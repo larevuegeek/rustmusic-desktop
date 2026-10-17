@@ -7,7 +7,7 @@ import { dataCache } from "#lib/stores/cache/dataCache.store";
 import { invoke } from "@tauri-apps/api/core";
 import { get } from "svelte/store";
 import { currentLocale } from "#lib/i18n";
-import { tailleLisible } from "#lib/helper/tools/sizeTools";
+import { readableSize } from "#lib/helper/tools/sizeTools";
 
 /**
  * Ce qu'on envoie au backend.
@@ -263,7 +263,7 @@ export function promoteToCover(slots: MediaSlot[], index: number): MediaSlot[] {
 
 /** Formate un poids en octets, selon la langue. */
 export function formatBytes(bytes: number): string {
-  return tailleLisible(bytes, get(currentLocale)) || "0";
+  return readableSize(bytes, get(currentLocale)) || "0";
 }
 
 /** Un morceau tel que l'atelier a besoin de le connaître. */
@@ -303,7 +303,7 @@ export async function canWriteTags(path: string): Promise<boolean> {
  */
 export async function writeTrackTags(path: string, edit: TagEditPayload): Promise<unknown> {
   const r = await invoke("write_track_tags", { path, edit });
-  dataCache.invalidateFiches();
+  dataCache.invalidateDetails();
   return r;
 }
 

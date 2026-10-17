@@ -143,7 +143,7 @@ pub async fn create_smart_playlist(
     .await
     .map_err(|e| format!("Création : {e}"))?;
 
-    rafraichir_compteur(&state.pool, id, &rules).await;
+    refresh_count(&state.pool, id, &rules).await;
 
     Ok(id)
 }
@@ -182,7 +182,7 @@ pub async fn update_smart_playlist(
     .await
     .map_err(|e| format!("Mise à jour : {e}"))?;
 
-    rafraichir_compteur(&state.pool, playlist_id, &rules).await;
+    refresh_count(&state.pool, playlist_id, &rules).await;
 
     Ok(())
 }
@@ -213,7 +213,7 @@ pub async fn get_smart_playlist_rules(
 ///
 /// Un échec n'interrompt rien : le compteur est un confort, et le perdre ne
 /// justifie pas de refuser la création d'une playlist par ailleurs valide.
-async fn rafraichir_compteur(pool: &sqlx::SqlitePool, id: i64, regles: &rules::SmartRules) {
+async fn refresh_count(pool: &sqlx::SqlitePool, id: i64, regles: &rules::SmartRules) {
     let Ok(n) = engine::count(pool, regles).await else {
         return;
     };

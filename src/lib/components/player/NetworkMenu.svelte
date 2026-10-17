@@ -10,7 +10,7 @@
   import { networkPlayerStore } from "#lib/stores/audio/networkPlayer.store";
   import { dlnaStatusStore } from "#lib/stores/dlna/dlna.store";
   import { dlnaStart, dlnaStop } from "#lib/services/dlna/dlna.service";
-  import { TEINTE } from "#lib/helper/audio/chaineAudio";
+  import { TEINTE } from "#lib/helper/audio/audioChain";
 
   let { pastille, voyant, cliquable }: { pastille: string; voyant: string; cliquable: string } = $props();
 
@@ -39,13 +39,13 @@
   );
 
   /** État d'une famille de lecteurs : lecture en cours dessus, activée, ou coupée. */
-  function etat(kind: "upnp" | "airplay", actif: boolean): string {
+  function statusLabel(kind: "upnp" | "airplay", actif: boolean): string {
     if (!actif) return $t("network_player.menu_off");
     if (choisi?.kind === kind) return $t("network_player.menu_playing_on").replace("{name}", choisi.name);
     return $t("network_player.menu_ready");
   }
 
-  async function basculerPartage() {
+  async function toggleSharing() {
     if (dlnaBascule) return;
     dlnaBascule = true;
     try {
@@ -60,13 +60,13 @@
   // Fermeture au clic extérieur.
   $effect(() => {
     if (!ouvert) return;
-    const dehors = (e: MouseEvent) => {
+    const handleOutside = (e: MouseEvent) => {
       if (menuEl && !menuEl.contains(e.target as Node)) ouvert = false;
     };
-    const timer = setTimeout(() => document.addEventListener("click", dehors), 50);
+    const timer = setTimeout(() => document.addEventListener("click", handleOutside), 50);
     return () => {
       clearTimeout(timer);
-      document.removeEventListener("click", dehors);
+      document.removeEventListener("click", handleOutside);
     };
   });
 </script>
@@ -99,7 +99,7 @@
           <Badge tone="amber">{$t("settings.beta_badge")}</Badge>
         </div>
 
-        {#snippet ligne(icone: string, titre: string, etat: string, actif: boolean, vivant: boolean, basculer: () => void, occupe = false)}
+        {#snippet ligne(icone: string, titre: string, statusLabel: string, actif: boolean, vivant: boolean, basculer: () => void, occupe = false)}
           <div
             role="button"
             tabindex="0"
@@ -116,7 +116,7 @@
               <span class="block truncate text-[13px] font-semibold {actif ? '' : 'text-(--lc-mu)'}">{titre}</span>
               <span class="flex items-center gap-1.5 text-[11.5px] {vivant ? 'text-(--rg-gtx)' : 'text-(--lc-mu)'}">
                 {#if vivant}<span class="w-1.5 h-1.5 shrink-0 rounded-full bg-(--rg-g) shadow-[0_0_6px_var(--rg-g)]"></span>{/if}
-                <span class="truncate">{etat}</span>
+                <span class="truncate">{statusLabel}</span>
               </span>
             </span>
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -127,8 +127,8 @@
         {/snippet}
 
         <p class="px-2.5 pt-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">{$t("network_player.menu_send")}</p>
-        {@render ligne(ICONE_LECTEURS, $t("network_player.menu_players"), etat("upnp", lecteurs), lecteurs, choisi?.kind === "upnp", () => settingsStore.toggle("network_players"))}
-        {@render ligne(ICONE_AIRPLAY, $t("network_player.menu_airplay"), etat("airplay", airplay), airplay, choisi?.kind === "airplay", () => settingsStore.toggle("airplay"))}
+        {@render ligne(ICONE_LECTEURS, $t("network_player.menu_players"), statusLabel("upnp", lecteurs), lecteurs, choisi?.kind === "upnp", () => settingsStore.toggle("network_players"))}
+        {@render ligne(ICONE_AIRPLAY, $t("network_player.menu_airplay"), statusLabel("airplay", airplay), airplay, choisi?.kind === "airplay", () => settingsStore.toggle("airplay"))}
 
         <p class="px-2.5 pt-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">{$t("network_player.menu_share_group")}</p>
         {@render ligne(
@@ -137,7 +137,7 @@
           partage ? `${$t("network_player.menu_online")} · ${$dlnaStatusStore?.url?.replace(/^https?:\/\//, "").replace(/\/.*$/, "") ?? ""}` : $t("network_player.menu_off"),
           partage,
           partage,
-          basculerPartage,
+          toggleSharing,
           dlnaBascule,
         )}
 

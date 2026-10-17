@@ -123,21 +123,21 @@ fn emit_library_children(didl: &mut DidlBuilder, library_id: i64, parent_id: &st
     didl.add_container(
         &format!("0/lib/{}/artists", library_id),
         parent_id,
-        titre(Menu::Artistes, langue),
+        menu_title(Menu::Artistes, langue),
         0,
         "object.container",
     );
     didl.add_container(
         &format!("0/lib/{}/albums", library_id),
         parent_id,
-        titre(Menu::Albums, langue),
+        menu_title(Menu::Albums, langue),
         0,
         "object.container",
     );
     didl.add_container(
         &format!("0/lib/{}/folders", library_id),
         parent_id,
-        titre(Menu::Dossiers, langue),
+        menu_title(Menu::Dossiers, langue),
         0,
         "object.container.storageFolder",
     );
@@ -151,7 +151,7 @@ enum Menu {
 }
 
 /// Titre d'un menu dans la langue de l'app ; anglais pour une langue inconnue.
-fn titre(menu: Menu, langue: &str) -> &'static str {
+fn menu_title(menu: Menu, langue: &str) -> &'static str {
     match (menu, langue) {
         (Menu::Artistes, "fr") => "Artistes",
         (Menu::Artistes, "es") => "Artistas",
@@ -404,11 +404,11 @@ fn metadata_for(object_id: &str, server_base_url: &str, langue: &str) -> BrowseR
     let title = if object_id == "0" || object_id.is_empty() {
         "RustMusic"
     } else if object_id.ends_with("/artists") {
-        titre(Menu::Artistes, langue)
+        menu_title(Menu::Artistes, langue)
     } else if object_id.ends_with("/albums") {
-        titre(Menu::Albums, langue)
+        menu_title(Menu::Albums, langue)
     } else if object_id.ends_with("/folders") {
-        titre(Menu::Dossiers, langue)
+        menu_title(Menu::Dossiers, langue)
     } else {
         "Container"
     };
@@ -436,7 +436,7 @@ mod tests {
     /// Un album de trois morceaux, rangé aussi dans un dossier.
     struct Fake;
 
-    fn piste(n: u16) -> DlnaTrack {
+    fn sample_track(n: u16) -> DlnaTrack {
         DlnaTrack {
             id: format!("t{n}"), title: format!("Titre {n}"), artist: Some("Muse".into()), album: Some("The 2nd Law".into()),
             track_number: Some(n), duration_seconds: Some(200), sample_rate: Some(96_000), bits_per_sample: Some(24),
@@ -451,13 +451,13 @@ mod tests {
         async fn list_albums(&self, _: i64) -> Result<Vec<DlnaAlbum>, DlnaError> { Ok(vec![]) }
         async fn list_albums_by_artist(&self, _: i64, _: &str) -> Result<Vec<DlnaAlbum>, DlnaError> { Ok(vec![]) }
         async fn list_tracks_by_album(&self, _: i64, id: &str) -> Result<Vec<DlnaTrack>, DlnaError> {
-            Ok(if id == "a1" { (1..=3).map(piste).collect() } else { vec![] })
+            Ok(if id == "a1" { (1..=3).map(sample_track).collect() } else { vec![] })
         }
         async fn track_path(&self, _: &str) -> Result<PathBuf, DlnaError> { Ok(PathBuf::new()) }
         async fn cover_path(&self, _: CoverKind, _: &str) -> Result<PathBuf, DlnaError> { Ok(PathBuf::new()) }
         async fn list_root_folders(&self, _: i64) -> Result<Vec<DlnaFolder>, DlnaError> { Ok(vec![]) }
         async fn list_folder_entries(&self, _: i64, _: &str) -> Result<FolderEntries, DlnaError> {
-            Ok(FolderEntries { subfolders: vec![], tracks: (1..=3).map(piste).collect() })
+            Ok(FolderEntries { subfolders: vec![], tracks: (1..=3).map(sample_track).collect() })
         }
     }
 
@@ -496,11 +496,11 @@ mod tests {
     }
 
     #[test]
-    fn menus_dans_la_langue_de_l_app() {
-        assert_eq!(titre(Menu::Artistes, "fr"), "Artistes");
-        assert_eq!(titre(Menu::Dossiers, "en"), "Folders");
-        assert_eq!(titre(Menu::Albums, "de"), "Alben");
+    fn menus_in_the_app_language() {
+        assert_eq!(menu_title(Menu::Artistes, "fr"), "Artistes");
+        assert_eq!(menu_title(Menu::Dossiers, "en"), "Folders");
+        assert_eq!(menu_title(Menu::Albums, "de"), "Alben");
         // Langue inconnue : anglais.
-        assert_eq!(titre(Menu::Dossiers, "pt"), "Folders");
+        assert_eq!(menu_title(Menu::Dossiers, "pt"), "Folders");
     }
 }

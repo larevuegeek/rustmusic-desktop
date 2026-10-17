@@ -275,6 +275,6 @@ where
         // --- Volume + Replay Gain + clipping + fade-in post-seek ---
         let vol: f32 = volume.load(Ordering::Relaxed) as f32 / 100.0
             * crate::core::audio_player::replay_gain::current_factor();
-        super::echantillons::appliquer_gain(output, vol, &mut fade_in_samples, marge);
+        super::samples::apply_gain(output, vol, &mut fade_in_samples, marge);
     }
 }

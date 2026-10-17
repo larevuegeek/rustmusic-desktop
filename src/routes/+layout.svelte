@@ -28,7 +28,7 @@ import { importProgressStore } from "#lib/stores/library/importProgress.store";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { sidebarStore } from "#lib/stores/ui/sidebar.store";
 import LibraryTabs from "#lib/components/library/common/LibraryTabs.svelte";
-import { lirePlacement } from "#lib/config/libraryTabs";
+import { readPlacement } from "#lib/config/libraryTabs";
 import { taskProgressStore } from "#lib/stores/ui/taskProgress.store";
 import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
 import { refreshDlnaStatus } from "#lib/stores/dlna/dlna.store";
@@ -46,16 +46,16 @@ import { rememberPage } from "#lib/stores/ui/settingsReturn.store";
 import SelectionBar from "#lib/components/ui/selection/SelectionBar.svelte";
 import MiniPlayer from "#lib/components/player/MiniPlayer.svelte";
 import MicroPlayer from "#lib/components/player/MicroPlayer.svelte";
-import { miniPlayerActive, microPlayerActive, assurerTailleNormale, toggleMiniPlayer } from "#lib/stores/ui/miniPlayer.store";
+import { miniPlayerActive, microPlayerActive, ensureNormalSize, toggleMiniPlayer } from "#lib/stores/ui/miniPlayer.store";
 import { resolveShortcuts, eventToBinding, findAction, type ShortcutAction } from "#lib/config/shortcuts";
 import { applyAccent } from "#lib/helper/theme/accent";
 import SleepTimerButton from "#lib/components/player/SleepTimerButton.svelte";
 import { fade } from "svelte/transition";
-import { ouvrirLiensExternes } from "#lib/helper/tools/liensExternes";
-import { lecture } from "#lib/stores/player/lecture.store";
+import { openExternalLinks } from "#lib/helper/tools/externalLinks";
+import { lecture } from "#lib/stores/player/playback.store";
 import { listen } from "@tauri-apps/api/event";
-import { empecherSurlignageMaj } from "#lib/helper/tools/surlignageMaj";
-import { volume, chargerVolume, reglerVolume } from "#lib/stores/player/volume.store";
+import { preventShiftSelection } from "#lib/helper/tools/shiftSelection";
+import { volume, loadVolume, applyVolume } from "#lib/stores/player/volume.store";
 
 // Affichage du bouton sleep timer dans le header (désactivable dans les réglages).
 let showSleepTimer = $derived($settingsStore.show_sleep_timer !== 'false');
@@ -71,7 +71,7 @@ let isFullPageRoute = $derived(page.url.pathname.startsWith('/settings'));
 // « En haut » comme « Les deux » : la rangée suit partout. Seul « À gauche »
 // s'en passe, la barre latérale portant alors les sections.
 const tabsEnHaut = $derived(
-  !isFullPageRoute && lirePlacement($settingsStore.library_tabs_position) !== 'sidebar'
+  !isFullPageRoute && readPlacement($settingsStore.library_tabs_position) !== 'sidebar'
 );
 const dansLaBibliotheque = $derived(page.url.pathname.startsWith('/library/'));
 // Les réglages gèrent eux-mêmes le fondu entre sections : leur navigation reste en place.
@@ -87,15 +87,15 @@ $effect(() => {
   setTimeout(() => ecran.remove(), 250);
 });
 
-onMount(ouvrirLiensExternes);
-onMount(() => void chargerVolume());
+onMount(openExternalLinks);
+onMount(() => void loadVolume());
 
-onMount(empecherSurlignageMaj);
+onMount(preventShiftSelection);
 
 // Pas de veille automatique tant que la musique joue (réglage) ; l'écran peut s'éteindre.
 $effect(() => {
   const bloquer = $lecture.status === "playing" && $settingsStore.prevent_sleep !== "false";
-  invoke("set_veille_bloquee", { bloquer }).catch(() => {});
+  invoke("set_sleep_blocked", { bloquer }).catch(() => {});
 });
 
 // Mise en veille annoncée (Linux) : pause, pour ne pas laisser la sortie audio ouverte. Au réveil, on reste en pause.
@@ -108,7 +108,7 @@ onMount(() => {
 
 onMount(async () => {
   // Fermée en mode mini, la fenêtre rouvrirait toute petite : plancher et taille d'origine.
-  void assurerTailleNormale();
+  void ensureNormalSize();
 
   // Sentinelle anti-crash GPU (Linux) : on ne confirme le boot qu'après deux
   // frames réellement peintes. Si le compositing WebKit est cassé (fenêtre
@@ -212,9 +212,9 @@ const shortcutHandlers: Record<ShortcutAction, () => void> = {
   seekBackward: () => playerService.seekTo(Math.max(0, (get(player).jsPosition ?? 0) - 10)),
   next: () => playerService.nextTrack(),
   previous: () => playerService.prevTrack(),
-  volumeUp: () => reglerVolume(get(volume) + 5),
-  volumeDown: () => reglerVolume(get(volume) - 5),
-  mute: () => { invoke('mute').then(chargerVolume); },
+  volumeUp: () => applyVolume(get(volume) + 5),
+  volumeDown: () => applyVolume(get(volume) - 5),
+  mute: () => { invoke('mute').then(loadVolume); },
   search: () => (document.querySelector('input[type="search"]') as HTMLInputElement | null)?.focus(),
   toggleMini: () => { void toggleMiniPlayer(); },
 };

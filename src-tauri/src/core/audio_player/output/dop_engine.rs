@@ -65,7 +65,7 @@ static ENGINE: Mutex<Option<DopEngine>> = Mutex::new(None);
 /// Un moteur vivant peut-il jouer ce DSD tel quel ? Il tient alors le DAC :
 /// inutile (et, sous Linux, impossible) de le sonder à nouveau.
 #[cfg_attr(target_os = "windows", allow(dead_code))] // Windows sonde sans ouvrir le DAC
-pub fn moteur_compatible(carrier_rate: u32, channels: u16, device_name: &str) -> bool {
+pub fn engine_compatible(carrier_rate: u32, channels: u16, device_name: &str) -> bool {
     ENGINE
         .lock()
         .unwrap_or_else(|e| e.into_inner())

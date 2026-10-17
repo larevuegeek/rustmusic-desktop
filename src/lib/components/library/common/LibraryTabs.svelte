@@ -6,11 +6,11 @@ import { t } from "#lib/i18n";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { sidebarStore } from "#lib/stores/ui/sidebar.store";
 import {
-  lienOnglet,
-  lireOnglets,
-  memoriserOnglet,
+  tabLink,
+  readTabs,
+  rememberTab,
   ongletCourant,
-  resoudreOnglets,
+  resolveTabs,
   type LibraryTabKey,
 } from "#lib/config/libraryTabs";
 
@@ -20,12 +20,12 @@ let { libraryId }: { libraryId: number | null } = $props();
 const accueil = $derived(page.url.pathname === "/");
 const courant = $derived(ongletCourant(page.url.pathname));
 const tabs = $derived(
-  resoudreOnglets(lireOnglets($settingsStore.library_tabs), courant).filter((o) => libraryId != null || o.key === "playlists")
+  resolveTabs(readTabs($settingsStore.library_tabs), courant).filter((o) => libraryId != null || o.key === "playlists")
 );
 
 function navigateTab(key: LibraryTabKey) {
-  if (libraryId != null) memoriserOnglet(libraryId, key);
-  goto(libraryId == null ? "/playlists" : lienOnglet(libraryId, key));
+  if (libraryId != null) rememberTab(libraryId, key);
+  goto(libraryId == null ? "/playlists" : tabLink(libraryId, key));
   sidebarStore.close(); // sur mobile elle recouvre la page
 }
 

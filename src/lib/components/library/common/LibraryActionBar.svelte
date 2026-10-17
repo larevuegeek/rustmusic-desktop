@@ -4,7 +4,7 @@ import Icon from "@iconify/svelte";
 import { t } from "#lib/i18n";
 import { handleAddDirectory } from "#lib/actions/library/LibraryAction";
 import Menu from "#lib/components/ui/menu/Menu.svelte";
-import LibraryManageMenu, { bibliothequeOccupee } from "#lib/components/library/common/LibraryManageMenu.svelte";
+import LibraryManageMenu, { isLibraryBusy } from "#lib/components/library/common/LibraryManageMenu.svelte";
 import LibraryFoldersPopin from "#lib/components/library/common/popin/LibraryFoldersPopin.svelte";
 import type { Library } from "#lib/types/db/library/Library";
 import type { LibraryDir } from "#lib/types/db/library/LibraryDir";
@@ -19,7 +19,7 @@ let { library, dirs = [], onchange, action: principale = null }: {
 } = $props();
 
 let lecture = $state(false);
-async function lancer() {
+async function start() {
   if (!principale || lecture) return;
   lecture = true;
   try { await principale.lancer(); } finally { lecture = false; }
@@ -29,7 +29,7 @@ let ouvert = $state(false);
 let dossiers = $state(false);
 
 const id = $derived(library.id as number);
-const occupe = $derived(bibliothequeOccupee(id));
+const occupe = $derived(isLibraryBusy(id));
 </script>
 
 
@@ -38,7 +38,7 @@ const occupe = $derived(bibliothequeOccupee(id));
     type="button"
     class="h-10 pl-3 pr-4 rounded-[10px] flex items-center gap-2 text-sm font-bold whitespace-nowrap cursor-pointer transition-colors
            bg-(--rg-g) text-(--rg-on-g) hover:bg-[#34d673]"
-    onclick={() => (principale ? lancer() : handleAddDirectory(id))}
+    onclick={() => (principale ? start() : handleAddDirectory(id))}
   >
     {#if principale}
       <Icon icon={lecture ? "material-symbols:progress-activity" : principale.icone} width="20" class={lecture ? "animate-spin" : ""} />

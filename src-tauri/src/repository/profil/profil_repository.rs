@@ -7,7 +7,7 @@ pub struct ProfilRepository;
 
 impl ProfilRepository {
 
-    pub async fn find_profil_by_id<'e, E>(
+    pub async fn find_profile_by_id<'e, E>(
         exec: E,
         id: i64,
     ) -> Result<Profil, sqlx::Error>
@@ -73,7 +73,7 @@ impl ProfilRepository {
         .fetch_one(exec)
         .await?;
 
-        Self::find_profil_by_id(pool, id).await
+        Self::find_profile_by_id(pool, id).await
     }
 
     pub async fn update<'e, E>(
@@ -102,7 +102,7 @@ impl ProfilRepository {
         .execute(exec)
         .await?;
 
-        Self::find_profil_by_id(pool, id).await
+        Self::find_profile_by_id(pool, id).await
     }
 
     pub async fn delete<'e, E>(exec: E, id: i64) -> Result<(), sqlx::Error>

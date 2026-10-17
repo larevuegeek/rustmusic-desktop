@@ -69,7 +69,7 @@ pub fn choose(host: &cpal::Host, name: Option<&str>) -> Result<cpal::Device, Str
 /// ouvre une unité qui suit la sortie système ; sous hog mode il cesse de l'être et
 /// CoreAudio refuse le flux (`!obj`). L'exclusif doit viser le périphérique lui-même.
 #[cfg(target_os = "macos")]
-pub fn epingler(device: &cpal::Device) -> cpal::Device {
+pub fn pin_device(device: &cpal::Device) -> cpal::Device {
     let Ok(id) = device.id() else { return device.clone() };
     cpal::default_host()
         .output_devices()
@@ -97,9 +97,9 @@ pub fn is_held(name: &str) -> bool {
 
 #[cfg(target_os = "linux")]
 fn held_card(name: &str) -> Option<u32> {
-    use super::{device_reservation::card_index_from_hw_id, dop_alsa::resolve_hw_id, profil_pipewire};
+    use super::{device_reservation::card_index_from_hw_id, dop_alsa::resolve_hw_id, pipewire_profile};
     let card = card_index_from_hw_id(&resolve_hw_id(name)?)?;
-    profil_pipewire::is_held(card).then_some(card)
+    pipewire_profile::is_held(card).then_some(card)
 }
 
 /// Rend à PipeWire la carte qu'une lecture exclusive a laissée hors service, puis
@@ -107,7 +107,7 @@ fn held_card(name: &str) -> Option<u32> {
 #[cfg(target_os = "linux")]
 pub fn reclaim_if_held(name: &str) -> Option<cpal::Device> {
     let card = held_card(name)?;
-    if !super::profil_pipewire::restore_now(card) {
+    if !super::pipewire_profile::restore_now(card) {
         return None;
     }
     let host = cpal::default_host();

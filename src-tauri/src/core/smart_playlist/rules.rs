@@ -192,28 +192,28 @@ pub enum Bind {
 /// Rend une erreur explicite plutôt qu'un filtre approximatif : une règle qu'on
 /// ne sait pas traduire doit se voir, pas se taire.
 pub fn build_where(rules: &SmartRules) -> Result<BuiltQuery, String> {
-    let total = compter(&rules.root);
+    let total = count_rules(&rules.root);
     if total > REGLES_MAX {
         return Err(format!("Trop de règles ({total}, maximum {REGLES_MAX})."));
     }
 
     let mut binds = Vec::new();
-    let sql = groupe_sql(&rules.root, &mut binds, 0)?;
+    let sql = group_sql(&rules.root, &mut binds, 0)?;
     Ok(BuiltQuery { sql, binds })
 }
 
-fn compter(groupe: &Group) -> usize {
+fn count_rules(groupe: &Group) -> usize {
     groupe
         .rules
         .iter()
         .map(|n| match n {
             Node::Rule(_) => 1,
-            Node::Group(g) => compter(g),
+            Node::Group(g) => count_rules(g),
         })
         .sum()
 }
 
-fn groupe_sql(groupe: &Group, binds: &mut Vec<Bind>, profondeur: usize) -> Result<String, String> {
+fn group_sql(groupe: &Group, binds: &mut Vec<Bind>, profondeur: usize) -> Result<String, String> {
     if profondeur > PROFONDEUR_MAX {
         return Err(format!("Groupes imbriqués trop profondément (maximum {PROFONDEUR_MAX})."));
     }
@@ -233,15 +233,15 @@ fn groupe_sql(groupe: &Group, binds: &mut Vec<Bind>, profondeur: usize) -> Resul
         .rules
         .iter()
         .map(|n| match n {
-            Node::Rule(r) => regle_sql(r, binds),
-            Node::Group(g) => groupe_sql(g, binds, profondeur + 1),
+            Node::Rule(r) => rule_sql(r, binds),
+            Node::Group(g) => group_sql(g, binds, profondeur + 1),
         })
         .collect();
 
     Ok(format!("({})", morceaux?.join(liant)))
 }
 
-fn texte(valeur: &Option<Value>, op: Op) -> Result<String, String> {
+fn text_value(valeur: &Option<Value>, op: Op) -> Result<String, String> {
     match valeur {
         Some(Value::Text(s)) => Ok(s.clone()),
         Some(Value::Number(n)) => Ok(n.to_string()),
@@ -249,7 +249,7 @@ fn texte(valeur: &Option<Value>, op: Op) -> Result<String, String> {
     }
 }
 
-fn nombre(valeur: &Option<Value>, op: Op) -> Result<f64, String> {
+fn number_value(valeur: &Option<Value>, op: Op) -> Result<f64, String> {
     match valeur {
         Some(Value::Number(n)) => Ok(*n),
         // Une saisie numérique arrive parfois en texte depuis l'interface.
@@ -264,7 +264,7 @@ fn nombre(valeur: &Option<Value>, op: Op) -> Result<f64, String> {
     }
 }
 
-fn regle_sql(regle: &Rule, binds: &mut Vec<Bind>) -> Result<String, String> {
+fn rule_sql(regle: &Rule, binds: &mut Vec<Bind>) -> Result<String, String> {
     let champ = field::resolve(&regle.field)
         .ok_or_else(|| format!("Champ inconnu : « {} ».", regle.field))?;
 
@@ -283,12 +283,12 @@ fn regle_sql(regle: &Rule, binds: &mut Vec<Bind>) -> Result<String, String> {
         // `LIKE` est insensible à la casse en SQLite pour l'ASCII ; le `LOWER`
         // des deux côtés étend ça aux accents des tags français.
         Contains | NotContains | StartsWith | EndsWith | Is | IsNot => {
-            let v = texte(&regle.value, regle.op)?;
+            let v = text_value(&regle.value, regle.op)?;
             let motif = match regle.op {
-                Contains | NotContains => format!("%{}%", echapper(&v)),
-                StartsWith => format!("{}%", echapper(&v)),
-                EndsWith => format!("%{}", echapper(&v)),
-                _ => echapper(&v),
+                Contains | NotContains => format!("%{}%", escape_like(&v)),
+                StartsWith => format!("{}%", escape_like(&v)),
+                EndsWith => format!("%{}", escape_like(&v)),
+                _ => escape_like(&v),
             };
             binds.push(Bind::Text(motif.to_lowercase()));
             let negation = matches!(regle.op, NotContains | IsNot);
@@ -304,7 +304,7 @@ fn regle_sql(regle: &Rule, binds: &mut Vec<Bind>) -> Result<String, String> {
 
         // ── Nombre ──
         Eq | Neq | Gt | Gte | Lt | Lte => {
-            let n = nombre(&regle.value, regle.op)?;
+            let n = number_value(&regle.value, regle.op)?;
             binds.push(Bind::Number(n));
             let signe = match regle.op {
                 Eq => "=",
@@ -333,18 +333,18 @@ fn regle_sql(regle: &Rule, binds: &mut Vec<Bind>) -> Result<String, String> {
 
         // ── Date ──
         Before | After => {
-            let v = texte(&regle.value, regle.op)?;
+            let v = text_value(&regle.value, regle.op)?;
             binds.push(Bind::Text(v));
             let signe = if regle.op == Before { "<" } else { ">" };
             format!("({e} IS NOT NULL AND {e} {signe} ?)")
         }
         InLast => {
-            let jours = nombre(&regle.value, regle.op)?;
+            let jours = number_value(&regle.value, regle.op)?;
             binds.push(Bind::Number(jours));
             format!("({e} IS NOT NULL AND {e} >= datetime('now', '-' || ? || ' days'))")
         }
         NotInLast => {
-            let jours = nombre(&regle.value, regle.op)?;
+            let jours = number_value(&regle.value, regle.op)?;
             binds.push(Bind::Number(jours));
             // Le NULL est inclus volontairement : « pas écouté depuis trente
             // jours » doit ramener ce qui ne l'a jamais été. C'est la lecture
@@ -367,7 +367,7 @@ fn regle_sql(regle: &Rule, binds: &mut Vec<Bind>) -> Result<String, String> {
         // C'est ce qui distingue « les genres les plus écoutés » de « les genres
         // qui contiennent le morceau le plus écouté ».
         InTopPlayed => {
-            let n = nombre(&regle.value, regle.op)?;
+            let n = number_value(&regle.value, regle.op)?;
             if n < 1.0 {
                 return Err("Le classement demande au moins un rang.".to_string());
             }
@@ -406,7 +406,7 @@ fn regle_sql(regle: &Rule, binds: &mut Vec<Bind>) -> Result<String, String> {
 ///
 /// Sans ça, chercher un titre contenant « 100% » ramènerait tout : `%` est le
 /// joker de `LIKE`, et l'utilisateur ne le sait pas.
-fn echapper(v: &str) -> String {
+fn escape_like(v: &str) -> String {
     v.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
 }
 
@@ -457,7 +457,7 @@ pub fn build_order(limit: &Option<Limit>) -> Result<(String, Vec<Bind>), String>
 mod tests {
     use super::*;
 
-    fn regle(field: &str, op: Op, value: Option<Value>) -> Node {
+    fn make_rule(field: &str, op: Op, value: Option<Value>) -> Node {
         Node::Rule(Rule {
             field: field.to_string(),
             op,
@@ -465,7 +465,7 @@ mod tests {
         })
     }
 
-    fn racine(mode: Match, rules: Vec<Node>) -> SmartRules {
+    fn root_rules(mode: Match, rules: Vec<Node>) -> SmartRules {
         SmartRules {
             root: Group {
                 match_mode: mode,
@@ -476,10 +476,10 @@ mod tests {
     }
 
     #[test]
-    fn une_regle_de_texte_lie_son_motif() {
-        let r = racine(
+    fn a_text_rule_binds_its_pattern() {
+        let r = root_rules(
             Match::All,
-            vec![regle("artist", Op::Contains, Some(Value::Text("Nirvana".into())))],
+            vec![make_rule("artist", Op::Contains, Some(Value::Text("Nirvana".into())))],
         );
         let q = build_where(&r).unwrap();
         assert!(q.sql.contains("LIKE ?"), "sql : {}", q.sql);
@@ -489,23 +489,23 @@ mod tests {
     }
 
     #[test]
-    fn les_jokers_saisis_sont_neutralises() {
+    fn typed_wildcards_are_neutralised() {
         // Chercher « 100% » ne doit pas tout ramener.
-        let r = racine(
+        let r = root_rules(
             Match::All,
-            vec![regle("title", Op::Contains, Some(Value::Text("100%".into())))],
+            vec![make_rule("title", Op::Contains, Some(Value::Text("100%".into())))],
         );
         let q = build_where(&r).unwrap();
         assert_eq!(q.binds, vec![Bind::Text("%100\\%%".into())]);
     }
 
     #[test]
-    fn la_negation_ne_laisse_pas_filer_les_vides() {
+    fn negation_does_not_let_empties_through() {
         // Un champ NULL « ne contient pas » : sans COALESCE, SQLite rendrait
         // NULL, donc faux, et la règle raterait ces lignes.
-        let r = racine(
+        let r = root_rules(
             Match::All,
-            vec![regle("genre", Op::NotContains, Some(Value::Text("rap".into())))],
+            vec![make_rule("genre", Op::NotContains, Some(Value::Text("rap".into())))],
         );
         let q = build_where(&r).unwrap();
         assert!(q.sql.contains("COALESCE"), "sql : {}", q.sql);
@@ -513,52 +513,52 @@ mod tests {
     }
 
     #[test]
-    fn un_intervalle_remet_ses_bornes_dans_l_ordre() {
-        let r = racine(
+    fn a_range_puts_its_bounds_in_order() {
+        let r = root_rules(
             Match::All,
-            vec![regle("rating", Op::Between, Some(Value::Pair(5.0, 2.0)))],
+            vec![make_rule("rating", Op::Between, Some(Value::Pair(5.0, 2.0)))],
         );
         let q = build_where(&r).unwrap();
         assert_eq!(q.binds, vec![Bind::Number(2.0), Bind::Number(5.0)]);
     }
 
     #[test]
-    fn le_nombre_saisi_en_texte_est_accepte() {
-        let r = racine(
+    fn a_number_typed_as_text_is_accepted() {
+        let r = root_rules(
             Match::All,
-            vec![regle("rating", Op::Gte, Some(Value::Text("4".into())))],
+            vec![make_rule("rating", Op::Gte, Some(Value::Text("4".into())))],
         );
         let q = build_where(&r).unwrap();
         assert_eq!(q.binds, vec![Bind::Number(4.0)]);
     }
 
     #[test]
-    fn un_nombre_illisible_est_refuse_clairement() {
-        let r = racine(
+    fn an_unreadable_number_is_refused_clearly() {
+        let r = root_rules(
             Match::All,
-            vec![regle("rating", Op::Gte, Some(Value::Text("beaucoup".into())))],
+            vec![make_rule("rating", Op::Gte, Some(Value::Text("beaucoup".into())))],
         );
         let err = build_where(&r).unwrap_err();
         assert!(err.contains("n'est pas un nombre"), "message : {err}");
     }
 
     #[test]
-    fn pas_ecoute_depuis_inclut_ce_qui_ne_l_a_jamais_ete() {
-        let r = racine(
+    fn not_played_since_includes_never_played() {
+        let r = root_rules(
             Match::All,
-            vec![regle("last_played_at", Op::NotInLast, Some(Value::Number(30.0)))],
+            vec![make_rule("last_played_at", Op::NotInLast, Some(Value::Number(30.0)))],
         );
         let q = build_where(&r).unwrap();
         assert!(q.sql.contains("IS NULL"), "sql : {}", q.sql);
     }
 
     #[test]
-    fn le_tag_se_lie_avant_la_valeur() {
+    fn the_tag_is_bound_before_the_value() {
         // L'ordre des liaisons suit l'ordre des `?` dans le texte. L'inverser
         // ferait chercher le tag nommé « Sub Pop ».
-        let r = racine(
+        let r = root_rules(
             Match::All,
-            vec![regle(
+            vec![make_rule(
                 "tag:custom:Label",
                 Op::Is,
                 Some(Value::Text("Sub Pop".into())),
@@ -572,26 +572,26 @@ mod tests {
     }
 
     #[test]
-    fn un_champ_inconnu_est_refuse() {
-        let r = racine(
+    fn an_unknown_field_is_refused() {
+        let r = root_rules(
             Match::All,
-            vec![regle("lt.title; DROP TABLE x", Op::Is, Some(Value::Text("a".into())))],
+            vec![make_rule("lt.title; DROP TABLE x", Op::Is, Some(Value::Text("a".into())))],
         );
         assert!(build_where(&r).unwrap_err().contains("Champ inconnu"));
     }
 
     #[test]
-    fn les_groupes_s_imbriquent_avec_leurs_liants() {
+    fn groups_nest_with_their_joiners() {
         let r = SmartRules {
             root: Group {
                 match_mode: Match::All,
                 rules: vec![
-                    regle("artist", Op::Is, Some(Value::Text("A".into()))),
+                    make_rule("artist", Op::Is, Some(Value::Text("A".into()))),
                     Node::Group(Group {
                         match_mode: Match::Any,
                         rules: vec![
-                            regle("genre", Op::Is, Some(Value::Text("Rock".into()))),
-                            regle("genre", Op::Is, Some(Value::Text("Grunge".into()))),
+                            make_rule("genre", Op::Is, Some(Value::Text("Rock".into()))),
+                            make_rule("genre", Op::Is, Some(Value::Text("Grunge".into()))),
                         ],
                     }),
                 ],
@@ -605,8 +605,8 @@ mod tests {
     }
 
     #[test]
-    fn un_groupe_vide_ne_filtre_rien() {
-        let q = build_where(&racine(Match::All, vec![])).unwrap();
+    fn an_empty_group_filters_nothing() {
+        let q = build_where(&root_rules(Match::All, vec![])).unwrap();
         // Une condition atomique, sans parenthèses : elle ne peut pas être
         // recoupée par la précédence d'un liant parent.
         assert_eq!(q.sql, "1=1");
@@ -614,11 +614,11 @@ mod tests {
     }
 
     #[test]
-    fn l_imbrication_sans_fin_est_refusee() {
+    fn endless_nesting_is_refused() {
         // Un fichier de règles forgé ne doit pas faire récurser indéfiniment.
         let mut noeud = Group {
             match_mode: Match::All,
-            rules: vec![regle("title", Op::IsNotEmpty, None)],
+            rules: vec![make_rule("title", Op::IsNotEmpty, None)],
         };
         for _ in 0..(PROFONDEUR_MAX + 2) {
             noeud = Group {
@@ -634,7 +634,7 @@ mod tests {
     }
 
     #[test]
-    fn le_tri_au_hasard_est_reconnu() {
+    fn random_sort_is_recognised() {
         let (sql, binds) = build_order(&Some(Limit {
             count: Some(50),
             sort: Some("random".into()),
@@ -647,7 +647,7 @@ mod tests {
     }
 
     #[test]
-    fn un_champ_de_tri_inconnu_est_refuse() {
+    fn an_unknown_sort_field_is_refused() {
         let err = build_order(&Some(Limit {
             count: None,
             sort: Some("; DROP TABLE x".into()),
@@ -658,7 +658,7 @@ mod tests {
     }
 
     #[test]
-    fn la_coupe_ignore_un_nombre_absurde() {
+    fn the_limit_ignores_an_absurd_number() {
         // Une limite négative ne doit pas produire un `LIMIT -3` silencieux.
         let (sql, _) = build_order(&Some(Limit {
             count: Some(-3),
@@ -670,16 +670,16 @@ mod tests {
     }
 
     #[test]
-    fn les_regles_se_relisent_apres_serialisation() {
+    fn rules_read_back_after_serialisation() {
         // Elles sont enregistrées en JSON dans la base : ce qui s'écrit doit se
         // relire à l'identique, sans quoi une playlist deviendrait illisible.
         let r = SmartRules {
             root: Group {
                 match_mode: Match::Any,
                 rules: vec![
-                    regle("rating", Op::Gte, Some(Value::Number(4.0))),
-                    regle("tag:custom:Label", Op::Is, Some(Value::Text("Sub Pop".into()))),
-                    regle("last_played_at", Op::NotInLast, Some(Value::Number(30.0))),
+                    make_rule("rating", Op::Gte, Some(Value::Number(4.0))),
+                    make_rule("tag:custom:Label", Op::Is, Some(Value::Text("Sub Pop".into()))),
+                    make_rule("last_played_at", Op::NotInLast, Some(Value::Number(30.0))),
                 ],
             },
             limit: Some(Limit {
@@ -713,7 +713,7 @@ mod tests_relecture {
     }"#;
 
     #[test]
-    fn des_regles_ecrites_par_l_interface_se_relisent() {
+    fn rules_written_by_the_ui_read_back() {
         let r: SmartRules = serde_json::from_str(ENREGISTRE).expect("relecture");
         assert_eq!(r.root.match_mode, Match::All);
         assert_eq!(r.root.rules.len(), 1);
@@ -735,7 +735,7 @@ mod tests_relecture {
     }
 
     #[test]
-    fn une_valeur_entiere_sans_decimale_se_relit_aussi() {
+    fn a_whole_value_without_decimals_reads_back_too() {
         // L'interface envoie parfois `4` et parfois `4.0` selon qu'elle vient
         // d'une saisie ou d'une recette. Les deux doivent passer.
         for brut in [
@@ -752,7 +752,7 @@ mod tests_relecture {
     }
 
     #[test]
-    fn des_regles_sans_coupe_se_relisent() {
+    fn rules_without_limit_read_back() {
         // `limit` est facultatif : une playlist enregistrée sans coupe ne doit
         // pas devenir illisible.
         let r: SmartRules =
@@ -771,7 +771,7 @@ mod tests_charge_interface {
     /// La saisie passe par un champ de texte : la valeur part donc en chaîne,
     /// et `limit` est explicitement nul pour que le comptage ignore la coupe.
     #[test]
-    fn la_charge_du_comptage_se_traduit_correctement() {
+    fn the_play_count_load_translates_correctly() {
         let brut = r#"{
             "match": "all",
             "rules": [{ "field": "play_count", "op": "gt", "value": "1" }],
@@ -787,7 +787,7 @@ mod tests_charge_interface {
     }
 
     #[test]
-    fn la_recette_des_plus_ecoutes_se_traduit_correctement() {
+    fn the_most_played_recipe_translates_correctly() {
         // Telle que le fichier de recettes la définit : la valeur y est un
         // nombre, pas une chaîne.
         let brut = r#"{

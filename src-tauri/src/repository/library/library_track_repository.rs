@@ -20,7 +20,7 @@ const FORMATS_SANS_PERTE: &str = "'FLAC','ALAC','WAV','AIFF','AIF','APE','WV','W
 
 /// Clauses WHERE de l'onglet Morceaux : recherche (3 `?`), couverture, qualité, favoris, genre (1 `?`).
 /// Les liaisons suivent cet ordre : motif ×3 si recherche, puis genre.
-fn clauses_de_filtre(filter: Option<&str>, missing_cover: bool, extra: &TrackFilters<'_>) -> (&'static str, String, Option<String>) {
+fn filter_clauses(filter: Option<&str>, missing_cover: bool, extra: &TrackFilters<'_>) -> (&'static str, String, Option<String>) {
     let like_pattern = filter.map(|f| format!("%{}%", f.to_lowercase()));
     let filter_clause = if like_pattern.is_some() {
         "AND (LOWER(lt.title) LIKE ? OR LOWER(a.name) LIKE ? OR LOWER(la.title) LIKE ?)"
@@ -93,7 +93,7 @@ pub struct LibraryTrackRepository;
 
 impl LibraryTrackRepository {
     /// Titre, artiste, durée et pochette par chemin (toutes bibliothèques si `library_id` est absent).
-    pub async fn find_fiches_by_paths(
+    pub async fn find_entries_by_paths(
         pool: &SqlitePool,
         library_id: Option<i64>,
         chemins: &[String],
@@ -429,7 +429,7 @@ impl LibraryTrackRepository {
         missing_cover: bool,
         extra: &TrackFilters<'_>,
     ) -> Result<Vec<(String, i64)>, sqlx::Error> {
-        let (filter_clause, cover_clause, like_pattern) = clauses_de_filtre(filter, missing_cover, extra);
+        let (filter_clause, cover_clause, like_pattern) = filter_clauses(filter, missing_cover, extra);
         let sql = format!(
             r#"SELECT SUBSTR(lt.title_normalized, 1, 1) AS c, COUNT(*) AS n
                FROM library_tracks lt
@@ -483,7 +483,7 @@ impl LibraryTrackRepository {
         extra: &TrackFilters<'_>,
     ) -> Result<(Vec<TrackListView>, i64), sqlx::Error> {
 
-        let (filter_clause, cover_clause, like_pattern) = clauses_de_filtre(filter, missing_cover, extra);
+        let (filter_clause, cover_clause, like_pattern) = filter_clauses(filter, missing_cover, extra);
 
         // Count total
         let count_sql = format!(
@@ -1086,7 +1086,7 @@ impl LibraryTrackRepository {
         }
         // Tirage large, puis variété : un artiste ne remplit pas le mix à lui seul.
         let tirage = requete.bind((limit * 6).min(1200)).fetch_all(pool).await?;
-        Ok(crate::core::variete::diversifier(tirage, limit as usize, |p| p.artist_id.clone()))
+        Ok(crate::core::mix_variety::diversify(tirage, limit as usize, |p| p.artist_id.clone()))
     }
 
     pub async fn find_tracks_by_genre<'e, E>(

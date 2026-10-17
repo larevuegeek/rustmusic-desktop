@@ -97,7 +97,7 @@ pub fn dsd_label(rate: u32) -> String {
 
 /// Source entière et sans perte (FLAC, ALAC, PCM entier) : décodée en f32, elle se
 /// reconvertit à l'identique. Une source avec perte ou flottante ne l'est pas.
-pub fn est_entier_sans_perte(codec: symphonia::core::codecs::audio::AudioCodecId) -> bool {
+pub fn is_lossless_integer(codec: symphonia::core::codecs::audio::AudioCodecId) -> bool {
     use symphonia::core::codecs::audio::well_known as ids;
     [
         ids::CODEC_ID_FLAC, ids::CODEC_ID_ALAC,
@@ -112,7 +112,7 @@ pub fn est_entier_sans_perte(codec: symphonia::core::codecs::audio::AudioCodecId
 }
 
 /// Profondeur de la source : déclarée par le conteneur, sinon (ALAC) lue dans son magic cookie.
-pub fn profondeur_source(params: &symphonia::core::codecs::audio::AudioCodecParameters) -> Option<u32> {
+pub fn source_bit_depth(params: &symphonia::core::codecs::audio::AudioCodecParameters) -> Option<u32> {
     use symphonia::core::codecs::audio::well_known::CODEC_ID_ALAC;
     params.bits_per_sample.or_else(|| {
         if params.codec != CODEC_ID_ALAC {

@@ -88,7 +88,7 @@ fn from_sound_server(devices: &[AlsaDopDevice], selected: &str) -> Option<String
     let (card_name, pcm) = match names.get(selected) {
         Some(known) => known.clone(),
         None => {
-            let (card, pcm) = super::profil_pipewire::alsa_pcm_for(selected)?;
+            let (card, pcm) = super::pipewire_profile::alsa_pcm_for(selected)?;
             let card_name = devices.iter().find(|d| d.index == card)?.display.clone();
             log::info!("🎚️  Sortie « {selected} » : carte ALSA « {card_name} » (hw:{card},{pcm})");
             names.insert(selected.to_string(), (card_name.clone(), pcm));

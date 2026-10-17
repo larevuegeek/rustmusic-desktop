@@ -60,19 +60,19 @@ export type Limit = {
 export type SmartRules = Group & { limit?: Limit | null };
 
 /** Traduit `cle`, ou rend `null` si la langue ne la connaît pas. */
-function traduireOuNull(tr: (k: string) => string, cle: string): string | null {
+function translateOrNull(tr: (k: string) => string, cle: string): string | null {
   const v = tr(cle);
   return v === cle ? null : v;
 }
 
 /** Intitulé traduit d'un champ (le backend parle français) ; repli sur son libellé. */
-export function libelleChamp(f: { key: string; label: string }, tr: (k: string) => string): string {
-  return traduireOuNull(tr, `smart.field.${f.key}`) ?? traduireOuNull(tr, `columns.${f.key}`) ?? f.label;
+export function fieldLabel(f: { key: string; label: string }, tr: (k: string) => string): string {
+  return translateOrNull(tr, `smart.field.${f.key}`) ?? translateOrNull(tr, `columns.${f.key}`) ?? f.label;
 }
 
 /** Intitulé traduit d'un opérateur ; repli sur celui du backend. */
-export function libelleOperateur(o: OpInfo, tr: (k: string) => string): string {
-  return traduireOuNull(tr, `smart.op.${o.key}`) ?? o.label;
+export function operatorLabel(o: OpInfo, tr: (k: string) => string): string {
+  return translateOrNull(tr, `smart.op.${o.key}`) ?? o.label;
 }
 
 /** Opérateurs valides pour le champ d'une règle. */
@@ -106,7 +106,7 @@ export function defaultRule(fields: FieldOption[]): Rule {
  * règles venues d'une autre — rien ne le signale : la playlist a l'air correcte
  * partout. Ce résumé est ce qui rend l'écart visible d'un coup d'œil.
  */
-export function resumerRegles(
+export function summarizeRules(
   group: Group,
   vocabulary: Vocabulary,
   fields: FieldOption[],
@@ -115,14 +115,14 @@ export function resumerRegles(
   const liant = ` ${tr(group.match === "all" ? "smart.and" : "smart.or")} `;
 
   const morceaux = group.rules.map((n) => {
-    if ("rules" in n) return `(${resumerRegles(n, vocabulary, fields)})`;
+    if ("rules" in n) return `(${summarizeRules(n, vocabulary, fields)})`;
 
     const champ = fields.find((f) => f.key === n.field);
     const ops = operatorsFor(vocabulary, fields, n.field);
     const op = ops.find((o) => o.key === n.op);
 
-    const nomChamp = champ ? libelleChamp(champ, tr) : n.field;
-    const nomOp = op ? libelleOperateur(op, tr) : n.op;
+    const nomChamp = champ ? fieldLabel(champ, tr) : n.field;
+    const nomOp = op ? operatorLabel(op, tr) : n.op;
 
     if (op?.arity === 0) return `${nomChamp} ${nomOp}`;
     if (Array.isArray(n.value)) {

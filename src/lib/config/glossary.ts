@@ -16,9 +16,9 @@ export const TERMES = [
 
 export type TermeId = (typeof TERMES)[number];
 
-export function estTerme(id: string): id is TermeId {
+export function isTerm(id: string): id is TermeId {
   return (TERMES as readonly string[]).includes(id);
 }
 
 /** Ancre d'un terme dans la page Comprendre le son. */
-export const lienTerme = (id: TermeId) => `/settings/guide#terme-${id}`;
+export const termLink = (id: TermeId) => `/settings/guide#terme-${id}`;

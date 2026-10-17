@@ -1,5 +1,5 @@
 /** Suit `lire` avec `ms` de retard, pour ne pas filtrer à chaque frappe ; vidée, elle suit aussitôt. */
-export function differe(lire: () => string, ms = 150) {
+export function debounced(lire: () => string, ms = 150) {
   let valeur = $state(lire());
   $effect(() => {
     const v = lire();

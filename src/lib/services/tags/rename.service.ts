@@ -13,7 +13,7 @@ import { get } from "svelte/store";
 import { t } from "#lib/i18n";
 
 /** Un motif prédéfini ; `label` est traduit à chaque lecture (clé `rename.preset_names.*`). */
-function modele(cle: string, pattern: string): { label: string; pattern: string } {
+function template(cle: string, pattern: string): { label: string; pattern: string } {
   return { pattern, get label() { return get(t)(`rename.preset_names.${cle}`); } };
 }
 
@@ -142,7 +142,7 @@ export async function applyRename(
       ? { satellites: false, cleanup_empty: false, roots: [], ...options }
       : null,
   });
-  dataCache.invalidateFiches();
+  dataCache.invalidateDetails();
   return r;
 }
 
@@ -189,7 +189,7 @@ export async function listBatchJournal(limit = 20): Promise<JournalEntry[]> {
 
 export async function undoBatch(batchId: string): Promise<MoveOutcome> {
   const r = await invoke<MoveOutcome>("undo_batch", { batchId });
-  dataCache.invalidateFiches();
+  dataCache.invalidateDetails();
   return r;
 }
 
@@ -200,11 +200,11 @@ export async function undoBatch(batchId: string): Promise<MoveOutcome> {
  * la lit en entier. Au-delà, on ne les compare plus et on retape le sien.
  */
 export const PRESETS: { label: string; pattern: string }[] = [
-  modele("track_title", "{track:02} - {title}.{ext}"),
-  modele("track_artist_title", "{track:02}. {artist} - {title}.{ext}"),
-  modele("artist_title", "{artist} - {title}.{ext}"),
+  template("track_title", "{track:02} - {title}.{ext}"),
+  template("track_artist_title", "{track:02}. {artist} - {title}.{ext}"),
+  template("artist_title", "{artist} - {title}.{ext}"),
   // Le groupe optionnel évite le « 1-01 » sur les albums à disque unique.
-  modele("disc_track_title", "[{disc}-]{track:02} - {title}.{ext}"),
+  template("disc_track_title", "[{disc}-]{track:02} - {title}.{ext}"),
 ];
 
 /**
@@ -214,10 +214,10 @@ export const PRESETS: { label: string; pattern: string }[] = [
  * autant de dossiers qu'elle compte d'artistes.
  */
 export const TREE_PRESETS: { label: string; pattern: string }[] = [
-  modele("tree_artist_album", "{albumartist|artist}/{album}/{track:02} - {title}.{ext}"),
-  modele("tree_artist_album_year", "{albumartist|artist}/{album} ({year})/{track:02} - {title}.{ext}"),
-  modele("tree_genre_artist_album", "{genre}/{albumartist|artist}/{album}/{track:02} - {title}.{ext}"),
-  modele("tree_artist_album_disc", "{albumartist|artist}/{album}/[{disc}-]{track:02} - {title}.{ext}"),
+  template("tree_artist_album", "{albumartist|artist}/{album}/{track:02} - {title}.{ext}"),
+  template("tree_artist_album_year", "{albumartist|artist}/{album} ({year})/{track:02} - {title}.{ext}"),
+  template("tree_genre_artist_album", "{genre}/{albumartist|artist}/{album}/{track:02} - {title}.{ext}"),
+  template("tree_artist_album_disc", "{albumartist|artist}/{album}/[{disc}-]{track:02} - {title}.{ext}"),
 ];
 
 /** Les champs qu'un motif peut citer, pour l'aide à la saisie. */

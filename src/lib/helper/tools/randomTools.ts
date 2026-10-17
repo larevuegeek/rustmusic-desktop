@@ -3,7 +3,7 @@
  * l'original. Fisher-Yates partiel : chances égales, contrairement à un tri par
  * `Math.random() - 0.5`.
  */
-export function echantillonAleatoire<T>(items: T[], taille: number): T[] {
+export function randomSample<T>(items: T[], taille: number): T[] {
   const copie = [...items];
   const combien = Math.min(taille, copie.length);
 

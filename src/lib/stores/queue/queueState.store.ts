@@ -5,7 +5,7 @@ import type { QueueState } from "#lib/types/db/queue/QueueState";
 import { profilSelector } from "../profil/profil.store";
 import { player } from "../player/player.store";
 import type { AudioFile } from "#lib/types/db/audioFile/AudioFile";
-import { ordonnerPourLecture } from "#lib/mapper/queue/mapQueueTrack";
+import { orderForPlayback } from "#lib/mapper/queue/mapQueueTrack";
 
 // L'ID du profil par défaut (tu pourras le rendre dynamique plus tard)
 let currentProfilId = 1;
@@ -428,7 +428,7 @@ export const queueState = {
         // Mémorisé avant tout mélange : c'est l'ordre rendu en quittant l'aléatoire.
         if (qs.isShuffled) originalTracks = tracks.map((t, i) => ({ ...t, position: i }));
 
-        const { liste, index: currentIndex } = ordonnerPourLecture(tracks, path, qs.isShuffled);
+        const { liste, index: currentIndex } = orderForPlayback(tracks, path, qs.isShuffled);
 
         queueStateWritable.set({ ...qs, tracks: liste, currentIndex });
         enregistrerFile(liste, currentIndex);

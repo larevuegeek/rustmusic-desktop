@@ -53,7 +53,7 @@
     e.preventDefault();
     onmenu(e.clientX, e.clientY);
   }
-  function punaise(e: MouseEvent) {
+  function togglePin(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
     onepingler?.();
@@ -79,7 +79,7 @@
 <!-- La punaise est posée à côté du lien, pas dedans : un bouton dans un lien serait invalide. -->
 {#snippet punaiseBouton(classe: string, taille: number)}
   {#if epinglee != null}
-    <button type="button" onclick={punaise} title={epinglee ? $t("sidebar.unpin") : $t("sidebar.pin")} aria-pressed={epinglee}
+    <button type="button" onclick={togglePin} title={epinglee ? $t("sidebar.unpin") : $t("sidebar.pin")} aria-pressed={epinglee}
             class="flex items-center justify-center rounded-full cursor-pointer transition {classe}">
       <Icon icon={epinglee ? "material-symbols:keep-rounded" : "material-symbols:keep-outline-rounded"} width={taille} />
     </button>

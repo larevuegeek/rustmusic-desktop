@@ -15,10 +15,10 @@ impl QueueStateRepository {
     ) -> Result<QueueStateView, sqlx::Error>
     {
 
-        let queue_state: QueueState = Self::get_queue_state_by_profil_id(pool, profil_id).await?;
+        let queue_state: QueueState = Self::get_queue_state_by_profile_id(pool, profil_id).await?;
 
         // get_queue_tracks_profil_id
-        let queue_tracks: Vec<QueueTrack> = QueueTrackRepository::get_queue_tracks_by_profil_id(pool, profil_id).await?;
+        let queue_tracks: Vec<QueueTrack> = QueueTrackRepository::get_queue_tracks_by_profile_id(pool, profil_id).await?;
 
         Ok(QueueStateView{
             profil_id: queue_state.profil_id,
@@ -29,7 +29,7 @@ impl QueueStateRepository {
         })
     }
 
-    pub async fn get_queue_state_by_profil_id<'e, E>(
+    pub async fn get_queue_state_by_profile_id<'e, E>(
             exec: E,
             profil_id: i64
         ) -> Result<QueueState, sqlx::Error>

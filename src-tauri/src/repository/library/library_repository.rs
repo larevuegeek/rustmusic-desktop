@@ -151,7 +151,7 @@ impl LibraryRepository {
         .await
     }
 
-    pub async fn find_libraries_by_profil_id<'e, E>(
+    pub async fn find_libraries_by_profile_id<'e, E>(
         exec: E,
         profil_id: i64,
     ) -> Result<Vec<Library>, sqlx::Error>

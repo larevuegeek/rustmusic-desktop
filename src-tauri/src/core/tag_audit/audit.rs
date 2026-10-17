@@ -421,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    fn bibliotheque_saine_ne_signale_rien() {
+    fn healthy_library_reports_nothing() {
         let rows = vec![
             TrackRow { track_number: Some(1), ..track("/a.flac", "Un", "Artiste", "Album") },
             TrackRow { track_number: Some(2), ..track("/b.flac", "Deux", "Artiste", "Album") },
@@ -430,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn champs_vides_par_categorie() {
+    fn empty_fields_by_category() {
         let rows = vec![
             TrackRow { title: String::new(), ..track("/a.flac", "", "Artiste", "Album") },
             TrackRow { year: String::new(), ..track("/b.flac", "Deux", "Artiste", "Album") },
@@ -447,7 +447,7 @@ mod tests {
     }
 
     #[test]
-    fn sans_titre_l_exemple_prend_le_nom_du_fichier() {
+    fn without_title_the_example_uses_the_file_name() {
         let rows = vec![TrackRow {
             title: String::new(),
             ..track("/musique/track01.mp3", "", "Artiste", "Album")
@@ -457,7 +457,7 @@ mod tests {
     }
 
     #[test]
-    fn format_non_reinscriptible() {
+    fn non_rewritable_format() {
         let rows = vec![TrackRow {
             extension: "wav".into(),
             ..track("/a.wav", "Un", "Artiste", "Album")
@@ -468,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn annees_divergentes_sur_un_meme_album() {
+    fn diverging_years_within_one_album() {
         let rows = vec![
             TrackRow { year: "1997".into(), ..track("/a.flac", "Un", "Artiste", "Album") },
             TrackRow { year: "1998".into(), track_number: Some(2), ..track("/b.flac", "Deux", "Artiste", "Album") },
@@ -481,7 +481,7 @@ mod tests {
     }
 
     #[test]
-    fn une_annee_manquante_n_est_pas_une_divergence() {
+    fn a_missing_year_is_not_a_divergence() {
         let rows = vec![
             TrackRow { year: "1997".into(), ..track("/a.flac", "Un", "Artiste", "Album") },
             TrackRow { year: String::new(), track_number: Some(2), ..track("/b.flac", "Deux", "Artiste", "Album") },
@@ -492,7 +492,7 @@ mod tests {
     }
 
     #[test]
-    fn compilation_non_declaree() {
+    fn undeclared_compilation() {
         let rows = vec![
             track("/a.flac", "Un", "Premier", "Bande originale"),
             TrackRow { track_number: Some(2), ..track("/b.flac", "Deux", "Second", "Bande originale") },
@@ -502,7 +502,7 @@ mod tests {
     }
 
     #[test]
-    fn artiste_d_album_renseigne_ne_signale_rien() {
+    fn filled_album_artist_reports_nothing() {
         let rows = vec![
             TrackRow { album_artist: "Divers".into(), ..track("/a.flac", "Un", "Premier", "BO") },
             TrackRow {
@@ -515,7 +515,7 @@ mod tests {
     }
 
     #[test]
-    fn numeros_en_double() {
+    fn duplicate_numbers() {
         let rows = vec![
             track("/a.flac", "Un", "Artiste", "Album"),
             track("/b.flac", "Deux", "Artiste", "Album"),
@@ -524,7 +524,7 @@ mod tests {
     }
 
     #[test]
-    fn les_disques_d_un_coffret_ne_se_confondent_pas() {
+    fn box_set_discs_are_not_mixed_up() {
         let rows = vec![
             TrackRow { disc_number: Some(1), ..track("/a.flac", "Un", "Artiste", "Album") },
             TrackRow { disc_number: Some(2), ..track("/b.flac", "Deux", "Artiste", "Album") },
@@ -533,7 +533,7 @@ mod tests {
     }
 
     #[test]
-    fn trou_dans_la_numerotation() {
+    fn gap_in_the_numbering() {
         // 1, 2, 4 : la piste 3 manque.
         let rows = vec![
             TrackRow { track_number: Some(1), ..track("/a.flac", "Un", "Artiste", "Album") },
@@ -544,7 +544,7 @@ mod tests {
     }
 
     #[test]
-    fn un_album_incomplet_n_est_pas_un_trou() {
+    fn an_incomplete_album_is_not_a_gap() {
         // On ne possède que les pistes 3 et 12 : c'est une compilation
         // personnelle, pas une numérotation fautive.
         let rows = vec![
@@ -555,7 +555,7 @@ mod tests {
     }
 
     #[test]
-    fn doublons_a_deux_secondes_pres() {
+    fn duplicates_within_two_seconds() {
         let rows = vec![
             TrackRow { duration: Some(180.0), ..track("/disque1/a.flac", "Même", "Artiste", "A") },
             TrackRow { duration: Some(181.4), ..track("/disque2/a.mp3", "Même", "Artiste", "B") },
@@ -565,7 +565,7 @@ mod tests {
     }
 
     #[test]
-    fn deux_versions_differentes_ne_sont_pas_des_doublons() {
+    fn two_different_versions_are_not_duplicates() {
         let rows = vec![
             TrackRow { duration: Some(180.0), ..track("/studio.flac", "Même", "Artiste", "A") },
             TrackRow { duration: Some(420.0), ..track("/live.flac", "Même", "Artiste", "B") },
@@ -574,7 +574,7 @@ mod tests {
     }
 
     #[test]
-    fn les_doublons_se_chainent_de_proche_en_proche() {
+    fn duplicates_chain_step_by_step() {
         // 180 / 181,5 / 183 : aucune paire extrême ne tient dans la tolérance,
         // mais les trois sont bien le même enregistrement.
         let rows = vec![
@@ -586,7 +586,7 @@ mod tests {
     }
 
     #[test]
-    fn la_casse_et_les_accents_ne_cachent_pas_un_doublon() {
+    fn case_and_accents_do_not_hide_a_duplicate() {
         let rows = vec![
             track("/a.flac", "Été", "Artiste", "A"),
             track("/b.flac", "ETE", "artiste", "B"),

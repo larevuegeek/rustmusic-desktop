@@ -213,12 +213,12 @@ mod tests {
     }
 
     /// Une piste avec son tag brut, sans aucune liaison — l'état d'avant.
-    async fn poser_piste(pool: &SqlitePool, id: &str, tag: &str) {
-        poser_piste_avec(pool, id, tag, None).await;
+    async fn insert_track(pool: &SqlitePool, id: &str, tag: &str) {
+        insert_track_with(pool, id, tag, None).await;
     }
 
     /// Variante qui fixe l'artiste déjà enregistré sur la piste.
-    async fn poser_piste_avec(pool: &SqlitePool, id: &str, tag: &str, artist_id: Option<&str>) {
+    async fn insert_track_with(pool: &SqlitePool, id: &str, tag: &str, artist_id: Option<&str>) {
         sqlx::query("INSERT INTO library_cache (path, artist) VALUES (?, ?)")
             .bind(format!("/{id}.flac"))
             .bind(tag)
@@ -239,9 +239,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn un_tag_a_plusieurs_artistes_donne_autant_de_liaisons() {
+    async fn a_multi_artist_tag_gives_as_many_links() {
         let pool = base().await;
-        poser_piste(&pool, "t1", "Alan Walker;K-391;Sofia Carson").await;
+        insert_track(&pool, "t1", "Alan Walker;K-391;Sofia Carson").await;
 
         let r = repair(&pool, Some(1)).await.expect("reprise");
 
@@ -257,9 +257,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn le_featuring_est_reconnu() {
+    async fn featuring_is_recognised() {
         let pool = base().await;
-        poser_piste(&pool, "t2", "Adele Feat. Darius Rucker").await;
+        insert_track(&pool, "t2", "Adele Feat. Darius Rucker").await;
 
         let r = repair(&pool, Some(1)).await.expect("reprise");
 
@@ -275,9 +275,9 @@ mod tests {
 
     /// Le bouton doit pouvoir être appuyé deux fois sans y penser.
     #[tokio::test]
-    async fn relancer_ne_cree_pas_de_doublon() {
+    async fn rerunning_creates_no_duplicate() {
         let pool = base().await;
-        poser_piste(&pool, "t3", "Daft Punk;Pharrell Williams").await;
+        insert_track(&pool, "t3", "Daft Punk;Pharrell Williams").await;
 
         let premier = repair(&pool, Some(1)).await.expect("première reprise");
         let second = repair(&pool, Some(1)).await.expect("seconde reprise");
@@ -293,9 +293,9 @@ mod tests {
 
     /// « AC/DC » ne doit pas devenir deux artistes.
     #[tokio::test]
-    async fn un_nom_qui_contient_une_barre_reste_entier() {
+    async fn a_name_containing_a_slash_stays_whole() {
         let pool = base().await;
-        poser_piste(&pool, "t4", "AC/DC").await;
+        insert_track(&pool, "t4", "AC/DC").await;
 
         let r = repair(&pool, Some(1)).await.expect("reprise");
 
@@ -312,9 +312,9 @@ mod tests {
 
     /// Sans tag : ni échec, ni fiche inventée.
     #[tokio::test]
-    async fn une_piste_sans_artiste_est_ignoree() {
+    async fn a_track_without_artist_is_ignored() {
         let pool = base().await;
-        poser_piste(&pool, "t5", "").await;
+        insert_track(&pool, "t5", "").await;
 
         let r = repair(&pool, Some(1)).await.expect("reprise");
 
@@ -326,13 +326,13 @@ mod tests {
     /// L'artiste d'album écrasait celui de la piste : une compilation taguée
     /// « Various Artists » donnait ce nom à chacun de ses morceaux.
     #[tokio::test]
-    async fn l_artiste_de_la_piste_l_emporte_sur_celui_de_l_album() {
+    async fn the_track_artist_wins_over_the_album_artist() {
         let pool = base().await;
         sqlx::query("INSERT INTO artists (id, name, name_normalized, sort_name) VALUES ('va', 'Various Artists', 'various artists', 'Various Artists')")
             .execute(&pool).await.expect("artiste d'album");
 
         // Le tag nomme PJ Harvey, mais la piste porte « Various Artists ».
-        poser_piste_avec(&pool, "t6", "PJ Harvey", Some("va")).await;
+        insert_track_with(&pool, "t6", "PJ Harvey", Some("va")).await;
 
         let r = repair(&pool, Some(1)).await.expect("reprise");
         assert_eq!(r.main_artist_fixed, 1);
@@ -347,9 +347,9 @@ mod tests {
 
     /// Une piste déjà juste ne doit pas être comptée comme corrigée.
     #[tokio::test]
-    async fn une_piste_juste_n_est_pas_touchee() {
+    async fn a_correct_track_is_left_alone() {
         let pool = base().await;
-        poser_piste(&pool, "t7", "Radiohead").await;
+        insert_track(&pool, "t7", "Radiohead").await;
 
         let premier = repair(&pool, Some(1)).await.expect("première");
         let second = repair(&pool, Some(1)).await.expect("seconde");

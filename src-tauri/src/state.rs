@@ -72,7 +72,7 @@ impl AppState {
         // invisible : une application graphique n'a pas de console sous
         // Windows, le panic part dans le vide, et l'utilisateur voit une
         // application qui « ne se lance pas » sans un mot d'explication.
-        sauvegarder_avant_migration(&pool, database_url).await;
+        backup_before_migration(&pool, database_url).await;
 
         sqlx::migrate!("./SQL/").run(&pool).await?;
 
@@ -163,7 +163,7 @@ impl AppState {
         // La migration laisse `album_dir` vide ; sans ce passage l'indexation
         // ne retrouverait plus les albums déjà en base. Idempotent et muet
         // quand il n'y a rien à faire.
-        if let Err(e) = crate::service::library::album_merge::consolider(&pool).await {
+        if let Err(e) = crate::service::library::album_merge::consolidate(&pool).await {
             log::error!("⚠️ Rassemblement des albums : {e}");
         }
 
@@ -176,7 +176,7 @@ impl AppState {
 }
 
 /// Le fichier de base derrière une URL `sqlite:...?mode=rwc`.
-fn chemin_base(url: &str) -> Option<String> {
+fn base_path(url: &str) -> Option<String> {
     let sans_schema = url.strip_prefix("sqlite:")?;
     let chemin = sans_schema.split('?').next()?;
     if chemin.is_empty() || chemin == ":memory:" {
@@ -191,7 +191,7 @@ fn chemin_base(url: &str) -> Option<String> {
 /// une transaction annulée ne protège pas d'un disque plein ou d'un schéma qui
 /// a dérivé. `VACUUM INTO` prend un instantané cohérent, WAL compris, là où une
 /// copie de fichier laisserait le journal de côté.
-async fn sauvegarder_avant_migration(pool: &SqlitePool, database_url: &str) {
+async fn backup_before_migration(pool: &SqlitePool, database_url: &str) {
     let attendue = sqlx::migrate!("./SQL/")
         .migrations
         .last()
@@ -213,7 +213,7 @@ async fn sauvegarder_avant_migration(pool: &SqlitePool, database_url: &str) {
         return;
     }
 
-    let Some(chemin) = chemin_base(database_url) else {
+    let Some(chemin) = base_path(database_url) else {
         return;
     };
 
@@ -253,18 +253,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn l_url_donne_le_fichier() {
+    fn the_url_gives_the_file() {
         assert_eq!(
-            chemin_base(r"sqlite:C:\Users\d\AppData\rustmusic.db?mode=rwc").as_deref(),
+            base_path(r"sqlite:C:\Users\d\AppData\rustmusic.db?mode=rwc").as_deref(),
             Some(r"C:\Users\d\AppData\rustmusic.db")
         );
-        assert_eq!(chemin_base("sqlite:/home/d/m.db").as_deref(), Some("/home/d/m.db"));
-        assert_eq!(chemin_base("sqlite::memory:"), None);
-        assert_eq!(chemin_base("postgres://x"), None);
+        assert_eq!(base_path("sqlite:/home/d/m.db").as_deref(), Some("/home/d/m.db"));
+        assert_eq!(base_path("sqlite::memory:"), None);
+        assert_eq!(base_path("postgres://x"), None);
     }
 
     #[tokio::test]
-    async fn une_base_en_retard_est_sauvegardee() {
+    async fn an_outdated_database_is_backed_up() {
         let dossier = std::env::temp_dir().join(format!("rm-sauv-{}", std::process::id()));
         std::fs::create_dir_all(&dossier).expect("dossier");
         let chemin = dossier.join("essai.db");
@@ -277,7 +277,7 @@ mod tests {
         sqlx::query("INSERT INTO _sqlx_migrations VALUES (1)")
             .execute(&pool).await.expect("version en retard");
 
-        sauvegarder_avant_migration(&pool, &url).await;
+        backup_before_migration(&pool, &url).await;
         let copie = format!("{}.avant-1.bak", chemin.display());
         assert!(std::path::Path::new(&copie).exists(), "sauvegarde attendue en {copie}");
 
@@ -286,7 +286,7 @@ mod tests {
         sqlx::query("UPDATE _sqlx_migrations SET version = ?").bind(derniere)
             .execute(&pool).await.expect("mise à jour");
         std::fs::remove_file(&copie).expect("retrait");
-        sauvegarder_avant_migration(&pool, &url).await;
+        backup_before_migration(&pool, &url).await;
         assert!(!std::path::Path::new(&copie).exists(), "aucune sauvegarde attendue");
 
         pool.close().await;

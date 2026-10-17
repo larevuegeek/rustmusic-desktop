@@ -1,4 +1,4 @@
-import { artistesLisibles } from "#lib/helper/tools/stringTools";
+import { readableArtists } from "#lib/helper/tools/stringTools";
 import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
 
 /** Un album de l'historique : les morceaux écoutés, du plus récent au plus ancien. */
@@ -11,18 +11,18 @@ export type AlbumEcoute = {
   derniereEcoute: string;
 };
 
-const norme = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
+const normalize = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
 
 /**
  * Regroupe l'historique par album, dans l'ordre de la dernière écoute. L'artiste
  * de l'album sert de clé : une compilation reste un seul album. Un morceau sans
  * album forme son propre groupe.
  */
-export function grouperParAlbum(historique: RecentFileListView[]): AlbumEcoute[] {
+export function groupByAlbum(historique: RecentFileListView[]): AlbumEcoute[] {
   const groupes = new Map<string, AlbumEcoute>();
   for (const r of historique) {
-    const artiste = artistesLisibles(r.album_artist) ?? artistesLisibles(r.artist);
-    const cle = r.album ? `${norme(r.album)}|${norme(artiste)}` : `piste:${r.path}`;
+    const artiste = readableArtists(r.album_artist) ?? readableArtists(r.artist);
+    const cle = r.album ? `${normalize(r.album)}|${normalize(artiste)}` : `piste:${r.path}`;
     const g = groupes.get(cle);
     if (g) {
       g.pistes.push(r);

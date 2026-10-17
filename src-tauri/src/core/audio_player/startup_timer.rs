@@ -98,7 +98,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn les_etapes_sont_nommees_et_mesurees() {
+    fn steps_are_named_and_measured() {
         let mut timer = StartupTimer::new();
         std::thread::sleep(std::time::Duration::from_millis(12));
         timer.mark("ouverture");
@@ -112,7 +112,7 @@ mod tests {
     }
 
     #[test]
-    fn le_detail_montre_la_plus_lente_en_premier() {
+    fn the_breakdown_shows_the_slowest_first() {
         let mut timer = StartupTimer::new();
         timer.phases.push(("rapide", 3));
         timer.phases.push(("lente", 900));
@@ -124,13 +124,13 @@ mod tests {
     }
 
     #[test]
-    fn un_demarrage_sans_etape_ne_casse_rien() {
+    fn a_startup_without_steps_breaks_nothing() {
         let timer = StartupTimer::new();
         assert_eq!(timer.breakdown(), "");
     }
 
     #[test]
-    fn le_total_couvre_toutes_les_etapes() {
+    fn the_total_covers_every_step() {
         let mut timer = StartupTimer::new();
         std::thread::sleep(std::time::Duration::from_millis(8));
         timer.mark("a");

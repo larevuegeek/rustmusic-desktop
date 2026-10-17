@@ -24,23 +24,23 @@
 
   let piste: HTMLDivElement | null = $state(null);
 
-  function mesurer() {
+  function measure() {
     if (!piste) return;
     avant = piste.scrollLeft > 2;
     apres = piste.scrollLeft + piste.clientWidth < piste.scrollWidth - 2;
   }
 
   // Une page à la fois, moins un bout de tuile pour garder le fil.
-  export function defiler(sens: 1 | -1) {
+  export function slide(sens: 1 | -1) {
     piste?.scrollBy({ left: sens * piste.clientWidth * 0.85, behavior: "smooth" });
   }
 
   $effect(() => {
     if (!piste) return;
-    const ro = new ResizeObserver(mesurer);
+    const ro = new ResizeObserver(measure);
     ro.observe(piste);
     for (const enfant of piste.children) ro.observe(enfant);
-    mesurer();
+    measure();
     return () => ro.disconnect();
   });
 
@@ -56,7 +56,7 @@
 <div class="relative">
   <div
     bind:this={piste}
-    onscroll={mesurer}
+    onscroll={measure}
     class="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden {classes}"
     style:mask-image={masque}
   >
@@ -65,11 +65,11 @@
   <!-- Toujours montées (icônes prêtes), elles apparaissent en fondu. -->
   {#if fleches}
   <button type="button" class="{fleche} left-1 {avant ? '' : cachee}" style:top={axe} tabindex={avant ? 0 : -1} aria-hidden={!avant}
-          aria-label={$t("common.previous")} title={$t("common.previous")} onclick={() => defiler(-1)}>
+          aria-label={$t("common.previous")} title={$t("common.previous")} onclick={() => slide(-1)}>
     <Icon icon="material-symbols:chevron-left-rounded" width="26" />
   </button>
   <button type="button" class="{fleche} right-1 {apres ? '' : cachee}" style:top={axe} tabindex={apres ? 0 : -1} aria-hidden={!apres}
-          aria-label={$t("common.next")} title={$t("common.next")} onclick={() => defiler(1)}>
+          aria-label={$t("common.next")} title={$t("common.next")} onclick={() => slide(1)}>
     <Icon icon="material-symbols:chevron-right-rounded" width="26" />
   </button>
   {/if}

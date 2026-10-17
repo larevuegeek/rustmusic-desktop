@@ -73,11 +73,11 @@ pub struct ExportPlaylist {
     pub rules: Option<String>,
     #[serde(default)]
     pub is_mix: bool,
-    #[serde(default = "vrai")]
+    #[serde(default = "default_true")]
     pub pinned: bool,
 }
 
-fn vrai() -> bool {
+fn default_true() -> bool {
     true
 }
 
@@ -233,7 +233,7 @@ async fn collect_liked(
 mod tests {
     use super::*;
 
-    fn piste(path: &str) -> ExportTrackRef {
+    fn track_ref(path: &str) -> ExportTrackRef {
         ExportTrackRef {
             path: path.to_string(),
             title: Some("Intro".into()),
@@ -267,15 +267,15 @@ mod tests {
                     color: "#8b5cf6".into(),
                     icon: "mynaui:music".into(),
                     position: 0,
-                    tracks: vec![piste("S:\\Musique\\a.flac"), piste("S:\\Musique\\b.flac")],
+                    tracks: vec![track_ref("S:\\Musique\\a.flac"), track_ref("S:\\Musique\\b.flac")],
                 }],
-                liked: vec![piste("S:\\Musique\\c.flac")],
+                liked: vec![track_ref("S:\\Musique\\c.flac")],
             }],
         }
     }
 
     #[test]
-    fn le_fichier_se_relit_a_l_identique() {
+    fn the_file_reads_back_identically() {
         // Un export qu'on ne saurait pas relire n'est pas une sauvegarde. Le
         // test garantit que la structure reste symétrique, aujourd'hui comme
         // au jour où l'import sera écrit.
@@ -290,7 +290,7 @@ mod tests {
     }
 
     #[test]
-    fn l_ordre_des_pistes_est_conserve() {
+    fn the_track_order_is_kept() {
         // L'ordre d'une playlist est une donnée, pas un détail d'affichage.
         let json = serde_json::to_string(&bundle()).unwrap();
         let relu: ExportBundle = serde_json::from_str(&json).unwrap();
@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn les_chemins_windows_survivent_au_json() {
+    fn windows_paths_survive_json() {
         // Les antislashs d'un chemin Windows doivent ressortir tels quels : une
         // playlist dont les chemins sont mutilés ne se réimporterait jamais.
         let json = serde_json::to_string(&bundle()).unwrap();
@@ -309,7 +309,7 @@ mod tests {
     }
 
     #[test]
-    fn un_fichier_etranger_se_reconnait_a_sa_nature() {
+    fn a_foreign_file_is_recognised_by_its_kind() {
         // Relire n'importe quel JSON comme un export produirait des dégâts
         // silencieux : le marqueur de format est là pour permettre le refus.
         let etranger = r#"{"hello":"world"}"#;

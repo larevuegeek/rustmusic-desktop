@@ -80,7 +80,7 @@ let dernierePisteLue = "";
 let dernierLancement = 0;
 
 /** Vrai si cette demande n'est que l'écho de la précédente. */
-export function estUneRepetition(
+export function isRepeat(
     path: string,
     pistePrecedente: string,
     instantPrecedent: number,
@@ -91,7 +91,7 @@ export function estUneRepetition(
 
 export function handlePlayTrack(path: string, contexte?: QueueTrack[]): Promise<void> {
     const maintenant = Date.now();
-    if (estUneRepetition(path, dernierePisteLue, dernierLancement, maintenant)) {
+    if (isRepeat(path, dernierePisteLue, dernierLancement, maintenant)) {
         return Promise.resolve();
     }
     dernierePisteLue = path;

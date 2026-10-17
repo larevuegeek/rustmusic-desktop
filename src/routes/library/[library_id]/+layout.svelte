@@ -10,7 +10,7 @@ import { loadLibrary } from "#lib/services/library/library.service";
 import LibraryErrorLoading from "#lib/components/library/common/error/LibraryErrorLoading.svelte";
 import Icon from "@iconify/svelte";
 import LibraryHeader from "#lib/components/library/common/LibraryHeader.svelte";
-import ImportAccueil from "#lib/components/library/common/ImportAccueil.svelte";
+import ImportWelcome from "#lib/components/library/common/ImportWelcome.svelte";
 import { importAffiche } from "#lib/stores/library/importProgress.store";
 import { ongletCourant } from "#lib/config/libraryTabs";
 import { invoke } from "@tauri-apps/api/core";
@@ -124,7 +124,7 @@ async function importer(chemins: string[]) {
 <div class="biblio-maquette flex flex-col h-full relative">
 
   {#if vide}
-    <ImportAccueil {library} section={ongletCourant(page.url.pathname)} />
+    <ImportWelcome {library} section={ongletCourant(page.url.pathname)} />
   {:else}
   {#if !isFocusedView}
   <LibraryHeader {library} />

@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 import { handleSelectTrack, handlePlayTrack } from "#lib/actions/player/PlayerAction";
-import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
 import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import { liked } from "#lib/stores/playlist/like.store";
 import { selectionStore } from "#lib/stores/ui/selection.store";
@@ -11,7 +11,7 @@ import Icon from "@iconify/svelte";
 import { t } from "#lib/i18n";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import StarRating from "#lib/components/ui/rating/StarRating.svelte";
-import { largeurDe, estFlexible, styleCellule, type TrackColumn } from "#lib/config/trackColumns";
+import { widthOf, isFlexible, cellStyle, type TrackColumn } from "#lib/config/trackColumns";
 
 // Les colonnes viennent de la page : la ligne n'a pas à relire les réglages.
 let { libraryId, track, tracks = [], columns = [], largeurs = {} }:
@@ -38,9 +38,9 @@ function handleClick(e?: MouseEvent) {
         if (e?.shiftKey) selectionStore.selectRange(track.id);
         else selectionStore.toggle(track.id, track);
     } else if (singleClickPlay) {
-        handlePlayTrack(track.path, versFileDAttente(tracks));
+        handlePlayTrack(track.path, toQueue(tracks));
     } else {
-        handleSelectTrack(track.path, versFileDAttente(tracks));
+        handleSelectTrack(track.path, toQueue(tracks));
     }
 }
 </script>
@@ -52,7 +52,7 @@ function handleClick(e?: MouseEvent) {
            transition-colors duration-100
            {isSelected ? 'bg-emerald-500/10 dark:bg-emerald-500/10' : 'hover:bg-neutral-100 dark:hover:bg-neutral-900'}
            {selection.active ? 'cursor-pointer' : ''}"
-    ondblclick={() => { if (!selection.active && !singleClickPlay) handlePlayTrack(track.path, versFileDAttente(tracks)); }}
+    ondblclick={() => { if (!selection.active && !singleClickPlay) handlePlayTrack(track.path, toQueue(tracks)); }}
     onclick={handleClick}
     oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY }; }}
 >
@@ -66,7 +66,7 @@ function handleClick(e?: MouseEvent) {
          les colonnes s'étaleraient jusqu'au bord. -->
     {#if selection.active}<SelectionCheck coche={isSelected} />{/if}
     {#each columns as col (col.key)}
-      {@const w = largeurDe(col, largeurs)}
+      {@const w = widthOf(col, largeurs)}
       {#if col.widget === 'index'}
           <div class="text-[10px] text-neutral-400 text-right shrink-0 tabular-nums"
                style="width: {w}px">
@@ -92,7 +92,7 @@ function handleClick(e?: MouseEvent) {
         <button
           type="button"
           class="text-left cursor-pointer"
-          style={styleCellule(col, largeurs)}
+          style={cellStyle(col, largeurs)}
         >
           <span class="text-sm text-neutral-800 dark:text-neutral-200 truncate block"
                 title={track.title}>
@@ -121,7 +121,7 @@ function handleClick(e?: MouseEvent) {
     <!-- Même remplissage que l'en-tête, à la même condition : les deux doivent
          se répartir la largeur de la même façon, sinon les colonnes se
          décalent d'une ligne à l'autre. -->
-    {#if !columns.some(c => estFlexible(c, largeurs))}
+    {#if !columns.some(c => isFlexible(c, largeurs))}
       <div class="flex-1 min-w-0"></div>
     {/if}
 

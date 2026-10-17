@@ -28,7 +28,7 @@ export const ORDRE_ONGLETS: LibraryTabKey[] = ONGLETS_BIBLIOTHEQUE.map((o) => o.
 export const ONGLETS_PAR_DEFAUT: LibraryTabKey[] = ORDRE_ONGLETS.filter((c) => c !== "years" && c !== "mixes" && c !== "playlists");
 
 /** L'adresse d'une section : celles de la bibliothèque, et Playlists qui n'en dépend pas. */
-export function lienOnglet(libraryId: number, cle: LibraryTabKey): string {
+export function tabLink(libraryId: number, cle: LibraryTabKey): string {
   return cle === "playlists" ? "/playlists" : `/library/${libraryId}/${cle}`;
 }
 
@@ -39,14 +39,14 @@ export type PlacementOnglets = "sidebar" | "top" | "both";
 
 export const PLACEMENT_PAR_DEFAUT: PlacementOnglets = "both";
 
-export function lirePlacement(brut: string | undefined): PlacementOnglets {
+export function readPlacement(brut: string | undefined): PlacementOnglets {
   return brut === "sidebar" || brut === "top" || brut === "both"
     ? brut
     : PLACEMENT_PAR_DEFAUT;
 }
 
 /** Lit les sections retenues ; un réglage abîmé (clés inconnues, doublons, vide) retombe sur le défaut. */
-export function lireOnglets(brut: string | undefined): LibraryTabKey[] {
+export function readTabs(brut: string | undefined): LibraryTabKey[] {
   if (!brut) return [...ONGLETS_PAR_DEFAUT];
   try {
     const v = JSON.parse(brut);
@@ -70,7 +70,7 @@ export function lireOnglets(brut: string | undefined): LibraryTabKey[] {
  * Les sections à afficher. `courant` est ajouté même masqué : on arrive sur un
  * genre depuis un album, et une barre qui n'indique pas où l'on est ment.
  */
-export function resoudreOnglets(
+export function resolveTabs(
   cles: LibraryTabKey[],
   courant?: string | null,
 ): LibraryTab[] {
@@ -97,7 +97,7 @@ export function ongletCourant(pathname: string): LibraryTabKey | null {
 }
 
 /** Retenu pour rouvrir la bibliothèque sur la dernière section (Playlists n'en est pas une). */
-export function memoriserOnglet(libraryId: number, cle: LibraryTabKey) {
+export function rememberTab(libraryId: number, cle: LibraryTabKey) {
   if (cle === "playlists") return;
   try {
     localStorage.setItem(`lib-tab-${libraryId}`, cle);
@@ -106,7 +106,7 @@ export function memoriserOnglet(libraryId: number, cle: LibraryTabKey) {
   }
 }
 
-export function dernierOnglet(libraryId: number): LibraryTabKey {
+export function lastTab(libraryId: number): LibraryTabKey {
   try {
     const cle = localStorage.getItem(`lib-tab-${libraryId}`);
     if (cle && cle !== "playlists" && PAR_CLE.has(cle as LibraryTabKey)) return cle as LibraryTabKey;

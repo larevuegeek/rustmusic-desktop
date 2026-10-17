@@ -8,12 +8,12 @@ import { importsTermines } from "#lib/stores/library/importProgress.store";
 import { goto } from "$app/navigation";
 import { t } from "#lib/i18n";
 import { handleAddDirectory } from "#lib/actions/library/LibraryAction";
-import HomeEntete from "#lib/components/home/HomeEntete.svelte";
-import HomeReprise from "#lib/components/home/HomeReprise.svelte";
-import HomeBienvenue from "#lib/components/home/HomeBienvenue.svelte";
+import HomeHeader from "#lib/components/home/HomeHeader.svelte";
+import HomeResume from "#lib/components/home/HomeResume.svelte";
+import HomeWelcome from "#lib/components/home/HomeWelcome.svelte";
 import HomeMixes from "#lib/components/home/HomeMixes.svelte";
 import HomeGenres from "#lib/components/home/HomeGenres.svelte";
-import HomeAjouts from "#lib/components/home/HomeAjouts.svelte";
+import HomeRecentlyAdded from "#lib/components/home/HomeRecentlyAdded.svelte";
 import HomeRecents from "#lib/components/home/HomeRecents.svelte";
 import HomePlaylists from "#lib/components/home/HomePlaylists.svelte";
 import { settingsStore } from "#lib/stores/settings/settings.store";
@@ -61,7 +61,7 @@ $effect(() => {
 
 onMount(() => { recent.refreshRecent(); });
 
-function ajouterMusique() {
+function addMusic() {
   if (libraryId) handleAddDirectory(libraryId, true);
   else goto('/import');
 }
@@ -71,14 +71,14 @@ function ajouterMusique() {
   <div class="@container max-w-[1400px] mx-auto flex flex-col gap-10 pb-10">
 
     <div class="-mb-4">
-      <HomeEntete nom={profil?.name} {libraryId} {stats} onajouter={ajouterMusique}
+      <HomeHeader nom={profil?.name} {libraryId} {stats} onajouter={addMusic}
                   sousTitre={accueilVide ? $t('home_welcome.subtitle') : null} bouton={!accueilVide} />
     </div>
 
     {#if accueilVide}
-      <HomeBienvenue />
+      <HomeWelcome />
     {:else}
-      <HomeReprise onajouter={ajouterMusique} {libraryId} ancreRecents={montrerRecents} />
+      <HomeResume onajouter={addMusic} {libraryId} ancreRecents={montrerRecents} />
     {/if}
 
     {#if libraryId && !accueilVide}
@@ -90,7 +90,7 @@ function ajouterMusique() {
 
     {#if libraryId && !accueilVide}
       <HomeGenres {libraryId} {genres} />
-      <HomeAjouts {libraryId} {albums} />
+      <HomeRecentlyAdded {libraryId} {albums} />
     {/if}
 
     <!-- Tout en bas : la section vers laquelle mène « Tout voir » du hero. -->

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import { libraryStore } from "#lib/stores/library/library.store";
   import { profilSelector } from "#lib/stores/profil/profil.store";
@@ -49,7 +49,7 @@
       await libraryStore.addLibrary(profilId, name, description || null);
       close();
     } catch (error) {
-      const message = messageErreur(error);
+      const message = errorMessage(error);
       if (message.includes("UNIQUE") || message.includes("duplicate")) {
         errorName = "popins.library_name_taken";
       } else if (message === "NO_PROFIL") {

@@ -443,20 +443,20 @@ mod tests {
         pool
     }
 
-    async fn poser_artiste(pool: &SqlitePool, id: &str, nom: &str) {
+    async fn insert_artist(pool: &SqlitePool, id: &str, nom: &str) {
         sqlx::query("INSERT INTO artists (id, name, name_normalized, sort_name) VALUES (?, ?, ?, ?)")
             .bind(id).bind(nom).bind(nom.to_lowercase()).bind(nom)
             .execute(pool).await.expect("artiste");
     }
 
-    async fn poser_album(pool: &SqlitePool, id: &str, titre: &str, proprietaire: &str) {
+    async fn insert_album(pool: &SqlitePool, id: &str, titre: &str, proprietaire: &str) {
         sqlx::query("INSERT INTO library_albums (id, library_id, artist_id, title, title_normalized, year) VALUES (?, 1, ?, ?, ?, 2000)")
             .bind(id).bind(proprietaire).bind(titre).bind(titre.to_lowercase())
             .execute(pool).await.expect("album");
     }
 
     /// Une piste rangée dans un album, avec son artiste principal.
-    async fn poser_piste(pool: &SqlitePool, id: &str, album: &str, artiste: &str) {
+    async fn insert_track(pool: &SqlitePool, id: &str, album: &str, artiste: &str) {
         sqlx::query("INSERT INTO library_files (id, library_id, path, filename, extension, size, status) VALUES (?, 1, ?, 'f', 'flac', 1, 'indexed')")
             .bind(format!("f-{id}")).bind(format!("/{id}.flac"))
             .execute(pool).await.expect("fichier");
@@ -465,97 +465,97 @@ mod tests {
             .execute(pool).await.expect("piste");
     }
 
-    async fn lister(pool: &SqlitePool, artiste: &str, participations: bool) -> Vec<(String, bool)> {
+    async fn list_albums(pool: &SqlitePool, artiste: &str, participations: bool) -> Vec<(String, bool)> {
         LibraryAlbumRepository::find_albums_by_artist_id(pool, 1, artiste, participations)
             .await.expect("requête")
             .into_iter().map(|a| (a.title, a.participation)).collect()
     }
 
     #[tokio::test]
-    async fn un_invite_sur_une_compilation_voit_l_album() {
+    async fn a_guest_on_a_compilation_sees_the_album() {
         let pool = base().await;
-        poser_artiste(&pool, "va", "Various Artists").await;
-        poser_artiste(&pool, "pj", "PJ Harvey").await;
-        poser_album(&pool, "alb", "Peaky Blinders OST", "va").await;
-        poser_piste(&pool, "t1", "alb", "pj").await;
+        insert_artist(&pool, "va", "Various Artists").await;
+        insert_artist(&pool, "pj", "PJ Harvey").await;
+        insert_album(&pool, "alb", "Peaky Blinders OST", "va").await;
+        insert_track(&pool, "t1", "alb", "pj").await;
 
-        assert_eq!(lister(&pool, "pj", false).await, vec![]);
-        assert_eq!(lister(&pool, "pj", true).await,
+        assert_eq!(list_albums(&pool, "pj", false).await, vec![]);
+        assert_eq!(list_albums(&pool, "pj", true).await,
                    vec![("Peaky Blinders OST".into(), true)]);
     }
 
     #[tokio::test]
-    async fn ses_propres_albums_passent_avant_ses_participations() {
+    async fn own_albums_come_before_guest_appearances() {
         let pool = base().await;
-        poser_artiste(&pool, "va", "Various Artists").await;
-        poser_artiste(&pool, "dp", "Daft Punk").await;
-        poser_album(&pool, "a1", "Discovery", "dp").await;
-        poser_album(&pool, "a2", "NRJ Hits", "va").await;
-        poser_piste(&pool, "t1", "a1", "dp").await;
-        poser_piste(&pool, "t2", "a2", "dp").await;
+        insert_artist(&pool, "va", "Various Artists").await;
+        insert_artist(&pool, "dp", "Daft Punk").await;
+        insert_album(&pool, "a1", "Discovery", "dp").await;
+        insert_album(&pool, "a2", "NRJ Hits", "va").await;
+        insert_track(&pool, "t1", "a1", "dp").await;
+        insert_track(&pool, "t2", "a2", "dp").await;
 
-        assert_eq!(lister(&pool, "dp", true).await,
+        assert_eq!(list_albums(&pool, "dp", true).await,
                    vec![("Discovery".into(), false), ("NRJ Hits".into(), true)]);
     }
 
     #[tokio::test]
-    async fn une_liaison_multi_artistes_suffit() {
+    async fn a_multi_artist_link_is_enough() {
         let pool = base().await;
-        poser_artiste(&pool, "jb", "Jacques Brel").await;
-        poser_artiste(&pool, "fr", "François Rauber").await;
-        poser_album(&pool, "alb", "Ces gens-là", "jb").await;
-        poser_piste(&pool, "t1", "alb", "jb").await;
+        insert_artist(&pool, "jb", "Jacques Brel").await;
+        insert_artist(&pool, "fr", "François Rauber").await;
+        insert_album(&pool, "alb", "Ces gens-là", "jb").await;
+        insert_track(&pool, "t1", "alb", "jb").await;
         sqlx::query("INSERT INTO library_track_artists (id, library_id, library_track_id, artist_id) VALUES ('l1', 1, 't1', 'fr')")
             .execute(&pool).await.expect("liaison");
 
         // Il n'a aucune piste à son nom : seule la liaison le rattache.
-        assert_eq!(lister(&pool, "fr", true).await,
+        assert_eq!(list_albums(&pool, "fr", true).await,
                    vec![("Ces gens-là".into(), true)]);
     }
 
     #[tokio::test]
-    async fn un_album_n_apparait_qu_une_fois() {
+    async fn an_album_appears_only_once() {
         let pool = base().await;
-        poser_artiste(&pool, "dp", "Daft Punk").await;
-        poser_album(&pool, "alb", "Homework", "dp").await;
-        poser_piste(&pool, "t1", "alb", "dp").await;
-        poser_piste(&pool, "t2", "alb", "dp").await;
+        insert_artist(&pool, "dp", "Daft Punk").await;
+        insert_album(&pool, "alb", "Homework", "dp").await;
+        insert_track(&pool, "t1", "alb", "dp").await;
+        insert_track(&pool, "t2", "alb", "dp").await;
         sqlx::query("INSERT INTO library_track_artists (id, library_id, library_track_id, artist_id) VALUES ('l1', 1, 't1', 'dp')")
             .execute(&pool).await.expect("liaison");
 
-        let albums = lister(&pool, "dp", true).await;
+        let albums = list_albums(&pool, "dp", true).await;
         assert_eq!(albums, vec![("Homework".into(), false)]);
     }
 
     #[tokio::test]
-    async fn la_bibliotheque_voisine_est_ignoree() {
+    async fn the_neighbouring_library_is_ignored() {
         let pool = base().await;
         sqlx::query("INSERT INTO library (id, profil_id, name) VALUES (2, 1, 'autre')")
             .execute(&pool).await.expect("2e bibliothèque");
-        poser_artiste(&pool, "dp", "Daft Punk").await;
-        poser_album(&pool, "alb", "Homework", "dp").await;
+        insert_artist(&pool, "dp", "Daft Punk").await;
+        insert_album(&pool, "alb", "Homework", "dp").await;
         sqlx::query("INSERT INTO library_albums (id, library_id, artist_id, title, title_normalized) VALUES ('ailleurs', 2, 'dp', 'Ailleurs', 'ailleurs')")
             .execute(&pool).await.expect("album voisin");
         sqlx::query("INSERT INTO library_files (id, library_id, path, filename, extension, size, status) VALUES ('f2', 2, '/x.flac', 'f', 'flac', 1, 'indexed')")
             .execute(&pool).await.expect("fichier voisin");
         sqlx::query("INSERT INTO library_tracks (id, library_id, file_id, library_album_id, artist_id, title, title_normalized) VALUES ('t2', 2, 'f2', 'ailleurs', 'dp', 'T', 't')")
             .execute(&pool).await.expect("piste voisine");
-        poser_piste(&pool, "t1", "alb", "dp").await;
+        insert_track(&pool, "t1", "alb", "dp").await;
 
-        assert_eq!(lister(&pool, "dp", true).await, vec![("Homework".into(), false)]);
+        assert_eq!(list_albums(&pool, "dp", true).await, vec![("Homework".into(), false)]);
     }
 
     /// Pose l'unicité d'avant la 0.2.5, exactement comme le démarrage.
-    async fn poser_index_compat(pool: &SqlitePool) {
+    async fn insert_compat_index(pool: &SqlitePool) {
         sqlx::query(INDEX_COMPAT_0_2_4).execute(pool).await.expect("index de compatibilité");
     }
 
     #[tokio::test]
-    async fn une_version_anterieure_sait_encore_indexer() {
+    async fn an_older_version_can_still_index() {
         let pool = base().await;
-        poser_artiste(&pool, "dp", "Daft Punk").await;
-        poser_album(&pool, "alb", "Homework", "dp").await;
-        poser_index_compat(&pool).await;
+        insert_artist(&pool, "dp", "Daft Punk").await;
+        insert_album(&pool, "alb", "Homework", "dp").await;
+        insert_compat_index(&pool).await;
 
         // La requête textuelle de la 0.2.4, mot pour mot.
         let r = sqlx::query(
@@ -574,10 +574,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn un_double_rip_reutilise_la_fiche_au_lieu_d_echouer() {
+    async fn a_double_rip_reuses_the_record_instead_of_failing() {
         let pool = base().await;
-        poser_artiste(&pool, "ff", "Foo Fighters").await;
-        poser_index_compat(&pool).await;
+        insert_artist(&pool, "ff", "Foo Fighters").await;
+        insert_compat_index(&pool).await;
 
         let creer = |dossier: &'static str| LibraryAlbumCreate {
             library_id: 1,
@@ -604,11 +604,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deux_artistes_sous_un_meme_toit_restent_un_seul_album() {
+    async fn two_artists_under_one_roof_stay_one_album() {
         let pool = base().await;
-        poser_artiste(&pool, "a1", "Ava Max").await;
-        poser_artiste(&pool, "a2", "Soprano").await;
-        poser_index_compat(&pool).await;
+        insert_artist(&pool, "a1", "Ava Max").await;
+        insert_artist(&pool, "a2", "Soprano").await;
+        insert_compat_index(&pool).await;
 
         let creer = |artiste: &'static str| LibraryAlbumCreate {
             library_id: 1,

@@ -33,12 +33,12 @@
   });
 
   // Lu avant `onclose()` : les props viennent d'un état que la fermeture remet à `null`.
-  function figer() {
+  function snapshot() {
     return { kind, libraryId, enCours, album };
   }
 
-  async function epinglerEnCours() {
-    const m = figer();
+  async function pinCurrent() {
+    const m = snapshot();
     onclose();
     if (!m.enCours) return;
     try {
@@ -74,7 +74,7 @@
 >
   <button
     class="{ligne} text-(--rg-tx) enabled:hover:bg-green-500/15 enabled:hover:text-green-400"
-    onclick={epinglerEnCours}
+    onclick={pinCurrent}
     disabled={!enCours || dejaEpingle}
     title={enCours?.titre ?? ''}
   >
@@ -84,7 +84,7 @@
 
   <button
     class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
-    onclick={() => { const m = figer(); onclose(); goto(`/library/${m.libraryId}/${m.album ? 'albums' : 'artists'}`); }}
+    onclick={() => { const m = snapshot(); onclose(); goto(`/library/${m.libraryId}/${m.album ? 'albums' : 'artists'}`); }}
   >
     <Icon icon={album ? 'material-symbols:album-rounded' : 'material-symbols:mic-external-on-rounded'} width="15" class="opacity-60 shrink-0" />
     {$t(album ? 'sidebar.browse_albums' : 'sidebar.browse_artists')}
@@ -94,7 +94,7 @@
 
   <button
     class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
-    onclick={() => { const m = figer(); onclose(); settingsStore.set(m.album ? 'show_pinned_albums' : 'show_pinned_artists', 'false'); }}
+    onclick={() => { const m = snapshot(); onclose(); settingsStore.set(m.album ? 'show_pinned_albums' : 'show_pinned_artists', 'false'); }}
   >
     <Icon icon="lucide:eye-off" width="14" class="opacity-60 shrink-0" />
     {$t('sidebar.hide_section')}

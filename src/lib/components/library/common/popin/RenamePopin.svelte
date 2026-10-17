@@ -6,8 +6,8 @@
   import Icon from "@iconify/svelte";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import { t } from "#lib/i18n";
-  import { messageErreur } from "#lib/helper/tools/errorTools";
-  import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
+  import { readLocal, writeLocal } from "#lib/helper/tools/storage";
   import { tagWorkshop, WORKSHOP_FIELDS } from "#lib/stores/tags/tagWorkshop.store";
   import ConfirmBand from "#lib/components/ui/feedback/ConfirmBand.svelte";
   import RenamePatternEditor from "#lib/components/library/common/popin/rename/RenamePatternEditor.svelte";
@@ -39,8 +39,8 @@
 
   // Renommer ou recomposer l'arborescence : un motif mémorisé par mode, ils n'ont rien en commun.
   let restructure = $state(false);
-  let namePattern = $state(lireLocal(STORAGE_KEY, "") || PRESETS[0].pattern);
-  let treePattern = $state(lireLocal(TREE_KEY, "") || TREE_PRESETS[0].pattern);
+  let namePattern = $state(readLocal(STORAGE_KEY, "") || PRESETS[0].pattern);
+  let treePattern = $state(readLocal(TREE_KEY, "") || TREE_PRESETS[0].pattern);
   let pattern = $derived(restructure ? treePattern : namePattern);
   const setPattern = (value: string) => {
     if (restructure) treePattern = value;
@@ -110,7 +110,7 @@
       await checkPattern(value);
       patternError = null;
     } catch (e) {
-      patternError = messageErreur(e);
+      patternError = errorMessage(e);
       preview = null;
       return;
     }
@@ -131,9 +131,9 @@
         restructure,
         restructure ? root : null,
       );
-      ecrireLocal(restructure ? TREE_KEY : STORAGE_KEY, value);
+      writeLocal(restructure ? TREE_KEY : STORAGE_KEY, value);
     } catch (e) {
-      patternError = messageErreur(e);
+      patternError = errorMessage(e);
       preview = null;
     } finally {
       computing = false;
@@ -159,7 +159,7 @@
       confirming = false;
       onapplied(outcome.moved);
     } catch (e) {
-      applyError = messageErreur(e);
+      applyError = errorMessage(e);
     } finally {
       applying = false;
     }
@@ -177,7 +177,7 @@
       onapplied(undone.moved);
       await run(pattern, targets);
     } catch (e) {
-      applyError = messageErreur(e);
+      applyError = errorMessage(e);
     } finally {
       undoing = false;
     }

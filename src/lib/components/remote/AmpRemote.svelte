@@ -24,9 +24,9 @@
   let glisse = $state<{ zone: AmpZone; valeur: number } | null>(null);
   let onglet = $state<"sources" | "son" | "navigation">("sources");
 
-  const memeId = (a: string | null | undefined, b: string) => a?.toUpperCase() === b.toUpperCase();
-  const nomEntree = (id: string | null | undefined) => caps?.inputs.find((i) => memeId(id, i.id))?.name ?? "";
-  const entreePrincipale = $derived(nomEntree(etat?.main.input));
+  const sameId = (a: string | null | undefined, b: string) => a?.toUpperCase() === b.toUpperCase();
+  const inputName = (id: string | null | undefined) => caps?.inputs.find((i) => sameId(id, i.id))?.name ?? "";
+  const entreePrincipale = $derived(inputName(etat?.main.input));
 
   // Passage sur l'entrée réseau : l'écran de navigation s'ouvre de lui-même.
   let derniereEntree = "";
@@ -55,7 +55,7 @@
     [/aux/i, "material-symbols:cable-rounded"],
     [/hdmi|video/i, "material-symbols:settings-input-hdmi-outline-rounded"],
   ];
-  const iconeEntree = (nom: string) => ICONES_ENTREE.find(([m]) => m.test(nom))?.[1] ?? "material-symbols:input-rounded";
+  const inputIcon = (nom: string) => ICONES_ENTREE.find(([m]) => m.test(nom))?.[1] ?? "material-symbols:input-rounded";
 
   // Sources rangées en deux familles : image d'un côté, son et radio de l'autre.
   const VIDEO = /bd|dvd|blu-?ray|^tv|cbl|sat|strm|stream|game|^pc|hdmi|video/i;
@@ -72,7 +72,7 @@
   const pas = $derived(caps?.volume_step ?? 1);
   const maxi = $derived(caps?.volume_max || 100);
 
-  function affiche(v: number | null): string {
+  function formatVolume(v: number | null): string {
     if (v === null) return "—";
     return pas < 1 ? v.toFixed(1) : String(Math.round(v));
   }
@@ -86,7 +86,7 @@
     return ent.padStart(chiffres, "!") + (dec ? `.${dec}` : "");
   }
 
-  function lacher(zone: AmpZone) {
+  function release(zone: AmpZone) {
     if (glisse?.zone === zone) send({ type: "volume", zone, value: glisse.valeur });
     glisse = null;
   }
@@ -94,12 +94,12 @@
   // −/+ maintenus : un pas, puis répétition.
   let tRepete: ReturnType<typeof setTimeout> | undefined;
   let iRepete: ReturnType<typeof setInterval> | undefined;
-  function repeter(zone: AmpZone, up: boolean) {
-    arreter();
+  function repeat(zone: AmpZone, up: boolean) {
+    stop();
     send({ type: "volume_step", zone, up });
     tRepete = setTimeout(() => (iRepete = setInterval(() => send({ type: "volume_step", zone, up }), 120)), 380);
   }
-  function arreter() {
+  function stop() {
     clearTimeout(tRepete);
     clearInterval(iRepete);
   }
@@ -109,7 +109,7 @@
   let indice = $state(false);
   let tMaintien: ReturnType<typeof setTimeout> | undefined;
   let tIndice: ReturnType<typeof setTimeout> | undefined;
-  function appuiMarche(e: PointerEvent) {
+  function powerDown(e: PointerEvent) {
     if (!etat?.connected || e.button !== 0) return;
     if (!allume) return void send({ type: "power", zone: "main", on: true });
     maintien = true;
@@ -119,7 +119,7 @@
       send({ type: "power", zone: "main", on: false });
     }, 800);
   }
-  function relacheMarche() {
+  function powerUp() {
     if (!maintien) return;
     clearTimeout(tMaintien);
     maintien = false;
@@ -128,18 +128,18 @@
     tIndice = setTimeout(() => (indice = false), 1600);
   }
   // Au clavier (detail 0), une simple validation suffit.
-  function clicMarche(e: MouseEvent) {
+  function powerClick(e: MouseEvent) {
     if (e.detail === 0 && etat?.connected) send({ type: "power", zone: "main", on: !allume });
   }
 
   $effect(() => () => {
-    arreter();
+    stop();
     clearTimeout(tMaintien);
     clearTimeout(tIndice);
   });
 
   // Molette sur l'afficheur : volume, sans faire défiler le panneau.
-  function molette(node: HTMLElement) {
+  function wheelScroll(node: HTMLElement) {
     let dernier = 0;
     const f = (e: WheelEvent) => {
       if (!allume) return;
@@ -154,7 +154,7 @@
   }
 
   // Flèches ↑↓ et M quand la télécommande a le focus.
-  function touches(e: KeyboardEvent) {
+  function handleKeys(e: KeyboardEvent) {
     if (!allume || e.target instanceof HTMLInputElement) return;
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       e.preventDefault();
@@ -166,10 +166,10 @@
     }
   }
 
-  function sourceVoisine(d: number) {
+  function stepInput(d: number) {
     const liste = caps?.inputs ?? [];
     if (!liste.length) return;
-    const i = liste.findIndex((c) => memeId(etat?.main.input, c.id));
+    const i = liste.findIndex((c) => sameId(etat?.main.input, c.id));
     send({ type: "input", zone: "main", id: liste[(i + d + liste.length) % liste.length].id });
   }
 
@@ -189,7 +189,7 @@
   const tailleCode = $derived(code.length <= 6 ? 28 : code.length <= 9 ? 21 : 16);
 
   const dB = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v)} dB`;
-  const basculerMini = () => settingsStore.set("amp_remote_mini", mini ? "false" : "true");
+  const toggleMini = () => settingsStore.set("amp_remote_mini", mini ? "false" : "true");
 
   const ONGLETS = [
     { id: "sources", cle: "amp_remote.tab_sources", icone: "material-symbols:input-rounded" },
@@ -219,11 +219,11 @@
     aria-label={allume ? $t("amp_remote.power_off") : $t("amp_remote.power_on")}
     aria-pressed={allume}
     disabled={!etat?.connected}
-    onpointerdown={appuiMarche}
-    onpointerup={relacheMarche}
-    onpointerleave={relacheMarche}
-    onpointercancel={relacheMarche}
-    onclick={clicMarche}
+    onpointerdown={powerDown}
+    onpointerup={powerUp}
+    onpointerleave={powerUp}
+    onpointercancel={powerUp}
+    onclick={powerClick}
   >
     <span class="absolute inset-0 rounded-full bg-[#e2675a] {maintien ? 'scale-100 duration-800 ease-linear' : 'scale-0 duration-150 ease-out'} transition-transform"></span>
     <Icon icon="material-symbols:power-settings-new-rounded" width="21" class="relative {maintien ? 'text-white' : ''}" />
@@ -233,14 +233,14 @@
 <!-- −/+ maintenus et sourdine, communs à la vue complète, au mode mini et à la zone 2. -->
 {#snippet moinsPlus(zone: AmpZone, taille: string)}
   <button type="button" class="{touche} {taille}" aria-label="{$t('amp_remote.volume')} −"
-          onpointerdown={(e) => e.button === 0 && repeter(zone, false)} onpointerup={arreter} onpointerleave={arreter} onpointercancel={arreter}
+          onpointerdown={(e) => e.button === 0 && repeat(zone, false)} onpointerup={stop} onpointerleave={stop} onpointercancel={stop}
           onclick={(e) => e.detail === 0 && send({ type: "volume_step", zone, up: false })}>
     <Icon icon="material-symbols:remove-rounded" width="21" />
   </button>
 {/snippet}
 {#snippet plus(zone: AmpZone, taille: string)}
   <button type="button" class="{touche} {taille}" aria-label="{$t('amp_remote.volume')} +"
-          onpointerdown={(e) => e.button === 0 && repeter(zone, true)} onpointerup={arreter} onpointerleave={arreter} onpointercancel={arreter}
+          onpointerdown={(e) => e.button === 0 && repeat(zone, true)} onpointerup={stop} onpointerleave={stop} onpointercancel={stop}
           onclick={(e) => e.detail === 0 && send({ type: "volume_step", zone, up: true })}>
     <Icon icon="material-symbols:add-rounded" width="21" />
   </button>
@@ -274,7 +274,7 @@
       style="--rempli: {((v ?? 0) / maxi) * 100}%"
       aria-label={$t("amp_remote.volume")}
       oninput={(e) => (glisse = { zone, valeur: Number(e.currentTarget.value) })}
-      onchange={() => lacher(zone)}
+      onchange={() => release(zone)}
     />
     {@render plus(zone, "w-10 h-10")}
   </div>
@@ -284,7 +284,7 @@
 {#snippet choix(liste: AmpChoice[], courant: string | null | undefined, choisir: (id: string) => void, colonnes: string, icones: boolean)}
   <div class="grid {colonnes} gap-1.5">
     {#each liste as c (c.id)}
-      {@const sel = memeId(courant, c.id)}
+      {@const sel = sameId(courant, c.id)}
       <button
         type="button"
         class="min-w-0 flex items-center justify-center rounded-xl border cursor-pointer transition-colors px-1
@@ -294,7 +294,7 @@
         aria-pressed={sel}
         onclick={() => choisir(c.id)}
       >
-        {#if icones}<Icon icon={iconeEntree(c.name)} width="20" />{/if}
+        {#if icones}<Icon icon={inputIcon(c.name)} width="20" />{/if}
         <span class="max-w-full truncate {icones ? 'text-[11px]' : 'text-[12px]'} font-semibold">{c.name}</span>
       </button>
     {/each}
@@ -352,7 +352,7 @@
       style="width: {largeur}px"
       aria-label={$t("amp_remote.panel")}
       inert={!ouvert}
-      onkeydown={touches}
+      onkeydown={handleKeys}
     >
       {#if mini}
         <!-- Mode mini : afficheur (clic = agrandir), puis marche, source et volume. -->
@@ -361,8 +361,8 @@
           class="vfd relative h-14.5 px-3 pr-7.5 flex items-center justify-between gap-2.5 rounded-xl overflow-hidden cursor-pointer text-left"
           title={$t("amp_remote.expand")}
           aria-label={$t("amp_remote.expand")}
-          {@attach molette}
-          onclick={basculerMini}
+          {@attach wheelScroll}
+          onclick={toggleMini}
         >
           <Icon icon="material-symbols:open-in-full-rounded" width="15" class="absolute top-1.5 right-1.75 text-[#4fa98c]" />
           <span class="min-w-0 flex flex-col gap-1.25">
@@ -383,14 +383,14 @@
           {@render marche("w-9.5 h-9.5")}
           <div class="flex-1 min-w-0 h-9.5 flex items-center rounded-[11px] border border-(--rg-bd) bg-(--rg-s2)/50">
             <button type="button" class="w-6 h-9.5 shrink-0 flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) disabled:opacity-40"
-                    aria-label={$t("amp_remote.prev_input")} title={$t("amp_remote.prev_input")} disabled={!allume} onclick={() => sourceVoisine(-1)}>
+                    aria-label={$t("amp_remote.prev_input")} title={$t("amp_remote.prev_input")} disabled={!allume} onclick={() => stepInput(-1)}>
               <Icon icon="material-symbols:chevron-left-rounded" width="20" />
             </button>
             <span class="flex-1 min-w-0 flex items-center justify-center gap-1.25 text-[12.5px] font-semibold {allume ? 'text-(--rg-gtx)' : 'text-(--rg-mu)'}">
-              <Icon icon={iconeEntree(entreePrincipale)} width="17" class="shrink-0" /><span class="truncate">{entreePrincipale || "—"}</span>
+              <Icon icon={inputIcon(entreePrincipale)} width="17" class="shrink-0" /><span class="truncate">{entreePrincipale || "—"}</span>
             </span>
             <button type="button" class="w-6 h-9.5 shrink-0 flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) disabled:opacity-40"
-                    aria-label={$t("amp_remote.next_input")} title={$t("amp_remote.next_input")} disabled={!allume} onclick={() => sourceVoisine(1)}>
+                    aria-label={$t("amp_remote.next_input")} title={$t("amp_remote.next_input")} disabled={!allume} onclick={() => stepInput(1)}>
               <Icon icon="material-symbols:chevron-right-rounded" width="20" />
             </button>
           </div>
@@ -415,7 +415,7 @@
               {etat.connected ? (allume ? `${vue.amp.model && vue.amp.model !== vue.amp.name ? vue.amp.model : MARQUE[vue.amp.brand]} · ${vue.amp.ip}` : $t("amp_remote.standby")) : $t("amp_remote.reconnecting")}
             </p>
           </div>
-          <button type="button" class={fantomeBtn} title={$t("amp_remote.mini")} aria-label={$t("amp_remote.mini")} onclick={basculerMini}>
+          <button type="button" class={fantomeBtn} title={$t("amp_remote.mini")} aria-label={$t("amp_remote.mini")} onclick={toggleMini}>
             <Icon icon="material-symbols:close-fullscreen-rounded" width="19" />
           </button>
           <button type="button" class={fantomeBtn} title={$t("amp_remote.settings")} aria-label={$t("amp_remote.settings")} onclick={() => goto("/settings/remote")}>
@@ -449,7 +449,7 @@
           <!-- Afficheur et volume : la façade de l'ampli. -->
           {@const v = volume("main", etat.main)}
           <div class="rounded-[18px] border border-(--rg-bd) bg-(--rg-s2)/50 p-2 pb-2.5 flex flex-col gap-2">
-            <div class="vfd relative rounded-xl overflow-hidden px-3 pt-2.25 pb-2.5" {@attach molette}>
+            <div class="vfd relative rounded-xl overflow-hidden px-3 pt-2.25 pb-2.5" {@attach wheelScroll}>
               <div class="dot flex justify-between gap-1 text-[9.5px] leading-none tracking-[0.06em]">
                 {#each voyants as [libelle, allumeV] (libelle)}
                   <span class={allumeV ? "vfd-lum" : "text-[#11261f]"}>{libelle}</span>
@@ -472,7 +472,7 @@
                   onclick={() => (onglet = "son")}
                 ><span class="truncate">{(etat.mode?.name ?? "—").toUpperCase()}</span><span class="shrink-0 text-[10px] opacity-70">▶</span></button>
                 <span class="dot shrink-0 text-[11px] leading-none tracking-[0.08em] {etat.main.muted ? 'vfd-lum' : 'text-[#4fa98c]'}">
-                  {etat.main.muted ? "MUTING" : `VOL / ${affiche(maxi)}`}
+                  {etat.main.muted ? "MUTING" : `VOL / ${formatVolume(maxi)}`}
                 </span>
               </div>
               {@render trame()}
@@ -529,7 +529,7 @@
                       <span class="flex-1 min-w-0 leading-[1.25]">
                         <span class="block text-[13px]">{$t("amp_remote.zone2")}</span>
                         <span class="block text-[12px] truncate {z2.power ? 'text-(--rg-gtx)' : 'text-(--rg-mu)'}">
-                          {z2.power ? `${nomEntree(z2.input)} · ${affiche(volume("zone2", z2))}` : $t("amp_remote.standby")}
+                          {z2.power ? `${inputName(z2.input)} · ${formatVolume(volume("zone2", z2))}` : $t("amp_remote.standby")}
                         </span>
                       </span>
                       <ToggleSwitch size="sm" checked={z2.power} label={$t("amp_remote.zone2")} onclick={() => send({ type: "power", zone: "zone2", on: !z2.power })} />

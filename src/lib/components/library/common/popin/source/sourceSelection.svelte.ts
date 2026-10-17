@@ -1,6 +1,6 @@
 // Appariement retenu et valeurs cochées, par fichier et par champ.
 import { untrack } from "svelte";
-import { messageErreur } from "#lib/helper/tools/errorTools";
+import { errorMessage } from "#lib/helper/tools/errorTools";
 import { valueOf, type WorkshopFile } from "#lib/stores/tags/tagWorkshop.store";
 import {
   prepareImageFromUrl,
@@ -109,7 +109,7 @@ export class SourceSelection {
             this.chosen = next;
           })
           .catch((e) => {
-            if (this.proposal?.album.cover === url) this.coverError = messageErreur(e);
+            if (this.proposal?.album.cover === url) this.coverError = errorMessage(e);
           })
           .finally(() => {
             if (this.proposal?.album.cover === url) this.coverLoading = false;

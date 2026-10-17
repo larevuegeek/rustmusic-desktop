@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-fn vrai() -> bool {
+fn default_true() -> bool {
     true
 }
 
@@ -27,7 +27,7 @@ pub struct Playlist {
     #[serde(default)]
     pub is_mix: bool,
     /// Affichée dans la barre latérale (épinglée).
-    #[serde(default = "vrai")]
+    #[serde(default = "default_true")]
     pub pinned: bool,
     pub created_at: String,
     pub updated_at: Option<String>,

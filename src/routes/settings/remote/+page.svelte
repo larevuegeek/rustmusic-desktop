@@ -25,7 +25,7 @@
     return liste;
   });
 
-  async function piloter(amp: Amp | null) {
+  async function selectAmp(amp: Amp | null) {
     try {
       await ampRemoteStore.select(amp);
     } catch (e) {
@@ -70,13 +70,13 @@
           </p>
           <p class="mt-0.75 text-[13px] text-(--rg-mu) truncate">{AMP_BRANDS[pilote.amp.brand]} · {pilote.amp.ip}</p>
         </div>
-        <GhostButton icon="material-symbols:link-off-rounded" label={$t("amp_remote.stop")} onclick={() => piloter(null)} />
+        <GhostButton icon="material-symbols:link-off-rounded" label={$t("amp_remote.stop")} onclick={() => selectAmp(null)} />
       </OptionBlock>
     {/if}
 
     {#each amplis.filter((a) => a.id !== pilote?.amp.id) as amp (amp.id)}
       <OptionItem title={amp.name} desc="{AMP_BRANDS[amp.brand]} · {amp.model} · {amp.ip}">
-        <GhostButton icon="material-symbols:settings-remote-outline-rounded" label={$t("amp_remote.control")} onclick={() => piloter(amp)} />
+        <GhostButton icon="material-symbols:settings-remote-outline-rounded" label={$t("amp_remote.control")} onclick={() => selectAmp(amp)} />
       </OptionItem>
     {:else}
       {#if !pilote && $ampRemoteStore.searched && !$ampRemoteStore.searching}

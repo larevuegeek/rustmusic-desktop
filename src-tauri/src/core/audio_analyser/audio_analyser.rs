@@ -111,7 +111,7 @@ impl AudioAnalyser {
         };
 
         // ALAC : la profondeur n'est que dans le magic cookie.
-        let bits_per_sample: u32 = crate::core::audio_player::pipeline_info::profondeur_source(&codec_params).unwrap_or(0);
+        let bits_per_sample: u32 = crate::core::audio_player::pipeline_info::source_bit_depth(&codec_params).unwrap_or(0);
         let source_sample_rate: u32 = codec_params.sample_rate.ok_or("Pas de sample rate")?;
         let channels: usize = codec_params.channels.as_ref().ok_or("Pas d'info channels")?.count();
 

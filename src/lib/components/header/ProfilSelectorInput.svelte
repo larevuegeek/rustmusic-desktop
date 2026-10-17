@@ -17,7 +17,7 @@
     isOpen = !isOpen;
   }
 
-  function openProfilSwitch() {
+  function openProfileSwitch() {
     isOpen = false;
     profilPopinStore.open();
   }
@@ -133,7 +133,7 @@
                    text-[13px] text-neutral-700 dark:text-neutral-300
                    hover:bg-neutral-100/80 dark:hover:bg-white/5
                    transition-colors duration-100"
-            onclick={openProfilSwitch}
+            onclick={openProfileSwitch}
           >
             <Icon icon="lucide:users" width="15" class="text-neutral-400 dark:text-neutral-500" />
             {$t('menu.change_profil')}

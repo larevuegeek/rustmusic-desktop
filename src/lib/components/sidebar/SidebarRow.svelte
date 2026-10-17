@@ -14,7 +14,7 @@ let { titre, sousTitre = "", actif = false, enLecture = false, replie = false, o
   vignette: Snippet;
 } = $props();
 
-function ouvrirMenu(e: MouseEvent) {
+function openMenu(e: MouseEvent) {
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
   onmenu?.(r.left, r.bottom + 4);
 }
@@ -59,7 +59,7 @@ function ouvrirMenu(e: MouseEvent) {
              flex items-center justify-center cursor-pointer transition-opacity
              opacity-0 group-hover:opacity-100 focus-visible:opacity-100
              text-(--sb-mu) hover:text-(--sb-tx) hover:bg-(--sb-s2)"
-      onclick={ouvrirMenu}
+      onclick={openMenu}
       aria-label={titre}
       title={titre}
     >

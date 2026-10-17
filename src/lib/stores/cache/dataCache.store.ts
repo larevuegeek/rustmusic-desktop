@@ -29,20 +29,20 @@ const cache = new Map<string, CacheEntry<unknown>>();
 // Une liste vide vient souvent d'une erreur avalée : on ne la met pas en cache.
 const utile = <T>(r: T | null | undefined): r is T => r != null && !(Array.isArray(r) && r.length === 0);
 
-const estListe = (key: string) =>
+const isList = (key: string) =>
   PREFIXES_LISTE.some((p) => key.startsWith(p)) && !key.startsWith('album-tracks:');
 
 /** Évince les fiches les plus anciennement utilisées au-delà du plafond. */
-function elaguer() {
+function prune() {
   let fiches = 0;
-  for (const key of cache.keys()) if (!estListe(key)) fiches++;
+  for (const key of cache.keys()) if (!isList(key)) fiches++;
   if (fiches <= MAX_FICHES) return;
 
   // `Map` garde l'ordre d'insertion, et `get` réinsère : les premières clés
   // sont donc les moins récemment utilisées.
   for (const key of [...cache.keys()]) {
     if (fiches <= MAX_FICHES) break;
-    if (estListe(key)) continue;
+    if (isList(key)) continue;
     cache.delete(key);
     fiches--;
   }
@@ -63,7 +63,7 @@ export const dataCache = {
   set<T>(key: string, data: T): void {
     cache.delete(key);
     cache.set(key, { data, timestamp: Date.now() });
-    elaguer();
+    prune();
   },
 
   /** Vrai si la clé est connue, fraîche ou non. */
@@ -86,8 +86,8 @@ export const dataCache = {
   },
 
   /** Après une écriture (tags, renommage, pochette, note) : les fiches se rechargeront. */
-  invalidateFiches(): void {
-    for (const key of [...cache.keys()]) if (!estListe(key)) cache.delete(key);
+  invalidateDetails(): void {
+    for (const key of [...cache.keys()]) if (!isList(key)) cache.delete(key);
   },
 
   /** Sert la fiche en cache tout de suite ; périmée, la relit et la repasse à `rafraichir`. */

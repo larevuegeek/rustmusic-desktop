@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { t, currentLocale } from "#lib/i18n";
-  import { tailleLisible } from "#lib/helper/tools/sizeTools";
+  import { readableSize } from "#lib/helper/tools/sizeTools";
   import { updaterState } from "#lib/stores/updater/updater.store";
   import {
     downloadAndInstall,
@@ -23,13 +23,13 @@
   let downloadedMB = $derived.by(() => {
     const s = $updaterState;
     if (s.kind !== "downloading") return "0";
-    return tailleLisible(s.downloaded, $currentLocale) || "0";
+    return readableSize(s.downloaded, $currentLocale) || "0";
   });
 
   let totalMB = $derived.by(() => {
     const s = $updaterState;
     if (s.kind !== "downloading" || !s.total) return null;
-    return tailleLisible(s.total, $currentLocale);
+    return readableSize(s.total, $currentLocale);
   });
 </script>
 

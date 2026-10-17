@@ -1,0 +1,67 @@
+# Manifeste Flatpak de RustMusic (Flathub). Construit depuis les sources, hors ligne :
+# dépendances npm et Cargo listées dans node-sources.json et cargo-sources.json
+# (générés par packaging/flatpak/generer-sources.sh, à chaque version).
+id: dev.rustmusic.RustMusic
+runtime: org.gnome.Platform
+# Version du runtime GNOME : prendre la plus récente encore suivie (le linter refuse une version en fin de vie).
+runtime-version: '50'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.node22
+command: rustmusic
+
+finish-args:
+  # Fenêtre et affichage accéléré (WebKitGTK).
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Lecture partagée par le serveur son (PipeWire ou PulseAudio).
+  - --socket=pulseaudio
+  # Serveur DLNA, lecteurs UPnP et AirPlay, télécommande d'ampli, MusicBrainz, paroles.
+  - --share=network
+  # Bibliothèques musicales : dossier Musique et disques externes, en écriture pour les tags.
+  - --filesystem=xdg-music
+  - --filesystem=/media
+  - --filesystem=/run/media
+  - --filesystem=/mnt
+  # Contrôles média du bureau (MPRIS) et notifications de changement de morceau.
+  - --own-name=org.mpris.MediaPlayer2.rustmusic
+  - --talk-name=org.freedesktop.Notifications
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node22/bin
+
+modules:
+  - name: rustmusic
+    buildsystem: simple
+    build-options:
+      env:
+        CARGO_HOME: /run/build/rustmusic/cargo
+        XDG_CACHE_HOME: /run/build/rustmusic/flatpak-node/cache
+        npm_config_cache: /run/build/rustmusic/flatpak-node/npm-cache
+        npm_config_nodedir: /usr/lib/sdk/node22
+        npm_config_offline: 'true'
+    build-commands:
+      # Interface (SvelteKit) : produit build/, embarqué dans le binaire à la compilation.
+      - npm ci --offline
+      - npm run build
+      # Moteur (Rust). `tauri/custom-protocol` : l'interface embarquée, pas le serveur de développement.
+      - cargo --offline build --release --features tauri/custom-protocol --manifest-path src-tauri/Cargo.toml
+      - install -Dm755 src-tauri/target/release/rustmusic /app/bin/rustmusic
+      - install -Dm644 packaging/flatpak/dev.rustmusic.RustMusic.desktop /app/share/applications/dev.rustmusic.RustMusic.desktop
+      - install -Dm644 packaging/flatpak/dev.rustmusic.RustMusic.metainfo.xml /app/share/metainfo/dev.rustmusic.RustMusic.metainfo.xml
+      - install -Dm644 src-tauri/icons/icon-source.svg /app/share/icons/hicolor/scalable/apps/dev.rustmusic.RustMusic.svg
+      - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/dev.rustmusic.RustMusic.png
+      - install -Dm644 src-tauri/icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/dev.rustmusic.RustMusic.png
+      - install -Dm644 src-tauri/icons/icon.png /app/share/icons/hicolor/512x512/apps/dev.rustmusic.RustMusic.png
+    sources:
+      # Pour Flathub : la version publiée (tag + commit). Pour un essai, construire-local.sh
+      # remplace cette source par le dossier de travail.
+      - type: git
+        url: https://github.com/larevuegeek/rustmusic-desktop.git
+        tag: v0.3.1
+        commit: COMMIT_DU_TAG_V0.3.1
+      - node-sources.json
+      - cargo-sources.json

@@ -8,9 +8,9 @@ import { t } from "#lib/i18n";
 import { libraryHeader } from "#lib/stores/library/libraryHeader";
 import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
 import { playlistStore } from "#lib/stores/playlist/playlist.store";
-import { renouveler } from "#lib/stores/mix/mix.store";
-import { mixPourVous, mixGenres, mixDecennies, mixCrees, type SpecMix } from "#lib/config/mixes";
-import { actionsMix, nouveauMix } from "#lib/actions/mix/MixAction";
+import { renew } from "#lib/stores/mix/mix.store";
+import { mixesForYou, mixGenres, decadeMixes, createdMixes, type SpecMix } from "#lib/config/mixes";
+import { actionsMix, newMix } from "#lib/actions/mix/MixAction";
 import LibraryImportingLoader from "#lib/components/library/common/loader/LibraryImportingLoader.svelte";
 import { importAffiche } from "#lib/stores/library/importProgress.store";
 import ToolbarButton from "#lib/components/ui/button/ToolbarButton.svelte";
@@ -36,17 +36,17 @@ $effect(() => {
   return () => { perime = true; };
 });
 
-const pourVous = $derived(mixPourVous(genres, hires, $t));
-const perso = $derived(mixCrees($playlistStore.playlists, $t));
+const pourVous = $derived(mixesForYou(genres, hires, $t));
+const perso = $derived(createdMixes($playlistStore.playlists, $t));
 // Les genres déjà mis en avant ne reviennent pas plus bas.
 const parGenre = $derived(mixGenres(genres, $t).filter((m) => !pourVous.some((p) => p.cle === m.cle)));
-const decennies = $derived(mixDecennies($libraryContentStore.albums, $t).reverse());
+const decennies = $derived(decadeMixes($libraryContentStore.albums, $t).reverse());
 
 const total = $derived(pourVous.length + perso.length + parGenre.length + decennies.length);
 $effect(() => {
   const [n, p] = [total, perso.length];
   libraryHeader.update(() => ({
-    action: { cle: "mix_view.create", icone: "material-symbols:add-rounded", lancer: async () => nouveauMix() },
+    action: { cle: "mix_view.create", icone: "material-symbols:add-rounded", lancer: async () => newMix() },
     chiffres: [
       { n, un: "library_head.mixes_one", plusieurs: "library_head.mixes_n" },
       { n: p, un: "library_head.own_mixes_one", plusieurs: "library_head.own_mixes_n" },
@@ -89,7 +89,7 @@ const grille = "grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap
     <!-- ─── Outils ─── -->
     <div class="shrink-0 flex flex-wrap items-center gap-2.5 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
       <span class="flex-1 text-[13px] text-(--rg-mu)">{$t("mix_view.for_you_desc")}</span>
-      <ToolbarButton icon="material-symbols:refresh-rounded" label={$t("mix_view.redraw_all")} onclick={() => renouveler(libraryId)} />
+      <ToolbarButton icon="material-symbols:refresh-rounded" label={$t("mix_view.redraw_all")} onclick={() => renew(libraryId)} />
     </div>
 
     <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16">
@@ -111,7 +111,7 @@ const grille = "grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap
           <div class={grille}>
             {@render cartes(perso, "carre")}
             <!-- Créer : une carte vide à la place d'un mix. -->
-            <button type="button" onclick={nouveauMix}
+            <button type="button" onclick={newMix}
                     class="group min-w-0 flex flex-col gap-3 text-left cursor-pointer">
               <span class="aspect-square w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 px-5 text-center
                            border-(--rg-bd2) text-(--rg-mu) transition-colors group-hover:border-(--rg-g) group-hover:text-(--rg-gtx)">

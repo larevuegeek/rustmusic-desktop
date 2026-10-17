@@ -27,14 +27,14 @@
   let geste: { id: number; angle: number; cumul: number; tourne: boolean } | null = null;
   let tEclat: ReturnType<typeof setTimeout> | undefined;
 
-  function eclat(key: WheelKey) {
+  function flash(key: WheelKey) {
     appuye = key;
     clearTimeout(tEclat);
     tEclat = setTimeout(() => (appuye = null), 160);
   }
 
-  function presser(key: WheelKey) {
-    eclat(key);
+  function press(key: WheelKey) {
+    flash(key);
     onkey(key);
   }
 
@@ -52,13 +52,13 @@
     return "left";
   }
 
-  function debut(e: PointerEvent) {
+  function pointerDown(e: PointerEvent) {
     if (e.button !== 0) return;
     anneau!.setPointerCapture(e.pointerId);
     geste = { id: e.pointerId, angle: angleDe(e), cumul: 0, tourne: false };
   }
 
-  function suivre(e: PointerEvent) {
+  function pointerMove(e: PointerEvent) {
     if (!geste || e.pointerId !== geste.id) return;
     const a = angleDe(e);
     let d = a - geste.angle;
@@ -72,38 +72,38 @@
     while (Math.abs(geste.cumul) >= CRAN) {
       const bas = geste.cumul > 0;
       geste.cumul -= bas ? CRAN : -CRAN;
-      presser(bas ? "down" : "up");
+      press(bas ? "down" : "up");
     }
   }
 
-  function fin(e: PointerEvent) {
+  function pointerUp(e: PointerEvent) {
     if (!geste || e.pointerId !== geste.id) return;
-    if (!geste.tourne) presser(direction(angleDe(e)));
+    if (!geste.tourne) press(direction(angleDe(e)));
     geste = null;
     doigt = null;
   }
 
   // Molette de la souris : un pas par cran, sans faire défiler le panneau derrière.
-  function molette(el: HTMLElement) {
+  function wheelScroll(el: HTMLElement) {
     let reste = 0;
-    const roue = (e: WheelEvent) => {
+    const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       reste += e.deltaY;
       while (Math.abs(reste) >= 60) {
-        presser(reste > 0 ? "down" : "up");
+        press(reste > 0 ? "down" : "up");
         reste -= Math.sign(reste) * 60;
       }
     };
-    el.addEventListener("wheel", roue, { passive: false });
-    return () => el.removeEventListener("wheel", roue);
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
   }
 
-  function clavier(e: KeyboardEvent) {
+  function handleKey(e: KeyboardEvent) {
     const touches: Record<string, WheelKey> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "enter", " ": "enter" };
     const key = touches[e.key];
     if (!key) return;
     e.preventDefault();
-    presser(key);
+    press(key);
   }
 
   const FLECHES: [WheelKey, string, string][] = [
@@ -116,18 +116,18 @@
 
 <div
   bind:this={anneau}
-  {@attach molette}
+  {@attach wheelScroll}
   class="molette relative shrink-0 rounded-full cursor-pointer select-none touch-none outline-none"
   style="width: {size}px; height: {size}px"
   role="slider"
   tabindex="0"
   aria-label={labels.wheel}
   aria-valuenow={0}
-  onpointerdown={debut}
-  onpointermove={suivre}
-  onpointerup={fin}
-  onpointercancel={fin}
-  onkeydown={clavier}
+  onpointerdown={pointerDown}
+  onpointermove={pointerMove}
+  onpointerup={pointerUp}
+  onpointercancel={pointerUp}
+  onkeydown={handleKey}
 >
   {#each FLECHES as [key, icone, place] (key)}
     <span aria-hidden="true"
@@ -147,7 +147,7 @@
     style="width: {Math.round(size * 0.4)}px; height: {Math.round(size * 0.4)}px"
     aria-label={labels.ok}
     onpointerdown={(e) => e.stopPropagation()}
-    onclick={() => presser("enter")}
+    onclick={() => press("enter")}
   >OK</button>
   <span class="sr-only">{labels.up}, {labels.down}, {labels.left}, {labels.right}</span>
 </div>

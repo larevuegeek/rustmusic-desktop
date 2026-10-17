@@ -15,10 +15,10 @@
   import { toasts } from "#lib/stores/ui/toast.store";
   import { canWriteTags } from "#lib/services/tags/tagEditor.service";
   import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
-  import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
-  import { tailleLisible } from "#lib/helper/tools/sizeTools";
+  import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
+  import { readableSize } from "#lib/helper/tools/sizeTools";
   import { ilYA } from "#lib/helper/tools/dateTools";
-  import { cleTri } from "#lib/helper/library/cleTri";
+  import { sortKey } from "#lib/helper/library/sortKey";
   import LibraryImportingLoader from "#lib/components/library/common/loader/LibraryImportingLoader.svelte";
   import { importAffiche, importsTermines } from "#lib/stores/library/importProgress.store";
   import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
@@ -26,7 +26,7 @@
   import SelectionToggle from "#lib/components/ui/selection/SelectionToggle.svelte";
   import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
   import { selectionStore } from "#lib/stores/ui/selection.store";
-  import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+  import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 
   type DirEntry = {
     name: string; path: string; is_dir: boolean; size: number; extension: string | null;
@@ -92,33 +92,33 @@
 
   // ─── Sélection : un fichier est une piste, un dossier apporte toutes les siennes ───
   const selection = $derived($selectionStore);
-  const idFichier = (e: DirEntry) => e.track_id ?? e.path;
-  const commePiste = (e: DirEntry) => ({ id: idFichier(e), path: e.path, title: e.title ?? e.name, artist: e.artist, duration: e.duration, thumbnail_path: e.thumbnail_path });
-  const cocheEntree = (e: DirEntry) => (e.is_dir ? selection.groupes.has(cleGroupe("path", libraryId, e.path)) : selection.ids.has(idFichier(e)));
-  const cocheRacine = (d: LibraryDir) => selection.groupes.has(cleGroupe("folder", libraryId, d.id));
+  const fileId = (e: DirEntry) => e.track_id ?? e.path;
+  const asTrack = (e: DirEntry) => ({ id: fileId(e), path: e.path, title: e.title ?? e.name, artist: e.artist, duration: e.duration, thumbnail_path: e.thumbnail_path });
+  const isEntryChecked = (e: DirEntry) => (e.is_dir ? selection.groupes.has(groupKey("path", libraryId, e.path)) : selection.ids.has(fileId(e)));
+  const isRootChecked = (d: LibraryDir) => selection.groupes.has(groupKey("folder", libraryId, d.id));
 
   // Maj + clic : la plage suit l'ordre affiché des fichiers.
   $effect(() => {
-    selectionStore.setOrder(visibles.filter((e) => !e.is_dir).map((e) => ({ id: idFichier(e), track: commePiste(e) })));
+    selectionStore.setOrder(visibles.filter((e) => !e.is_dir).map((e) => ({ id: fileId(e), track: asTrack(e) })));
   });
 
-  function ouvrirEntree(entry: DirEntry, e: MouseEvent) {
-    if (!selection.active) return entry.is_dir ? navigateTo(entry.path, entry.name) : lireFichier(entry);
+  function openEntry(entry: DirEntry, e: MouseEvent) {
+    if (!selection.active) return entry.is_dir ? navigateTo(entry.path, entry.name) : playFile(entry);
     if (entry.is_dir) toggleGroupSelection("path", libraryId, entry.path);
-    else if (e.shiftKey) selectionStore.selectRange(idFichier(entry));
-    else selectionStore.toggle(idFichier(entry), commePiste(entry));
+    else if (e.shiftKey) selectionStore.selectRange(fileId(entry));
+    else selectionStore.toggle(fileId(entry), asTrack(entry));
   }
-  function ouvrirRacine(dir: LibraryDir) {
+  function openRoot(dir: LibraryDir) {
     if (selection.active) toggleGroupSelection("folder", libraryId, dir.id);
     else navigateTo(dir.path, dir.name);
   }
   const dirCount = $derived(entries.length - fichiers.length);
 
-  function lireFichier(entry: DirEntry) {
-    handlePlayTrack(entry.path, versFileDAttente(fichiers));
+  function playFile(entry: DirEntry) {
+    handlePlayTrack(entry.path, toQueue(fichiers));
   }
-  function lireDossier() {
-    if (fichiers.length) handlePlayTrack(fichiers[0].path, versFileDAttente(fichiers));
+  function playFolder() {
+    if (fichiers.length) handlePlayTrack(fichiers[0].path, toQueue(fichiers));
   }
 
   // Les fichiers du niveau affiché partent dans l'atelier de tags (pas les sous-dossiers).
@@ -161,7 +161,7 @@
     const q = recherche.trim().toLowerCase();
     const liste = rootDirs.filter((d) => !q || `${d.name} ${d.path}`.toLowerCase().includes(q));
     const f: Record<Tri, (a: LibraryDir, b: LibraryDir) => number> = {
-      name: (a, b) => comparer.compare(cleTri(a.name), cleTri(b.name)),
+      name: (a, b) => comparer.compare(sortKey(a.name), sortKey(b.name)),
       files: (a, b) => b.total_files - a.total_files,
       size: (a, b) => b.total_size - a.total_size,
       scan: (a, b) => String(b.last_scan_at ?? "").localeCompare(String(a.last_scan_at ?? "")),
@@ -190,13 +190,13 @@
   });
   onDestroy(() => libraryHeader.update((h) => ({ ...h, chiffres: null })));
 
-  const nombre = (n: number) => n.toLocaleString($currentLocale);
-  const nb = (n: number, un: string, plusieurs: string) => `${nombre(n)} ${$t(n === 1 ? un : plusieurs)}`;
+  const formatNumber = (n: number) => n.toLocaleString($currentLocale);
+  const nb = (n: number, un: string, plusieurs: string) => `${formatNumber(n)} ${$t(n === 1 ? un : plusieurs)}`;
   const ETATS: Record<string, { cle: string; classes: string }> = {
     scanning: { cle: "library_head.status_scanning", classes: "bg-(--rg-ambg) text-(--rg-am)" },
     error: { cle: "library_head.status_error", classes: "bg-red-500/10 text-red-600 dark:text-red-400" },
   };
-  const etatDe = (d: LibraryDir) => ETATS[d.scan_status] ?? { cle: "library_head.status_ok", classes: "bg-(--rg-g)/10 text-(--rg-gtx)" };
+  const statusOf = (d: LibraryDir) => ETATS[d.scan_status] ?? { cle: "library_head.status_ok", classes: "bg-(--rg-g)/10 text-(--rg-gtx)" };
 
   const bouton = "h-8.5 px-3 flex items-center gap-1.5 rounded-[10px] border text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) disabled:opacity-40";
   const tuileDossier = "shrink-0 rounded-xl flex items-center justify-center border";
@@ -218,10 +218,10 @@
     <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 pt-3 pb-2">
       <div class="flex flex-wrap items-center gap-2.5">
         <SearchField bind:value={recherche} class="w-65 @max-4xl:flex-1 @max-4xl:w-auto min-w-36" clearLabel={$t("folders_view.clear")}
-                     placeholder={isRoot ? $t("folders_view.filter_dirs").replace("{n}", nombre(rootDirs.length)) : $t("folders_view.filter_entries")} />
+                     placeholder={isRoot ? $t("folders_view.filter_dirs").replace("{n}", formatNumber(rootDirs.length)) : $t("folders_view.filter_entries")} />
 
         {#if !isRoot && fichiers.length > 0}
-          <button type="button" class={bouton} onclick={lireDossier}>
+          <button type="button" class={bouton} onclick={playFolder}>
             <Icon icon="material-symbols:play-arrow-rounded" width="18" class="text-(--rg-g)" /><span class="@max-2xl:hidden">{$t("folders_view.play_folder")}</span>
           </button>
           <button type="button" class={bouton} onclick={openWorkshop} disabled={openingWorkshop} title={$t("workshop.fix_tags")}>
@@ -289,19 +289,19 @@
             <!-- Racines en liste : nom et chemin, fichiers, poids, dernier scan. -->
             <div class="flex flex-col pt-2">
               {#each racines as dir (dir.id)}
-                {@const etat = etatDe(dir)}
+                {@const etat = statusOf(dir)}
                 <button type="button"
                         class="group relative grid grid-cols-[48px_minmax(0,1fr)_100px_90px_150px_40px] max-[900px]:grid-cols-[48px_minmax(0,1fr)_90px_40px] items-center gap-4 py-2 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors
-                               {cocheRacine(dir) ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-carte)'}
+                               {isRootChecked(dir) ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-carte)'}
                                before:absolute before:left-18 before:right-3 before:top-0 before:h-px [button+&]:before:bg-(--rg-line) hover:before:opacity-0 [&:hover+button]:before:opacity-0"
-                        onclick={() => ouvrirRacine(dir)}>
-                  {@render icone(true, "w-12 h-12", 22, selection.active ? cocheRacine(dir) : null)}
+                        onclick={() => openRoot(dir)}>
+                  {@render icone(true, "w-12 h-12", 22, selection.active ? isRootChecked(dir) : null)}
                   <span class="min-w-0">
                     <span class="block truncate text-base font-semibold text-(--rg-tx)">{dir.name}</span>
                     <span class="block mt-0.5 truncate font-mono text-xs text-(--rg-mu)" title={dir.path}>{dir.path}</span>
                   </span>
-                  <span class="text-right text-[13px] tabular-nums text-(--rg-mu)"><b class="font-medium text-(--rg-tx2)">{nombre(dir.total_files)}</b> {$t(dir.total_files === 1 ? "library_head.files_one" : "library_head.files_n")}</span>
-                  <span class="text-right text-[13px] tabular-nums text-(--rg-mu) max-[900px]:hidden">{tailleLisible(dir.total_size, $currentLocale)}</span>
+                  <span class="text-right text-[13px] tabular-nums text-(--rg-mu)"><b class="font-medium text-(--rg-tx2)">{formatNumber(dir.total_files)}</b> {$t(dir.total_files === 1 ? "library_head.files_one" : "library_head.files_n")}</span>
+                  <span class="text-right text-[13px] tabular-nums text-(--rg-mu) max-[900px]:hidden">{readableSize(dir.total_size, $currentLocale)}</span>
                   <span class="flex justify-end max-[900px]:hidden">
                     <span class="flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap {etat.classes}">
                       <span class="w-1.5 h-1.5 rounded-full bg-current"></span>{dir.last_scan_at ? ilYA(dir.last_scan_at, $currentLocale, "short") : $t(etat.cle)}
@@ -315,13 +315,13 @@
             <!-- Racines en cartes : de quoi reconnaître un dossier sans l'ouvrir. -->
             <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4 pt-3">
               {#each racines as dir (dir.id)}
-                {@const etat = etatDe(dir)}
+                {@const etat = statusOf(dir)}
                 <button type="button"
                         class="group flex flex-col gap-3.5 p-4 rounded-2xl border text-left cursor-pointer transition-colors
-                               {cocheRacine(dir) ? 'bg-(--rg-creux-on) border-(--rg-g)' : 'bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)'}"
-                        onclick={() => ouvrirRacine(dir)}>
+                               {isRootChecked(dir) ? 'bg-(--rg-creux-on) border-(--rg-g)' : 'bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)'}"
+                        onclick={() => openRoot(dir)}>
                   <span class="flex items-start justify-between gap-3">
-                    {@render icone(true, "w-12 h-12", 24, selection.active ? cocheRacine(dir) : null)}
+                    {@render icone(true, "w-12 h-12", 24, selection.active ? isRootChecked(dir) : null)}
                     <span class="flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap {etat.classes}">
                       <span class="w-1.5 h-1.5 rounded-full bg-current"></span>{$t(etat.cle)}
                     </span>
@@ -331,8 +331,8 @@
                     <span class="block mt-0.5 truncate font-mono text-[11px] text-(--rg-mu)" title={dir.path}>{dir.path}</span>
                   </span>
                   <span class="flex items-center gap-1.5 text-[13px] text-(--rg-mu) whitespace-nowrap">
-                    <span><b class="font-semibold text-(--rg-tx2)">{nombre(dir.total_files)}</b> {$t(dir.total_files === 1 ? "library_head.files_one" : "library_head.files_n")}</span>
-                    {#if dir.total_size}<span>· {tailleLisible(dir.total_size, $currentLocale)}</span>{/if}
+                    <span><b class="font-semibold text-(--rg-tx2)">{formatNumber(dir.total_files)}</b> {$t(dir.total_files === 1 ? "library_head.files_one" : "library_head.files_n")}</span>
+                    {#if dir.total_size}<span>· {readableSize(dir.total_size, $currentLocale)}</span>{/if}
                     {#if dir.last_scan_at}<span class="ml-auto font-mono text-[11px] text-(--rg-mu2)">{ilYA(dir.last_scan_at, $currentLocale, "short")}</span>{/if}
                   </span>
                 </button>
@@ -355,14 +355,14 @@
             {#each visibles as entry (entry.path)}
               <button type="button"
                       class="group flex flex-col items-center gap-2.5 p-4 rounded-2xl border text-center cursor-pointer transition-colors
-                             {cocheEntree(entry) ? 'bg-(--rg-creux-on) border-(--rg-g)' : 'bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)'}"
-                      onclick={(e) => ouvrirEntree(entry, e)}
+                             {isEntryChecked(entry) ? 'bg-(--rg-creux-on) border-(--rg-g)' : 'bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)'}"
+                      onclick={(e) => openEntry(entry, e)}
                       oncontextmenu={(e) => { if (!entry.is_dir) { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, entry }; } }}>
-                {@render icone(entry.is_dir, "w-14 h-14", 26, selection.active ? cocheEntree(entry) : null)}
+                {@render icone(entry.is_dir, "w-14 h-14", 26, selection.active ? isEntryChecked(entry) : null)}
                 <span class="w-full min-w-0">
                   <span class="block truncate text-sm font-semibold text-(--rg-tx)" title={entry.name}>{entry.name}</span>
                   <span class="block mt-0.5 text-[11px] text-(--rg-mu)">
-                    {#if entry.is_dir}{$t("library_head.folders_one")}{:else}<span class="uppercase tracking-wide">{entry.extension ?? $t("folders_view.audio")}</span>{#if entry.size > 0}{" · "}{tailleLisible(entry.size, $currentLocale)}{/if}{/if}
+                    {#if entry.is_dir}{$t("library_head.folders_one")}{:else}<span class="uppercase tracking-wide">{entry.extension ?? $t("folders_view.audio")}</span>{#if entry.size > 0}{" · "}{readableSize(entry.size, $currentLocale)}{/if}{/if}
                   </span>
                 </span>
               </button>
@@ -375,18 +375,18 @@
             {#each visibles as entry (entry.path)}
               <button type="button"
                       class="group relative grid grid-cols-[40px_minmax(0,1fr)_70px_90px_40px] items-center gap-4 py-1.5 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors
-                             {cocheEntree(entry) ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-carte)'}
+                             {isEntryChecked(entry) ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-carte)'}
                              before:absolute before:left-16 before:right-3 before:top-0 before:h-px [button+&]:before:bg-(--rg-line) hover:before:opacity-0 [&:hover+button]:before:opacity-0"
-                      onclick={(e) => ouvrirEntree(entry, e)}
+                      onclick={(e) => openEntry(entry, e)}
                       oncontextmenu={(e) => { if (!entry.is_dir) { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, entry }; } }}>
-                {@render icone(entry.is_dir, "w-10 h-10", 19, selection.active ? cocheEntree(entry) : null)}
+                {@render icone(entry.is_dir, "w-10 h-10", 19, selection.active ? isEntryChecked(entry) : null)}
                 <span class="min-w-0 truncate text-sm {entry.is_dir ? 'font-semibold text-(--rg-tx)' : 'text-(--rg-tx2)'}" title={entry.name}>{entry.name}</span>
                 <span class="justify-self-end">
                   {#if entry.extension}
                     <span class="px-1.5 py-0.5 rounded-[5px] border text-[10px] font-bold uppercase tracking-[0.06em] bg-(--rg-s2) border-(--rg-bd) text-(--rg-mu)">{entry.extension}</span>
                   {/if}
                 </span>
-                <span class="text-right text-[13px] tabular-nums text-(--rg-mu)">{!entry.is_dir && entry.size > 0 ? tailleLisible(entry.size, $currentLocale) : ""}</span>
+                <span class="text-right text-[13px] tabular-nums text-(--rg-mu)">{!entry.is_dir && entry.size > 0 ? readableSize(entry.size, $currentLocale) : ""}</span>
                 <span class="justify-self-end flex items-center justify-center w-8 h-8 rounded-full
                              {entry.is_dir ? 'text-(--rg-mu2) group-hover:text-(--rg-tx2)' : 'opacity-0 group-hover:opacity-100 bg-(--rg-g) text-(--rg-on-g)'}"
                       title={entry.is_dir ? $t("folders_view.open") : $t("folders_view.play")}>

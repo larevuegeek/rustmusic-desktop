@@ -31,7 +31,7 @@
     <div class="space-y-4">
       <h3 class="text-[11px] font-bold uppercase tracking-[0.12em] text-(--rg-mu)">{$t("feedback.contact")}</h3>
 
-      <!-- Ouvert dans la messagerie du système (voir liensExternes). -->
+      <!-- Ouvert dans la messagerie du système (voir externalLinks). -->
       <a href="mailto:contact@rustmusic.dev"
          class="group flex items-center gap-5 p-5 rounded-2xl border transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-gbd) hover:bg-(--rg-hover)">
         <div class="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center border bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">

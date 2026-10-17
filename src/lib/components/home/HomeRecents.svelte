@@ -3,18 +3,18 @@ import Icon from "@iconify/svelte";
 import { goto } from "$app/navigation";
 import { t, currentLocale } from "#lib/i18n";
 import { recent } from "#lib/stores/recent/recent.store";
-import { lecture } from "#lib/stores/player/lecture.store";
+import { lecture } from "#lib/stores/player/playback.store";
 import { liked } from "#lib/stores/playlist/like.store";
 import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
 import { handleRemoveRecentItem } from "#lib/actions/recent/RecentAction";
-import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
 import { mapRecentFile } from "#lib/mapper/recent/mapRecentFile";
-import { localiser, lienTitre, lienArtiste, lienAlbum, fileDeLAlbum, type TrackLocation } from "#lib/helper/library/trackLocation";
-import { grouperParAlbum } from "#lib/helper/recent/grouperParAlbum";
+import { locate, trackLink, artistLink, albumLink, fileDeLAlbum, type TrackLocation } from "#lib/helper/library/trackLocation";
+import { groupByAlbum } from "#lib/helper/recent/groupByAlbum";
 import { ilYA } from "#lib/helper/tools/dateTools";
-import { displayTitle, artistesLisibles } from "#lib/helper/tools/stringTools";
+import { displayTitle, readableArtists } from "#lib/helper/tools/stringTools";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
-import PochetteFloue from "#lib/components/ui/image/PochetteFloue.svelte";
+import BlurredCover from "#lib/components/ui/image/BlurredCover.svelte";
 import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
 
@@ -27,26 +27,26 @@ const historique = $derived.by(() => {
 
 const vedette = $derived(historique[0] ?? null);
 // Le premier album est celui de la vedette : la bande commence au suivant.
-const bande = $derived(grouperParAlbum(historique).slice(1, 6));
+const bande = $derived(groupByAlbum(historique).slice(1, 6));
 
 let lieux = $state(new Map<string, TrackLocation | null>());
 $effect(() => {
   const chemins = [vedette?.path, ...bande.map((a) => a.pistes[0].path)].filter(Boolean) as string[];
   let perime = false;
-  localiser(chemins).then((m) => { if (!perime) lieux = m; });
+  locate(chemins).then((m) => { if (!perime) lieux = m; });
   return () => { perime = true; };
 });
 
 let occupe = $state<string | null>(null);
 
 /** Joue dans son album quand il est en bibliothèque, sinon dans l'historique. */
-async function jouer(cle: string, path: string, depuisLeDebut = false) {
+async function play(cle: string, path: string, depuisLeDebut = false) {
   if (occupe) return;
   occupe = cle;
   try {
     const file = await fileDeLAlbum(path);
     if (depuisLeDebut && file?.length) await handlePlayTrack(file[0].path, file);
-    else await handlePlayTrack(path, file ?? versFileDAttente(historique));
+    else await handlePlayTrack(path, file ?? toQueue(historique));
   } finally {
     occupe = null;
   }
@@ -71,11 +71,11 @@ const STYLES = {
   },
 };
 
-const nbTitres = (n: number) => n === 1 ? $t('home.track_one') : $t('home.tracks_n').replace('{n}', String(n));
+const trackCount = (n: number) => n === 1 ? $t('home.track_one') : $t('home.tracks_n').replace('{n}', String(n));
 
 let menu = $state<{ x: number; y: number; track: RecentFileListView } | null>(null);
 
-function ouvrirMenu(e: MouseEvent, track: RecentFileListView) {
+function openMenu(e: MouseEvent, track: RecentFileListView) {
   e.preventDefault();
   menu = { x: e.clientX, y: e.clientY, track };
 }
@@ -114,18 +114,18 @@ function ouvrirMenu(e: MouseEvent, track: RecentFileListView) {
   <div class="grid grid-cols-1 @3xl:grid-cols-[340px_minmax(0,1fr)] @6xl:grid-cols-[400px_minmax(0,1fr)] gap-7 items-start">
 
     <!-- Le dernier morceau écouté -->
-    <div role="group" oncontextmenu={(e) => ouvrirMenu(e, vedette)}
+    <div role="group" oncontextmenu={(e) => openMenu(e, vedette)}
          class="recent-vedette relative overflow-hidden flex flex-col gap-4 p-5 rounded-2xl border min-w-0 {c.carte}">
       {#if vedette.thumbnail_path}
         <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <PochetteFloue path={vedette.thumbnail_path} saturation={1.8} flou={5} rayon={36}
+          <BlurredCover path={vedette.thumbnail_path} saturation={1.8} flou={5} rayon={36}
                          class="w-full h-full object-cover scale-125 opacity-95" />
         </div>
         <div class="vedette-voile absolute inset-0 pointer-events-none" aria-hidden="true"></div>
       {/if}
 
       <div class="relative flex items-center gap-4.5 min-w-0">
-        <button type="button" onclick={() => jouer('vedette', vedette.path)} aria-label={titre}
+        <button type="button" onclick={() => play('vedette', vedette.path)} aria-label={titre}
                 class="group relative w-30 h-30 rounded-[10px] overflow-hidden shrink-0 cursor-pointer
                        bg-neutral-200 dark:bg-neutral-800 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
           {#if vedette.thumbnail_path}
@@ -145,23 +145,23 @@ function ouvrirMenu(e: MouseEvent, track: RecentFileListView) {
           <span class="text-[12px] font-bold uppercase tracking-widest truncate {c.surtitre}">
             {$t('home.played_ago').replace('{ago}', ilYA(vedette.last_played_at, $currentLocale, "short"))}
           </span>
-          {@render lien(titre, lienTitre(lieu),
+          {@render lien(titre, trackLink(lieu),
             `text-[24px] font-extrabold tracking-[-0.01em] leading-[1.1] line-clamp-2 ${c.titre}`, c.survol)}
           <span class="text-[15px] truncate {c.sous}">
-            {@render lien(artistesLisibles(vedette.artist), lienArtiste(lieu), "", c.survol)}{#if vedette.artist && vedette.album}{" · "}{/if}{@render lien(vedette.album, lienAlbum(lieu), "", c.survol)}
+            {@render lien(readableArtists(vedette.artist), artistLink(lieu), "", c.survol)}{#if vedette.artist && vedette.album}{" · "}{/if}{@render lien(vedette.album, albumLink(lieu), "", c.survol)}
           </span>
         </div>
       </div>
 
       <div class="relative flex items-center gap-2.5 min-w-0">
-        <button type="button" onclick={() => jouer('vedette', vedette.path)} disabled={occupe !== null}
+        <button type="button" onclick={() => play('vedette', vedette.path)} disabled={occupe !== null}
                 class="h-11 px-5 rounded-full bg-accent-500 hover:bg-accent-400 text-(--rg-on-g) font-bold text-[15px]
                        flex items-center gap-2 shrink-0 whitespace-nowrap cursor-pointer transition-colors
                        disabled:opacity-60 disabled:cursor-wait">
           <Icon icon="mynaui:play-solid" width={18} /> {$t('home.replay')}
         </button>
-        {#if lienAlbum(lieu)}
-          <button type="button" onclick={() => jouer('vedette', vedette.path, true)} disabled={occupe !== null}
+        {#if albumLink(lieu)}
+          <button type="button" onclick={() => play('vedette', vedette.path, true)} disabled={occupe !== null}
                   class="h-11 px-4.5 rounded-full font-semibold text-[15px] min-w-0 cursor-pointer transition-colors
                          disabled:opacity-60 disabled:cursor-wait {c.boutonFond} {c.boutonTexte}">
             <span class="block truncate">{$t('library.play_album')}</span>
@@ -184,7 +184,7 @@ function ouvrirMenu(e: MouseEvent, track: RecentFileListView) {
           {@const lieuA = lieux.get(a.pistes[0].path) ?? null}
           <div role="listitem"
                class="flex-col gap-2 min-w-0 {visibilite[i] ?? 'flex'}">
-            <button type="button" onclick={() => jouer(a.cle, a.pistes[0].path)}
+            <button type="button" onclick={() => play(a.cle, a.pistes[0].path)}
                     title={$t('home.resume_album')} aria-label="{$t('home.resume_album')} : {a.album}"
                     class="group relative aspect-square rounded-[10px] overflow-hidden cursor-pointer
                            bg-neutral-200 dark:bg-neutral-800 shadow-[0_8px_24px_rgba(0,0,0,0.3)]
@@ -206,15 +206,15 @@ function ouvrirMenu(e: MouseEvent, track: RecentFileListView) {
               </span>
               <span class="absolute right-2 bottom-2 px-2 py-0.75 rounded-[10px] bg-black/70 text-white
                            text-[12px] font-semibold leading-tight">
-                {nbTitres(a.pistes.length)}
+                {trackCount(a.pistes.length)}
               </span>
             </button>
 
             <div class="flex flex-col min-w-0 px-0.5">
-              {@render lien(a.album, lienAlbum(lieuA),
+              {@render lien(a.album, albumLink(lieuA),
                 "text-[15px] font-semibold truncate text-neutral-900 dark:text-[#f2f5f3]", STYLES.uni.survol)}
               <span class="text-[13px] truncate text-neutral-500 dark:text-[#9aa39e]">
-                {@render lien(a.artiste, lienArtiste(lieuA), "", STYLES.uni.survol)}{#if a.artiste}{" · "}{/if}{ilYA(a.derniereEcoute, $currentLocale, "short")}
+                {@render lien(a.artiste, artistLink(lieuA), "", STYLES.uni.survol)}{#if a.artiste}{" · "}{/if}{ilYA(a.derniereEcoute, $currentLocale, "short")}
               </span>
             </div>
           </div>

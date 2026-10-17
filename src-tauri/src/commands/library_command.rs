@@ -30,7 +30,7 @@ use crate::repository::library::library_track_repository::{LibraryTrackRepositor
 use crate::mapper::library::artist::track_artist_view::TrackArtistView;
 use crate::repository::library::library_track_artist_repository::LibraryTrackArtistRepository;
 use crate::service::library::artist_link_repair::ArtistLinkReport;
-use crate::service::library::library_service::{IMPORT, LibrarySaveContext, RescanProgress, create_context, lister_fichiers, save_dir_to_library, save_files_to_library, save_track_to_library};
+use crate::service::library::library_service::{IMPORT, LibrarySaveContext, RescanProgress, create_context, list_files, save_dir_to_library, save_files_to_library, save_track_to_library};
 use crate::{state::AppState};
 use crate::mapper::library::track::track_list_item_view::TrackListView;
 
@@ -174,13 +174,13 @@ pub async fn rescan_library(
     // Tout est listé d'abord : la progression porte sur la bibliothèque entière.
     let mut lots: Vec<_> = Vec::with_capacity(dirs.len());
     for dir in dirs {
-        let Some(files) = lister_fichiers(&app, library_id, &dir.path).await else { break };
+        let Some(files) = list_files(&app, library_id, &dir.path).await else { break };
         lots.push((dir, files));
     }
 
     let total: usize = lots.iter().map(|(_, files)| files.len()).sum();
     let mut progression = RescanProgress::new(library_id, total);
-    progression.emettre(&app);
+    progression.emit_progress(&app);
 
     let mut all_tracks: Vec<TrackListView> = Vec::new();
 
@@ -366,7 +366,7 @@ pub async fn list_directory(
 
     // Titre, artiste, durée et pochette connus de la bibliothèque : la file d'attente en hérite.
     let chemins: Vec<String> = entries.iter().filter(|e| !e.is_dir).map(|e| e.path.clone()).collect();
-    let mut fiches = LibraryTrackRepository::find_fiches_by_paths(&state.pool, Some(library_id), &chemins).await;
+    let mut fiches = LibraryTrackRepository::find_entries_by_paths(&state.pool, Some(library_id), &chemins).await;
     for e in entries.iter_mut().filter(|e| !e.is_dir) {
         if let Some(f) = fiches.remove(&e.path) {
             e.title = f.title;
@@ -617,7 +617,7 @@ pub async fn get_libraries(
     profil_id: i64
 ) -> Result<Vec<Library>, String> {
 
-    let libraries: Vec<Library> = match LibraryRepository::find_libraries_by_profil_id(&state.pool, profil_id).await {
+    let libraries: Vec<Library> = match LibraryRepository::find_libraries_by_profile_id(&state.pool, profil_id).await {
         Ok(libraries) => libraries,
         Err(e) => return Err(format!("Failed to get libraries : {}", e))
     };
@@ -998,7 +998,7 @@ pub async fn get_similar_artists(
         .map_err(|e| format!("Failed to get similar artists: {}", e))
 }
 
-fn dossier_portraits() -> PathBuf {
+fn portraits_dir() -> PathBuf {
     let mut dossier = dirs::data_dir().unwrap_or_default();
     dossier.push("com.larevuegeek.rustmusic");
     dossier.push("covers");
@@ -1059,7 +1059,7 @@ pub async fn fetch_artist_image(
     // Téléchargement raté : rien d'enregistré, la prochaine visite réessaiera.
     let Some(octets) = download(&client, &image).await else { return Ok(None) };
     let nom = format!("artist_{}.jpg", artist_id.replace('-', ""));
-    let chemin = save_artist_image(&dossier_portraits(), &nom, &octets)?;
+    let chemin = save_artist_image(&portraits_dir(), &nom, &octets)?;
     ArtistRepository::update_image_url(&state.pool, &artist_id, &chemin)
         .await
         .map_err(|e| format!("Failed to update artist image: {}", e))?;
@@ -1091,7 +1091,7 @@ pub async fn fetch_all_artist_images(
     }
 
     let client = client_deezer(5)?;
-    let dossier = dossier_portraits();
+    let dossier = portraits_dir();
     let mut found: u32 = 0;
     let mut erreurs: u32 = 0;
 
@@ -1258,7 +1258,7 @@ pub async fn apply_deezer_cover(
     Ok(saved_path)
 }
 
-fn dossier_covers() -> PathBuf {
+fn covers_root() -> PathBuf {
     let mut dossier = dirs::data_dir().unwrap_or_default();
     dossier.push("com.larevuegeek.rustmusic");
     dossier.push("covers");
@@ -1290,7 +1290,7 @@ pub async fn fetch_album_cover(
         }
     };
     let Some(octets) = download(&client, &image).await else { return Ok(None) };
-    let chemin = crate::helper::library::thumbnail_helper::thumbnail_saver(&dossier_covers(), &octets, false)?;
+    let chemin = crate::helper::library::thumbnail_helper::thumbnail_saver(&covers_root(), &octets, false)?;
     LibraryAlbumRepository::update_cover_url_by_id(&state.pool, &album_id, &chemin)
         .await
         .map_err(|e| format!("Failed to update album cover: {}", e))?;
@@ -1315,7 +1315,7 @@ pub async fn fetch_all_album_covers(
     }
 
     let client = client_deezer(5)?;
-    let dossier = dossier_covers();
+    let dossier = covers_root();
     let mut found: u32 = 0;
     let mut erreurs: u32 = 0;
 
@@ -1410,13 +1410,13 @@ pub async fn clean_image_cache(state: State<'_, AppState>) -> Result<BilanNettoy
         return Err("Aucune image référencée : nettoyage annulé par prudence".into());
     }
 
-    let racine = dossier_covers();
-    tokio::task::spawn_blocking(move || balayer_images(&racine, &cites))
+    let racine = covers_root();
+    tokio::task::spawn_blocking(move || sweep_images(&racine, &cites))
         .await
         .map_err(|e| e.to_string())
 }
 
-fn balayer_images(racine: &std::path::Path, cites: &std::collections::HashSet<String>) -> BilanNettoyage {
+fn sweep_images(racine: &std::path::Path, cites: &std::collections::HashSet<String>) -> BilanNettoyage {
     let mut bilan = BilanNettoyage { supprimes: 0, alleges: 0, liberes: 0 };
     let recent = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
     for base in [racine.join("albums"), racine.join("albums").join("albums"), racine.join("artists")] {
@@ -1522,7 +1522,7 @@ pub async fn get_library_tag_keys(
                     }
                 }
                 _ => {
-                    if est_renseigne(val) {
+                    if is_filled(val) {
                         *effectifs.entry(cle.clone()).or_insert(0) += 1;
                     }
                 }
@@ -1543,7 +1543,7 @@ pub async fn get_library_tag_keys(
 }
 
 /// Un tag vaut d'être proposé s'il porte autre chose que du vide.
-fn est_renseigne(val: &serde_json::Value) -> bool {
+fn is_filled(val: &serde_json::Value) -> bool {
     match val {
         serde_json::Value::Null => false,
         serde_json::Value::String(s) => !s.trim().is_empty(),
@@ -1605,7 +1605,7 @@ pub struct GenreMix {
 /// Les genres qui font un vrai mix (assez d'artistes et de titres), les plus fournis d'abord.
 #[tauri::command]
 pub async fn get_mix_genres(state: State<'_, AppState>, library_id: i64) -> Result<Vec<GenreMix>, String> {
-    use crate::core::variete::{MIN_ARTISTES, MIN_TITRES};
+    use crate::core::mix_variety::{MIN_ARTISTES, MIN_TITRES};
     let lignes = sqlx::query_as::<_, (String, i64, i64)>(
         "SELECT lc.genre, COUNT(*) n, COUNT(DISTINCT lt.artist_id) FROM library_tracks lt
          JOIN library_cache lc ON lc.id = lt.cache_id
@@ -1694,14 +1694,14 @@ mod tests_tri {
     use super::resolve_sort;
 
     #[test]
-    fn une_colonne_connue_donne_son_expression_sans_liaison() {
+    fn a_known_column_gives_its_expression_without_binding() {
         let (expr, bind) = resolve_sort(Some("duration"));
         assert_eq!(expr, "lt.duration");
         assert!(bind.is_none());
     }
 
     #[test]
-    fn une_cle_inconnue_retombe_sur_l_ordre_naturel() {
+    fn an_unknown_key_falls_back_to_natural_order() {
         // Le point important n'est pas la valeur rendue mais qu'aucune clé
         // étrangère ne puisse atteindre le SQL : tout ce qui n'est pas prévu
         // donne la même expression close.
@@ -1714,21 +1714,21 @@ mod tests_tri {
     }
 
     #[test]
-    fn un_champ_nomme_part_en_chemin_lie() {
+    fn a_named_field_goes_out_as_a_bound_path() {
         let (expr, bind) = resolve_sort(Some("tag:composer"));
         assert_eq!(expr, "json_extract(lt.tags, ?) COLLATE NOCASE");
         assert_eq!(bind.as_deref(), Some("$.composer"));
     }
 
     #[test]
-    fn un_tag_libre_part_en_valeur_liee() {
+    fn a_free_tag_goes_out_as_a_bound_value() {
         let (expr, bind) = resolve_sort(Some("tag:custom:Label"));
         assert!(expr.contains("json_each"), "expression : {expr}");
         assert_eq!(bind.as_deref(), Some("Label"));
     }
 
     #[test]
-    fn le_nom_d_un_tag_ne_rejoint_jamais_le_texte_de_la_requete() {
+    fn a_tag_name_never_joins_the_query_text() {
         // Un fichier de la bibliothèque peut porter n'importe quel nom de tag,
         // y compris hostile. L'expression rendue ne doit jamais le contenir :
         // il ne circule que comme valeur liée, que le moteur ne réinterprète

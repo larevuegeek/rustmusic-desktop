@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn motif_simple() {
+    fn simple_pattern() {
         let tokens = parse("{artist} - {title}").unwrap();
         let out = render(&tokens, &values(&[("artist", "Calogero"), ("title", "Avant toi")]));
         assert_eq!(out.text, "Calogero - Avant toi");
@@ -332,14 +332,14 @@ mod tests {
     }
 
     #[test]
-    fn complement_par_des_zeros() {
+    fn zero_padding() {
         let tokens = parse("{track:02} - {title}").unwrap();
         let out = render(&tokens, &values(&[("track", "7"), ("title", "Flou")]));
         assert_eq!(out.text, "07 - Flou");
     }
 
     #[test]
-    fn le_complement_ne_tronque_jamais() {
+    fn padding_never_truncates() {
         // 143 sur deux chiffres reste 143 : perdre le 1 désignerait un autre
         // fichier.
         let tokens = parse("{track:02}").unwrap();
@@ -347,13 +347,13 @@ mod tests {
     }
 
     #[test]
-    fn on_ne_complete_pas_ce_qui_n_est_pas_un_nombre() {
+    fn non_numbers_are_not_padded() {
         let tokens = parse("{title:03}").unwrap();
         assert_eq!(render(&tokens, &values(&[("title", "Live")])).text, "Live");
     }
 
     #[test]
-    fn repli_sur_le_premier_champ_renseigne() {
+    fn falls_back_to_the_first_filled_field() {
         let tokens = parse("{albumartist|artist}").unwrap();
         assert_eq!(
             render(&tokens, &values(&[("artist", "Angèle")])).text,
@@ -366,21 +366,21 @@ mod tests {
     }
 
     #[test]
-    fn un_champ_vide_compte_comme_absent() {
+    fn an_empty_field_counts_as_absent() {
         let tokens = parse("{albumartist|artist}").unwrap();
         let out = render(&tokens, &values(&[("albumartist", "   "), ("artist", "Angèle")]));
         assert_eq!(out.text, "Angèle");
     }
 
     #[test]
-    fn groupe_optionnel_present() {
+    fn present_optional_group() {
         let tokens = parse("[{disc}-]{track:02}").unwrap();
         let out = render(&tokens, &values(&[("disc", "2"), ("track", "7")]));
         assert_eq!(out.text, "2-07");
     }
 
     #[test]
-    fn groupe_optionnel_absent_emporte_son_texte() {
+    fn absent_optional_group_drops_its_text() {
         // C'est tout l'intérêt des crochets : pas de « -07 » orphelin.
         let tokens = parse("[{disc}-]{track:02}").unwrap();
         let out = render(&tokens, &values(&[("track", "7")]));
@@ -389,7 +389,7 @@ mod tests {
     }
 
     #[test]
-    fn un_champ_manquant_hors_groupe_est_signale() {
+    fn a_missing_field_outside_a_group_is_reported() {
         let tokens = parse("{album} ({year})").unwrap();
         let out = render(&tokens, &values(&[("album", "Brol")]));
         assert_eq!(out.missing, vec!["year"]);
@@ -398,7 +398,7 @@ mod tests {
     }
 
     #[test]
-    fn motif_complet_d_arborescence() {
+    fn full_tree_pattern() {
         let tokens =
             parse("{albumartist|artist}/{album} ({year})/[{disc}-]{track:02} - {title}.{ext}")
                 .unwrap();
@@ -417,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn champ_inconnu() {
+    fn unknown_field() {
         assert_eq!(
             parse("{artiste}"),
             Err(PatternError::UnknownField("artiste".into()))
@@ -425,27 +425,27 @@ mod tests {
     }
 
     #[test]
-    fn accolade_non_fermee() {
+    fn unclosed_brace() {
         assert_eq!(parse("{artist"), Err(PatternError::UnclosedField));
     }
 
     #[test]
-    fn crochet_non_ferme() {
+    fn unclosed_bracket() {
         assert_eq!(parse("[{disc}-"), Err(PatternError::UnclosedGroup));
     }
 
     #[test]
-    fn crochet_fermant_orphelin() {
+    fn orphan_closing_bracket() {
         assert_eq!(parse("{disc}]"), Err(PatternError::UnexpectedGroupEnd));
     }
 
     #[test]
-    fn groupe_sans_champ() {
+    fn group_without_field() {
         assert_eq!(parse("[texte]"), Err(PatternError::GroupWithoutField));
     }
 
     #[test]
-    fn complement_invalide() {
+    fn invalid_padding() {
         assert_eq!(
             parse("{track:xx}"),
             Err(PatternError::InvalidPad("xx".into()))
@@ -453,7 +453,7 @@ mod tests {
     }
 
     #[test]
-    fn champs_cites() {
+    fn cited_fields() {
         let tokens = parse("{albumartist|artist}/{album}/[{disc}-]{track:02}").unwrap();
         assert_eq!(
             referenced_fields(&tokens),

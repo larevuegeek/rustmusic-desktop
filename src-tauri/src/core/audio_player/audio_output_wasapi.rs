@@ -20,7 +20,7 @@
 
 #![cfg(target_os = "windows")]
 
-use crate::core::audio_player::output::echantillons;
+use crate::core::audio_player::output::samples;
 use crate::core::audio_player::output::dop_engine::{DopRenderCtl, PRECHAUFFAGE_S};
 use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
@@ -532,15 +532,15 @@ pub struct WasapiSymphoniaState {
 
 /// Lecture d'une piste dans l'anneau du décodeur (le type concret varie selon l'appelant).
 pub trait SourcePcm: Send {
-    fn lire(&mut self, sortie: &mut [f32]) -> usize;
-    fn vider(&mut self);
+    fn read(&mut self, sortie: &mut [f32]) -> usize;
+    fn clear(&mut self);
 }
 
 impl<C: Consumer<Item = f32> + Send> SourcePcm for C {
-    fn lire(&mut self, sortie: &mut [f32]) -> usize {
+    fn read(&mut self, sortie: &mut [f32]) -> usize {
         self.pop_slice(sortie)
     }
-    fn vider(&mut self) {
+    fn clear(&mut self) {
         let n = self.occupied_len();
         self.skip(n);
     }
@@ -567,14 +567,14 @@ const INACTIVITE: Duration = Duration::from_secs(5);
 /// Moteur WASAPI exclusif persistant : le DAC reste ouvert d'une piste à l'autre tant que
 /// le format ne change pas — l'ouverture coûte 1,5 à 2,5 s sur un DAC USB. Les pistes
 /// arrivent par `prochaine` ; entre deux, du silence.
-pub fn run_moteur_exclusif(
+pub fn run_exclusive_engine(
     format: NegotiatedFormat,
     preferred_device_name: Option<String>,
     prochaine: Arc<std::sync::Mutex<Option<FluxPiste>>>,
     arret: Arc<AtomicBool>,
 ) -> Result<(), WasapiPlayerError> {
     let mut piste: Option<FluxPiste> = None;
-    let issue = moteur_inner(format, preferred_device_name, &prochaine, &arret, &mut piste);
+    let issue = engine_inner(format, preferred_device_name, &prochaine, &arret, &mut piste);
     // Personne n'attend un signal qui ne viendra plus.
     if let Some(p) = piste.take() {
         p.stream_ready.store(true, Ordering::Release);
@@ -585,7 +585,7 @@ pub fn run_moteur_exclusif(
     issue
 }
 
-fn moteur_inner(
+fn engine_inner(
     format: NegotiatedFormat,
     preferred_device_name: Option<String>,
     prochaine: &std::sync::Mutex<Option<FluxPiste>>,
@@ -711,7 +711,7 @@ fn moteur_inner(
 
         // Saut : on vide l'anneau, on repositionne le FullBuffer, silence puis fondu.
         if p.seek_flush.load(Ordering::Acquire) {
-            p.source.vider();
+            p.source.clear();
             let target = p.sym.pending_seek_frames.load(Ordering::Acquire);
             let new_frames = if target != usize::MAX {
                 p.sym.pending_seek_frames.store(usize::MAX, Ordering::Relaxed);
@@ -722,7 +722,7 @@ fn moteur_inner(
             };
             p.sym.full_buffer_cursor.store(new_frames * p.sym.output_channels as usize, Ordering::Relaxed);
             p.seek_flush.store(false, Ordering::Release);
-            fade_in_samples = echantillons::FONDU;
+            fade_in_samples = samples::FONDU;
             output_bytes.clear();
             output_bytes.resize(available * bytes_per_frame, 0);
             if let Err(e) = render_client.write_to_device(available, &output_bytes, None) {
@@ -736,7 +736,7 @@ fn moteur_inner(
         interleaved_f32.resize(needed_samples, 0.0);
         let source_mode = p.sym.current_source.load(Ordering::Acquire);
         let popped: usize = if source_mode == 0 {
-            p.source.lire(&mut interleaved_f32)
+            p.source.read(&mut interleaved_f32)
         } else if p.sym.is_full_buffer_ready.load(Ordering::Relaxed) {
             match p.sym.full_buffer_data.read() {
                 Ok(fb) => {
@@ -767,20 +767,20 @@ fn moteur_inner(
         // Volume, Replay Gain et fondu ; neutres, ils laissent les échantillons intacts.
         let vol = p.volume.load(Ordering::Relaxed) as f32 / 100.0
             * crate::core::audio_player::replay_gain::current_factor();
-        echantillons::appliquer_gain(&mut interleaved_f32, vol, &mut fade_in_samples, 1.0);
+        samples::apply_gain(&mut interleaved_f32, vol, &mut fade_in_samples, 1.0);
 
         output_bytes.clear();
         output_bytes.reserve(available * bytes_per_frame);
         match (format.bits_per_sample, format.sample_type) {
             (16, WasapiSampleType::Int) => {
                 for s in &interleaved_f32 {
-                    output_bytes.extend_from_slice(&echantillons::vers_i16(*s).to_le_bytes());
+                    output_bytes.extend_from_slice(&samples::to_i16(*s).to_le_bytes());
                 }
             }
             (24, WasapiSampleType::Int) => {
                 // 24 bits utiles dans les bits hauts d'un mot de 32.
                 for s in &interleaved_f32 {
-                    output_bytes.extend_from_slice(&(echantillons::vers_i24(*s) << 8).to_le_bytes());
+                    output_bytes.extend_from_slice(&(samples::to_i24(*s) << 8).to_le_bytes());
                 }
             }
             _ => {

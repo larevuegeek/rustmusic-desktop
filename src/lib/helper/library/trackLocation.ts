@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
 import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
@@ -16,7 +16,7 @@ export type TrackLocation = {
 // le redemanderait à chaque affichage.
 const connus = new Map<string, TrackLocation | null>();
 
-export async function localiser(paths: string[]): Promise<Map<string, TrackLocation | null>> {
+export async function locate(paths: string[]): Promise<Map<string, TrackLocation | null>> {
   const manquants = [...new Set(paths.filter((p) => p && !connus.has(p)))];
 
   if (manquants.length > 0) {
@@ -34,40 +34,40 @@ export async function localiser(paths: string[]): Promise<Map<string, TrackLocat
   return reponse;
 }
 
-export async function localiserUn(path: string): Promise<TrackLocation | null> {
+export async function locateOne(path: string): Promise<TrackLocation | null> {
   if (!path) return null;
-  return (await localiser([path])).get(path) ?? null;
+  return (await locate([path])).get(path) ?? null;
 }
 
 /** Après un scan ou une réparation : les identifiants d'hier ont pu changer. */
-export function oublierLocalisations() {
+export function forgetLocations() {
   connus.clear();
 }
 
 /** L'adresse de la fiche du morceau, ou `null` s'il n'est pas en bibliothèque. */
-export function lienTitre(lieu: TrackLocation | null): string | null {
+export function trackLink(lieu: TrackLocation | null): string | null {
   return lieu ? `/library/${lieu.library_id}/tracks/${lieu.library_track_id}` : null;
 }
 
-export function lienArtiste(lieu: TrackLocation | null): string | null {
+export function artistLink(lieu: TrackLocation | null): string | null {
   return lieu?.artist_id ? `/library/${lieu.library_id}/artists/${lieu.artist_id}` : null;
 }
 
-export function lienAlbum(lieu: TrackLocation | null): string | null {
+export function albumLink(lieu: TrackLocation | null): string | null {
   return lieu?.library_album_id ? `/library/${lieu.library_id}/albums/${lieu.library_album_id}` : null;
 }
 
 /** Les albums de la bibliothèque sortis cette année-là. */
-export function lienAnnee(lieu: TrackLocation | null, annee: string | number | null): string | null {
+export function yearLink(lieu: TrackLocation | null, annee: string | number | null): string | null {
   return lieu && annee ? `/library/${lieu.library_id}/albums?annee=${annee}` : null;
 }
 
 /** La file de l'album du morceau, ou `null` s'il n'est pas en bibliothèque. */
 export async function fileDeLAlbum(path: string): Promise<QueueTrack[] | null> {
-  const lieu = await localiserUn(path);
+  const lieu = await locateOne(path);
   if (!lieu?.library_album_id) return null;
   const pistes = await invoke<TrackListView[]>("get_tracks_by_album", {
     libraryId: lieu.library_id, libraryAlbumId: lieu.library_album_id,
   });
-  return versFileDAttente(pistes);
+  return toQueue(pistes);
 }

@@ -17,14 +17,14 @@ import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.stor
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { loadTrack, loadTracksByAlbum } from "#lib/services/library/library.service";
 import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
-import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
 import { toQueueTrack } from "#lib/helper/tools/queueTools";
-import { dureeEcoute, ilYA, minutesSecondes } from "#lib/helper/tools/dateTools";
-import { tailleLisible } from "#lib/helper/tools/sizeTools";
-import { dsdLabel, formatDsdRate, isDsdFormat, meilleureQualite, palierPiste } from "#lib/helper/tools/audioFormatTools";
-import { copierChemin, revelerDansDossier } from "#lib/helper/tools/fileTools";
-import { ordreDisque } from "#lib/helper/library/cleTri";
-import { lireTagsFichier } from "#lib/helper/library/tagsFichier";
+import { listenDuration, ilYA, minutesSeconds } from "#lib/helper/tools/dateTools";
+import { readableSize } from "#lib/helper/tools/sizeTools";
+import { dsdLabel, formatDsdRate, isDsdFormat, bestQuality, trackTier } from "#lib/helper/tools/audioFormatTools";
+import { copyPath, revealInFolder } from "#lib/helper/tools/fileTools";
+import { discOrder } from "#lib/helper/library/sortKey";
+import { readFileTags } from "#lib/helper/library/fileTags";
 import DetailPage from "#lib/components/ui/layout/DetailPage.svelte";
 import PageState from "#lib/components/ui/layout/PageState.svelte";
 import PlayButton from "#lib/components/ui/button/PlayButton.svelte";
@@ -69,10 +69,10 @@ $effect(() => {
   }
   // Hors suivi : `charger` réécrit l'état qu'il lit.
   const n = ++tour;
-  untrack(() => charger(id, tid, p.id, n));
+  untrack(() => load(id, tid, p.id, n));
 });
 
-async function charger(libId: number, tid: string, profilId: number, n: number) {
+async function load(libId: number, tid: string, profilId: number, n: number) {
   erreur = false;
   try {
     const [lib, m, c] = await Promise.all([
@@ -107,7 +107,7 @@ async function charger(libId: number, tid: string, profilId: number, n: number) 
 }
 
 // ─── L'album dans l'ordre du disque (numéros absents : ordre naturel des fichiers) ───
-const ordreAlbum = $derived([...pistesAlbum].sort(ordreDisque));
+const ordreAlbum = $derived([...pistesAlbum].sort(discOrder));
 const rang = $derived(track ? ordreAlbum.findIndex((x) => x.id === track!.id) : -1);
 const precedent = $derived(rang > 0 ? ordreAlbum[rang - 1].id : null);
 const suivant = $derived(rang >= 0 && rang < ordreAlbum.length - 1 ? ordreAlbum[rang + 1].id : null);
@@ -142,14 +142,14 @@ $effect(() => {
 // Tags complets : compositeur, totaux de pistes et de disques, label.
 const tags = $derived.by(() => {
   const vide = { compositeur: null as string | null, totalPistes: null as number | null, totalDisques: null as number | null, label: null as string | null };
-  const tg = lireTagsFichier(courante?.tags);
+  const tg = readFileTags(courante?.tags);
   if (!tg) return vide;
   const { champs: d, perso } = tg;
-  const entier = (v: unknown) => (Number(v) > 0 ? Number(v) : null);
+  const positiveInt = (v: unknown) => (Number(v) > 0 ? Number(v) : null);
   return {
     compositeur: (d.composer as string) || perso.get("COMPOSER") || null,
-    totalPistes: entier(d.total_tracks) ?? entier(perso.get("TRACKTOTAL")) ?? entier(perso.get("TOTALTRACKS")),
-    totalDisques: entier(d.total_discs) ?? entier(perso.get("DISCTOTAL")) ?? entier(perso.get("TOTALDISCS")),
+    totalPistes: positiveInt(d.total_tracks) ?? positiveInt(perso.get("TRACKTOTAL")) ?? positiveInt(perso.get("TOTALTRACKS")),
+    totalDisques: positiveInt(d.total_discs) ?? positiveInt(perso.get("DISCTOTAL")) ?? positiveInt(perso.get("TOTALDISCS")),
     label: (d.publisher as string) || perso.get("LABEL") || perso.get("ORGANIZATION") || null,
   };
 });
@@ -157,22 +157,22 @@ const numero = $derived(track?.track_number ?? (rang >= 0 ? rang + 1 : null));
 const totalPistes = $derived(tags.totalPistes ?? (pistesAlbum.length || null));
 
 // ─── Affichage ───
-const nombre = (n: number) => n.toLocaleString($currentLocale);
-const dateLongue = (d: string | null | undefined) => {
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
+const longDate = (d: string | null | undefined) => {
   if (!d) return null;
   const x = new Date(d.includes("T") ? d : d.replace(" ", "T") + "Z");
   return isNaN(x.getTime()) ? null : x.toLocaleDateString($currentLocale, { day: "numeric", month: "long", year: "numeric" });
 };
 const khz = (r: number) => `${(r / 1000).toLocaleString($currentLocale, { maximumFractionDigits: 1 })} kHz`;
 const aime = $derived(track ? $liked.paths.has(track.path) : false);
-const qualite = $derived(track ? meilleureQualite([track]) : null);
+const qualite = $derived(track ? bestQuality([track]) : null);
 const dsd = $derived(!!track && (track.bits_per_sample === 1 || isDsdFormat(track.audio_format)));
 
 // Résumé de la qualité : intitulé, détail et palier.
 const resume = $derived.by(() => {
   if (!track) return null;
   const f = (track.audio_format ?? track.extension ?? "").toUpperCase();
-  const palier = palierPiste(track.audio_format, track.bits_per_sample, track.sample_rate);
+  const palier = trackTier(track.audio_format, track.bits_per_sample, track.sample_rate);
   if (dsd) return { palier, titre: $t("track_view.q_dsd"), detail: `${dsdLabel(track.sample_rate)} · ${formatDsdRate(track.sample_rate)}`, niveau: "HI-RES" };
   const reso = track.bits_per_sample && track.sample_rate ? `${track.bits_per_sample} bit / ${khz(track.sample_rate)}` : "";
   if (palier === "hires") return { palier, titre: $t("track_view.q_hires"), detail: `${f} ${$t("track_view.lossless_word")} · ${reso}`, niveau: "HI-RES" };
@@ -180,24 +180,24 @@ const resume = $derived.by(() => {
     const cd = track.bits_per_sample === 16 && track.sample_rate === 44100;
     return { palier, titre: $t(cd ? "track_view.q_cd" : "track_view.q_lossless"), detail: [`${f} ${$t("track_view.lossless_word")}`, reso].filter(Boolean).join(" · "), niveau: "LOSSLESS" };
   }
-  return { palier, titre: $t("track_view.q_lossy"), detail: [`${f} ${$t("track_view.lossy_word")}`, track.bitrate ? `${nombre(track.bitrate)} kb/s` : ""].filter(Boolean).join(" · "), niveau: "LOSSY" };
+  return { palier, titre: $t("track_view.q_lossy"), detail: [`${f} ${$t("track_view.lossy_word")}`, track.bitrate ? `${formatNumber(track.bitrate)} kb/s` : ""].filter(Boolean).join(" · "), niveau: "LOSSY" };
 });
 
-const canaux = (c: number | null) => (c === 1 ? $t("track_view.mono") : c === 2 ? $t("track_view.stereo") : c === 6 ? "5.1" : c === 8 ? "7.1" : c ? `${c} ch` : "—");
+const channelsLabel = (c: number | null) => (c === 1 ? $t("track_view.mono") : c === 2 ? $t("track_view.stereo") : c === 6 ? "5.1" : c === 8 ? "7.1" : c ? `${c} ch` : "—");
 const audio = $derived(track ? [
-  { l: "track_view.duration", v: track.duration ? minutesSecondes(track.duration) : "—" },
+  { l: "track_view.duration", v: track.duration ? minutesSeconds(track.duration) : "—" },
   { l: "track_view.format", v: (track.audio_format ?? track.extension ?? "—").toUpperCase() },
-  { l: "track_view.bitrate", v: track.bitrate ? `${nombre(track.bitrate)} kb/s` : "—" },
+  { l: "track_view.bitrate", v: track.bitrate ? `${formatNumber(track.bitrate)} kb/s` : "—" },
   { l: "track_view.sample_rate", v: track.sample_rate ? (dsd ? formatDsdRate(track.sample_rate) : khz(track.sample_rate)) : "—" },
   { l: "track_view.resolution", v: track.bits_per_sample ? `${track.bits_per_sample} bit` : "—" },
-  { l: "track_view.channels", v: canaux(track.channels) },
-  { l: "track_view.size", v: tailleLisible(track.file_size ?? track.size ?? 0, $currentLocale) || "—" },
-  { l: "track_view.plays", v: nombre(track.play_count ?? 0), discret: !track.play_count },
+  { l: "track_view.channels", v: channelsLabel(track.channels) },
+  { l: "track_view.size", v: readableSize(track.file_size ?? track.size ?? 0, $currentLocale) || "—" },
+  { l: "track_view.plays", v: formatNumber(track.play_count ?? 0), discret: !track.play_count },
 ] : []);
 
 const ecoute = $derived.by(() => {
   if (!track?.play_count) return $t("track_view.never_played");
-  const fois = $t(track.play_count === 1 ? "track_view.played_once" : "track_view.played_n").replace("{n}", nombre(track.play_count));
+  const fois = $t(track.play_count === 1 ? "track_view.played_once" : "track_view.played_n").replace("{n}", formatNumber(track.play_count));
   return track.last_played_at ? `${fois} · ${ilYA(track.last_played_at, $currentLocale)}` : fois;
 });
 
@@ -209,18 +209,18 @@ const chemin = $derived.by(() => {
 });
 
 // ─── Actions ───
-function lire() {
+function play() {
   if (!track) return;
-  handlePlayTrack(track.path, ordreAlbum.length ? versFileDAttente(ordreAlbum) : undefined);
+  handlePlayTrack(track.path, ordreAlbum.length ? toQueue(ordreAlbum) : undefined);
 }
 
-function lireEnsuite() {
+function playNext() {
   if (!track) return;
   queueState.addTrack(toQueueTrack(track));
   toasts.push({ type: "success", title: $t("track_view.queued_next"), message: track.title });
 }
 
-function modifierTags() {
+function editTags() {
   if (!track) return;
   popinStore.open($t("tags.edit"), EditTagsPopin, {
     path: track.path,
@@ -228,8 +228,8 @@ function modifierTags() {
   }, { size: "xl", flush: true, icon: "material-symbols:sell-outline-rounded" });
 }
 
-const copier = () => track && copierChemin(track.path, chemin.fichier);
-const ouvrirDossier = () => track && revelerDansDossier(track.path);
+const copy = () => track && copyPath(track.path, chemin.fichier);
+const openFolder = () => track && revealInFolder(track.path);
 
 const carteCls = "min-w-0 rounded-2xl border px-5.5 py-5 bg-(--rg-carte) border-(--rg-bd)";
 const titreCarte = "mb-4 flex items-center gap-2.5 text-xs font-bold tracking-widest uppercase text-(--rg-mu)";
@@ -246,7 +246,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
 
 {:else}
 <DetailPage bind:defilement image={pochette} retourHref={`/library/${libraryId}/tracks`} retourLabel={$t("track_view.back")}
-            playLabel={$t("track_view.play")} onplay={lire}>
+            playLabel={$t("track_view.play")} onplay={play}>
   {#snippet mini()}
     <span class="w-8.5 h-8.5 shrink-0 rounded-[7px] overflow-hidden bg-(--rg-s2)">
       {#if pochette}<CoverImg path={pochette} alt="" size="1x" class="w-full h-full object-cover" />{/if}
@@ -317,7 +317,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
           {/if}
           {#if track.duration}
             <span class="text-(--rg-mu2)">·</span>
-            <span class="tabular-nums">{minutesSecondes(track.duration)}</span>
+            <span class="tabular-nums">{minutesSeconds(track.duration)}</span>
           {/if}
         </div>
 
@@ -326,14 +326,14 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
             <span class="whitespace-nowrap">{$t("track_view.track_label")} <b class="font-semibold text-(--rg-tx2)">{numero}</b>{#if totalPistes}{" "}{$t("track_view.of_total").replace("{total}", String(totalPistes))}{/if}</span>
           {/if}
           <span class="whitespace-nowrap">{ecoute}</span>
-          {#if dateLongue(track.created_at)}
-            <span class="whitespace-nowrap">{$t("track_view.added")} <b class="font-semibold text-(--rg-tx2)">{dateLongue(track.created_at)}</b></span>
+          {#if longDate(track.created_at)}
+            <span class="whitespace-nowrap">{$t("track_view.added")} <b class="font-semibold text-(--rg-tx2)">{longDate(track.created_at)}</b></span>
           {/if}
         </div>
 
         <div class="flex flex-wrap items-center gap-2.5 mt-2">
-          <PlayButton label={$t("track_view.play")} onclick={lire} />
-          <RoundButton icon="material-symbols:queue-music-rounded" title={$t("track_view.play_next")} onclick={lireEnsuite} />
+          <PlayButton label={$t("track_view.play")} onclick={play} />
+          <RoundButton icon="material-symbols:queue-music-rounded" title={$t("track_view.play_next")} onclick={playNext} />
           <RoundButton icon={aime ? "material-symbols:favorite-rounded" : "material-symbols:favorite-outline-rounded"} pressed={aime}
                        title={$t("tracks_view.like")} onclick={() => track && liked.toggle(track.path)} />
           <div class="h-12 px-3.5 flex items-center rounded-full border border-(--rg-bd2) bg-white/40 dark:bg-black/25" title={$t("track_view.rate")}>
@@ -375,7 +375,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
         <h3 class={titreCarte}>
           {$t("track_view.tags")}<span class="flex-1"></span>
           <button type="button" class="h-7.5 pl-2 pr-2.5 flex items-center gap-1.5 rounded-lg border text-[12.5px] font-semibold tracking-normal normal-case cursor-pointer transition-colors border-(--rg-bd2) text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
-                  onclick={modifierTags}>
+                  onclick={editTags}>
             <Icon icon="material-symbols:edit-outline-rounded" width="16" />{$t("track_view.edit")}
           </button>
         </h3>
@@ -436,7 +436,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
               <small class="block text-[11px] font-bold tracking-widest uppercase text-(--rg-mu)">{$t("track_view.album")}</small>
               <b class="block mt-0.75 truncate text-[17px] font-bold text-(--rg-tx)">{track.album ?? album?.title}</b>
               <span class="block mt-0.5 text-[13px] text-(--rg-mu)">
-                {[album?.year, `${nombre(album?.total_tracks ?? pistesAlbum.length)} ${$t((album?.total_tracks ?? pistesAlbum.length) === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}`, album?.total_duration ? dureeEcoute(album.total_duration) : null].filter(Boolean).join(" · ")}
+                {[album?.year, `${formatNumber(album?.total_tracks ?? pistesAlbum.length)} ${$t((album?.total_tracks ?? pistesAlbum.length) === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}`, album?.total_duration ? listenDuration(album.total_duration) : null].filter(Boolean).join(" · ")}
               </span>
             </span>
             <Icon icon="material-symbols:chevron-right-rounded" width="22" class="shrink-0 text-(--rg-mu2) group-hover:text-(--rg-tx)" />
@@ -453,7 +453,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
               <b class="block mt-0.75 truncate text-[17px] font-bold text-(--rg-tx)">{artiste?.name ?? track.artist}</b>
               {#if artiste}
                 <span class="block mt-0.5 text-[13px] text-(--rg-mu)">
-                  {nombre(artiste.total_albums)} {$t(artiste.total_albums === 1 ? "library_head.albums_one" : "library_head.albums_n")} · {nombre(artiste.total_tracks)} {$t(artiste.total_tracks === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}
+                  {formatNumber(artiste.total_albums)} {$t(artiste.total_albums === 1 ? "library_head.albums_one" : "library_head.albums_n")} · {formatNumber(artiste.total_tracks)} {$t(artiste.total_tracks === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}
                 </span>
               {/if}
             </span>
@@ -468,15 +468,15 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
       <h3 class={titreCarte}>{$t("track_view.file")}</h3>
       <div class="flex items-center gap-2.5 py-3 pl-4 pr-3 rounded-xl border bg-(--c-fond) dark:bg-zinc-950 border-(--rg-bd)">
         <span class="flex-1 min-w-0 font-mono text-[12.5px] text-(--rg-mu) wrap-anywhere">{chemin.dossier}<span class="text-(--rg-tx)">{chemin.fichier}</span></span>
-        <button type="button" class={petitBouton} onclick={copier}>
+        <button type="button" class={petitBouton} onclick={copy}>
           <Icon icon="material-symbols:content-copy-outline-rounded" width="17" />{$t("track_view.copy")}
         </button>
       </div>
       <div class="flex flex-wrap items-center gap-x-4.5 gap-y-1.5 mt-3 text-[13px] text-(--rg-mu)">
-        {#if dateLongue(track.created_at)}<span>{$t("track_view.added")} <b class="font-semibold text-(--rg-tx2)">{dateLongue(track.created_at)}</b></span>{/if}
-        {#if dateLongue(track.last_scanned_at)}<span>{$t("track_view.scanned")} <b class="font-semibold text-(--rg-tx2)">{dateLongue(track.last_scanned_at)}</b></span>{/if}
+        {#if longDate(track.created_at)}<span>{$t("track_view.added")} <b class="font-semibold text-(--rg-tx2)">{longDate(track.created_at)}</b></span>{/if}
+        {#if longDate(track.last_scanned_at)}<span>{$t("track_view.scanned")} <b class="font-semibold text-(--rg-tx2)">{longDate(track.last_scanned_at)}</b></span>{/if}
         <span class="flex-1"></span>
-        <button type="button" class={petitBouton} onclick={ouvrirDossier}>
+        <button type="button" class={petitBouton} onclick={openFolder}>
           <Icon icon="material-symbols:folder-outline-rounded" width="17" />{$t("track_view.reveal")}
         </button>
       </div>
@@ -488,7 +488,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
         <div class="flex flex-wrap items-end gap-3 mb-4">
           <div class="flex flex-col gap-1 min-w-0">
             <h2 class="text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{$t("track_view.same_album")}</h2>
-            <span class="text-[13px] text-(--rg-mu)">{track.album} · {nombre(ordreAlbum.length)} {$t("library_head.tracks_n")}</span>
+            <span class="text-[13px] text-(--rg-mu)">{track.album} · {formatNumber(ordreAlbum.length)} {$t("library_head.tracks_n")}</span>
           </div>
           <span class="flex-1"></span>
           <a href={`/library/${libraryId}/albums/${track.album_id}`}

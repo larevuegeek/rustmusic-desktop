@@ -9,7 +9,7 @@
   import { page } from "$app/state";
   import { goto, beforeNavigate } from "$app/navigation";
   import { t } from "#lib/i18n";
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   import TagTable, { type TableColumn } from "#lib/components/library/tags/TagTable.svelte";
   import TagInspector from "#lib/components/library/tags/TagInspector.svelte";
   import TagAuditView from "#lib/components/library/tags/TagAuditView.svelte";
@@ -29,7 +29,7 @@
   import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
   import { prepareImage } from "#lib/services/tags/tagEditor.service";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+  import { readLocal, writeLocal } from "#lib/helper/tools/storage";
 
   let workshop = $derived($tagWorkshop);
   let libraryId = $derived(Number(page.params.library_id));
@@ -37,18 +37,18 @@
   // ─── Préférences d'affichage (gardées d'une visite à l'autre) ───
   const ALL_COLUMNS: TableColumn[] = [...WORKSHOP_FIELDS, "file"];
   const DEFAULT: TableColumn[] = ["track_number", "title", "artist", "album", "year", "genre"];
-  function lire<T>(cle: string, defaut: T): T {
+  function readStored<T>(cle: string, defaut: T): T {
     try {
-      return JSON.parse(lireLocal(cle, JSON.stringify(defaut))) as T;
+      return JSON.parse(readLocal(cle, JSON.stringify(defaut))) as T;
     } catch {
       return defaut;
     }
   }
-  const garder = (cle: string, v: unknown) => ecrireLocal(cle, JSON.stringify(v));
-  let shown: TableColumn[] = $state(lire("atelier:colonnes:v2", DEFAULT).filter((c) => ALL_COLUMNS.includes(c)));
-  let panel = $state(lire("atelier:panneau", true));
-  $effect(() => garder("atelier:colonnes:v2", shown));
-  $effect(() => garder("atelier:panneau", panel));
+  const persist = (cle: string, v: unknown) => writeLocal(cle, JSON.stringify(v));
+  let shown: TableColumn[] = $state(readStored("atelier:colonnes:v2", DEFAULT).filter((c) => ALL_COLUMNS.includes(c)));
+  let panel = $state(readStored("atelier:panneau", true));
+  $effect(() => persist("atelier:colonnes:v2", shown));
+  $effect(() => persist("atelier:panneau", panel));
   let columns = $derived(ALL_COLUMNS.filter((c) => c === "title" || shown.includes(c)));
 
   let onlyIssues = $state(false);
@@ -220,7 +220,7 @@
       tagWorkshop.setCoverOnSelected({ path: chosen, src: prepared.src });
       say($t("workshop.cover_set").replace("{n}", tracks(selectedCount)), true);
     } catch (e) {
-      launchError = messageErreur(e);
+      launchError = errorMessage(e);
     } finally {
       coverBusy = false;
     }
@@ -241,7 +241,7 @@
       batchStore.begin(jobId, $t("batch.writing_tags"));
       tagWorkshop.markWritten(items.map((item) => item.path));
     } catch (e) {
-      launchError = messageErreur(e);
+      launchError = errorMessage(e);
     } finally {
       launching = false;
     }

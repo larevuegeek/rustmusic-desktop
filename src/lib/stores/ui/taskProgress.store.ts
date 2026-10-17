@@ -1,7 +1,7 @@
 import { writable, derived, get } from "svelte/store";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { t, currentLocale } from "#lib/i18n";
-import { tailleLisible } from "#lib/helper/tools/sizeTools";
+import { readableSize } from "#lib/helper/tools/sizeTools";
 
 // ============================================================================
 // STORE GLOBAL DE TÂCHES EN COURS
@@ -207,7 +207,7 @@ export const taskProgressStore = {
       (e) => {
         const { decoded_bytes, total_bytes } = e.payload;
         const locale = get(currentLocale);
-        const lu = tailleLisible(decoded_bytes, locale) || "0";
+        const lu = readableSize(decoded_bytes, locale) || "0";
         const percent = total_bytes > 0
           ? Math.min(99, Math.round((decoded_bytes * 100) / total_bytes))
           : 0;
@@ -218,7 +218,7 @@ export const taskProgressStore = {
           total: total_bytes,
           percent,
           detail: total_bytes > 0
-            ? `${lu} / ${tailleLisible(total_bytes, locale)}`
+            ? `${lu} / ${readableSize(total_bytes, locale)}`
             : lu,
           active: true,
         });

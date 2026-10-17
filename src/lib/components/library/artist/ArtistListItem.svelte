@@ -10,7 +10,7 @@ import { handleArtistPlay } from "#lib/actions/queue/QueueAction";
 import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
-import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 
 let { libraryId, artist }: { libraryId: number; artist: ArtistListView } = $props();
 
@@ -19,7 +19,7 @@ let menu = $state<{ x: number; y: number } | null>(null);
 const portrait = $derived(artistImageReadyStore.get(artist.id, $artistImageReadyStore) ?? artist.thumbnail_path ?? null);
 
 const selection = $derived($selectionStore);
-const isSelected = $derived(selection.groupes.has(cleGroupe("artist", libraryId, artist.id)));
+const isSelected = $derived(selection.groupes.has(groupKey("artist", libraryId, artist.id)));
 const nb = (n: number, un: string, plusieurs: string) => `${n} ${$t(n === 1 ? un : plusieurs)}`;
 
 // En mode sélection, cocher au lieu de naviguer ; le lien reste un lien.
@@ -30,7 +30,7 @@ function handleCardClick(e: MouseEvent) {
     toggleGroupSelection("artist", libraryId, artist.id);
 }
 
-function sansNaviguer(e: MouseEvent, action: () => void) {
+function withoutNavigating(e: MouseEvent, action: () => void) {
     e.preventDefault();
     e.stopPropagation();
     action();
@@ -66,13 +66,13 @@ function sansNaviguer(e: MouseEvent, action: () => void) {
         {:else}
             <button type="button" class="absolute right-1 top-1 z-2 w-7.5 h-7.5 rounded-lg flex items-center justify-center cursor-pointer
                                         bg-black/55 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-black/75"
-                    title={$t("artists_view.more")} aria-label={$t("artists_view.more")} onclick={(e) => sansNaviguer(e, () => (menu = { x: e.clientX, y: e.clientY }))}>
+                    title={$t("artists_view.more")} aria-label={$t("artists_view.more")} onclick={(e) => withoutNavigating(e, () => (menu = { x: e.clientX, y: e.clientY }))}>
                 <Icon icon="material-symbols:more-horiz" width="18" />
             </button>
             <button type="button" class="absolute right-[7%] bottom-[7%] z-2 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer
                                         bg-(--rg-g) text-(--rg-on-g) shadow-[0_6px_16px_rgba(0,0,0,0.5)]
                                         opacity-0 translate-y-1.5 group-hover:opacity-100 group-hover:translate-y-0 focus-visible:opacity-100 transition-all duration-150 hover:scale-105"
-                    title={$t("artists_view.play")} aria-label={`${$t("artists_view.play")} ${artist.name}`} onclick={(e) => sansNaviguer(e, () => handleArtistPlay(libraryId, artist.id))}>
+                    title={$t("artists_view.play")} aria-label={`${$t("artists_view.play")} ${artist.name}`} onclick={(e) => withoutNavigating(e, () => handleArtistPlay(libraryId, artist.id))}>
                 <Icon icon="material-symbols:play-arrow-rounded" width="28" />
             </button>
         {/if}

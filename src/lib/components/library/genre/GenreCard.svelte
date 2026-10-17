@@ -8,8 +8,8 @@ import CollectionContextMenu from "#lib/components/ui/contextmenu/CollectionCont
 import { handleGenrePlay } from "#lib/actions/queue/QueueAction";
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
-import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
-import { teinte } from "#lib/helper/tools/teinte";
+import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+import { hue } from "#lib/helper/tools/hue";
 import type { GenreView } from "#lib/types/ui/library/genre/GenreView";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
@@ -34,26 +34,26 @@ let {
 } = $props();
 
 let menu = $state<{ x: number; y: number } | null>(null);
-const h = $derived(special ? 0 : teinte(genre.name));
+const h = $derived(special ? 0 : hue(genre.name));
 const cible = $derived(lien ?? `/library/${libraryId}/genres/${encodeURIComponent(genre.name)}`);
 const selection = $derived($selectionStore);
-const isSelected = $derived(!special && selection.groupes.has(cleGroupe("genre", libraryId, genre.name)));
-const nombre = (n: number) => n.toLocaleString($currentLocale);
+const isSelected = $derived(!special && selection.groupes.has(groupKey("genre", libraryId, genre.name)));
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 
-function clic(e: MouseEvent) {
+function handleClick(e: MouseEvent) {
     if (!selection.active || special) return;
     e.preventDefault();
     e.stopPropagation();
     toggleGroupSelection("genre", libraryId, genre.name);
 }
 
-function sansNaviguer(e: MouseEvent, action: () => void) {
+function withoutNavigating(e: MouseEvent, action: () => void) {
     e.preventDefault();
     e.stopPropagation();
     action();
 }
 
-async function pistes() {
+async function fetchTracks() {
     return (await invoke<TrackListView[]>("get_tracks_by_genre", { libraryId, genre: genre.name })) ?? [];
 }
 
@@ -65,7 +65,7 @@ const rond = "w-10 h-10 rounded-full flex items-center justify-center cursor-poi
     href={cible}
     class="group relative flex flex-col gap-3 min-w-0 cursor-pointer"
     style="--gc: {special ? 'var(--rg-mu)' : `oklch(0.7 0.17 ${h})`}"
-    onclick={clic}
+    onclick={handleClick}
     oncontextmenu={(e) => { if (special) return; e.preventDefault(); menu = { x: e.clientX, y: e.clientY }; }}
 >
     <div class="relative aspect-square rounded-[14px] overflow-hidden grid grid-cols-2 grid-rows-2 gap-0.5 isolate bg-(--rg-bg)
@@ -92,15 +92,15 @@ const rond = "w-10 h-10 rounded-full flex items-center justify-center cursor-poi
         {:else if !special}
             <div class="absolute right-3 top-3 z-3 flex gap-1.5 opacity-0 -translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 transition-all duration-150">
                 <button type="button" class="{rond} bg-black/60 text-white hover:bg-black/80" title={$t("genres_view.more")} aria-label={$t("genres_view.more")}
-                        onclick={(e) => sansNaviguer(e, () => (menu = { x: e.clientX, y: e.clientY }))}>
+                        onclick={(e) => withoutNavigating(e, () => (menu = { x: e.clientX, y: e.clientY }))}>
                     <Icon icon="material-symbols:more-horiz" width="20" />
                 </button>
                 <button type="button" class="{rond} bg-black/60 text-white hover:bg-black/80" title={$t("genres_view.shuffle")} aria-label={$t("genres_view.shuffle")}
-                        onclick={(e) => sansNaviguer(e, () => handleGenrePlay(libraryId, genre.name, true))}>
+                        onclick={(e) => withoutNavigating(e, () => handleGenrePlay(libraryId, genre.name, true))}>
                     <Icon icon="material-symbols:shuffle-rounded" width="20" />
                 </button>
                 <button type="button" class="{rond} bg-(--rg-g) text-(--rg-on-g)" title={$t("genres_view.play")} aria-label={`${$t("genres_view.play")} ${nom}`}
-                        onclick={(e) => sansNaviguer(e, () => handleGenrePlay(libraryId, genre.name))}>
+                        onclick={(e) => withoutNavigating(e, () => handleGenrePlay(libraryId, genre.name))}>
                     <Icon icon="material-symbols:play-arrow-rounded" width="24" />
                 </button>
             </div>
@@ -109,14 +109,14 @@ const rond = "w-10 h-10 rounded-full flex items-center justify-center cursor-poi
 
     <div class="flex flex-col gap-0.75 px-0.5 min-w-0">
         <div class="flex gap-1.5 whitespace-nowrap text-[13px] text-(--rg-mu)">
-            <span><b class="font-semibold text-(--rg-tx2)">{nombre(genre.total_albums)}</b> {$t(genre.total_albums === 1 ? "library_head.albums_one" : "library_head.albums_n")}</span>
+            <span><b class="font-semibold text-(--rg-tx2)">{formatNumber(genre.total_albums)}</b> {$t(genre.total_albums === 1 ? "library_head.albums_one" : "library_head.albums_n")}</span>
             <span>·</span>
-            <span><b class="font-semibold text-(--rg-tx2)">{nombre(genre.total_tracks)}</b> {$t(genre.total_tracks === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}</span>
+            <span><b class="font-semibold text-(--rg-tx2)">{formatNumber(genre.total_tracks)}</b> {$t(genre.total_tracks === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}</span>
         </div>
         {#if artistes}<div class="truncate text-[12.5px] text-(--rg-mu2)" title={artistes}>{artistes}</div>{/if}
     </div>
 </a>
 
 {#if menu}
-    <CollectionContextMenu title={nom} type="genre" loadTracks={pistes} x={menu.x} y={menu.y} onclose={() => (menu = null)} {libraryId} />
+    <CollectionContextMenu title={nom} type="genre" loadTracks={fetchTracks} x={menu.x} y={menu.y} onclose={() => (menu = null)} {libraryId} />
 {/if}

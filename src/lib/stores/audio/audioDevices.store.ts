@@ -92,7 +92,7 @@ function createStore() {
           ?? null;
         return { ...s, loaded: true, loading: false, devices, activeDisplayName: active, exclusive: {} };
       });
-      sonder(devices);
+      probe(devices);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       update((s) => ({ ...s, loading: false, error: msg }));
@@ -100,7 +100,7 @@ function createStore() {
   }
 
   /** Interroge le pilote de chaque sortie (formats acceptés, sans ouvrir de flux), l'une après l'autre. */
-  async function sonder(devices: AudioDeviceInfo[]): Promise<void> {
+  async function probe(devices: AudioDeviceInfo[]): Promise<void> {
     for (const d of devices) {
       if (!d.wasapiId) continue;
       try {

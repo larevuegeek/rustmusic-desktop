@@ -8,8 +8,8 @@ import CollectionContextMenu from "#lib/components/ui/contextmenu/CollectionCont
 import { handleGenrePlay } from "#lib/actions/queue/QueueAction";
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
-import { cleGroupe, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
-import { teinte } from "#lib/helper/tools/teinte";
+import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+import { hue } from "#lib/helper/tools/hue";
 import type { GenreView } from "#lib/types/ui/library/genre/GenreView";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
@@ -36,26 +36,26 @@ let {
 } = $props();
 
 let menu = $state<{ x: number; y: number } | null>(null);
-const h = $derived(special ? 0 : teinte(genre.name));
+const h = $derived(special ? 0 : hue(genre.name));
 const cible = $derived(lien ?? `/library/${libraryId}/genres/${encodeURIComponent(genre.name)}`);
 const selection = $derived($selectionStore);
-const isSelected = $derived(!special && selection.groupes.has(cleGroupe("genre", libraryId, genre.name)));
-const nombre = (n: number, d = 0) => n.toLocaleString($currentLocale, { maximumFractionDigits: d });
+const isSelected = $derived(!special && selection.groupes.has(groupKey("genre", libraryId, genre.name)));
+const formatNumber = (n: number, d = 0) => n.toLocaleString($currentLocale, { maximumFractionDigits: d });
 
-function clic(e: MouseEvent) {
+function handleClick(e: MouseEvent) {
     if (!selection.active || special) return;
     e.preventDefault();
     e.stopPropagation();
     toggleGroupSelection("genre", libraryId, genre.name);
 }
 
-function sansNaviguer(e: MouseEvent, action: () => void) {
+function withoutNavigating(e: MouseEvent, action: () => void) {
     e.preventDefault();
     e.stopPropagation();
     action();
 }
 
-async function pistes() {
+async function fetchTracks() {
     return (await invoke<TrackListView[]>("get_tracks_by_genre", { libraryId, genre: genre.name })) ?? [];
 }
 
@@ -74,7 +74,7 @@ const act = "w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-p
              : 'grid-cols-[56px_minmax(0,1.3fr)_minmax(0,1.4fr)_180px_100px] max-[900px]:grid-cols-[56px_minmax(0,1fr)_120px_40px] before:left-19'}
            {isSelected ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-carte)'}"
     style="--gc: {special ? 'var(--rg-mu)' : `oklch(0.7 0.17 ${h})`}"
-    onclick={clic}
+    onclick={handleClick}
     oncontextmenu={(e) => { if (special) return; e.preventDefault(); menu = { x: e.clientX, y: e.clientY }; }}
 >
     {#if selection.active}<SelectionCheck coche={isSelected} class={special ? "invisible" : ""} />{/if}
@@ -98,8 +98,8 @@ const act = "w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-p
 
     <div class="flex flex-col gap-1.5">
         <div class="flex justify-between gap-2 text-[12.5px] tabular-nums text-(--rg-mu)">
-            <span class="truncate"><b class="font-semibold text-(--rg-tx2)">{nombre(genre.total_tracks)}</b> {$t(genre.total_tracks === 1 ? "library_head.tracks_one" : "library_head.tracks_n")} · {genre.total_albums} {$t(genre.total_albums === 1 ? "library_head.albums_one" : "library_head.albums_n")}</span>
-            <span class="shrink-0 max-[900px]:hidden">{$t("genres_view.share").replace("{p}", nombre(part, part < 1 ? 1 : 0))}</span>
+            <span class="truncate"><b class="font-semibold text-(--rg-tx2)">{formatNumber(genre.total_tracks)}</b> {$t(genre.total_tracks === 1 ? "library_head.tracks_one" : "library_head.tracks_n")} · {genre.total_albums} {$t(genre.total_albums === 1 ? "library_head.albums_one" : "library_head.albums_n")}</span>
+            <span class="shrink-0 max-[900px]:hidden">{$t("genres_view.share").replace("{p}", formatNumber(part, part < 1 ? 1 : 0))}</span>
         </div>
         <div class="h-1 rounded-full overflow-hidden bg-(--rg-s2)"><i class="block h-full rounded-full bg-(--gc)" style="width: {barre}%"></i></div>
     </div>
@@ -107,11 +107,11 @@ const act = "w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-p
     <div class="flex items-center justify-end gap-0.5 {selection.active ? 'invisible' : ''}">
         {#if !special}
             <button type="button" class="{act} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-[900px]:hidden" title={$t("genres_view.shuffle")} aria-label={$t("genres_view.shuffle")}
-                    onclick={(e) => sansNaviguer(e, () => handleGenrePlay(libraryId, genre.name, true))}>
+                    onclick={(e) => withoutNavigating(e, () => handleGenrePlay(libraryId, genre.name, true))}>
                 <Icon icon="material-symbols:shuffle-rounded" width="19" />
             </button>
             <button type="button" class="{act} {menu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} focus-visible:opacity-100 max-[900px]:hidden" title={$t("genres_view.more")} aria-label={$t("genres_view.more")}
-                    onclick={(e) => sansNaviguer(e, () => (menu = { x: e.clientX, y: e.clientY }))}>
+                    onclick={(e) => withoutNavigating(e, () => (menu = { x: e.clientX, y: e.clientY }))}>
                 <Icon icon="material-symbols:more-horiz" width="19" />
             </button>
         {/if}
@@ -122,5 +122,5 @@ const act = "w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-p
 </a>
 
 {#if menu}
-    <CollectionContextMenu title={nom} type="genre" loadTracks={pistes} x={menu.x} y={menu.y} onclose={() => (menu = null)} {libraryId} />
+    <CollectionContextMenu title={nom} type="genre" loadTracks={fetchTracks} x={menu.x} y={menu.y} onclose={() => (menu = null)} {libraryId} />
 {/if}

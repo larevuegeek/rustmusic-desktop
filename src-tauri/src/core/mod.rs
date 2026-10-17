@@ -107,8 +107,8 @@ pub mod render_mode;
 pub mod window_geometry;
 pub mod system_detect;
 pub mod media_controls;
-pub mod veille;
-pub mod variete;
+pub mod system_sleep;
+pub mod mix_variety;
 
 pub mod dlna_server {
     pub mod server;
@@ -166,4 +166,5 @@ pub mod amp_remote {
     pub mod session;
     pub mod yamaha;
 }
+pub mod sandbox;
 pub mod smart_playlist;

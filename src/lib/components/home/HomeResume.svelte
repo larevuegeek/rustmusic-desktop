@@ -10,12 +10,12 @@ import { liked } from "#lib/stores/playlist/like.store";
 import { playerService } from "#lib/services/player/player.service";
 import { openQueuePanel } from "#lib/stores/queue/queueUi.store";
 import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
-import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
 import { fileDeLAlbum } from "#lib/helper/library/trackLocation";
 import { formatTime, dateToYear, ilYA } from "#lib/helper/tools/dateTools";
 import { displayTitle } from "#lib/helper/tools/stringTools";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
-import PochetteFloue from "#lib/components/ui/image/PochetteFloue.svelte";
+import BlurredCover from "#lib/components/ui/image/BlurredCover.svelte";
 import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
@@ -114,7 +114,7 @@ const groupes = $derived.by((): Groupe[] => {
     cartes: ensuite.map(({ track, index }) => ({
       cle: `f:${track.queueId}`, titre: track.title, pochette: track.cover ?? null,
       artiste: track.artist ?? '', duree: track.duration ?? null,
-      lancer: () => jouerDeLaFile(track, index),
+      lancer: () => playFromQueue(track, index),
     })),
   });
   if (recentsSuivants.length) liste.push({
@@ -122,7 +122,7 @@ const groupes = $derived.by((): Groupe[] => {
     cartes: recentsSuivants.map((r) => ({
       cle: `r:${r.path}`, titre: r.title ?? displayTitle(null, r.path, $t('common.unknown_title')),
       pochette: r.thumbnail_path ?? null, artiste: r.artist ?? '', duree: r.duration ?? null,
-      lancer: () => handlePlayTrack(r.path, versFileDAttente($recent)),
+      lancer: () => handlePlayTrack(r.path, toQueue($recent)),
     })),
   });
   const hasard = auHasard.filter((p) => !dejaVus.has(p.path)).slice(0, Math.max(0, manque));
@@ -131,7 +131,7 @@ const groupes = $derived.by((): Groupe[] => {
     cartes: hasard.map((p) => ({
       cle: `h:${p.path}`, titre: p.title, pochette: p.thumbnail_path ?? null,
       artiste: p.artist ?? '', duree: p.duration ?? null,
-      lancer: () => handlePlayTrack(p.path, versFileDAttente(hasard)),
+      lancer: () => handlePlayTrack(p.path, toQueue(hasard)),
     })),
   });
   return liste;
@@ -141,16 +141,16 @@ let occupe = $state(false);
 
 /** Le bouton vert et la pochette font la même chose. */
 /** Descend jusqu'à la section complète des récents. */
-function allerAuxRecents() {
+function goToRecents() {
   document.getElementById("recemment-joues")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function actionPrincipale() {
+function mainAction() {
   if (enCours) playerService.handleTogglePlay();
-  else reprendre();
+  else resume();
 }
 
-async function reprendre() {
+async function resume() {
   const cible = dernier;
   if (!cible || occupe) return;
   occupe = true;
@@ -158,13 +158,13 @@ async function reprendre() {
     const file = await fileDeLAlbum(cible.path);
     await handlePlayTrack(cible.path, file ?? undefined);
     const pos = reprise ? (cible.last_position ?? 0) : 0;
-    if (pos > 5 && await playerService.attendrePret()) await playerService.seekTo(pos);
+    if (pos > 5 && await playerService.waitUntilReady()) await playerService.seekTo(pos);
   } finally {
     occupe = false;
   }
 }
 
-async function lireAlbum() {
+async function playAlbum() {
   if (!fiche || occupe) return;
   occupe = true;
   try {
@@ -176,7 +176,7 @@ async function lireAlbum() {
   }
 }
 
-async function jouerDeLaFile(track: QueueTrack, index: number) {
+async function playFromQueue(track: QueueTrack, index: number) {
   playerService.expectExplicitAction();
   await queueState.setCurrentIndex(index);
   await playerService.playFile(track);
@@ -199,9 +199,9 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
     <div class="hero-fond absolute inset-0 pointer-events-none" aria-hidden="true">
       <!-- Pré-floutée : un filtre CSS se recalculait à chaque pas de la progression.
            Une saturation par thème, la bonne affichée par le CSS. -->
-      <PochetteFloue path={fiche.pochette} saturation={2.4} flou={3} rayon={60}
+      <BlurredCover path={fiche.pochette} saturation={2.4} flou={3} rayon={60}
                      class="w-full h-full object-cover scale-125 opacity-80 dark:hidden" />
-      <PochetteFloue path={fiche.pochette} saturation={1.4} flou={3} rayon={60}
+      <BlurredCover path={fiche.pochette} saturation={1.4} flou={3} rayon={60}
                      class="w-full h-full object-cover scale-125 opacity-80 hidden dark:block" />
     </div>
     <div class="hero-voile absolute inset-0 pointer-events-none" aria-hidden="true"></div>
@@ -210,7 +210,7 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
   {/if}
 
   <!-- Pochette, cliquable comme le bouton principal -->
-  <button type="button" onclick={actionPrincipale} disabled={occupe}
+  <button type="button" onclick={mainAction} disabled={occupe}
           aria-label={enCours ? (isPlaying ? $t('home.pause_short') : $t('home.play')) : $t('home.resume_at')}
           class="group relative w-36 @2xl:w-full aspect-square rounded-xl overflow-hidden bg-white/5 cursor-pointer
                  shadow-[0_18px_40px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.5)] disabled:cursor-wait">
@@ -261,7 +261,7 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
     {/if}
 
     <div class="flex items-center gap-3 mt-3">
-      <button type="button" onclick={actionPrincipale} disabled={occupe}
+      <button type="button" onclick={mainAction} disabled={occupe}
               class="h-[52px] px-[26px] rounded-full bg-[#1a1c1a] hover:bg-black text-white dark:bg-accent-500 dark:hover:bg-accent-400 dark:text-(--rg-on-g)
                      font-bold text-[17px] flex items-center gap-2.5 cursor-pointer transition-colors shrink-0
                      disabled:opacity-60 disabled:cursor-wait">
@@ -275,14 +275,14 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
 
       {#if fiche.album}
         <!-- Libellé entier quand la place le permet, bouton rond sinon -->
-        <button type="button" onclick={lireAlbum} disabled={occupe}
+        <button type="button" onclick={playAlbum} disabled={occupe}
                 class="flex @3xl:hidden @7xl:flex items-center h-[52px] px-[22px] rounded-full
                        bg-white/70 hover:bg-white border border-black/8 text-[#1a1c1a]
                        dark:bg-white/10 dark:hover:bg-white/16 dark:border-transparent dark:text-white whitespace-nowrap font-semibold text-base
                        cursor-pointer transition-colors min-w-0 disabled:opacity-60 disabled:cursor-wait">
           <span class="truncate">{$t('home.play_album')}</span>
         </button>
-        <button type="button" onclick={lireAlbum} disabled={occupe}
+        <button type="button" onclick={playAlbum} disabled={occupe}
                 aria-label={$t('home.play_album')} title={$t('home.play_album')}
                 class="hidden @3xl:flex @7xl:hidden shrink-0 w-[52px] h-[52px] rounded-full items-center justify-center
                        bg-white/70 hover:bg-white border border-black/8 text-[#1a1c1a]
@@ -316,7 +316,7 @@ async function jouerDeLaFile(track: QueueTrack, index: number) {
             {$t('home.see_queue')}
           </button>
         {:else if g.cle === "recents" && ancreRecents}
-          <button type="button" onclick={allerAuxRecents}
+          <button type="button" onclick={goToRecents}
                   class="shrink-0 text-[12px] font-semibold text-accent-700 hover:text-accent-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer transition-colors">
             {$t('home.see_all')}
           </button>

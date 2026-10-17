@@ -7,11 +7,11 @@ import { loadTracksByAlbum } from "#lib/services/library/library.service";
 import { libraryStore } from "#lib/stores/library/library.store";
 import { toQueueTracks } from "#lib/helper/tools/queueTools";
 import { playerService } from "#lib/services/player/player.service";
-import { echantillonAleatoire } from "#lib/helper/tools/randomTools";
+import { randomSample } from "#lib/helper/tools/randomTools";
 import { t, currentLocale } from "#lib/i18n";
 
 /** Texte au singulier ou au pluriel, nombre au format de la langue. */
-function compte(n: number, one: string, many: string): string {
+function countLabel(n: number, one: string, many: string): string {
   return get(t)(n === 1 ? one : many).replace("{n}", n.toLocaleString(get(currentLocale)));
 }
 
@@ -31,7 +31,7 @@ export async function handleAlbumEnqueue(libraryAlbumId: string) {
     toasts.push({
       type: "success",
       title: get(t)("notify.album_playing"),
-      message: compte(queueTracks.length, "notify.queue_loaded_one", "notify.queue_loaded_n")
+      message: countLabel(queueTracks.length, "notify.queue_loaded_one", "notify.queue_loaded_n")
     });
   } catch (e) {
     console.error("Impossible de charger l'album", e);
@@ -46,7 +46,7 @@ export async function handleAlbumAddToQueue(libraryAlbumId: string) {
     const pistes = await loadTracksByAlbum(libraryId, libraryAlbumId);
     if (!pistes?.length) return;
     for (const qt of toQueueTracks(pistes)) await queueState.enqueue(qt);
-    toasts.push({ type: "success", title: get(t)("notify.queued"), message: compte(pistes.length, "notify.queued_one", "notify.queued_n") });
+    toasts.push({ type: "success", title: get(t)("notify.queued"), message: countLabel(pistes.length, "notify.queued_one", "notify.queued_n") });
   } catch (e) {
     console.error("Impossible d'ajouter l'album à la file", e);
   }
@@ -71,7 +71,7 @@ export async function handleArtistAddToQueue(libraryId: number, artistId: string
     const pistes = await invoke<TrackListView[]>("get_tracks_by_artist", { libraryId, artistId });
     if (!pistes?.length) return;
     for (const qt of toQueueTracks(pistes)) await queueState.enqueue(qt);
-    toasts.push({ type: "success", title: get(t)("notify.queued"), message: compte(pistes.length, "notify.queued_one", "notify.queued_n") });
+    toasts.push({ type: "success", title: get(t)("notify.queued"), message: countLabel(pistes.length, "notify.queued_one", "notify.queued_n") });
   } catch (e) {
     console.error("Impossible d'ajouter l'artiste à la file", e);
   }
@@ -95,7 +95,7 @@ export async function handleGenrePlay(libraryId: number, genre: string, melanger
 export async function handleTracksPlay(pistes: TrackListView[], melanger = false) {
   if (!pistes.length) return;
   try {
-    const file = toQueueTracks(melanger ? echantillonAleatoire(pistes, pistes.length) : pistes);
+    const file = toQueueTracks(melanger ? randomSample(pistes, pistes.length) : pistes);
     await queueState.loadTracks(file);
     playerService.playFile(file[0]);
   } catch (e) {
@@ -103,7 +103,7 @@ export async function handleTracksPlay(pistes: TrackListView[], melanger = false
   }
 }
 
-async function tirerEtJouer(args: Record<string, unknown>) {
+async function drawAndPlay(args: Record<string, unknown>) {
   try {
     await handleTracksPlay((await invoke<TrackListView[]>("get_mix_tracks", { ...args, limit: 100 })) ?? []);
   } catch (e) {
@@ -112,11 +112,11 @@ async function tirerEtJouer(args: Record<string, unknown>) {
 }
 
 /** Un mix d'époque : une décennie entière, ou une seule année. */
-export function handlePeriodeMix(libraryId: number, decennie: number, annee: number | null = null) {
-  return tirerEtJouer(annee == null ? { libraryId, kind: "decennie", decennie } : { libraryId, kind: "annee", annee });
+export function handlePeriodMix(libraryId: number, decennie: number, annee: number | null = null) {
+  return drawAndPlay(annee == null ? { libraryId, kind: "decennie", decennie } : { libraryId, kind: "annee", annee });
 }
 
 /** Cent titres tirés au hasard dans la bibliothèque. */
 export function handleRandomMix(libraryId: number) {
-  return tirerEtJouer({ libraryId, kind: "hasard" });
+  return drawAndPlay({ libraryId, kind: "hasard" });
 }

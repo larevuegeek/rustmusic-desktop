@@ -12,7 +12,7 @@ let { nom, libraryId, stats, onajouter, sousTitre = null, bouton = true }: {
   bouton?: boolean;
 } = $props();
 
-function salutation(): string {
+function greeting(): string {
   const h = new Date().getHours();
   if (h < 6) return $t('home.greeting_night');
   if (h < 12) return $t('home.greeting_morning');
@@ -20,7 +20,7 @@ function salutation(): string {
   return $t('home.greeting_evening');
 }
 
-const nombre = (n: number) => new Intl.NumberFormat($currentLocale).format(n);
+const formatNumber = (n: number) => new Intl.NumberFormat($currentLocale).format(n);
 
 // Chaque chiffre mène à la vue qui le détaille.
 const chiffres = $derived(stats && libraryId ? [
@@ -34,7 +34,7 @@ const chiffres = $derived(stats && libraryId ? [
 <header class="grid grid-cols-1 @3xl:grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-8 gap-y-1.5">
   <h1 class="@3xl:col-start-1 @3xl:row-start-1 min-w-0 text-3xl @3xl:text-[34px] font-extrabold tracking-[-0.02em] leading-tight
              text-neutral-900 dark:text-neutral-50">
-    {salutation()}{nom ? `, ${nom}` : ''}
+    {greeting()}{nom ? `, ${nom}` : ''}
   </h1>
 
   <p class="@3xl:col-start-1 @3xl:row-start-2 min-w-0 text-[17px] text-neutral-500 dark:text-[#9aa39e]">
@@ -48,7 +48,7 @@ const chiffres = $derived(stats && libraryId ? [
         <a href={c.vers} class="group flex items-baseline gap-1.5 whitespace-nowrap">
           <span class="text-[17px] font-extrabold tabular-nums tracking-[-0.01em] text-neutral-900 dark:text-neutral-50
                        group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-            {nombre(c.n)}
+            {formatNumber(c.n)}
           </span>
           <span class="text-[11px] font-bold uppercase tracking-widest text-neutral-500 dark:text-[#9aa39e]">
             {c.libelle}

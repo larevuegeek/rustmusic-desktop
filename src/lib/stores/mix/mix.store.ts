@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { writable } from "svelte/store";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
-import { dureeEcoute } from "#lib/helper/tools/dateTools";
+import { listenDuration } from "#lib/helper/tools/dateTools";
 
 /** D'où vient un mix : un tirage de la bibliothèque, ou un mix créé (playlist auto « mix »). */
 export type SourceMix =
@@ -20,10 +20,10 @@ const cache = new Map<string, Promise<TrackListView[]>>();
 /** Change à chaque nouveau tirage : les cartes concernées se rechargent. */
 export const generationMix = writable(0);
 
-const jour = () => new Date().toDateString();
+const today = () => new Date().toDateString();
 
-export function tirer(libraryId: number, cle: string, source: SourceMix): Promise<TrackListView[]> {
-  const j = jour();
+export function draw(libraryId: number, cle: string, source: SourceMix): Promise<TrackListView[]> {
+  const j = today();
   // Les tirages d'hier ne resserviront plus.
   for (const k of [...cache.keys()]) if (!k.endsWith(`|${j}`)) cache.delete(k);
   const k = `${libraryId}|${cle}|${j}`;
@@ -39,13 +39,13 @@ export function tirer(libraryId: number, cle: string, source: SourceMix): Promis
 }
 
 /** Oublie le tirage d'un mix dans toutes les bibliothèques (ses règles ont changé). */
-export function oublier(cle: string) {
+export function forget(cle: string) {
   for (const k of [...cache.keys()]) if (k.split("|")[1] === cle) cache.delete(k);
   generationMix.update((n) => n + 1);
 }
 
 /** Nouveau tirage : d'un mix (`cle`), ou de tous ceux de la bibliothèque. */
-export function renouveler(libraryId: number, cle?: string) {
+export function renew(libraryId: number, cle?: string) {
   const prefixe = cle ? `${libraryId}|${cle}|` : `${libraryId}|`;
   for (const k of [...cache.keys()]) if (k.startsWith(prefixe)) cache.delete(k);
   generationMix.update((n) => n + 1);
@@ -54,7 +54,7 @@ export function renouveler(libraryId: number, cle?: string) {
 export type Apercu = { pochettes: string[]; description: string; meta: string };
 
 /** Quatre pochettes, les artistes phares, le nombre de titres et la durée. */
-export function apercu(liste: TrackListView[], t: (cle: string) => string): Apercu {
+export function preview(liste: TrackListView[], t: (cle: string) => string): Apercu {
   const pochettes = [...new Set(liste.map((p) => p.thumbnail_path).filter(Boolean) as string[])].slice(0, 4);
 
   const parArtiste = new Map<string, number>();
@@ -64,7 +64,7 @@ export function apercu(liste: TrackListView[], t: (cle: string) => string): Aper
   const description = tete.length > 3 ? t("home.mix_artists_more").replace("{a}", noms) : noms;
 
   const secondes = liste.reduce((s, p) => s + (p.duration ?? 0), 0);
-  const meta = t("home.mix_meta").replace("{n}", String(liste.length)).replace("{d}", dureeEcoute(secondes));
+  const meta = t("home.mix_meta").replace("{n}", String(liste.length)).replace("{d}", listenDuration(secondes));
 
   return { pochettes, description, meta };
 }

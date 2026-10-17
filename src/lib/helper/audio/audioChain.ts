@@ -20,14 +20,14 @@ export const CHAINE: Record<PipelineMode, { cle: string; desc: string; teinte: s
 };
 
 /** « 44,1 kHz », « 2,82 MHz », selon la langue. */
-export function frequenceLisible(hz: number, langue: string): string {
+export function readableRate(hz: number, langue: string): string {
   const n = new Intl.NumberFormat(langue, { maximumFractionDigits: 2 });
   if (hz >= 1_000_000) return `${n.format(hz / 1_000_000)} MHz`;
   return hz >= 1_000 ? `${n.format(hz / 1_000)} kHz` : `${hz} Hz`;
 }
 
 /** Ce qui n'a pas marché pour ce morceau, en clair ; `null` si rien. */
-export function messageRepli(
+export function fallbackMessage(
   info: PlaybackPipelineInfo,
   t: (cle: string) => string,
   frequence: (hz: number) => string,

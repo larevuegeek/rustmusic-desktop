@@ -1,5 +1,5 @@
 import { goto } from "$app/navigation";
-import { choisirDossier, choisirFichiers, importerDossier, importerFichiers } from "#lib/services/library/library.service";
+import { pickFolder, pickFiles, importFolder, importFiles } from "#lib/services/library/library.service";
 import { libraryStore } from "#lib/stores/library/library.store";
 import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
 import { toasts } from "#lib/stores/ui/toast.store";
@@ -8,7 +8,7 @@ import { get } from "svelte/store";
 import { t, currentLocale } from "#lib/i18n";
 
 /** « 1 piste ajoutée » / « n pistes ajoutées », nombre au format de la langue. */
-function pistesAjoutees(n: number): string {
+function addedTracksLabel(n: number): string {
     return get(t)(n === 1 ? "notify.tracks_added_one" : "notify.tracks_added_n").replace("{n}", n.toLocaleString(get(currentLocale)));
 }
 
@@ -18,12 +18,12 @@ export async function handleAddFiles(libraryId: number, redirectToLibrary = fals
     try {
         // Choisir d'abord. Naviguer avant, c'était charger toute la bibliothèque
         // derrière une boîte de dialogue qu'on pouvait encore annuler.
-        const fichiers = dejaChoisis ?? await choisirFichiers();
+        const fichiers = dejaChoisis ?? await pickFiles();
         if (fichiers.length === 0) return;
 
         if (redirectToLibrary) goto(`/library/${libraryId}`);
 
-        const newTracks = await importerFichiers(libraryId, fichiers);
+        const newTracks = await importFiles(libraryId, fichiers);
 
         if (newTracks.length === 0) return;
 
@@ -33,7 +33,7 @@ export async function handleAddFiles(libraryId: number, redirectToLibrary = fals
         toasts.push({
             type: "success",
             title: get(t)("notify.files_added"),
-            message: pistesAjoutees(newTracks.length)
+            message: addedTracksLabel(newTracks.length)
         });
 
     } catch (e) {
@@ -51,12 +51,12 @@ export async function handleAddDirectory(libraryId: number, redirectToLibrary = 
 
     try {
         // Choisir d'abord : annuler doit laisser l'écran tel quel.
-        const dossier = dejaChoisi ?? await choisirDossier();
+        const dossier = dejaChoisi ?? await pickFolder();
         if (!dossier) return;
 
         if (redirectToLibrary) goto(`/library/${libraryId}`);
 
-        const newTracks = await importerDossier(libraryId, dossier);
+        const newTracks = await importFolder(libraryId, dossier);
 
         // Arrêté : importProgressStore affiche le bilan partiel.
         if (newTracks.length === 0 || get(importProgressStore).cancelled) return;
@@ -67,7 +67,7 @@ export async function handleAddDirectory(libraryId: number, redirectToLibrary = 
         toasts.push({
             type: "success",
             title: get(t)("notify.files_added"),
-            message: pistesAjoutees(newTracks.length)
+            message: addedTracksLabel(newTracks.length)
         });
 
     } catch (e) {

@@ -4,7 +4,7 @@
   import type { Snippet } from "svelte";
   import PlayButton from "#lib/components/ui/button/PlayButton.svelte";
   import { resolveCoverSrc } from "#lib/helper/tools/coverHelper";
-  import { couleurPochette } from "#lib/helper/tools/couleurPochette";
+  import { coverColor } from "#lib/helper/tools/coverColor";
 
   let {
     image = null,
@@ -42,7 +42,7 @@
     }
     let vivant = true;
     resolveCoverSrc(c, "1x")
-      .then((src) => (src ? couleurPochette(src) : null))
+      .then((src) => (src ? coverColor(src) : null))
       .then((r) => { if (vivant) teinte = r ?? { h: 150, s: 0 }; });
     return () => { vivant = false; };
   });

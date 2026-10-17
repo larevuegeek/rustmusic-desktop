@@ -51,7 +51,7 @@
   );
   const total = $derived(retrouvees + report.tracks_missing);
 
-  function dateLisible(iso: string): string {
+  function readableDate(iso: string): string {
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? iso : d.toLocaleString($currentLocale);
   }
@@ -92,7 +92,7 @@
           {$t("settings.import_preview_title")}
         </h2>
         <p class="text-xs text-(--rg-mu) truncate">
-          {$t("settings.import_preview_source").replace("{version}", report.app_version).replace("{date}", dateLisible(report.exported_at))}
+          {$t("settings.import_preview_source").replace("{version}", report.app_version).replace("{date}", readableDate(report.exported_at))}
         </p>
       </div>
     </div>

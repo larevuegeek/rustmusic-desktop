@@ -7,7 +7,7 @@ import { t, currentLocale } from "#lib/i18n";
 import { popinStore } from "#lib/stores/ui/popin.store";
 import { playlistStore } from "#lib/stores/playlist/playlist.store";
 import { toasts } from "#lib/stores/ui/toast.store";
-import { renouveler } from "#lib/stores/mix/mix.store";
+import { renew } from "#lib/stores/mix/mix.store";
 import { PLAYLIST_COLORS } from "#lib/components/playlist/playlistConfig";
 import SmartPlaylistPopin from "#lib/components/playlist/smart/SmartPlaylistPopin.svelte";
 import type { ActionMix } from "#lib/components/mix/MixCard.svelte";
@@ -17,23 +17,23 @@ import type { SpecMix } from "#lib/config/mixes";
 export function actionsMix(spec: SpecMix, libraryId: number): ActionMix[] {
   const tr = get(t);
   const actions: ActionMix[] = [
-    { icone: "material-symbols:refresh-rounded", libelle: tr("mix_view.redraw"), agir: () => renouveler(libraryId, spec.cle) },
-    { icone: "material-symbols:playlist-add-rounded", libelle: tr("mix_view.keep"), agir: (liste) => garder(spec, liste) },
+    { icone: "material-symbols:refresh-rounded", libelle: tr("mix_view.redraw"), agir: () => renew(libraryId, spec.cle) },
+    { icone: "material-symbols:playlist-add-rounded", libelle: tr("mix_view.keep"), agir: (liste) => saveMix(spec, liste) },
   ];
   const p = spec.playlist;
   if (p) {
     actions.push(
-      { icone: "material-symbols:tune-rounded", libelle: tr("mix_view.edit"), agir: () => modifierMix(p.id) },
-      { icone: "material-symbols:delete-outline-rounded", libelle: tr("mix_view.delete"), danger: true, agir: () => supprimerMix(p.id, p.name) },
+      { icone: "material-symbols:tune-rounded", libelle: tr("mix_view.edit"), agir: () => editMix(p.id) },
+      { icone: "material-symbols:delete-outline-rounded", libelle: tr("mix_view.delete"), danger: true, agir: () => deleteMix(p.id, p.name) },
     );
   }
   return actions;
 }
 
-export const lancerMix = (liste: TrackListView[]) => handleTracksPlay(liste);
+export const playMix = (liste: TrackListView[]) => handleTracksPlay(liste);
 
 /** Fige le tirage du jour dans une vraie playlist. */
-async function garder(spec: SpecMix, liste: TrackListView[]) {
+async function saveMix(spec: SpecMix, liste: TrackListView[]) {
   if (!liste.length) return;
   const tr = get(t);
   try {
@@ -59,15 +59,15 @@ async function garder(spec: SpecMix, liste: TrackListView[]) {
   }
 }
 
-export function nouveauMix() {
+export function newMix() {
   popinStore.open(get(t)("mix_view.new"), SmartPlaylistPopin, { mix: true }, { size: "xl", icon: "material-symbols:shuffle-rounded", flush: true });
 }
 
-function modifierMix(playlistId: number) {
+function editMix(playlistId: number) {
   popinStore.open(get(t)("mix_view.edit"), SmartPlaylistPopin, { playlistId, mix: true }, { size: "xl", icon: "material-symbols:shuffle-rounded", flush: true });
 }
 
-async function supprimerMix(id: number, nom: string) {
+async function deleteMix(id: number, nom: string) {
   try {
     await playlistStore.removePlaylist(id);
     toasts.push({ type: "success", title: nom, message: get(t)("mix_view.deleted") });

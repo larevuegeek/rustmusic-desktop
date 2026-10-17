@@ -7,12 +7,12 @@ use crate::{
 };
 
 #[tauri::command]
-pub async fn get_profil(
+pub async fn get_profile(
     state: State<'_, AppState>,
     profil_id: i64
 ) -> Result<Profil, String> {
 
-    let profil: Profil = match ProfilRepository::find_profil_by_id(&state.pool, profil_id).await {
+    let profil: Profil = match ProfilRepository::find_profile_by_id(&state.pool, profil_id).await {
         Ok(profil) => profil,
         Err(e) => return Err(format!("Failed to get profil : {}", e))
     };
@@ -21,7 +21,7 @@ pub async fn get_profil(
 }
 
 #[tauri::command]
-pub async fn get_all_profils(
+pub async fn get_all_profiles(
     state: State<'_, AppState>,
 ) -> Result<Vec<Profil>, String> {
 
@@ -39,7 +39,7 @@ pub struct CreateProfilPayload {
 }
 
 #[tauri::command]
-pub async fn create_profil(
+pub async fn create_profile(
     state: State<'_, AppState>,
     payload: CreateProfilPayload,
 ) -> Result<Profil, String> {
@@ -59,7 +59,7 @@ pub struct UpdateProfilPayload {
 }
 
 #[tauri::command]
-pub async fn update_profil(
+pub async fn update_profile(
     state: State<'_, AppState>,
     payload: UpdateProfilPayload,
 ) -> Result<Profil, String> {
@@ -71,7 +71,7 @@ pub async fn update_profil(
 }
 
 #[tauri::command]
-pub async fn delete_profil(
+pub async fn delete_profile(
     state: State<'_, AppState>,
     profil_id: i64,
 ) -> Result<(), String> {

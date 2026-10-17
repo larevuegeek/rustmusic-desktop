@@ -4,7 +4,7 @@
   import Icon from "@iconify/svelte";
   import { fade } from "svelte/transition";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import { batchStore } from "#lib/stores/ui/batch.store";
   import { t } from "#lib/i18n";
@@ -156,7 +156,7 @@
       const prepared = await prepareImage(selected);
       cover = { ...prepared, path: selected };
     } catch (e) {
-      error = messageErreur(e);
+      error = errorMessage(e);
     } finally {
       coverBusy = false;
     }
@@ -205,7 +205,7 @@
       onsaved();
       popinStore.close();
     } catch (e) {
-      error = messageErreur(e);
+      error = errorMessage(e);
     } finally {
       isSubmitting = false;
     }

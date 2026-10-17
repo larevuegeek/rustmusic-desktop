@@ -168,7 +168,7 @@ export const libraryContentStore = {
      */
     // La bibliothèque affichée, pas la sélectionnée : un lien peut ouvrir une autre bibliothèque.
     refresh: async (libraryId?: number) => {
-        dataCache.invalidateFiches();
+        dataCache.invalidateDetails();
         const cible = libraryId ?? courante ?? get(libraryStore).librarySelected?.id;
         if (!cible) return;
         if (cible !== courante) {

@@ -194,7 +194,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn epingler_deux_fois_ne_duplique_rien_et_garde_l_ordre() {
+    async fn pinning_twice_duplicates_nothing_and_keeps_the_order() {
         let pool = base().await;
         LibraryPinRepository::pin_album(&pool, 1, "alb1").await.unwrap();
         LibraryPinRepository::pin_artist(&pool, 1, "a1").await.unwrap();
@@ -214,7 +214,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn l_appartenance_se_verifie_par_bibliotheque() {
+    async fn ownership_is_checked_per_library() {
         let pool = base().await;
         assert!(LibraryPinRepository::album_in_library(&pool, 1, "alb1").await.unwrap());
         assert!(!LibraryPinRepository::album_in_library(&pool, 2, "alb1").await.unwrap());

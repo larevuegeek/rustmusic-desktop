@@ -33,7 +33,7 @@ use crate::{core::audio_analyser::audio_analyser::AudioAnalyser, entity::audio::
 use crate::entity::audio::audio_tags::AudioTags;
 use crate::entity::library::library_files::{LibraryFile, LibraryFileCreate};
 use crate::mapper::library::track::track_list_item_view::TrackListView;
-use crate::service::library::album_folder::racine_album;
+use crate::service::library::album_folder::album_root;
 
 // ============================================================================
 // RÉSULTAT D'ANALYSE D'UN FICHIER (phase CPU, sync, rayon-compatible)
@@ -171,7 +171,7 @@ impl RescanProgress {
     }
 
     /// Au plus un évènement toutes les 100 ms ; le premier et le dernier passent toujours.
-    pub fn emettre(&mut self, app: &tauri::AppHandle) {
+    pub fn emit_progress(&mut self, app: &tauri::AppHandle) {
         let due = self.derniere_emission
             .map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(100));
         if !due && self.current < self.total {
@@ -185,9 +185,9 @@ impl RescanProgress {
         });
     }
 
-    fn avancer(&mut self, app: &tauri::AppHandle) {
+    fn advance(&mut self, app: &tauri::AppHandle) {
         self.current += 1;
-        self.emettre(app);
+        self.emit_progress(app);
     }
 }
 
@@ -226,10 +226,10 @@ pub async fn save_dir_to_library(
 ) -> Result<Vec<TrackListView>, String> {
 
     // Enregistré avant le listage pour apparaître tout de suite.
-    let library_dir = trouver_ou_creer_dossier(pool_api, library_id, &directory).await?;
+    let library_dir = find_or_create_dir(pool_api, library_id, &directory).await?;
     let _ = app.emit("import-start", ImportStart { library_id, directory: directory.clone() });
 
-    let Some(files) = lister_fichiers(&app, library_id, &directory).await else {
+    let Some(files) = list_files(&app, library_id, &directory).await else {
         let _ = LibraryDirRepository::update_scan_result(
             pool_api, &library_dir.id, 0, 0, "cancelled", None,
         ).await;
@@ -243,7 +243,7 @@ pub async fn save_dir_to_library(
 }
 
 /// Liste les fichiers audio hors du runtime async ; `None` si l'import est arrêté.
-pub async fn lister_fichiers(
+pub async fn list_files(
     app: &tauri::AppHandle,
     library_id: i64,
     directory: &str,
@@ -273,7 +273,7 @@ pub async fn lister_fichiers(
     .flatten()
 }
 
-async fn trouver_ou_creer_dossier(
+async fn find_or_create_dir(
     pool_api: &SqlitePool,
     library_id: i64,
     directory: &str,
@@ -322,7 +322,7 @@ pub async fn save_files_to_library(
     let ctx: LibrarySaveContext = create_context(app.clone(), pool_api);
 
     // On ajoute le dossier (hors transaction, c'est 1 seule requête)
-    let library_dir: LibraryDir = trouver_ou_creer_dossier(pool_api, library_id, &directory).await?;
+    let library_dir: LibraryDir = find_or_create_dir(pool_api, library_id, &directory).await?;
 
     // Migrations miniatures (covers → covers/albums/, artists → covers/artists/)
     migrate_old_thumbnails(&app, &ctx.covers_dir, pool_api, "covers").await?;
@@ -410,7 +410,7 @@ pub async fn save_files_to_library(
             });
 
             if let Some(p) = progression.as_deref_mut() {
-                p.avancer(&app);
+                p.advance(&app);
             }
 
             let analysis = match analysis_result {
@@ -609,7 +609,7 @@ async fn save_analysed_to_db(
 
     // L'album appartient à son artiste d'album quand le tag en donne un.
     let proprietaire_album = artist_album_id.clone().or_else(|| main_artist_id.clone());
-    let album_dir = racine_album(&library_file.path);
+    let album_dir = album_root(&library_file.path);
 
     if let Some(proprietaire) = proprietaire_album {
         let album = LibraryAlbumRepository::insert_library_album(&mut *conn, LibraryAlbumCreate {
@@ -617,7 +617,7 @@ async fn save_analysed_to_db(
             title: album_title.clone(), title_normalized: album_title_normalized,
             year, genre, cover_url: analysis.thumbnail_url.clone(), album_type: Some("album".to_string()),
         }).await.map_err(|e| format!("Failed to insert album: {}", e))?;
-        let album = basculer_en_compilation(
+        let album = switch_to_compilation(
             &mut *conn, album, &proprietaire, artist_album_id.is_some(), library_id,
         ).await?;
         library_album_id = Some(album.id.clone());
@@ -847,7 +847,7 @@ pub async fn save_track_to_library_tx(
         let mut library_album: Option<LibraryAlbum> = None;
 
         let proprietaire_album = artist_album_id.clone().or_else(|| main_artist_id.clone());
-        let album_dir = racine_album(&library_file.path);
+        let album_dir = album_root(&library_file.path);
 
         if let Some(proprietaire) = proprietaire_album {
             let album: LibraryAlbum = LibraryAlbumRepository::insert_library_album(&mut *conn, LibraryAlbumCreate {
@@ -855,7 +855,7 @@ pub async fn save_track_to_library_tx(
                 title: album_title.clone(), title_normalized: album_title_normalized,
                 year, genre, cover_url: thumbnail_url.clone(), album_type: Some("album".to_string()),
             }).await.map_err(|e| format!("Failed to insert album: {}", e))?;
-            let album = basculer_en_compilation(
+            let album = switch_to_compilation(
                 &mut *conn, album, &proprietaire, artist_album_id.is_some(), library_id,
             ).await?;
             library_album_id = Some(album.id.clone());
@@ -919,7 +919,7 @@ pub async fn save_track_to_library_tx(
 
 /// Deux artistes sous le même toit et aucun tag « artiste de l'album » pour
 /// trancher : c'est une compilation, pas l'album du premier indexé.
-async fn basculer_en_compilation(
+async fn switch_to_compilation(
     conn: &mut sqlx::SqliteConnection,
     album: LibraryAlbum,
     proprietaire_voulu: &str,
@@ -976,7 +976,7 @@ mod tests {
     /// Deux compilations du même titre dans deux dossiers, sans tag « artiste
     /// de l'album » : la seconde heurtait l'index 0.2.4 et ses pistes tombaient.
     #[tokio::test]
-    async fn deux_compilations_du_meme_titre_restent_indexees() {
+    async fn two_compilations_with_the_same_title_stay_indexed() {
         let pool = SqlitePoolOptions::new().max_connections(1)
             .connect("sqlite::memory:").await.expect("base mémoire");
         sqlx::migrate!("./SQL/").run(&pool).await.expect("migrations");
@@ -996,7 +996,7 @@ mod tests {
                 title: "Amore".into(), title_normalized: "amore".into(),
                 year: None, genre: None, cover_url: None, album_type: None,
             }).await.expect("album");
-            basculer_en_compilation(&mut *conn, album, artiste, false, 1).await
+            switch_to_compilation(&mut *conn, album, artiste, false, 1).await
         };
 
         poser(r"E:\M\Amore 1", "a1").await.expect("1re piste");

@@ -14,7 +14,7 @@ use crate::entity::library::library_artist::LibraryArtistCreate;
 use crate::helper::string::string::{normalize_name, normalize_sort_name, split_artists};
 use crate::repository::artist::artist_repository::ArtistRepository;
 use crate::repository::library::library_artist_repository::LibraryArtistRepository;
-use crate::service::library::album_folder::racine_album;
+use crate::service::library::album_folder::album_root;
 
 /// Le nom donné à un album dont les pistes n'ont pas d'artiste commun.
 const ARTISTES_DIVERS: &str = "Various Artists";
@@ -57,7 +57,7 @@ struct Fiche {
     tags: Vec<String>,
 }
 
-pub async fn consolider(pool: &SqlitePool) -> Result<AlbumMergeReport, String> {
+pub async fn consolidate(pool: &SqlitePool) -> Result<AlbumMergeReport, String> {
     let lignes: Vec<Ligne> = sqlx::query_as::<_, Ligne>(
         r#"
         SELECT b.id               AS album_id,
@@ -96,7 +96,7 @@ pub async fn consolider(pool: &SqlitePool) -> Result<AlbumMergeReport, String> {
         });
         if let Some(p) = l.path.as_deref() {
             if f.pistes == 0 {
-                f.dossier = racine_album(p);
+                f.dossier = album_root(p);
             }
             f.pistes += 1;
         }
@@ -211,7 +211,7 @@ pub async fn consolider(pool: &SqlitePool) -> Result<AlbumMergeReport, String> {
             let proprietaire = if let Some((tag, _)) =
                 comptes.iter().max_by_key(|(nom, n)| (**n, std::cmp::Reverse(*nom)))
             {
-                resoudre_artiste(&mut tx, &mut connus, tag, library_id).await?
+                resolve_artist(&mut tx, &mut connus, tag, library_id).await?
             } else if artistes.len() > 1 {
                 rapport.compilations += 1;
                 sqlx::query("UPDATE library_albums SET album_type = 'compilation' WHERE id = ?")
@@ -219,7 +219,7 @@ pub async fn consolider(pool: &SqlitePool) -> Result<AlbumMergeReport, String> {
                     .execute(&mut *tx)
                     .await
                     .map_err(|e| format!("Type de l'album : {e}"))?;
-                resoudre_artiste(&mut tx, &mut connus, ARTISTES_DIVERS, library_id).await?
+                resolve_artist(&mut tx, &mut connus, ARTISTES_DIVERS, library_id).await?
             } else {
                 groupe[0].artist_id.clone()
             };
@@ -318,7 +318,7 @@ pub async fn consolider(pool: &SqlitePool) -> Result<AlbumMergeReport, String> {
 }
 
 /// L'artiste portant ce nom, créé et rattaché à la bibliothèque s'il manque.
-async fn resoudre_artiste(
+async fn resolve_artist(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     connus: &mut HashMap<String, String>,
     nom: &str,
@@ -375,7 +375,7 @@ mod tests {
         pool
     }
 
-    async fn artiste(pool: &SqlitePool, id: &str, nom: &str) {
+    async fn insert_artist(pool: &SqlitePool, id: &str, nom: &str) {
         sqlx::query("INSERT INTO artists (id, name, name_normalized, sort_name) VALUES (?, ?, ?, ?)")
             .bind(id).bind(nom).bind(normalize_name(nom)).bind(nom)
             .execute(pool).await.expect("artiste");
@@ -385,13 +385,13 @@ mod tests {
 
     /// Une fiche d'album telle que l'ancienne indexation la posait : une par
     /// artiste, `album_dir` vide.
-    async fn fiche(pool: &SqlitePool, id: &str, titre: &str, proprio: &str) {
+    async fn insert_album(pool: &SqlitePool, id: &str, titre: &str, proprio: &str) {
         sqlx::query("INSERT INTO library_albums (id, library_id, artist_id, title, title_normalized) VALUES (?, 1, ?, ?, ?)")
             .bind(id).bind(proprio).bind(titre).bind(normalize_name(titre))
             .execute(pool).await.expect("album");
     }
 
-    async fn piste(pool: &SqlitePool, id: &str, album: &str, artiste_id: &str, chemin: &str, tag_album: Option<&str>) {
+    async fn insert_track(pool: &SqlitePool, id: &str, album: &str, artiste_id: &str, chemin: &str, tag_album: Option<&str>) {
         sqlx::query("INSERT INTO library_cache (path, album_artist) VALUES (?, ?)")
             .bind(chemin).bind(tag_album)
             .execute(pool).await.expect("cache");
@@ -413,21 +413,21 @@ mod tests {
     }
 
     /// Deux fiches, deux artistes, un seul dossier : le cas « NRJ ».
-    async fn compilation_eclatee(pool: &SqlitePool, dossier1: &str, dossier2: &str) {
-        artiste(pool, "a1", "Ava Max").await;
-        artiste(pool, "a2", "Soprano").await;
-        fiche(pool, "alb1", "NRJ Hits", "a1").await;
-        fiche(pool, "alb2", "NRJ Hits", "a2").await;
-        piste(pool, "t1", "alb1", "a1", dossier1, None).await;
-        piste(pool, "t2", "alb2", "a2", dossier2, None).await;
+    async fn split_compilation(pool: &SqlitePool, dossier1: &str, dossier2: &str) {
+        insert_artist(pool, "a1", "Ava Max").await;
+        insert_artist(pool, "a2", "Soprano").await;
+        insert_album(pool, "alb1", "NRJ Hits", "a1").await;
+        insert_album(pool, "alb2", "NRJ Hits", "a2").await;
+        insert_track(pool, "t1", "alb1", "a1", dossier1, None).await;
+        insert_track(pool, "t2", "alb2", "a2", dossier2, None).await;
     }
 
     #[tokio::test]
-    async fn une_compilation_eclatee_redevient_un_album() {
+    async fn a_split_compilation_becomes_one_album_again() {
         let pool = base().await;
-        compilation_eclatee(&pool, r"S:\M\NRJ Hits\01.flac", r"S:\M\NRJ Hits\02.flac").await;
+        split_compilation(&pool, r"S:\M\NRJ Hits\01.flac", r"S:\M\NRJ Hits\02.flac").await;
 
-        let r = consolider(&pool).await.expect("consolidation");
+        let r = consolidate(&pool).await.expect("consolidation");
         assert_eq!((r.groups_merged, r.albums_removed, r.compilations), (1, 1, 1));
         assert_eq!(albums(&pool).await,
                    vec![("NRJ Hits".into(), "Various Artists".into(), "compilation".into())]);
@@ -438,41 +438,41 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn les_disques_d_un_coffret_se_rejoignent() {
+    async fn box_set_discs_come_together() {
         let pool = base().await;
-        compilation_eclatee(&pool, r"S:\M\NRJ Hits\CD1\01.flac", r"S:\M\NRJ Hits\CD2\01.flac").await;
+        split_compilation(&pool, r"S:\M\NRJ Hits\CD1\01.flac", r"S:\M\NRJ Hits\CD2\01.flac").await;
 
-        assert_eq!(consolider(&pool).await.expect("consolidation").albums_removed, 1);
+        assert_eq!(consolidate(&pool).await.expect("consolidation").albums_removed, 1);
     }
 
     #[tokio::test]
-    async fn deux_albums_homonymes_restent_separes() {
+    async fn two_same_named_albums_stay_apart() {
         let pool = base().await;
-        artiste(&pool, "a1", "AC/DC").await;
-        artiste(&pool, "a2", "Suprême NTM").await;
-        fiche(&pool, "alb1", "Best Of", "a1").await;
-        fiche(&pool, "alb2", "Best Of", "a2").await;
-        piste(&pool, "t1", "alb1", "a1", r"S:\M\ACDC\Best Of\01.flac", Some("AC/DC")).await;
-        piste(&pool, "t2", "alb2", "a2", r"S:\M\NTM\Best Of\01.flac", Some("Suprême NTM")).await;
+        insert_artist(&pool, "a1", "AC/DC").await;
+        insert_artist(&pool, "a2", "Suprême NTM").await;
+        insert_album(&pool, "alb1", "Best Of", "a1").await;
+        insert_album(&pool, "alb2", "Best Of", "a2").await;
+        insert_track(&pool, "t1", "alb1", "a1", r"S:\M\ACDC\Best Of\01.flac", Some("AC/DC")).await;
+        insert_track(&pool, "t2", "alb2", "a2", r"S:\M\NTM\Best Of\01.flac", Some("Suprême NTM")).await;
 
-        let r = consolider(&pool).await.expect("consolidation");
+        let r = consolidate(&pool).await.expect("consolidation");
         assert_eq!((r.groups_merged, r.albums_removed), (0, 0));
         assert_eq!(albums(&pool).await.len(), 2);
     }
 
     #[tokio::test]
-    async fn un_featuring_isole_ne_fait_pas_une_compilation() {
+    async fn a_lone_featuring_does_not_make_a_compilation() {
         let pool = base().await;
-        artiste(&pool, "a1", "Sam Smith").await;
-        artiste(&pool, "a2", "Naughty Boy").await;
-        fiche(&pool, "alb1", "In The Lonely Hour", "a1").await;
-        fiche(&pool, "alb2", "In The Lonely Hour", "a2").await;
+        insert_artist(&pool, "a1", "Sam Smith").await;
+        insert_artist(&pool, "a2", "Naughty Boy").await;
+        insert_album(&pool, "alb1", "In The Lonely Hour", "a1").await;
+        insert_album(&pool, "alb2", "In The Lonely Hour", "a2").await;
         let d = r"S:\M\Sam Smith\In The Lonely Hour";
-        piste(&pool, "t1", "alb1", "a1", &format!(r"{d}\01.flac"), Some("Sam Smith")).await;
-        piste(&pool, "t2", "alb1", "a1", &format!(r"{d}\02.flac"), Some("Sam Smith")).await;
-        piste(&pool, "t3", "alb2", "a2", &format!(r"{d}\03.flac"), Some("Naughty Boy")).await;
+        insert_track(&pool, "t1", "alb1", "a1", &format!(r"{d}\01.flac"), Some("Sam Smith")).await;
+        insert_track(&pool, "t2", "alb1", "a1", &format!(r"{d}\02.flac"), Some("Sam Smith")).await;
+        insert_track(&pool, "t3", "alb2", "a2", &format!(r"{d}\03.flac"), Some("Naughty Boy")).await;
 
-        let r = consolider(&pool).await.expect("consolidation");
+        let r = consolidate(&pool).await.expect("consolidation");
         assert_eq!((r.groups_merged, r.compilations), (1, 0));
         assert_eq!(albums(&pool).await,
                    vec![("In The Lonely Hour".into(), "Sam Smith".into(), "album".into())],
@@ -480,20 +480,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn relancer_ne_change_plus_rien() {
+    async fn rerunning_changes_nothing_more() {
         let pool = base().await;
-        compilation_eclatee(&pool, r"S:\M\NRJ Hits\01.flac", r"S:\M\NRJ Hits\02.flac").await;
+        split_compilation(&pool, r"S:\M\NRJ Hits\01.flac", r"S:\M\NRJ Hits\02.flac").await;
 
-        consolider(&pool).await.expect("premier passage");
-        let deuxieme = consolider(&pool).await.expect("second passage");
+        consolidate(&pool).await.expect("premier passage");
+        let deuxieme = consolidate(&pool).await.expect("second passage");
         assert_eq!((deuxieme.albums_seen, deuxieme.albums_removed), (0, 0));
     }
 
     #[tokio::test]
-    async fn les_compteurs_suivent_la_fusion() {
+    async fn counters_follow_the_merge() {
         let pool = base().await;
-        compilation_eclatee(&pool, r"S:\M\NRJ Hits\01.flac", r"S:\M\NRJ Hits\02.flac").await;
-        consolider(&pool).await.expect("consolidation");
+        split_compilation(&pool, r"S:\M\NRJ Hits\01.flac", r"S:\M\NRJ Hits\02.flac").await;
+        consolidate(&pool).await.expect("consolidation");
 
         let pistes: i64 = sqlx::query_scalar("SELECT total_tracks FROM library_albums WHERE id = 'alb1'")
             .fetch_one(&pool).await.unwrap();
@@ -506,16 +506,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn un_tag_a_plusieurs_noms_ne_cree_pas_un_artiste_batard() {
+    async fn a_multi_name_tag_does_not_create_a_hybrid_artist() {
         let pool = base().await;
-        artiste(&pool, "a1", "Ava Max").await;
-        artiste(&pool, "a2", "Soprano").await;
-        fiche(&pool, "alb1", "B.O.", "a1").await;
-        fiche(&pool, "alb2", "B.O.", "a2").await;
-        piste(&pool, "t1", "alb1", "a1", r"S:\M\BO\01.flac", Some("Divers; Divers")).await;
-        piste(&pool, "t2", "alb2", "a2", r"S:\M\BO\02.flac", Some("Divers; Divers")).await;
+        insert_artist(&pool, "a1", "Ava Max").await;
+        insert_artist(&pool, "a2", "Soprano").await;
+        insert_album(&pool, "alb1", "B.O.", "a1").await;
+        insert_album(&pool, "alb2", "B.O.", "a2").await;
+        insert_track(&pool, "t1", "alb1", "a1", r"S:\M\BO\01.flac", Some("Divers; Divers")).await;
+        insert_track(&pool, "t2", "alb2", "a2", r"S:\M\BO\02.flac", Some("Divers; Divers")).await;
 
-        consolider(&pool).await.expect("consolidation");
+        consolidate(&pool).await.expect("consolidation");
         let noms: Vec<String> = sqlx::query_scalar("SELECT name FROM artists ORDER BY name")
             .fetch_all(&pool).await.unwrap();
         assert!(!noms.iter().any(|n| n.contains(';')), "artistes : {noms:?}");
@@ -524,18 +524,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn les_artistes_de_la_fiche_supprimee_suivent() {
+    async fn the_deleted_record_artists_follow() {
         let pool = base().await;
-        artiste(&pool, "a1", "Sam Smith").await;
-        artiste(&pool, "a2", "Naughty Boy").await;
-        fiche(&pool, "alb1", "Lonely Hour", "a1").await;
-        fiche(&pool, "alb2", "Lonely Hour", "a2").await;
-        piste(&pool, "t1", "alb1", "a1", r"S:\M\Sam\01.flac", Some("Sam Smith")).await;
-        piste(&pool, "t2", "alb2", "a2", r"S:\M\Sam\02.flac", Some("Sam Smith")).await;
+        insert_artist(&pool, "a1", "Sam Smith").await;
+        insert_artist(&pool, "a2", "Naughty Boy").await;
+        insert_album(&pool, "alb1", "Lonely Hour", "a1").await;
+        insert_album(&pool, "alb2", "Lonely Hour", "a2").await;
+        insert_track(&pool, "t1", "alb1", "a1", r"S:\M\Sam\01.flac", Some("Sam Smith")).await;
+        insert_track(&pool, "t2", "alb2", "a2", r"S:\M\Sam\02.flac", Some("Sam Smith")).await;
         sqlx::query("INSERT INTO library_album_artists (id, library_id, library_album_id, artist_id) VALUES ('x', 1, 'alb2', 'a2')")
             .execute(&pool).await.expect("liaison d'album");
 
-        consolider(&pool).await.expect("consolidation");
+        consolidate(&pool).await.expect("consolidation");
         let restants: Vec<(String, String)> = sqlx::query_as(
             "SELECT library_album_id, artist_id FROM library_album_artists")
             .fetch_all(&pool).await.unwrap();
@@ -544,25 +544,25 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn les_epingles_de_la_fiche_supprimee_suivent() {
+    async fn the_deleted_record_pins_follow() {
         let pool = base().await;
-        compilation_eclatee(&pool, r"S:\M\NRJ Hits\01.flac", r"S:\M\NRJ Hits\02.flac").await;
+        split_compilation(&pool, r"S:\M\NRJ Hits\01.flac", r"S:\M\NRJ Hits\02.flac").await;
         sqlx::query("INSERT INTO library_pins (library_id, library_album_id) VALUES (1, 'alb2')")
             .execute(&pool).await.expect("épingle");
 
-        consolider(&pool).await.expect("consolidation");
+        consolidate(&pool).await.expect("consolidation");
         let restantes: Vec<String> = sqlx::query_scalar("SELECT library_album_id FROM library_pins")
             .fetch_all(&pool).await.unwrap();
         assert_eq!(restantes, vec!["alb1".to_string()]);
     }
 
     #[tokio::test]
-    async fn un_album_sans_piste_n_est_pas_relu_indefiniment() {
+    async fn an_album_without_tracks_is_not_reread_forever() {
         let pool = base().await;
-        artiste(&pool, "a1", "Ava Max").await;
-        fiche(&pool, "alb1", "Orphelin", "a1").await;
+        insert_artist(&pool, "a1", "Ava Max").await;
+        insert_album(&pool, "alb1", "Orphelin", "a1").await;
 
-        assert_eq!(consolider(&pool).await.expect("1er").albums_seen, 1);
-        assert_eq!(consolider(&pool).await.expect("2e").albums_seen, 0);
+        assert_eq!(consolidate(&pool).await.expect("1er").albums_seen, 1);
+        assert_eq!(consolidate(&pool).await.expect("2e").albums_seen, 0);
     }
 }

@@ -8,7 +8,7 @@ import { scale } from "svelte/transition";
 import type { Library } from "#lib/types/db/library/Library";
 import { popinStore } from "#lib/stores/ui/popin.store";
 import AddLibraryPopin from "#lib/components/library/common/popin/AddLibraryPopin.svelte";
-import LibraryManageMenu, { bibliothequeOccupee } from "#lib/components/library/common/LibraryManageMenu.svelte";
+import LibraryManageMenu, { isLibraryBusy } from "#lib/components/library/common/LibraryManageMenu.svelte";
 import LibraryFoldersPopin from "#lib/components/library/common/popin/LibraryFoldersPopin.svelte";
 import { page } from "$app/state";
 import { portal } from "#lib/helper/portal";
@@ -63,7 +63,7 @@ let gestionEl: HTMLElement | null = $state(null);
 let dossiersDe = $state<number | null>(null);
 let dossiersOuverts = $state(false);
 
-function ouvrirGestion(library: Library, e: MouseEvent) {
+function openManage(library: Library, e: MouseEvent) {
   if (gestion?.library.id === library.id) {
     gestion = null;
     return;
@@ -78,9 +78,9 @@ function ouvrirGestion(library: Library, e: MouseEvent) {
   gestion = { library, style: `left: ${x}px; ${y} width: ${LARGEUR_GESTION}px; max-height: calc(100vh - 16px);` };
 }
 
-const occupee = (library: Library) => bibliothequeOccupee(library.id as number);
+const isBusy = (library: Library) => isLibraryBusy(library.id as number);
 
-function fermerTout() {
+function closeAll() {
   gestion = null;
   isOpen = false;
 }
@@ -108,19 +108,19 @@ $effect(() => {
       isOpen = false;
     }
   }
-  function echap(e: KeyboardEvent) {
+  function handleEscape(e: KeyboardEvent) {
     if (e.key === 'Escape') gestion ? (gestion = null) : (isOpen = false);
   }
 
   const timer = setTimeout(() => {
     document.addEventListener('click', handleClickOutside);
   }, 50);
-  document.addEventListener('keydown', echap);
+  document.addEventListener('keydown', handleEscape);
 
   return () => {
     clearTimeout(timer);
     document.removeEventListener('click', handleClickOutside);
-    document.removeEventListener('keydown', echap);
+    document.removeEventListener('keydown', handleEscape);
     gestion = null;
   };
 });
@@ -255,9 +255,9 @@ $effect(() => {
                          {gestion?.library.id === library.id
                            ? 'text-neutral-700 dark:text-neutral-200 bg-neutral-200/70 dark:bg-white/10'
                            : 'text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-200/60 dark:hover:bg-white/8'}"
-                  onclick={(e) => ouvrirGestion(library, e)}
+                  onclick={(e) => openManage(library, e)}
                 >
-                  <Icon icon={occupee(library) ? "material-symbols:progress-activity" : "material-symbols:more-horiz"} width="16" class={occupee(library) ? "animate-spin" : ""} />
+                  <Icon icon={isBusy(library) ? "material-symbols:progress-activity" : "material-symbols:more-horiz"} width="16" class={isBusy(library) ? "animate-spin" : ""} />
                 </button>
               </div>
             {/each}
@@ -312,7 +312,7 @@ $effect(() => {
   >
     <LibraryManageMenu
       library={gestionLib}
-      onclose={fermerTout}
+      onclose={closeAll}
       onfolders={() => { dossiersDe = gestionLib.id; dossiersOuverts = true; }}
     />
   </div>

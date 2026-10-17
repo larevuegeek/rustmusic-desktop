@@ -51,9 +51,9 @@ pub async fn get_playlist_tracks_view(
             crate::core::smart_playlist::engine::evaluate(&state.pool, playlist_id, &rules).await?;
 
         let ids: Vec<String> = calculees.into_iter().map(|t| t.library_track_id).collect();
-        let pistes = remplir_dans_l_ordre(&state.pool, &ids).await?;
+        let pistes = fill_in_order(&state.pool, &ids).await?;
         return Ok(if is_mix {
-            crate::core::variete::diversifier(pistes, taille as usize, |p| p.artist_id.clone())
+            crate::core::mix_variety::diversify(pistes, taille as usize, |p| p.artist_id.clone())
         } else {
             pistes
         });
@@ -106,11 +106,11 @@ pub async fn get_tracks_view_by_paths(
         .await
         .map_err(|e| format!("Pistes par chemin : {e}"))?;
 
-    Ok(ranger_selon(trouvees, &paths, |t| t.path.clone()))
+    Ok(arrange_by(trouvees, &paths, |t| t.path.clone()))
 }
 
 /// Remplit des identifiants en conservant l'ordre demandé.
-async fn remplir_dans_l_ordre(
+async fn fill_in_order(
     pool: &sqlx::SqlitePool,
     ids: &[String],
 ) -> Result<Vec<TrackListView>, String> {
@@ -133,7 +133,7 @@ async fn remplir_dans_l_ordre(
         .await
         .map_err(|e| format!("Pistes de la playlist : {e}"))?;
 
-    Ok(ranger_selon(trouvees, ids, |t| t.id.clone()))
+    Ok(arrange_by(trouvees, ids, |t| t.id.clone()))
 }
 
 /// Remet une liste dans l'ordre d'une autre.
@@ -141,7 +141,7 @@ async fn remplir_dans_l_ordre(
 /// `IN (…)` ne promet aucun ordre : sans ce reclassement, une playlist
 /// intelligente triée par écoutes ressortirait dans l'ordre où la base a trouvé
 /// les lignes, et le tri demandé serait perdu en chemin.
-fn ranger_selon<F>(mut trouvees: Vec<TrackListView>, ordre: &[String], cle: F) -> Vec<TrackListView>
+fn arrange_by<F>(mut trouvees: Vec<TrackListView>, ordre: &[String], cle: F) -> Vec<TrackListView>
 where
     F: Fn(&TrackListView) -> String,
 {

@@ -16,7 +16,7 @@ use ringbuf::traits::Consumer;
 use super::traits::{AudioOutput, AudioOutputError};
 use super::types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
 use crate::core::audio_player::audio_output_wasapi::{
-    default_output_device_name, run_moteur_exclusif, try_negotiate_exclusive_format, FluxPiste,
+    default_output_device_name, run_exclusive_engine, try_negotiate_exclusive_format, FluxPiste,
     NegotiatedFormat, WasapiSymphoniaState,
 };
 
@@ -31,11 +31,11 @@ struct Moteur {
 
 static MOTEUR: Mutex<Option<Moteur>> = Mutex::new(None);
 
-fn verrou() -> std::sync::MutexGuard<'static, Option<Moteur>> {
+fn engine_lock() -> std::sync::MutexGuard<'static, Option<Moteur>> {
     MOTEUR.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn arreter(moteur: Moteur) {
+fn stop_engine(moteur: Moteur) {
     moteur.arret.store(true, Ordering::SeqCst);
     if moteur.fil.join().is_err() {
         log::warn!("WASAPI : le fil du moteur exclusif a paniqué");
@@ -43,16 +43,16 @@ fn arreter(moteur: Moteur) {
 }
 
 /// Rend le DAC : avant une lecture partagée, DSD ou sur une autre sortie.
-pub fn fermer_moteur() {
-    let moteur = verrou().take();
+pub fn close_engine() {
+    let moteur = engine_lock().take();
     if let Some(m) = moteur {
-        arreter(m);
+        stop_engine(m);
     }
 }
 
 /// Confie une piste au moteur ; le relance seulement si le format ou la sortie change.
-fn confier(format: NegotiatedFormat, sortie: Option<String>, flux: FluxPiste) {
-    let mut garde = verrou();
+fn hand_over(format: NegotiatedFormat, sortie: Option<String>, flux: FluxPiste) {
+    let mut garde = engine_lock();
     if let Some(m) = garde.as_ref() {
         if !m.fil.is_finished() && m.format == format && m.sortie == sortie {
             *m.prochaine.lock().unwrap_or_else(|e| e.into_inner()) = Some(flux);
@@ -61,7 +61,7 @@ fn confier(format: NegotiatedFormat, sortie: Option<String>, flux: FluxPiste) {
         }
     }
     if let Some(ancien) = garde.take() {
-        arreter(ancien);
+        stop_engine(ancien);
     }
     let prochaine = Arc::new(Mutex::new(Some(flux)));
     let arret = Arc::new(AtomicBool::new(false));
@@ -69,7 +69,7 @@ fn confier(format: NegotiatedFormat, sortie: Option<String>, flux: FluxPiste) {
     let fil = std::thread::Builder::new()
         .name("rustmusic-wasapi-render".into())
         .spawn(move || {
-            if let Err(e) = run_moteur_exclusif(format, s, p, a) {
+            if let Err(e) = run_exclusive_engine(format, s, p, a) {
                 log::error!("❌ WASAPI exclusive : {e}");
             }
         })
@@ -126,7 +126,7 @@ impl WasapiExclusiveOutput {
 
         let stream_ready = Arc::new(AtomicBool::new(false));
         let fin = Arc::new(AtomicBool::new(false));
-        confier(format, preferred_device_name, FluxPiste {
+        hand_over(format, preferred_device_name, FluxPiste {
             source: Box::new(consumer),
             is_paused: atomics.is_paused.clone(),
             is_stopped: atomics.is_stopped.clone(),

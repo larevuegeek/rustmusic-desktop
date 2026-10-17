@@ -570,7 +570,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fichiers_de_dossier_reconnus() {
+    fn folder_files_recognised() {
         assert!(is_folder_satellite("cover.jpg"));
         assert!(is_folder_satellite("Folder.PNG"));
         assert!(is_folder_satellite("album.m3u"));
@@ -583,7 +583,7 @@ mod tests {
     }
 
     #[test]
-    fn le_nettoyage_ne_remonte_pas_au_dela_des_racines() {
+    fn cleanup_never_climbs_above_the_roots() {
         let roots = vec!["/musique".to_string()];
         assert!(under_roots("/musique/Angele/Brol", &roots));
         assert!(under_roots("/musique/Angele", &roots));
@@ -594,7 +594,7 @@ mod tests {
     }
 
     #[test]
-    fn une_racine_prefixe_n_en_est_pas_une() {
+    fn a_prefix_root_is_not_a_root() {
         // « /musique2 » commence par « /musique » sans être dedans : sans le
         // séparateur dans la comparaison, on effacerait le dossier du voisin.
         let roots = vec!["/musique".to_string()];
@@ -602,19 +602,19 @@ mod tests {
     }
 
     #[test]
-    fn aucune_racine_interdit_tout_nettoyage() {
+    fn no_root_forbids_any_cleanup() {
         assert!(!under_roots("/musique/Album", &[]));
     }
 
     #[test]
-    fn comparaison_de_chemins() {
+    fn path_comparison() {
         assert!(same_path("/a/b", "/a/b/"));
         assert!(same_path(r"C:\a\b", "C:/a/b"));
         assert!(!same_path("/a/b", "/a/c"));
     }
 
     #[test]
-    fn nom_sans_extension() {
+    fn name_without_extension() {
         assert_eq!(stem_of("01 - Titre.flac"), "01 - Titre");
         assert_eq!(stem_of("R.E.M. - Losing.mp3"), "R.E.M. - Losing");
         assert_eq!(stem_of("sansextension"), "sansextension");

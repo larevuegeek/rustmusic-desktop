@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Name=RustMusic
+GenericName=Music Player
+GenericName[fr]=Lecteur de musique
+GenericName[de]=Musikwiedergabe
+GenericName[es]=Reproductor de música
+GenericName[it]=Lettore musicale
+Comment=Music player for audiophiles: Hi-Res, DSD, DLNA and network playback
+Comment[fr]=Lecteur de musique pour audiophiles : Hi-Res, DSD, DLNA et lecture en réseau
+Comment[de]=Musikwiedergabe für Audiophile: Hi-Res, DSD, DLNA und Netzwerkwiedergabe
+Comment[es]=Reproductor de música para audiófilos: Hi-Res, DSD, DLNA y reproducción en red
+Comment[it]=Lettore musicale per audiofili: Hi-Res, DSD, DLNA e riproduzione in rete
+Exec=rustmusic
+Icon=dev.rustmusic.RustMusic
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=music;player;flac;dsd;hi-res;dlna;upnp;airplay;audiophile;
+StartupNotify=true

@@ -23,7 +23,7 @@ function oklab(r: number, g: number, b: number): [number, number, number] {
   ];
 }
 
-export async function couleurPochette(src: string): Promise<CouleurPochette | null> {
+export async function coverColor(src: string): Promise<CouleurPochette | null> {
   if (cache.has(src)) return cache.get(src)!;
   let resultat: CouleurPochette | null = null;
   try {

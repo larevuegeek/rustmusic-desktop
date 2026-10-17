@@ -1,6 +1,6 @@
 <script lang="ts">
 import { page } from "$app/state";
-import ImportAccueil from "#lib/components/library/common/ImportAccueil.svelte";
+import ImportWelcome from "#lib/components/library/common/ImportWelcome.svelte";
 </script>
 
-<ImportAccueil section={page.url.searchParams.get("section")} />
+<ImportWelcome section={page.url.searchParams.get("section")} />

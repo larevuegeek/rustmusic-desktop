@@ -3,7 +3,7 @@
   type Tache = "scan" | "covers" | "artists";
   const enCours = $state<Record<number, Partial<Record<Tache, boolean>>>>({});
 
-  export function bibliothequeOccupee(id: number): boolean {
+  export function isLibraryBusy(id: number): boolean {
     const t = enCours[id];
     return !!(t?.scan || t?.covers || t?.artists);
   }
@@ -15,10 +15,10 @@
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { t, currentLocale } from "#lib/i18n";
-  import { recupererPochettes, recupererPortraits } from "#lib/actions/library/ImageAction";
+  import { fetchCovers, fetchPortraits } from "#lib/actions/library/ImageAction";
   import { handleAddFiles } from "#lib/actions/library/LibraryAction";
-  import { oublierLocalisations } from "#lib/helper/library/trackLocation";
-  import { tailleLisible } from "#lib/helper/tools/sizeTools";
+  import { forgetLocations } from "#lib/helper/library/trackLocation";
+  import { readableSize } from "#lib/helper/tools/sizeTools";
   import { libraryStore } from "#lib/stores/library/library.store";
   import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
   import { popinStore } from "#lib/stores/ui/popin.store";
@@ -56,9 +56,9 @@
   // Le contenu chargé est celui de la bibliothèque ouverte : ailleurs, pas de compte.
   const ouverte = $derived($libraryStore.librarySelected?.id === id);
   const sansPochette = $derived(ouverte ? $libraryContentStore.albums.filter((a) => !a.cover_url).length : 0);
-  const nombre = (n: number) => n.toLocaleString($currentLocale);
+  const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 
-  async function agir(quoi: Tache, tache: () => Promise<void>) {
+  async function runTask(quoi: Tache, tache: () => Promise<void>) {
     const cible = id;
     if (enCours[cible]?.[quoi]) return;
     enCours[cible] = { ...enCours[cible], [quoi]: true };
@@ -73,27 +73,27 @@
 
   // Chaque action fige sa bibliothèque avant `onclose` : dans la barre latérale,
   // fermer démonte ce menu et `library` n'est plus lisible.
-  const rescanner = () => agir("scan", async () => {
+  const rescan = () => runTask("scan", async () => {
     const cible = id, etaitOuverte = ouverte;
     onclose();
     await invoke("rescan_library", { libraryId: cible });
     // Un scan renumérote : les fiches mises en cache peuvent ne plus exister.
-    oublierLocalisations();
+    forgetLocations();
     if (etaitOuverte) libraryContentStore.refresh();
     libraryStore.refresh();
     onchange?.();
   });
 
-  const pochettes = () => agir("covers", () => recupererPochettes([id]));
-  const portraits = () => agir("artists", () => recupererPortraits());
+  const refreshCovers = () => runTask("covers", () => fetchCovers([id]));
+  const portraits = () => runTask("artists", () => fetchPortraits());
 
-  function renommer() {
+  function rename() {
     const lib = library;
     onclose();
     popinStore.open($t("selector.rename_title"), AddLibraryPopin, { library: lib });
   }
 
-  async function parDefaut() {
+  async function makeDefault() {
     const lib = library;
     onclose();
     try {
@@ -103,7 +103,7 @@
     }
   }
 
-  function supprimer() {
+  function remove() {
     const lib = library;
     onclose();
     popinStore.open($t("library_head.delete"), Dialog, {
@@ -139,7 +139,7 @@
     {#if fin === "fleche"}
       <Icon icon="material-symbols:arrow-forward-rounded" width="16" class="shrink-0 text-(--rg-mu2) transition-transform group-hover/a:translate-x-0.5 group-hover/a:text-(--rg-tx2)" />
     {:else if typeof fin === "number" && fin > 0}
-      <span class="shrink-0 px-1.75 py-0.5 rounded-[9px] font-mono text-[11px] font-bold bg-(--rg-ambg) text-(--rg-am)">{nombre(fin)}</span>
+      <span class="shrink-0 px-1.75 py-0.5 rounded-[9px] font-mono text-[11px] font-bold bg-(--rg-ambg) text-(--rg-am)">{formatNumber(fin)}</span>
     {/if}
   </button>
 {/snippet}
@@ -163,27 +163,27 @@
 </div>
 
 <div class="p-1.5">
-  {@render action("material-symbols:sync-rounded", $t("library_head.rescan"), $t("library_head.rescan_desc"), rescanner, undefined, false, !!taches.scan)}
+  {@render action("material-symbols:sync-rounded", $t("library_head.rescan"), $t("library_head.rescan_desc"), rescan, undefined, false, !!taches.scan)}
   {@render action("material-symbols:folder-open-outline-rounded", $t("library_head.folders"),
-    [dirs.length === 1 ? $t("library_head.dirs_one") : $t("library_head.dirs_n").replace("{n}", String(dirs.length)), tailleLisible(taille, $currentLocale)].filter(Boolean).join(" · "),
+    [dirs.length === 1 ? $t("library_head.dirs_one") : $t("library_head.dirs_n").replace("{n}", String(dirs.length)), readableSize(taille, $currentLocale)].filter(Boolean).join(" · "),
     () => { onfolders(); onclose(); }, "fleche")}
   {@render action("material-symbols:upload-file-outline-rounded", $t("library.add_files"), $t("library_head.add_files_desc"), () => { const cible = id; onclose(); handleAddFiles(cible); })}
   {@render action("material-symbols:image-search-rounded", $t("library_head.covers"),
-    !ouverte ? $t("library_head.covers_desc") : sansPochette === 0 ? $t("library_head.covers_ok") : sansPochette === 1 ? $t("library_head.covers_missing_one") : $t("library_head.covers_missing_n").replace("{n}", nombre(sansPochette)),
-    pochettes, sansPochette, sansPochette > 0, !!taches.covers)}
+    !ouverte ? $t("library_head.covers_desc") : sansPochette === 0 ? $t("library_head.covers_ok") : sansPochette === 1 ? $t("library_head.covers_missing_one") : $t("library_head.covers_missing_n").replace("{n}", formatNumber(sansPochette)),
+    refreshCovers, sansPochette, sansPochette > 0, !!taches.covers)}
   {@render action("material-symbols:person-outline-rounded", $t("library_head.artist_images"), $t("library_head.artist_images_desc"), portraits, undefined, false, !!taches.artists)}
   {@render action("material-symbols:swap-vert-rounded", $t("library_head.import_export"), $t("library_head.import_export_desc"), () => { onclose(); goto("/settings/storage"); }, "fleche")}
 </div>
 
 <div class="p-1.5 border-t border-(--rg-bd) dark:border-[#262d29]">
-  {@render action("material-symbols:edit-outline-rounded", $t("selector.rename"), $t("selector.rename_desc"), renommer)}
+  {@render action("material-symbols:edit-outline-rounded", $t("selector.rename"), $t("selector.rename_desc"), rename)}
   {#if !library.is_default}
-    {@render action("material-symbols:keep-outline-rounded", $t("selector.set_default"), $t("selector.default_hint"), parDefaut)}
+    {@render action("material-symbols:keep-outline-rounded", $t("selector.set_default"), $t("selector.default_hint"), makeDefault)}
   {/if}
 </div>
 
 <div class="p-1.5 border-t border-(--rg-bd) dark:border-[#262d29]">
-  <button type="button" role="menuitem" class="group/a w-full flex items-center gap-3 p-2 rounded-[10px] text-left cursor-pointer transition-colors hover:bg-red-500/8" onclick={supprimer}>
+  <button type="button" role="menuitem" class="group/a w-full flex items-center gap-3 p-2 rounded-[10px] text-left cursor-pointer transition-colors hover:bg-red-500/8" onclick={remove}>
     <span class="{tuile} bg-red-500/8 border-red-500/20 group-hover/a:bg-red-500/15 group-hover/a:border-red-500/35">
       <Icon icon="material-symbols:delete-outline-rounded" width="18" class="text-red-600 dark:text-red-400" />
     </span>

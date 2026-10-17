@@ -311,7 +311,7 @@ mod tests {
     }
 
     #[test]
-    fn renommage_garde_le_dossier() {
+    fn rename_keeps_the_folder() {
         let tokens = parse("{track:02} - {title}.{ext}").unwrap();
         let files = vec![file(
             "/musique/Album/piste1.flac",
@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn restructuration_recompose_le_chemin() {
+    fn restructuring_rebuilds_the_path() {
         let tokens = parse("{artist}/{album}/{track:02} - {title}.{ext}").unwrap();
         let files = vec![file(
             "/musique/vrac/x.flac",
@@ -340,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn une_cible_identique_ne_bouge_pas() {
+    fn an_identical_target_does_not_move() {
         let tokens = parse("{title}.{ext}").unwrap();
         let files = vec![file("/m/Titre.flac", &[("title", "Titre"), ("ext", "flac")])];
         let plan = plan(&files, &tokens, Mode::Rename, "/m", false, none);
@@ -350,7 +350,7 @@ mod tests {
     }
 
     #[test]
-    fn collision_entre_deux_membres_du_lot() {
+    fn collision_between_two_batch_members() {
         // Même titre, pas de numéro : le piège que la roadmap signale.
         let tokens = parse("{title}.{ext}").unwrap();
         let files = vec![
@@ -363,7 +363,7 @@ mod tests {
     }
 
     #[test]
-    fn cible_occupee_hors_du_lot() {
+    fn target_taken_outside_the_batch() {
         let tokens = parse("{title}.{ext}").unwrap();
         let files = vec![file("/m/a.flac", &[("title", "Intro"), ("ext", "flac")])];
         let plan = plan(&files, &tokens, Mode::Rename, "/m", false, |p| {
@@ -374,7 +374,7 @@ mod tests {
     }
 
     #[test]
-    fn une_chaine_n_est_pas_un_blocage() {
+    fn a_chain_is_not_a_deadlock() {
         // a → b et b → c : la cible de a se libère, il suffit d'ordonner.
         let tokens = parse("{title}.{ext}").unwrap();
         let files = vec![
@@ -395,7 +395,7 @@ mod tests {
     }
 
     #[test]
-    fn un_cycle_est_rendu_a_part() {
+    fn a_cycle_is_returned_separately() {
         // a → b et b → a : aucun ordre ne suffit, il faut un nom temporaire.
         let tokens = parse("{title}.{ext}").unwrap();
         let files = vec![
@@ -409,7 +409,7 @@ mod tests {
     }
 
     #[test]
-    fn champ_manquant_bloque() {
+    fn missing_field_blocks() {
         let tokens = parse("{album}/{title}.{ext}").unwrap();
         let files = vec![file("/m/a.flac", &[("title", "Intro"), ("ext", "flac")])];
         let plan = plan(&files, &tokens, Mode::Restructure, "/m", false, none);
@@ -421,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    fn chemin_trop_long() {
+    fn path_too_long() {
         // Un nom seul ne peut pas dépasser : l'assainissement le tronque à 255.
         // La limite se franchit par la **profondeur**, comme le décrit la
         // roadmap — artiste, album et titre longs qui s'additionnent.
@@ -445,7 +445,7 @@ mod tests {
     }
 
     #[test]
-    fn sous_windows_la_casse_ne_distingue_pas_deux_fichiers() {
+    fn on_windows_case_does_not_tell_two_files_apart() {
         let tokens = parse("{title}.{ext}").unwrap();
         let files = vec![
             file("/m/a.flac", &[("title", "Intro"), ("ext", "flac")]),
@@ -458,7 +458,7 @@ mod tests {
     }
 
     #[test]
-    fn un_tag_ne_peut_pas_creer_de_dossier_en_mode_renommage() {
+    fn a_tag_cannot_create_a_folder_in_rename_mode() {
         let tokens = parse("{artist} - {title}.{ext}").unwrap();
         let files = vec![file(
             "/m/x.flac",
@@ -469,7 +469,7 @@ mod tests {
     }
 
     #[test]
-    fn le_separateur_windows_est_conserve() {
+    fn the_windows_separator_is_kept() {
         let tokens = parse("{artist}/{title}.{ext}").unwrap();
         let files = vec![file(
             "C:\\Musique\\vrac\\x.flac",

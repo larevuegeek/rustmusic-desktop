@@ -71,7 +71,7 @@ export const importsTermines = writable(0);
 /** La bibliothèque avant l'import, pour le bilan d'un arrêt. */
 let avant: Library | null = null;
 
-function bilanPartiel(libraryId: number) {
+function partialSummary(libraryId: number) {
   const apres = get(libraryStore).libraries.find(l => l.id === libraryId);
   const tr = get(t);
   const parties = ([
@@ -90,13 +90,13 @@ function bilanPartiel(libraryId: number) {
   });
 }
 
-function suivre(libraryId: number) {
+function watch(libraryId: number) {
   clearTimeout(reset);
   if (avant?.id !== libraryId) avant = get(libraryStore).libraries.find(l => l.id === libraryId) ?? null;
 }
 
 /** Fin d'import ou de rescan : l'état reste affiché le temps du bilan. */
-function terminer() {
+function finish() {
   importWriter.update(state => ({ ...state, active: false, stopping: false }));
   avant = null;
   clearTimeout(reset);
@@ -111,7 +111,7 @@ export const importProgressStore = {
 
   init: async () => {
     const u1 = await listen<Cible>('import-start', (event) => {
-      suivre(event.payload.library_id);
+      watch(event.payload.library_id);
       startTime = Date.now();
       importWriter.set({
         ...initialState,
@@ -122,7 +122,7 @@ export const importProgressStore = {
     });
 
     const u2 = await listen<Cible & { found: number }>('import-listing', (event) => {
-      suivre(event.payload.library_id);
+      watch(event.payload.library_id);
       importWriter.update(state => ({
         ...state,
         active: true,
@@ -136,7 +136,7 @@ export const importProgressStore = {
 
     const u3 = await listen<ImportProgressPayload>('import-progress', (event) => {
       if (startTime === 0) startTime = Date.now();
-      suivre(event.payload.library_id);
+      watch(event.payload.library_id);
       importWriter.update(state => ({
         ...state,
         active: true,
@@ -168,12 +168,12 @@ export const importProgressStore = {
       await libraryStore.refresh();
       importWriter.update(state => ({ ...state, added: 0 }));
       importsTermines.update(n => n + 1);
-      if (cancelled) bilanPartiel(library_id);
-      terminer();
+      if (cancelled) partialSummary(library_id);
+      finish();
     });
 
     // Un rescan arrêté pendant le listage n'émet pas `import-complete`.
-    const u5 = await listen('rescan-complete', terminer);
+    const u5 = await listen('rescan-complete', finish);
 
     unlisteners = [u1, u2, u3, u4, u5];
   },

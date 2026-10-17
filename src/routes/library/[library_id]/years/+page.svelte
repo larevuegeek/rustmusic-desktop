@@ -6,15 +6,15 @@ import Icon from "@iconify/svelte";
 import { t, currentLocale } from "#lib/i18n";
 import { libraryHeader } from "#lib/stores/library/libraryHeader";
 import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
-import { handlePeriodeMix, handleRandomMix } from "#lib/actions/queue/QueueAction";
-import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+import { handlePeriodMix, handleRandomMix } from "#lib/actions/queue/QueueAction";
+import { readLocal, writeLocal } from "#lib/helper/tools/storage";
 import LibraryImportingLoader from "#lib/components/library/common/loader/LibraryImportingLoader.svelte";
 import { importAffiche } from "#lib/stores/library/importProgress.store";
 import AlbumListItem from "#lib/components/library/album/AlbumListItem.svelte";
 import Carousel from "#lib/components/ui/carousel/Carousel.svelte";
 import MenuSelect from "#lib/components/ui/menu/MenuSelect.svelte";
 import YearChips from "#lib/components/ui/input/YearChips.svelte";
-import { estDatee, decennieDe, courtDecennie as court, teinteDecennie as teinteDe } from "#lib/helper/library/periode";
+import { isDated, decadeOf, shortDecade, decadeHue } from "#lib/helper/library/period";
 import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
 
 const libraryId = $derived(Number(page.params.library_id));
@@ -24,20 +24,20 @@ const PLAFOND = 40;
 
 // ─── Ordre (retenu d'une visite à l'autre) ───
 const CLE_ORDRE = "annees:ordre";
-let recentes = $state(lireLocal(CLE_ORDRE, "recent") !== "ancien");
-$effect(() => ecrireLocal(CLE_ORDRE, recentes ? "recent" : "ancien"));
+let recentes = $state(readLocal(CLE_ORDRE, "recent") !== "ancien");
+$effect(() => writeLocal(CLE_ORDRE, recentes ? "recent" : "ancien"));
 
 type Decennie = { d: number; albums: AlbumListView[]; parAnnee: Map<number, AlbumListView[]>; titres: number; artistes: number };
 
 const albums = $derived($libraryContentStore.albums);
-const sansAnnee = $derived(albums.filter((a) => !estDatee(a.year)).length);
+const sansAnnee = $derived(albums.filter((a) => !isDated(a.year)).length);
 
 // Regroupé une fois ; l'ordre se pose à part.
 const groupes = $derived.by((): Decennie[] => {
   const par = new Map<number, AlbumListView[]>();
   for (const a of albums) {
-    if (!estDatee(a.year)) continue;
-    const d = decennieDe(a.year);
+    if (!isDated(a.year)) continue;
+    const d = decadeOf(a.year);
     (par.get(d) ?? par.set(d, []).get(d)!).push(a);
   }
   return [...par.entries()]
@@ -72,8 +72,8 @@ function selection(dec: Decennie): AlbumListView[] {
     || comparer.compare(x.title, y.title));
 }
 
-const nombre = (n: number) => n.toLocaleString($currentLocale);
-const plusieurs = (n: number, un: string, n_: string) => $t(n === 1 ? un : n_);
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
+const plural = (n: number, un: string, n_: string) => $t(n === 1 ? un : n_);
 
 // ─── En-tête : chiffres et mix au hasard ───
 $effect(() => {
@@ -93,13 +93,13 @@ onDestroy(() => libraryHeader.update((h) => ({ ...h, action: null, chiffres: nul
 
 // ─── Index des décennies ───
 let defilement = $state<HTMLDivElement | null>(null);
-function aller(d: number) {
+function goTo(d: number) {
   defilement?.querySelector(`#decennie-${d}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // Une décennie ne se construit qu'en approchant de l'écran : ses pochettes coûtent.
 let montees = $state(new Set<number>());
-function monter(noeud: HTMLElement, d: number) {
+function mountWhenVisible(noeud: HTMLElement, d: number) {
   const io = new IntersectionObserver((e) => {
     if (e.some((x) => x.isIntersecting)) {
       montees = new Set(montees).add(d);
@@ -140,10 +140,10 @@ const puce = "h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text
             <button
               type="button"
               class="{puce} cursor-pointer border-(--rg-bd) bg-(--rg-creux) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
-              title={$t("home.decade_name").replace("{d}", court(dec.d))}
-              onclick={() => aller(dec.d)}
+              title={$t("home.decade_name").replace("{d}", shortDecade(dec.d))}
+              onclick={() => goTo(dec.d)}
             >
-              <span class="w-2 h-2 rounded-full rg-teinte-vive" style="--h: {teinteDe(dec.d)}"></span>{$t("home.decade_short").replace("{d}", court(dec.d))}
+              <span class="w-2 h-2 rounded-full rg-teinte-vive" style="--h: {decadeHue(dec.d)}"></span>{$t("home.decade_short").replace("{d}", shortDecade(dec.d))}
             </button>
           {/each}
         </nav>
@@ -167,20 +167,20 @@ const puce = "h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text
         {#each decennies as dec (dec.d)}
           {@const annee = choix[dec.d] ?? null}
           {@const liste = selection(dec)}
-          {@const nom = $t("home.decade_name").replace("{d}", court(dec.d))}
+          {@const nom = $t("home.decade_name").replace("{d}", shortDecade(dec.d))}
           {@const lien = `/library/${libraryId}/years/${dec.d}${annee == null ? "" : `?annee=${annee}`}`}
-          <section id="decennie-{dec.d}" class="scroll-mt-2 pt-6 pb-9 border-b border-(--rg-line) last:border-b-0" use:monter={dec.d}>
+          <section id="decennie-{dec.d}" class="scroll-mt-2 pt-6 pb-9 border-b border-(--rg-line) last:border-b-0" use:mountWhenVisible={dec.d}>
             <!-- En-tête : vignette teintée, nom, chiffres, mix. -->
             <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
-              <span class="rg-icone-teinte shrink-0 w-14 h-14 flex items-center justify-center rounded-2xl text-xl font-extrabold tracking-tight" style="--h: {teinteDe(dec.d)}">
-                {court(dec.d)}
+              <span class="rg-icone-teinte shrink-0 w-14 h-14 flex items-center justify-center rounded-2xl text-xl font-extrabold tracking-tight" style="--h: {decadeHue(dec.d)}">
+                {shortDecade(dec.d)}
               </span>
               <div class="min-w-0">
                 <h2 class="text-[26px] leading-tight font-extrabold tracking-[-0.01em] text-(--rg-tx)"><a href={lien} class="hover:underline">{nom}</a></h2>
                 <p class="text-[13px] text-(--rg-mu)">
-                  <b class="font-semibold text-(--rg-tx2)">{nombre(dec.albums.length)}</b> {plusieurs(dec.albums.length, "library_head.albums_one", "library_head.albums_n")}
-                  · <b class="font-semibold text-(--rg-tx2)">{nombre(dec.titres)}</b> {plusieurs(dec.titres, "library_head.tracks_one", "library_head.tracks_n")}
-                  · <b class="font-semibold text-(--rg-tx2)">{nombre(dec.artistes)}</b> {plusieurs(dec.artistes, "library_head.artists_one", "library_head.artists_n")}
+                  <b class="font-semibold text-(--rg-tx2)">{formatNumber(dec.albums.length)}</b> {plural(dec.albums.length, "library_head.albums_one", "library_head.albums_n")}
+                  · <b class="font-semibold text-(--rg-tx2)">{formatNumber(dec.titres)}</b> {plural(dec.titres, "library_head.tracks_one", "library_head.tracks_n")}
+                  · <b class="font-semibold text-(--rg-tx2)">{formatNumber(dec.artistes)}</b> {plural(dec.artistes, "library_head.artists_one", "library_head.artists_n")}
                 </p>
               </div>
               <span class="flex-1"></span>
@@ -196,10 +196,10 @@ const puce = "h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text
                 type="button"
                 class="h-10 pl-3.5 pr-4.5 inline-flex items-center gap-2 rounded-full cursor-pointer text-sm font-bold
                        bg-(--rg-g) text-(--rg-on-g) hover:brightness-110 transition"
-                onclick={() => handlePeriodeMix(libraryId, dec.d, annee)}
+                onclick={() => handlePeriodMix(libraryId, dec.d, annee)}
               >
                 <Icon icon="material-symbols:play-arrow-rounded" width="22" />
-                {annee == null ? $t("years_view.mix_decade").replace("{d}", court(dec.d)) : $t("years_view.mix_year").replace("{y}", String(annee))}
+                {annee == null ? $t("years_view.mix_decade").replace("{d}", shortDecade(dec.d)) : $t("years_view.mix_year").replace("{y}", String(annee))}
               </button>
             </div>
 
@@ -224,7 +224,7 @@ const puce = "h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text
             <a href={lien} class="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-(--rg-gtx) hover:underline">
               {annee != null
                 ? $t("years_view.see_year").replace("{y}", String(annee))
-                : $t("period_view.see_albums").replace("{n}", nombre(liste.length))}<span aria-hidden="true">→</span>
+                : $t("period_view.see_albums").replace("{n}", formatNumber(liste.length))}<span aria-hidden="true">→</span>
             </a>
           </section>
         {/each}

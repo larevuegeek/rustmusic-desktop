@@ -397,7 +397,7 @@ impl AudioPlayer {
 
         // ========== PHASE 2 : CONFIGURATION SORTIE ==========
         let host: cpal::Host = cpal::default_host();
-        let device: cpal::Device = crate::core::audio_player::output::peripherique::choose(
+        let device: cpal::Device = crate::core::audio_player::output::device_lookup::choose(
             &host,
             selected_device_name.as_deref(),
         )?;
@@ -505,7 +505,7 @@ impl AudioPlayer {
             crate::core::audio_quality::AudioQualityProfile::Low => {
                 Some((output_sample_rate as f32 * 0.2) as u32) // 200 ms
             }
-            _ => crate::core::audio_player::output::peripherique::sound_server_period(
+            _ => crate::core::audio_player::output::device_lookup::sound_server_period(
                 &host,
                 output_sample_rate,
             ),
@@ -613,7 +613,7 @@ impl AudioPlayer {
         // codec_params est déplacé dans le thread décodeur juste après.
         let pipeline_codec = codec_params.codec;
         // Inconnue : affichée 16, mais jamais comptée bit-perfect.
-        let profondeur = crate::core::audio_player::pipeline_info::profondeur_source(&codec_params);
+        let profondeur = crate::core::audio_player::pipeline_info::source_bit_depth(&codec_params);
         let pipeline_source_bits = profondeur.unwrap_or(16);
 
         let decoder_handle: JoinHandle<Result<(), String>> = std::thread::spawn(move || {
@@ -803,7 +803,7 @@ impl AudioPlayer {
         let bit_perfect = audio_output.backend().is_bit_perfect_capable()
             && effective_output_rate == source_sample_rate
             && (effective_output_channels == canaux_source || (canaux_source == 1 && effective_output_channels == 2))
-            && crate::core::audio_player::pipeline_info::est_entier_sans_perte(pipeline_codec)
+            && crate::core::audio_player::pipeline_info::is_lossless_integer(pipeline_codec)
             && profondeur.is_some_and(|b| b <= audio_output.bits_exacts())
             && crate::core::audio_player::replay_gain::current_factor() == 1.0;
         crate::core::audio_player::pipeline_info::PlaybackPipelineInfo {
@@ -1181,7 +1181,7 @@ impl AudioPlayer {
 
         // ─── 2. CPAL output device + config (mêmes choix que Symphonia path) ───
         let host = cpal::default_host();
-        let device: cpal::Device = crate::core::audio_player::output::peripherique::choose(
+        let device: cpal::Device = crate::core::audio_player::output::device_lookup::choose(
             &host,
             selected_device_name.as_deref(),
         )?;
@@ -1189,7 +1189,7 @@ impl AudioPlayer {
         // Le DSD (DoP ou converti) ne passe pas par les moteurs PCM : ils rendent le DAC.
         crate::core::audio_player::output::shared_engine::close();
         #[cfg(target_os = "windows")]
-        crate::core::audio_player::output::fermer_moteur();
+        crate::core::audio_player::output::close_engine();
 
         // DoP voulu mais refusé : l'interface le dira.
         #[allow(unused_mut)]
@@ -1312,7 +1312,7 @@ impl AudioPlayer {
 
                 if let Some(hw_id) = hw_id {
                     // Moteur compatible : on l'enchaîne. Sinon on le ferme avant réservation et sonde (`hw:` occupé).
-                    let reutilise = output::dop_engine::moteur_compatible(carrier, channel_count as u16, &device_full_name);
+                    let reutilise = output::dop_engine::engine_compatible(carrier, channel_count as u16, &device_full_name);
                     if !reutilise {
                         output::dop_engine::teardown_engine();
                     }
@@ -1424,7 +1424,7 @@ impl AudioPlayer {
                 if let Some(device_id) = device_id {
                     // Moteur vivant et compatible : on l'enchaîne (gapless). Sinon on le
                     // ferme avant de sonder le DAC (le hog mode est alors relâché).
-                    let reutilise = output::dop_engine::moteur_compatible(carrier, channel_count as u16, &device_full_name);
+                    let reutilise = output::dop_engine::engine_compatible(carrier, channel_count as u16, &device_full_name);
                     if !reutilise {
                         output::dop_engine::teardown_engine();
                     }
@@ -1523,7 +1523,7 @@ impl AudioPlayer {
         // d'une lecture exclusive), elle revient à PipeWire avant d'ouvrir le flux.
         #[cfg(target_os = "linux")]
         let device = match (&exclusif_dsd, selected_device_name.as_deref()) {
-            (None, Some(nom)) => crate::core::audio_player::output::peripherique::reclaim_if_held(nom)
+            (None, Some(nom)) => crate::core::audio_player::output::device_lookup::reclaim_if_held(nom)
                 .unwrap_or(device),
             _ => device,
         };
@@ -1549,7 +1549,7 @@ impl AudioPlayer {
             crate::core::audio_quality::AudioQualityProfile::Low => {
                 cpal::BufferSize::Fixed((output_sample_rate as f32 * 0.2) as u32)
             }
-            _ => crate::core::audio_player::output::peripherique::sound_server_period(
+            _ => crate::core::audio_player::output::device_lookup::sound_server_period(
                 &host,
                 output_sample_rate,
             )
@@ -2318,7 +2318,7 @@ where
 {
     log::debug!("🧵 Decoder thread démarré");
 
-    let mut decoder: Box<dyn AudioDecoder> = crate::core::audio_player::codecs::registre()
+    let mut decoder: Box<dyn AudioDecoder> = crate::core::audio_player::codecs::codec_registry()
         .make_audio_decoder(&codec_params, &AudioDecoderOptions::default())
         .map_err(|e| format!("Erreur création decoder: {:?}", e))?;
 

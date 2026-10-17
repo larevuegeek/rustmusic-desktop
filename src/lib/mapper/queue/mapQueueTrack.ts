@@ -20,7 +20,7 @@ export type SourceDeFile = {
   thumbnail_path?: string | null;
 };
 
-export function versQueueTrack(source: SourceDeFile, position = 0): QueueTrack {
+export function toQueueTrack(source: SourceDeFile, position = 0): QueueTrack {
   const profil = get(profilSelector);
   return {
     queueId: crypto.randomUUID(),
@@ -35,8 +35,8 @@ export function versQueueTrack(source: SourceDeFile, position = 0): QueueTrack {
 }
 
 /** Une liste affichée devient la file d'attente, dans le même ordre. */
-export function versFileDAttente(sources: SourceDeFile[]): QueueTrack[] {
-  return sources.filter((s) => s?.path).map((s, i) => versQueueTrack(s, i));
+export function toQueue(sources: SourceDeFile[]): QueueTrack[] {
+  return sources.filter((s) => s?.path).map((s, i) => toQueueTrack(s, i));
 }
 
 /**
@@ -45,17 +45,17 @@ export function versFileDAttente(sources: SourceDeFile[]): QueueTrack[] {
  * `next()` avance de +1 sur une liste déjà mélangée : en aléatoire, le morceau
  * cliqué ouvre donc le bal et le reste est tiré au sort derrière lui.
  */
-export function ordonnerPourLecture(
+export function orderForPlayback(
   tracks: QueueTrack[],
   path: string,
   melanger: boolean,
   tirage: (n: number) => number = (n) => Math.floor(Math.random() * n),
 ): { liste: QueueTrack[]; index: number } {
 
-  const numeroter = (l: QueueTrack[]) => l.map((t, i) => ({ ...t, position: i }));
+  const renumber = (l: QueueTrack[]) => l.map((t, i) => ({ ...t, position: i }));
 
   if (!melanger) {
-    const liste = numeroter(tracks);
+    const liste = renumber(tracks);
     const trouve = liste.findIndex((t) => t.path === path);
     return { liste, index: trouve === -1 ? 0 : trouve };
   }
@@ -69,5 +69,5 @@ export function ordonnerPourLecture(
     [autres[i], autres[j]] = [autres[j], autres[i]];
   }
 
-  return { liste: numeroter(choisi ? [choisi, ...autres] : autres), index: 0 };
+  return { liste: renumber(choisi ? [choisi, ...autres] : autres), index: 0 };
 }

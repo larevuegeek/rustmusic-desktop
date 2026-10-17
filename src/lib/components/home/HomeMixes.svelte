@@ -3,8 +3,8 @@
 import Icon from "@iconify/svelte";
 import { t } from "#lib/i18n";
 import { playlistStore } from "#lib/stores/playlist/playlist.store";
-import { renouveler } from "#lib/stores/mix/mix.store";
-import { mixPourVous, mixDecennies, mixCrees } from "#lib/config/mixes";
+import { renew } from "#lib/stores/mix/mix.store";
+import { mixesForYou, decadeMixes, createdMixes } from "#lib/config/mixes";
 import { actionsMix } from "#lib/actions/mix/MixAction";
 import Carousel from "#lib/components/ui/carousel/Carousel.svelte";
 import MixCard from "#lib/components/mix/MixCard.svelte";
@@ -13,9 +13,9 @@ import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
 
 let { libraryId, genres, albums = [], hires }: { libraryId: number; genres: GenreMix[]; albums?: AlbumListView[]; hires: number } = $props();
 
-const specs = $derived(mixPourVous(genres, hires, $t));
-const perso = $derived(mixCrees($playlistStore.playlists, $t));
-const decennies = $derived(mixDecennies(albums, $t));
+const specs = $derived(mixesForYou(genres, hires, $t));
+const perso = $derived(createdMixes($playlistStore.playlists, $t));
+const decennies = $derived(decadeMixes(albums, $t));
 
 const lien = "shrink-0 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer";
 </script>
@@ -26,7 +26,7 @@ const lien = "shrink-0 text-sm font-semibold text-emerald-600 dark:text-emerald-
     <h2 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">{$t('home.for_you')}</h2>
     <div class="flex items-center gap-4">
       <span class="hidden @3xl:inline text-sm text-neutral-500 dark:text-[#9aa39e]">{$t('home.for_you_desc')}</span>
-      <button type="button" onclick={() => renouveler(libraryId)}
+      <button type="button" onclick={() => renew(libraryId)}
               class="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400
                      hover:text-emerald-500 dark:hover:text-emerald-300 cursor-pointer transition-colors">
         <Icon icon="lucide:refresh-cw" width={14} /> {$t('home.new_mixes')}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Profil } from "#lib/types/db/profil/Profil";
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   import { profilSelector } from "#lib/stores/profil/profil.store";
   import { profilPopinStore } from "#lib/stores/profil/profilPopin.store";
   import { libraryStore } from "#lib/stores/library/library.store";
@@ -77,14 +77,14 @@
     setTimeout(() => { mode = 'select'; name = ""; editId = null; errorName = null; }, 200);
   }
 
-  async function selectProfil(profil: Profil) {
+  async function selectProfile(profil: Profil) {
     const current = $profilSelector.profilSelected;
     if (current?.id === profil.id) {
       close();
       return;
     }
 
-    profilSelector.setProfil(profil);
+    profilSelector.setProfile(profil);
     await reloadAfterSwitch();
     close();
   }
@@ -99,15 +99,15 @@
     isSubmitting = true;
     try {
       if (mode === 'create') {
-        await profilSelector.createProfil(name, PALETTE[selectedColorIndex]);
+        await profilSelector.createProfile(name, PALETTE[selectedColorIndex]);
         await profilSelector.refresh();
         back();
       } else if (mode === 'edit' && editId) {
-        await profilSelector.updateProfil(editId, name, PALETTE[editIndex]);
+        await profilSelector.updateProfile(editId, name, PALETTE[editIndex]);
         back();
       }
     } catch (error) {
-      const message = messageErreur(error);
+      const message = errorMessage(error);
       if (message.includes("UNIQUE") || message.includes("duplicate")) {
         errorName = "forms.name_taken";
       } else {
@@ -120,7 +120,7 @@
 
   async function handleDelete(id: number) {
     try {
-      await profilSelector.deleteProfil(id);
+      await profilSelector.deleteProfile(id);
       back();
     } catch (error) {
       console.error("Failed to delete profil", error);
@@ -181,7 +181,7 @@
                      {$profilSelector.profilSelected?.id === profil.id
                        ? 'scale-110 ring-[3px] ring-(--rg-g) shadow-[0_0_40px_color-mix(in_oklab,var(--rg-g)_25%,transparent)]'
                        : 'hover:scale-108 hover:shadow-2xl ring-[3px] ring-transparent hover:ring-black/10 dark:hover:ring-white/20'}"
-              onclick={() => selectProfil(profil)}
+              onclick={() => selectProfile(profil)}
             >
               <Avatar
                 src={profil.avatar ?? undefined}

@@ -12,8 +12,8 @@
   import Menu from "#lib/components/ui/menu/Menu.svelte";
   import MenuItem from "#lib/components/ui/menu/MenuItem.svelte";
   import { untrack } from "svelte";
-  import { tirer, apercu, generationMix, type SourceMix } from "#lib/stores/mix/mix.store";
-  import { lancerMix } from "#lib/actions/mix/MixAction";
+  import { draw, preview, generationMix, type SourceMix } from "#lib/stores/mix/mix.store";
+  import { playMix } from "#lib/actions/mix/MixAction";
 
   let {
     libraryId,
@@ -57,11 +57,11 @@
     const s = untrack(() => source);
     let perime = false;
     // Le tirage d'une autre carte rejoue cet effet : le cache rend la même liste, sans clignotement.
-    tirer(id, c, s).then((l) => { if (!perime) liste = l; });
+    draw(id, c, s).then((l) => { if (!perime) liste = l; });
     return () => { perime = true; };
   });
 
-  function approcher(noeud: HTMLElement) {
+  function whenVisible(noeud: HTMLElement) {
     const io = new IntersectionObserver((e) => {
       if (e.some((x) => x.isIntersecting)) {
         visible = true;
@@ -72,23 +72,23 @@
     return { destroy: () => io.disconnect() };
   }
 
-  const a = $derived(liste ? apercu(liste, $t) : null);
+  const a = $derived(liste ? preview(liste, $t) : null);
   const horizontale = $derived(variante === "horizontale");
   const decennie = $derived(variante === "decennie");
 
-  async function jouer() {
+  async function play() {
     if (!liste?.length || lance) return;
     lance = true;
     try {
-      await lancerMix(liste);
+      await playMix(liste);
     } finally {
       lance = false;
     }
   }
 </script>
 
-<div class="group relative min-w-0" use:approcher style="--h: {h}">
-  <button type="button" onclick={jouer} disabled={!liste?.length} title={aide}
+<div class="group relative min-w-0" use:whenVisible style="--h: {h}">
+  <button type="button" onclick={play} disabled={!liste?.length} title={aide}
           class="flex text-left cursor-pointer min-w-0 w-full disabled:cursor-default
                  {horizontale ? 'flex-row items-center gap-4 @4xl:flex-col @4xl:items-stretch @4xl:gap-3' : decennie ? 'flex-col gap-2.5' : 'flex-col gap-3'}">
 

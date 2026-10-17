@@ -4,7 +4,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { t } from "#lib/i18n";
 import { toasts } from "#lib/stores/ui/toast.store";
 
-export async function copierChemin(chemin: string, message = chemin) {
+export async function copyPath(chemin: string, message = chemin) {
   try {
     await navigator.clipboard.writeText(chemin);
     toasts.push({ type: "success", title: get(t)("album_view.path_copied"), message });
@@ -14,7 +14,7 @@ export async function copierChemin(chemin: string, message = chemin) {
 }
 
 /** « Révéler » plutôt qu'ouvrir : marche hors $HOME et ne lance jamais le fichier. */
-export async function revelerDansDossier(chemin: string) {
+export async function revealInFolder(chemin: string) {
   try {
     await revealItemInDir(chemin);
   } catch (e) {

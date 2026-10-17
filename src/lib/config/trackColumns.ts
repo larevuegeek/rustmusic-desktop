@@ -1,6 +1,6 @@
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
-import { formatBitrate, formatChannels, formatCourt, palierPiste } from "#lib/helper/tools/audioFormatTools";
-import { tailleLisible } from "#lib/helper/tools/sizeTools";
+import { formatBitrate, formatChannels, formatCourt, trackTier } from "#lib/helper/tools/audioFormatTools";
+import { readableSize } from "#lib/helper/tools/sizeTools";
 import { get } from "svelte/store";
 // `t` désigne une piste partout ici : la traduction prend un autre nom.
 import { t as tr, currentLocale } from "#lib/i18n";
@@ -151,7 +151,7 @@ export function resetTagCache(): void {
   cacheTags.clear();
 }
 
-function lireTags(track: TrackListView): TagBag | null {
+function readTags(track: TrackListView): TagBag | null {
   const connu = cacheTags.get(track.id);
   if (connu !== undefined) return connu;
 
@@ -193,8 +193,8 @@ function lireTags(track: TrackListView): TagBag | null {
  * `cle` vient du recensement fait côté Rust : soit un champ nommé
  * (`composer`), soit un tag libre préfixé (`custom:Label`).
  */
-export function valeurDeTag(track: TrackListView, cle: string): string | null {
-  const sac = lireTags(track);
+export function tagValue(track: TrackListView, cle: string): string | null {
+  const sac = readTags(track);
   if (!sac) return null;
 
   if (cle.startsWith("custom:")) {
@@ -212,16 +212,16 @@ export function valeurDeTag(track: TrackListView, cle: string): string | null {
 // Mise en forme
 // ────────────────────────────────────────────────────────────────────────────
 
-function duree(secondes: number | null): string | null {
+function formatDuration(secondes: number | null): string | null {
   if (!secondes) return null;
   const m = Math.floor(secondes / 60);
   const s = Math.floor(secondes % 60);
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function poids(octets: number | null): string | null {
+function formatSize(octets: number | null): string | null {
   if (!octets) return null;
-  return tailleLisible(octets, get(currentLocale));
+  return readableSize(octets, get(currentLocale));
 }
 
 function date(iso: string | null): string | null {
@@ -230,7 +230,7 @@ function date(iso: string | null): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(get(currentLocale));
 }
 
-function frequence(hz: number | null): string | null {
+function formatRate(hz: number | null): string | null {
   if (!hz) return null;
   // Une décimale pour distinguer 44,1 de 48, sans traîner de zéros.
   const khz = (hz / 1000).toLocaleString(get(currentLocale), { maximumFractionDigits: 1, useGrouping: false });
@@ -260,22 +260,22 @@ export const COLONNES_FIXES: TrackColumn[] = [
   { key: "year", label: "Année", width: 56, numeric: true, value: (t) => t.year },
   { key: "genre", label: "Genre", width: 112, value: (t) => t.genre },
   { key: "rating", label: "Notation", width: 80, widget: "rating", sortOn: (t) => t.rating, sortKind: "number" },
-  { key: "duration", label: "Durée", width: 48, align: "right", numeric: true, value: (t) => duree(t.duration), sortOn: (t) => t.duration, sortKind: "number" },
+  { key: "duration", label: "Durée", width: 48, align: "right", numeric: true, value: (t) => formatDuration(t.duration), sortOn: (t) => t.duration, sortKind: "number" },
   { key: "track_number", label: "N° piste", width: 48, align: "right", numeric: true, value: (t) => (t.track_number ? String(t.track_number) : null), sortOn: (t) => t.track_number, sortKind: "number" },
   { key: "disc_number", label: "N° disque", width: 48, align: "right", numeric: true, value: (t) => (t.disc_number ? String(t.disc_number) : null), sortOn: (t) => t.disc_number, sortKind: "number" },
   { key: "play_count", label: "Écoutes", width: 56, align: "right", numeric: true, value: (t) => (t.play_count ? String(t.play_count) : null), sortOn: (t) => t.play_count || null, sortKind: "number" },
   { key: "last_played_at", label: "Dernière écoute", width: 96, numeric: true, value: (t) => date(t.last_played_at), sortOn: (t) => instant(t.last_played_at), sortKind: "number" },
   { key: "created_at", label: "Ajouté le", width: 96, numeric: true, value: (t) => date(t.created_at), sortOn: (t) => instant(t.created_at), sortKind: "number" },
   { key: "quality", label: "Qualité", width: 140, widget: "quality",
-    value: (t) => `${get(tr)(`tracks_view.${palierPiste(t.audio_format, t.bits_per_sample, t.sample_rate)}`)} · ${formatCourt(t.audio_format, t.bits_per_sample, t.sample_rate)}`,
+    value: (t) => `${get(tr)(`tracks_view.${trackTier(t.audio_format, t.bits_per_sample, t.sample_rate)}`)} · ${formatCourt(t.audio_format, t.bits_per_sample, t.sample_rate)}`,
     sortOn: (t) => (t.bits_per_sample ?? 0) * 1e6 + (t.sample_rate ?? 0), sortKind: "number" },
   { key: "audio_format", label: "Format", width: 64, value: (t) => t.audio_format },
   { key: "extension", label: "Extension", width: 64, value: (t) => t.extension },
   { key: "bitrate", label: "Débit", width: 80, align: "right", numeric: true, value: (t) => formatBitrate(t.bitrate) || null, sortOn: (t) => t.bitrate, sortKind: "number" },
-  { key: "sample_rate", label: "Fréquence", width: 80, align: "right", numeric: true, value: (t) => frequence(t.sample_rate), sortOn: (t) => t.sample_rate, sortKind: "number" },
+  { key: "sample_rate", label: "Fréquence", width: 80, align: "right", numeric: true, value: (t) => formatRate(t.sample_rate), sortOn: (t) => t.sample_rate, sortKind: "number" },
   { key: "bits_per_sample", label: "Bits", width: 48, align: "right", numeric: true, value: (t) => (t.bits_per_sample ? `${t.bits_per_sample} bit` : null), sortOn: (t) => t.bits_per_sample, sortKind: "number" },
   { key: "channels", label: "Canaux", width: 64, value: (t) => formatChannels(t.channels) || null, sortOn: (t) => t.channels, sortKind: "number" },
-  { key: "file_size", label: "Taille", width: 80, align: "right", numeric: true, value: (t) => poids(t.file_size ?? t.size), sortOn: (t) => t.file_size ?? t.size, sortKind: "number" },
+  { key: "file_size", label: "Taille", width: 80, align: "right", numeric: true, value: (t) => formatSize(t.file_size ?? t.size), sortOn: (t) => t.file_size ?? t.size, sortKind: "number" },
   { key: "filename", label: "Nom de fichier", width: 208, value: (t) => t.filename },
   { key: "path", label: "Chemin", width: 288, value: (t) => t.path },
 ];
@@ -327,7 +327,7 @@ const INTITULES: Record<string, string> = {
 };
 
 /** Rend lisible une clé de tag ; `traduire` fourni, l'intitulé connu est traduit (`columns.tag.<clé>`). */
-export function intituleDeTag(cle: string, traduire?: (k: string) => string): string {
+export function tagTitle(cle: string, traduire?: (k: string) => string): string {
   if (cle.startsWith("custom:")) return cle.slice("custom:".length);
   if (traduire && INTITULES[cle]) {
     const traduit = traduire(`columns.tag.${cle}`);
@@ -337,25 +337,25 @@ export function intituleDeTag(cle: string, traduire?: (k: string) => string): st
 }
 
 /** Intitulé affiché d'une colonne, traduit au rendu ; repli sur `label` (tags libres, clés inconnues). */
-export function libelleColonne(col: TrackColumn, traduire: (k: string) => string): string {
-  if (col.key.startsWith("tag:")) return intituleDeTag(col.key.slice("tag:".length), traduire);
+export function columnLabel(col: TrackColumn, traduire: (k: string) => string): string {
+  if (col.key.startsWith("tag:")) return tagTitle(col.key.slice("tag:".length), traduire);
   const cle = `columns.${col.key}`;
   const traduit = traduire(cle);
   return traduit === cle ? col.label : traduit;
 }
 
 /** Construit la colonne correspondant à un tag recensé. */
-export function colonneDeTag(cle: string): TrackColumn {
+export function tagColumn(cle: string): TrackColumn {
   return {
     key: `tag:${cle}`,
-    label: intituleDeTag(cle),
+    label: tagTitle(cle),
     width: 128,
-    value: (t) => valeurDeTag(t, cle),
+    value: (t) => tagValue(t, cle),
   };
 }
 
 /** Un tag mérite-t-il d'être proposé, ou une colonne bâtie le sert-elle déjà ? */
-export function tagProposable(cle: string): boolean {
+export function isOfferableTag(cle: string): boolean {
   return !TAGS_DEJA_COUVERTS.has(cle);
 }
 
@@ -383,11 +383,11 @@ export const COLONNES_PAR_DEFAUT = [
  * bibliothèque entre deux sessions, et ce n'est pas une raison pour vider
  * toute la mise en page.
  */
-export function resoudreColonnes(cles: string[]): TrackColumn[] {
+export function resolveColumns(cles: string[]): TrackColumn[] {
   const sortie: TrackColumn[] = [];
   for (const cle of cles) {
     if (cle.startsWith("tag:")) {
-      sortie.push(colonneDeTag(cle.slice("tag:".length)));
+      sortie.push(tagColumn(cle.slice("tag:".length)));
     } else {
       const c = PAR_CLE.get(cle);
       if (c) sortie.push(c);
@@ -404,8 +404,8 @@ export function resoudreColonnes(cles: string[]): TrackColumn[] {
  * sur un tag qu'on vient de retirer de l'affichage. Résoudre à part du tableau
  * affiché évite que retirer une colonne ne casse silencieusement le tri.
  */
-function colonneDeTri(cle: string): TrackColumn | null {
-  if (cle.startsWith("tag:")) return colonneDeTag(cle.slice("tag:".length));
+function sortColumn(cle: string): TrackColumn | null {
+  if (cle.startsWith("tag:")) return tagColumn(cle.slice("tag:".length));
   return PAR_CLE.get(cle) ?? null;
 }
 
@@ -416,21 +416,21 @@ function colonneDeTri(cle: string): TrackColumn | null {
  * reste disponible pour revenir à l'ordre naturel — celui de l'album, disque
  * puis piste — que rien ne saurait reconstituer autrement.
  */
-export function trierPistes(
+export function sortTracks(
   tracks: TrackListView[],
   cle: string | null,
   dir: SortDir,
 ): TrackListView[] {
   if (!cle) return tracks;
-  const col = colonneDeTri(cle);
+  const col = sortColumn(cle);
   if (!col) return tracks;
   return [...tracks].sort(comparateur(col, dir));
 }
 
 /** Tant que la liste n'a jamais été personnalisée : la mise en page de la maquette, la qualité plutôt que l'artiste. */
 export const COLONNES_MAQUETTE = ["index", "cover", "title", "album", "quality", "rating", "duration"];
-export function clesAffichees(brut: string | undefined): string[] {
-  const liste = lireColonnes(brut);
+export function shownKeys(brut: string | undefined): string[] {
+  const liste = readColumns(brut);
   return liste.join() === COLONNES_PAR_DEFAUT.join() ? COLONNES_MAQUETTE : liste;
 }
 
@@ -438,7 +438,7 @@ export function clesAffichees(brut: string | undefined): string[] {
 /** Colonnes qui étaient écrites en dur avant d'entrer dans le registre. */
 const STRUCTURELLES = ["index", "cover", "title"];
 
-export function lireColonnes(brut: string | undefined): string[] {
+export function readColumns(brut: string | undefined): string[] {
   if (!brut) return COLONNES_PAR_DEFAUT;
 
   let liste: string[];
@@ -479,7 +479,7 @@ export const LARGEUR_MAX = 600;
 /** Le titre peut aller bien plus loin que les autres colonnes. */
 export const LARGEUR_MAX_SOUPLE = 1600;
 
-export function lireLargeurs(brut: string | undefined): Record<string, number> {
+export function readWidths(brut: string | undefined): Record<string, number> {
   if (!brut) return {};
   try {
     const v = JSON.parse(brut);
@@ -499,7 +499,7 @@ export function lireLargeurs(brut: string | undefined): Record<string, number> {
 }
 
 /** La largeur effective d'une colonne : celle réglée, ou celle d'origine. */
-export function largeurDe(col: TrackColumn, reglees: Record<string, number>): number {
+export function widthOf(col: TrackColumn, reglees: Record<string, number>): number {
   return reglees[col.key] ?? col.width;
 }
 
@@ -515,7 +515,7 @@ export function largeurDe(col: TrackColumn, reglees: Record<string, number>): nu
  * tableau se dote alors d'un remplissage pour absorber ce qui reste, sans quoi
  * les colonnes flotteraient sans occuper la largeur disponible.
  */
-export function estFlexible(col: TrackColumn, reglees: Record<string, number>): boolean {
+export function isFlexible(col: TrackColumn, reglees: Record<string, number>): boolean {
   return Boolean(col.flexible) && reglees[col.key] === undefined;
 }
 
@@ -526,9 +526,9 @@ export function estFlexible(col: TrackColumn, reglees: Record<string, number>): 
  * même façon, sinon les colonnes se décalent d'une ligne à l'autre — et c'est
  * le genre d'écart qu'on ne voit qu'après avoir ajouté la sixième colonne.
  */
-export function styleCellule(col: TrackColumn, reglees: Record<string, number>): string {
-  const w = largeurDe(col, reglees);
-  if (!estFlexible(col, reglees)) return `width: ${w}px`;
+export function cellStyle(col: TrackColumn, reglees: Record<string, number>): string {
+  const w = widthOf(col, reglees);
+  if (!isFlexible(col, reglees)) return `width: ${w}px`;
   return `flex: 1 1 ${w}px; min-width: ${col.minWidth ?? 0}px`;
 }
 
@@ -546,7 +546,7 @@ export function styleCellule(col: TrackColumn, reglees: Record<string, number>):
  */
 let canevas: HTMLCanvasElement | null = null;
 
-export function largeurAjustee(
+export function fittedWidth(
   col: TrackColumn,
   tracks: TrackListView[],
   police = "12px Inter Variable, system-ui, sans-serif",
@@ -564,7 +564,7 @@ export function largeurAjustee(
 
   // L'intitulé compte : une colonne ajustée à un contenu plus court que son
   // titre afficherait « Dernière éc… » en en-tête.
-  let large = ctx.measureText(libelleColonne(col, get(tr))).width;
+  let large = ctx.measureText(columnLabel(col, get(tr))).width;
 
   const lire = col.value ?? ((t: TrackListView) => (col.widget === "title" ? t.title : null));
   for (const t of tracks) {

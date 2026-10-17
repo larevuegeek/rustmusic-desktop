@@ -39,7 +39,7 @@
     return `left: ${posX}px; top: ${posY}px;`;
   });
 
-  async function lire() {
+  async function play() {
     onclose();
     try {
       const pistes = await invoke<TrackListView[]>('get_playlist_tracks_view', { playlistId: playlist.id });
@@ -55,13 +55,13 @@
     }
   }
 
-  async function epingler() {
+  async function pin() {
     onclose();
     await playlistStore.setPinned(playlist.id, !playlist.pinned);
   }
 
   /** Le crayon de la barre latérale ouvre déjà cette distinction. */
-  function modifier() {
+  function edit() {
     onclose();
     if (playlist.is_smart) {
       popinStore.open($t('playlist.new_smart'), SmartPlaylistPopin,
@@ -71,7 +71,7 @@
     }
   }
 
-  async function supprimer() {
+  async function remove() {
     onclose();
     const nom = playlist.name;
     try {
@@ -114,24 +114,24 @@
          overflow-hidden"
   style={menuStyle}
 >
-  <button class="{ligne} text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx)" onclick={lire}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx)" onclick={play}>
     <Icon icon="lucide:play" width="14" class="opacity-60" />
     {$t('playlist.play')}
   </button>
 
-  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={modifier}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={edit}>
     <Icon icon={playlist.is_smart ? 'lucide:sparkles' : 'lucide:pen-line'} width="14" class="opacity-60" />
     {playlist.is_smart ? $t('playlist.edit_rules') : $t('playlist.edit')}
   </button>
 
-  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={epingler}>
+  <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={pin}>
     <Icon icon={playlist.pinned ? 'material-symbols:keep-off-outline-rounded' : 'material-symbols:keep-outline-rounded'} width="15" class="opacity-60" />
     {playlist.pinned ? $t('sidebar.unpin') : $t('sidebar.pin')}
   </button>
 
   <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
-  <button class="{ligne} text-red-600 dark:text-red-400 hover:bg-red-500/10" onclick={supprimer}>
+  <button class="{ligne} text-red-600 dark:text-red-400 hover:bg-red-500/10" onclick={remove}>
     <Icon icon="lucide:trash-2" width="14" class="opacity-60" />
     {$t('playlist.delete')}
   </button>

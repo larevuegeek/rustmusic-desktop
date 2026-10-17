@@ -5,7 +5,7 @@
   import { ampRemoteStore, type AmpNavKey, type AmpNetLine, type AmpView } from "#lib/stores/audio/ampRemote.store";
   import ClickWheel from "#lib/components/ui/input/ClickWheel.svelte";
   import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
-  import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+  import { readLocal, writeLocal } from "#lib/helper/tools/storage";
 
   let { vue, cover }: { vue: AmpView; cover: string | null } = $props();
 
@@ -45,7 +45,7 @@
     [/favo/i, "material-symbols:star-outline-rounded"],
   ];
 
-  function icone(l: AmpNetLine): string {
+  function lineIcon(l: AmpNetLine): string {
     if (l.kind !== "item") return ICONES[l.kind] ?? "material-symbols:chevron-right-rounded";
     return SERVICES.find(([motif]) => motif.test(l.text))?.[1] ?? "material-symbols:chevron-right-rounded";
   }
@@ -54,8 +54,8 @@
 
   // Commandes de direction : molette (façon iPod) ou ligne de touches, plus compacte. Retenu.
   type Pave = "molette" | "touches";
-  let pave = $state<Pave>(lireLocal("ampli:pave", "molette") === "touches" ? "touches" : "molette");
-  $effect(() => ecrireLocal("ampli:pave", pave));
+  let pave = $state<Pave>(readLocal("ampli:pave", "molette") === "touches" ? "touches" : "molette");
+  $effect(() => writeLocal("ampli:pave", pave));
   const TOUCHES: [AmpNavKey, string][] = [
     ["left", "material-symbols:keyboard-arrow-left-rounded"],
     ["up", "material-symbols:keyboard-arrow-up-rounded"],
@@ -65,7 +65,7 @@
   ];
 
   /** Garde la ligne du curseur visible dans la liste, sans faire défiler le panneau. */
-  function suivreCurseur(actif: boolean) {
+  function followCursor(actif: boolean) {
     return (li: HTMLElement) => {
       const ul = li.parentElement;
       if (!actif || !ul) return;
@@ -101,7 +101,7 @@
           {#each net.lines as ligne, i (i)}
             {#if ligne.text}
               {@const sel = net.cursor === i}
-              <li {@attach suivreCurseur(sel)}>
+              <li {@attach followCursor(sel)}>
                 <button
                   type="button"
                   class="relative w-full h-8 flex items-center gap-2.5 px-2.5 rounded-[9px] text-left cursor-pointer transition-colors
@@ -109,7 +109,7 @@
                   onclick={() => send({ type: "net_select", line: i })}
                 >
                   {#if sel}<span class="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-[3px] bg-(--rg-g)"></span>{/if}
-                  <Icon icon={icone(ligne)} width="16" class="shrink-0 {sel ? '' : 'text-(--rg-mu)'}" />
+                  <Icon icon={lineIcon(ligne)} width="16" class="shrink-0 {sel ? '' : 'text-(--rg-mu)'}" />
                   <span class="flex-1 min-w-0 truncate text-[12.5px] font-semibold">{ligne.text}</span>
                   {#if ligne.kind === "folder" || ligne.kind === "item"}
                     <Icon icon="material-symbols:chevron-right-rounded" width="15" class="shrink-0 text-(--rg-mu2)" />
@@ -199,15 +199,15 @@
       <!-- Une seule ligne : les touches, puis le choix du mode. -->
       <div class="w-full flex items-center justify-between gap-2">
         <div class="flex items-center gap-1.5">
-          {#each TOUCHES as [key, icone] (key)}
+          {#each TOUCHES as [key, lineIcon] (key)}
             <button
               type="button"
               class="h-9 flex items-center justify-center rounded-[10px] cursor-pointer transition-colors
-                     {icone ? 'w-9 bouton-relief text-(--rg-tx2) hover:text-(--rg-tx)' : 'w-12 ok text-[12.5px] font-bold'}"
+                     {lineIcon ? 'w-9 bouton-relief text-(--rg-tx2) hover:text-(--rg-tx)' : 'w-12 ok text-[12.5px] font-bold'}"
               aria-label={$t(key === "enter" ? "amp_remote.ok" : `amp_remote.${key}`)}
               onclick={() => nav(key)}
             >
-              {#if icone}<Icon icon={icone} width="22" />{:else}OK{/if}
+              {#if lineIcon}<Icon icon={lineIcon} width="22" />{:else}OK{/if}
             </button>
           {/each}
         </div>

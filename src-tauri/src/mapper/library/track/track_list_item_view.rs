@@ -117,7 +117,7 @@ mod tests {
     /// automatique : ajouter un champ suffit à le faire échouer si la liste de
     /// colonnes ne suit pas. Une liste de noms recopiée dans le test aurait
     /// simplement dérivé avec le reste.
-    fn champs_de_la_structure() -> Vec<String> {
+    fn struct_fields() -> Vec<String> {
         let source = include_str!("track_list_item_view.rs");
         // Après l'accolade ouvrante : la ligne de déclaration commence elle
         // aussi par `pub`, et serait prise pour un champ nommé « struct ».
@@ -138,8 +138,8 @@ mod tests {
     }
 
     #[test]
-    fn la_liste_de_colonnes_couvre_tous_les_champs() {
-        let champs = champs_de_la_structure();
+    fn the_column_list_covers_every_field() {
+        let champs = struct_fields();
         assert!(champs.len() > 30, "lecture de la structure ratée : {champs:?}");
 
         for champ in &champs {
@@ -151,7 +151,7 @@ mod tests {
     }
 
     #[test]
-    fn chaque_alias_employe_est_joint() {
+    fn every_used_alias_is_joined() {
         // Un alias non joint produit une requête invalide, et l'erreur
         // n'apparaît qu'au moment où on l'exécute.
         for alias in ["lt.", "lf.", "lc.", "la.", "a.", "lat."] {

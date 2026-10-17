@@ -14,11 +14,11 @@ import { liked } from "#lib/stores/playlist/like.store";
 import { toasts } from "#lib/stores/ui/toast.store";
 import { loadArtist } from "#lib/services/library/library.service";
 import { handleTracksPlay } from "#lib/actions/queue/QueueAction";
-import { clesAffichees, resoudreColonnes, lireLargeurs, resetTagCache, trierPistes, type SortDir } from "#lib/config/trackColumns";
-import { dureeEcoute } from "#lib/helper/tools/dateTools";
-import { meilleureQualite } from "#lib/helper/tools/audioFormatTools";
-import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
-import { cleTri, comparerNaturel, ordreDisque } from "#lib/helper/library/cleTri";
+import { shownKeys, resolveColumns, readWidths, resetTagCache, sortTracks, type SortDir } from "#lib/config/trackColumns";
+import { listenDuration } from "#lib/helper/tools/dateTools";
+import { bestQuality } from "#lib/helper/tools/audioFormatTools";
+import { readLocal, writeLocal } from "#lib/helper/tools/storage";
+import { sortKey, comparerNaturel, discOrder } from "#lib/helper/library/sortKey";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import ImgZoom from "#lib/components/ui/tools/ImgZoom.svelte";
 import QualityBadge from "#lib/components/ui/text/QualityBadge.svelte";
@@ -75,10 +75,10 @@ $effect(() => {
   }
   // Hors suivi : `charger` réécrit l'état qu'il lit.
   const n = ++tour;
-  untrack(() => charger(id, aid, p.id, n));
+  untrack(() => load(id, aid, p.id, n));
 });
 
-async function charger(libId: number, aid: string, profilId: number, n: number) {
+async function load(libId: number, aid: string, profilId: number, n: number) {
   erreur = false;
   // Autre artiste : on vide (l'id d'adresse peut différer de `artist.id`).
   if (demande !== aid) {
@@ -123,7 +123,7 @@ async function charger(libId: number, aid: string, profilId: number, n: number) 
     .then((r) => {
       if (n !== tour) return;
       tracks = r ?? [];
-      ouvrirPremier();
+      openFirst();
     })
     .catch((e) => console.error("[artiste] titres :", e))
     .finally(() => { if (n === tour) chargeTitres = true; });
@@ -150,7 +150,7 @@ $effect(() => {
 const imageTeinte = $derived(portrait ?? albums.find((a) => a.cover_url)?.cover_url ?? null);
 
 // ─── Chiffres ───
-const nombre = (n: number) => n.toLocaleString($currentLocale);
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 const albumsPropres = $derived(albums.filter((a) => !a.participation));
 const participations = $derived(albums.filter((a) => a.participation));
 const duree = $derived(tracks.reduce((s, x) => s + (x.duration ?? 0), 0) || artist?.total_duration || 0);
@@ -162,7 +162,7 @@ const periode = $derived.by(() => {
   const [min, max] = [Math.min(...ans), Math.max(...ans)];
   return min === max ? String(min) : `${min} – ${max}`;
 });
-const plusieurs = (n: number, un: string, n_: string) => `${$t(n === 1 ? un : n_)}`;
+const plural = (n: number, un: string, n_: string) => `${$t(n === 1 ? un : n_)}`;
 
 // Trois genres les plus présents dans ses titres.
 const genres = $derived.by(() => {
@@ -173,7 +173,7 @@ const genres = $derived.by(() => {
 
 // ─── Favoris : l'artiste l'est quand tous ses titres le sont ───
 const tousAimes = $derived(tracks.length > 0 && tracks.every((x) => $liked.paths.has(x.path)));
-async function basculerFavori() {
+async function toggleFavorite() {
   const aimer = !tousAimes;
   try {
     await liked.toggleAll(tracks.map((x) => x.path), aimer);
@@ -190,7 +190,7 @@ const groupe = $derived(tri === "year" || tri === "album");
 
 type Groupe = { cle: string; album: AlbumListView | null; titre: string; annee: number | null; cover: string | null; pistes: TrackListView[] };
 const albumsParId = $derived(new Map(albums.map((a) => [a.id, a])));
-const parTitre = (x: string, y: string) => comparerNaturel.compare(cleTri(x), cleTri(y));
+const byTitle = (x: string, y: string) => comparerNaturel.compare(sortKey(x), sortKey(y));
 
 const groupes = $derived.by((): Groupe[] => {
   if (!groupe) return [];
@@ -209,41 +209,41 @@ const groupes = $derived.by((): Groupe[] => {
       titre: a?.title ?? p.album ?? $t("artist_view.unknown_album"),
       annee: a?.year ?? (Number(p.year) || null),
       cover: a?.cover_url ?? p.thumbnail_path ?? null,
-      pistes: pistes.sort(ordreDisque),
+      pistes: pistes.sort(discOrder),
     };
   });
   const s = sens === "asc" ? 1 : -1;
   return tri === "year"
-    ? liste.sort((x, y) => s * ((x.annee ?? 0) - (y.annee ?? 0)) || parTitre(x.titre, y.titre))
-    : liste.sort((x, y) => s * parTitre(x.titre, y.titre));
+    ? liste.sort((x, y) => s * ((x.annee ?? 0) - (y.annee ?? 0)) || byTitle(x.titre, y.titre))
+    : liste.sort((x, y) => s * byTitle(x.titre, y.titre));
 });
-const aPlat = $derived(groupe ? [] : trierPistes(tracks, tri, sens));
+const aPlat = $derived(groupe ? [] : sortTracks(tracks, tri, sens));
 // La file de lecture : l'ordre affiché, albums repliés compris.
 const ordreLecture = $derived(groupe ? groupes.flatMap((g) => g.pistes) : aPlat);
 
 let ouverts = $state<Set<string>>(new Set());
-function ouvrirPremier() {
+function openFirst() {
   const premier = groupes[0]?.cle;
   ouverts = new Set(premier ? [premier] : []);
 }
-function basculer(cle: string) {
+function toggleAlbum(cle: string) {
   const s = new Set(ouverts);
   if (!s.delete(cle)) s.add(cle);
   ouverts = s;
 }
 const toutOuvert = $derived(groupes.length > 0 && groupes.every((g) => ouverts.has(g.cle)));
-function toutBasculer() {
+function toggleAll() {
   ouverts = toutOuvert ? new Set() : new Set(groupes.map((g) => g.cle));
 }
 
 // Un nouvel ordre repart du premier album ouvert, comme la maquette.
-function trierPar(cle: string) {
+function changeSort(cle: string) {
   if (tri === cle) sens = sens === "asc" ? "desc" : "asc";
   else {
     tri = cle;
     sens = cle === "year" ? "desc" : "asc";
   }
-  ouvrirPremier();
+  openFirst();
 }
 
 // L'ordre affiché, pour Maj + clic (le tableau déclare le sien).
@@ -253,7 +253,7 @@ $effect(() => {
 });
 
 // Clic sur une carte de la discographie : son album s'ouvre plus bas.
-async function allerA(id: string) {
+async function goTo(id: string) {
   if (!groupe) {
     tri = "year";
     sens = "desc";
@@ -272,32 +272,32 @@ async function allerA(id: string) {
 }
 
 // Jaquettes par titre : utiles à plat, superflues sous l'en-tête d'album.
-let jaquettes = $state(lireLocal("artiste:jaquettes", "0") === "1");
-function basculerJaquettes() {
+let jaquettes = $state(readLocal("artiste:jaquettes", "0") === "1");
+function toggleCovers() {
   jaquettes = !jaquettes;
-  ecrireLocal("artiste:jaquettes", jaquettes ? "1" : "0");
+  writeLocal("artiste:jaquettes", jaquettes ? "1" : "0");
 }
 
-const colonnes = $derived(resoudreColonnes(clesAffichees($settingsStore.track_columns)).filter((c) => c.key !== "artist"));
-const largeurs = $derived(lireLargeurs($settingsStore.track_column_widths));
+const colonnes = $derived(resolveColumns(shownKeys($settingsStore.track_columns)).filter((c) => c.key !== "artist"));
+const largeurs = $derived(readWidths($settingsStore.track_column_widths));
 
 // Discographie : même ordre que les titres (nom, sinon année récente d'abord).
 const discoParNom = $derived(tri === "album" || tri === "title");
 const discographie = $derived(
   discoParNom
-    ? [...albumsPropres].sort((x, y) => parTitre(x.title, y.title))
-    : [...albumsPropres].sort((x, y) => (y.year ?? 0) - (x.year ?? 0) || parTitre(x.title, y.title)),
+    ? [...albumsPropres].sort((x, y) => byTitle(x.title, y.title))
+    : [...albumsPropres].sort((x, y) => (y.year ?? 0) - (x.year ?? 0) || byTitle(x.title, y.title)),
 );
 
 let artistMenu = $state<{ x: number; y: number } | null>(null);
 const grille = $derived($viewMode !== "list");
 
-const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded") : null);
+const sortArrow = (cle: string) => (tri === cle ? (sens === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded") : null);
 </script>
 
 <!-- Cartes et lignes des sections (hors de DetailPage : sinon ce seraient ses props). -->
-{#snippet carteDisco(a: AlbumListView)}<AlbumListItem {libraryId} album={a} onopen={() => allerA(a.id)} />{/snippet}
-{#snippet ligneDisco(a: AlbumListView)}<AlbumListRow {libraryId} album={a} onopen={() => allerA(a.id)} />{/snippet}
+{#snippet carteDisco(a: AlbumListView)}<AlbumListItem {libraryId} album={a} onopen={() => goTo(a.id)} />{/snippet}
+{#snippet ligneDisco(a: AlbumListView)}<AlbumListRow {libraryId} album={a} onopen={() => goTo(a.id)} />{/snippet}
 {#snippet carteAlbum(a: AlbumListView)}<AlbumListItem {libraryId} album={a} />{/snippet}
 {#snippet ligneAlbum(a: AlbumListView)}<AlbumListRow {libraryId} album={a} />{/snippet}
 {#snippet carteArtiste(a: ArtistListView)}<ArtistListItem {libraryId} artist={a} />{/snippet}
@@ -308,15 +308,15 @@ const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-s
   {@const g = groupes.find((x) => x.cle === cle)}
   {#if g}
     {@const ouvert = ouverts.has(g.cle)}
-    {@const q = g.album ? meilleureQualite(g.pistes) : null}
+    {@const q = g.album ? bestQuality(g.pistes) : null}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- Le tableau défile de côté : l'en-tête d'album, lui, reste en place. -->
     <div data-groupe={g.cle} role="button" tabindex="0" aria-expanded={ouvert}
          style="transform: translateX(var(--tx, 0px)); max-width: calc(var(--vue, 100%) + 1rem)"
          class="group/gh -mx-2 pl-2 pr-3 py-2.5 flex items-center gap-3.5 rounded-xl cursor-pointer select-none transition-colors hover:bg-(--rg-carte)
                 {ouvert ? 'sticky top-15 z-9 mb-1.5 border-b border-(--rg-bd) bg-(--c-fond) dark:bg-zinc-950' : ''}"
-         onclick={() => basculer(g.cle)}
-         onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); basculer(g.cle); } }}>
+         onclick={() => toggleAlbum(g.cle)}
+         onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleAlbum(g.cle); } }}>
       <span class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-(--rg-mu) group-hover/gh:text-(--rg-tx) transition-transform duration-200 {ouvert ? '' : '-rotate-90'}">
         <Icon icon="material-symbols:expand-more-rounded" width="22" />
       </span>
@@ -327,9 +327,9 @@ const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-s
         <b class="truncate text-[17px] font-extrabold tracking-[-0.01em] text-(--rg-tx)" title={g.titre}>{g.titre}</b>
         <span class="flex items-center gap-2 whitespace-nowrap overflow-hidden text-[13px] text-(--rg-mu)">
           {#if g.annee}<span>{g.annee}</span><span>·</span>{/if}
-          <span>{nombre(g.pistes.length)} {plusieurs(g.pistes.length, "library_head.tracks_one", "library_head.tracks_n")}</span>
+          <span>{formatNumber(g.pistes.length)} {plural(g.pistes.length, "library_head.tracks_one", "library_head.tracks_n")}</span>
           <span>·</span>
-          <span>{dureeEcoute(g.pistes.reduce((s, x) => s + (x.duration ?? 0), 0))}</span>
+          <span>{listenDuration(g.pistes.reduce((s, x) => s + (x.duration ?? 0), 0))}</span>
           {#if q}<QualityBadge palier={q.palier} texte={q.texte} class="px-1.5 py-0.5 max-sm:hidden" />{/if}
         </span>
       </div>
@@ -396,13 +396,13 @@ const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-s
 
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[15px] text-(--rg-mu)">
           {#if nbAlbums}
-            <span><b class="font-bold text-(--rg-tx)">{nombre(nbAlbums)}</b> {plusieurs(nbAlbums, "library_head.albums_one", "library_head.albums_n")}</span>
+            <span><b class="font-bold text-(--rg-tx)">{formatNumber(nbAlbums)}</b> {plural(nbAlbums, "library_head.albums_one", "library_head.albums_n")}</span>
             <span class="text-(--rg-mu2)">·</span>
           {/if}
-          <span><b class="font-bold text-(--rg-tx)">{nombre(nbTitres)}</b> {plusieurs(nbTitres, "library_head.tracks_one", "library_head.tracks_n")}</span>
+          <span><b class="font-bold text-(--rg-tx)">{formatNumber(nbTitres)}</b> {plural(nbTitres, "library_head.tracks_one", "library_head.tracks_n")}</span>
           {#if duree}
             <span class="text-(--rg-mu2)">·</span>
-            <span>{dureeEcoute(duree)}</span>
+            <span>{listenDuration(duree)}</span>
           {/if}
           {#if periode}
             <span class="text-(--rg-mu2)">·</span>
@@ -414,7 +414,7 @@ const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-s
           <PlayButton label={$t("artist_view.play_all")} disabled={!tracks.length} onclick={() => handleTracksPlay(ordreLecture)} />
           <RoundButton icon="material-symbols:shuffle-rounded" title={$t("album_view.shuffle")} disabled={!tracks.length} onclick={() => handleTracksPlay(tracks, true)} />
           <RoundButton icon={tousAimes ? "material-symbols:favorite-rounded" : "material-symbols:favorite-outline-rounded"} pressed={tousAimes} disabled={!tracks.length}
-                       title={$t(tousAimes ? "album_view.fav_remove" : "album_view.fav_add")} onclick={basculerFavori} />
+                       title={$t(tousAimes ? "album_view.fav_remove" : "album_view.fav_add")} onclick={toggleFavorite} />
           <RoundButton icon="material-symbols:more-horiz" title={$t("album_view.more")}
                        onclick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); artistMenu = { x: r.left, y: r.bottom + 6 }; }} />
           {#if genres.length}
@@ -429,7 +429,7 @@ const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-s
     <!-- ─── Discographie (recréée quand l'ordre change : sinon le défilement suit la carte accrochée) ─── -->
     {#if albumsPropres.length > 0}
       <CarouselSection class="mt-3" titre={$t("artist_view.discography")}
-                       sousTitre={`${nombre(albumsPropres.length)} ${plusieurs(albumsPropres.length, "library_head.albums_one", "library_head.albums_n")}`}
+                       sousTitre={`${formatNumber(albumsPropres.length)} ${plural(albumsPropres.length, "library_head.albums_one", "library_head.albums_n")}`}
                        {grille} items={discographie} cle={(a) => a.id} carte={carteDisco} ligne={ligneDisco} reinit={discoParNom} />
     {/if}
 
@@ -441,20 +441,20 @@ const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-s
       </div>
 
       <div class="flex flex-wrap items-center gap-2.5 pt-1 pb-3.5">
-        <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{nombre(nbTitres)}</b> {plusieurs(nbTitres, "library_head.tracks_one", "library_head.tracks_n")}{#if duree}{" · "}{dureeEcoute(duree)}{/if}</span>
+        <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{formatNumber(nbTitres)}</b> {plural(nbTitres, "library_head.tracks_one", "library_head.tracks_n")}{#if duree}{" · "}{listenDuration(duree)}{/if}</span>
 
-        <SegmentedControl variant="discret" label={$t("common.sort")} value={tri} onchange={trierPar}
+        <SegmentedControl variant="discret" label={$t("common.sort")} value={tri} onchange={changeSort}
                           options={[
-                            { value: "year", label: $t("artist_view.sort_year"), after: flecheSens("year") },
-                            { value: "album", label: $t("artist_view.sort_album"), after: flecheSens("album") },
-                            { value: "title", label: $t("artist_view.sort_title"), after: flecheSens("title") },
+                            { value: "year", label: $t("artist_view.sort_year"), after: sortArrow("year") },
+                            { value: "album", label: $t("artist_view.sort_album"), after: sortArrow("album") },
+                            { value: "title", label: $t("artist_view.sort_title"), after: sortArrow("title") },
                           ]} />
         {#if groupe && groupes.length > 1}
           <ToolbarButton icon={toutOuvert ? "material-symbols:unfold-less-rounded" : "material-symbols:unfold-more-rounded"}
-                         label={$t(toutOuvert ? "artist_view.collapse_all" : "artist_view.expand_all")} onclick={toutBasculer} />
+                         label={$t(toutOuvert ? "artist_view.collapse_all" : "artist_view.expand_all")} onclick={toggleAll} />
         {/if}
         {#if grille}
-          <ToolbarButton icon="material-symbols:image-outline-rounded" label={$t("album_view.covers")} title={$t("album_view.covers_title")} pressed={jaquettes} onclick={basculerJaquettes} />
+          <ToolbarButton icon="material-symbols:image-outline-rounded" label={$t("album_view.covers")} title={$t("album_view.covers_title")} pressed={jaquettes} onclick={toggleCovers} />
         {:else}
           <TrackColumnsButton {libraryId} avecLibelle />
         {/if}
@@ -480,7 +480,7 @@ const flecheSens = (cle: string) => (tri === cle ? (sens === "asc" ? "material-s
                            colle={groupe ? null : 60} positions={groupe}
                            groupes={groupe ? groupes.map((g) => ({ cle: g.cle, pistes: g.pistes, ouvert: ouverts.has(g.cle) })) : null}
                            {enteteGroupe}
-                           onsort={(cle, dir) => { tri = cle; sens = dir; ouvrirPremier(); }} />
+                           onsort={(cle, dir) => { tri = cle; sens = dir; openFirst(); }} />
       {/if}
     </section>
 

@@ -9,12 +9,12 @@ function formatTime(seconds: number): string {
 }
 
 /** « 1:12 », « 12:05 » : minutes sans zéro devant, comme les lecteurs. */
-function minutesSecondes(seconds: number): string {
+function minutesSeconds(seconds: number): string {
     return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 }
 
 /** « 25 j 6 h », « 18 h 20 min », « 42 min » : une durée totale d'écoute, unités de la langue. */
-function dureeEcoute(secondes: number): string {
+function listenDuration(secondes: number): string {
     const u = get(t);
     const min = Math.round(secondes / 60);
     const j = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
@@ -55,7 +55,7 @@ function ilYA(date: string | null | undefined, locale: string, style: "long" | "
  * « il y a 3 min », « il y a 2 h », « il y a 4 j », via `sidebar.ago_*`.
  * Format maison : `Intl` abrège différemment selon le moteur (« 5 m. »).
  */
-function depuisCourt(date: string, now: number, t: (cle: string) => string): string {
+function shortSince(date: string, now: number, t: (cle: string) => string): string {
     const instant = new Date(date.includes("T") ? date : date.replace(" ", "T") + "Z").getTime();
     const s = Math.max(0, (now - instant) / 1000);
     if (Number.isNaN(s) || s < 60) return t("sidebar.just_now");
@@ -63,4 +63,4 @@ function depuisCourt(date: string, now: number, t: (cle: string) => string): str
     return t(`sidebar.${cle}`).replace("{n}", String(Math.floor(n)));
 }
 
-export { formatTime, minutesSecondes, dureeEcoute, dateToYear, ilYA, depuisCourt };
+export { formatTime, minutesSeconds, listenDuration, dateToYear, ilYA, shortSince };

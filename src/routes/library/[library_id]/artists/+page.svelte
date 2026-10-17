@@ -1,5 +1,5 @@
 <script lang="ts">
-import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+import { readLocal, writeLocal } from "#lib/helper/tools/storage";
 import EmptyResult from "#lib/components/ui/feedback/EmptyResult.svelte";
 import SearchField from "#lib/components/ui/input/SearchField.svelte";
 import TextButton from "#lib/components/ui/button/TextButton.svelte";
@@ -14,8 +14,8 @@ import { libraryStore } from "#lib/stores/library/library.store";
 import { viewMode } from "#lib/stores/ui/viewMode.store";
 import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
 import { handleAddFiles, handleAddDirectory } from "#lib/actions/library/LibraryAction";
-import { cleTri, lettreTri, comparerNaturel } from "#lib/helper/library/cleTri";
-import { differe } from "#lib/helper/tools/differe.svelte";
+import { sortKey, sortLetter, comparerNaturel } from "#lib/helper/library/sortKey";
+import { debounced } from "#lib/helper/tools/debounced.svelte";
 import LibraryArtistSkeleton from "#lib/components/library/common/skeleton/LibraryArtistSkeleton.svelte";
 import LibraryImportingLoader from "#lib/components/library/common/loader/LibraryImportingLoader.svelte";
 import { importAffiche } from "#lib/stores/library/importProgress.store";
@@ -39,16 +39,16 @@ const TRIS: { cle: Tri; libelle: string; icone: string }[] = [
   { cle: "duration", libelle: "artists_view.sort_duration", icone: "material-symbols:schedule-outline-rounded" },
 ];
 const CLE_TRI = "artistes:tri";
-const triLu = lireLocal(CLE_TRI, "name");
+const triLu = readLocal(CLE_TRI, "name");
 let tri = $state<Tri>(TRIS.some((x) => x.cle === triLu) ? (triLu as Tri) : "name");
-$effect(() => ecrireLocal(CLE_TRI, tri));
+$effect(() => writeLocal(CLE_TRI, tri));
 
 // ─── Filtres ───
 let recherche = $state("");
-const cherche = differe(() => recherche);
+const cherche = debounced(() => recherche);
 let sansPortrait = $state(false);
 const filtresActifs = $derived(!!recherche.trim() || sansPortrait);
-function effacerFiltres() {
+function clearFilters() {
   recherche = "";
   sansPortrait = false;
 }
@@ -59,15 +59,15 @@ const aUnPortrait = (a: ArtistListView) => !!(artistImageReadyStore.get(a.id, $a
 
 // Clés calculées une fois par liste et par tri : la frappe ne fait plus que filtrer.
 type Entree = { a: ArtistListView; cle: string; lettre: string; nom: string };
-const parNom = (x: Entree, y: Entree) => comparerNaturel.compare(x.cle, y.cle);
+const byName = (x: Entree, y: Entree) => comparerNaturel.compare(x.cle, y.cle);
 const TRI_FN: Record<Tri, (x: Entree, y: Entree) => number> = {
-  name: parNom,
-  albums: (x, y) => y.a.total_albums - x.a.total_albums || parNom(x, y),
-  tracks: (x, y) => y.a.total_tracks - x.a.total_tracks || parNom(x, y),
-  duration: (x, y) => (y.a.total_duration ?? 0) - (x.a.total_duration ?? 0) || parNom(x, y),
+  name: byName,
+  albums: (x, y) => y.a.total_albums - x.a.total_albums || byName(x, y),
+  tracks: (x, y) => y.a.total_tracks - x.a.total_tracks || byName(x, y),
+  duration: (x, y) => (y.a.total_duration ?? 0) - (x.a.total_duration ?? 0) || byName(x, y),
 };
 const tries = $derived(
-  artistes.map((a) => ({ a, cle: cleTri(a.name), lettre: lettreTri(a.name), nom: (a.name ?? "").toLowerCase() })).sort(TRI_FN[tri]),
+  artistes.map((a) => ({ a, cle: sortKey(a.name), lettre: sortLetter(a.name), nom: (a.name ?? "").toLowerCase() })).sort(TRI_FN[tri]),
 );
 
 const filtres = $derived.by(() => {
@@ -80,13 +80,13 @@ const visibles = $derived(filtres.map((e) => e.a));
 // ─── Navigation A–Z (tri par nom seulement) ───
 let defilement = $state<HTMLDivElement | null>(null);
 const lettres = $derived(new Set(filtres.map((e) => e.lettre)));
-const premiere = (i: number) => tri === "name" && (i === 0 || filtres[i - 1].lettre !== filtres[i].lettre);
-function allerLettre(l: string) {
+const isLetterStart = (i: number) => tri === "name" && (i === 0 || filtres[i - 1].lettre !== filtres[i].lettre);
+function goToLetter(l: string) {
   // `scrollIntoView` : les cartes hors écran ont une hauteur présumée (`content-visibility`).
   defilement?.querySelector(`[data-letter="${l}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-const nombre = (n: number) => n.toLocaleString($currentLocale);
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 </script>
 
 {#if $importAffiche}
@@ -119,14 +119,14 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
     <!-- ─── Outils : une ligne si la place le permet ; sinon recherche + vue en haut, filtres dessous ─── -->
     <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
       <div class="flex flex-wrap items-center gap-2.5">
-        <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={$t("artists_view.filter").replace("{n}", nombre(artistes.length))} clearLabel={$t("artists_view.clear_filters")} />
+        <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={$t("artists_view.filter").replace("{n}", formatNumber(artistes.length))} clearLabel={$t("artists_view.clear_filters")} />
 
         <div class="order-2 @max-6xl:order-4 @max-6xl:basis-full flex flex-wrap items-center gap-2.5">
           <FilterChip icon="material-symbols:no-accounts-outline-rounded" pressed={sansPortrait} title={$t("artists_view.no_portrait")} onclick={() => (sansPortrait = !sansPortrait)}>
             <span class="@max-xl:hidden">{$t("artists_view.no_portrait")}</span>
           </FilterChip>
           {#if filtresActifs}
-            <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("artists_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={effacerFiltres} />
+            <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("artists_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={clearFilters} />
           {/if}
         </div>
 
@@ -146,12 +146,12 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
     <div class="flex-1 relative min-h-0">
       <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16" bind:this={defilement}>
         {#if visibles.length === 0}
-          <EmptyResult message={$t("artists_view.no_match")} effacerLabel={$t("artists_view.clear_filters")} oneffacer={filtresActifs ? effacerFiltres : null} />
+          <EmptyResult message={$t("artists_view.no_match")} effacerLabel={$t("artists_view.clear_filters")} oneffacer={filtresActifs ? clearFilters : null} />
         {:else if $viewMode === "grid"}
           <div class="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-x-5 gap-y-7 pt-3">
             {#each visibles as artist, i (artist.id)}
               <div class="relative min-w-0">
-                {#if premiere(i)}<span class="absolute -top-3 left-0 h-0 scroll-mt-4" data-letter={lettreTri(artist.name)}></span>{/if}
+                {#if isLetterStart(i)}<span class="absolute -top-3 left-0 h-0 scroll-mt-4" data-letter={sortLetter(artist.name)}></span>{/if}
                 <ArtistListItem {artist} {libraryId} />
               </div>
             {/each}
@@ -159,7 +159,7 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
         {:else}
           <div class="flex flex-col pt-2">
             {#each visibles as artist, i (artist.id)}
-              {#if premiere(i)}<span class="h-0 scroll-mt-4" data-letter={lettreTri(artist.name)}></span>{/if}
+              {#if isLetterStart(i)}<span class="h-0 scroll-mt-4" data-letter={sortLetter(artist.name)}></span>{/if}
               <ArtistListRow {artist} {libraryId} />
             {/each}
           </div>
@@ -167,7 +167,7 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
       </div>
 
       {#if tri === "name" && visibles.length > 0}
-        <AlphabetNav availableLetters={lettres} onletter={allerLettre} toujours />
+        <AlphabetNav availableLetters={lettres} onletter={goToLetter} toujours />
       {/if}
     </div>
   </div>

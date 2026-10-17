@@ -47,10 +47,10 @@
     {@render extra?.()}
     <!-- Sans débordement, pas de flèches. -->
     {#if grille && (avant || apres)}
-      <button type="button" class={fleche} disabled={!avant} title={$t("common.previous")} aria-label={$t("common.previous")} onclick={() => carrousel?.defiler(-1)}>
+      <button type="button" class={fleche} disabled={!avant} title={$t("common.previous")} aria-label={$t("common.previous")} onclick={() => carrousel?.slide(-1)}>
         <Icon icon="material-symbols:chevron-left-rounded" width="22" />
       </button>
-      <button type="button" class={fleche} disabled={!apres} title={$t("common.next")} aria-label={$t("common.next")} onclick={() => carrousel?.defiler(1)}>
+      <button type="button" class={fleche} disabled={!apres} title={$t("common.next")} aria-label={$t("common.next")} onclick={() => carrousel?.slide(1)}>
         <Icon icon="material-symbols:chevron-right-rounded" width="22" />
       </button>
     {/if}

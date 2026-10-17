@@ -2,7 +2,7 @@
   // Volume du mini-lecteur : un bouton (molette = réglage), une bulle verticale ou horizontale (Apparence).
   import Icon from "@iconify/svelte";
   import { t } from "#lib/i18n";
-  import { volume, reglerVolume } from "#lib/stores/player/volume.store";
+  import { volume, applyVolume } from "#lib/stores/player/volume.store";
   import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
   import { settingsStore } from "#lib/stores/settings/settings.store";
 
@@ -29,17 +29,17 @@
   let root: HTMLElement | null = $state(null);
 
   function toggleMute() {
-    if (muted) reglerVolume(previous > 0 ? previous : 80);
+    if (muted) applyVolume(previous > 0 ? previous : 80);
     else {
       previous = $volume;
-      reglerVolume(0);
+      applyVolume(0);
     }
   }
 
   function onWheel(e: WheelEvent) {
     if (dopActive) return;
     e.stopPropagation();
-    reglerVolume($volume + (e.deltaY < 0 ? 5 : -5));
+    applyVolume($volume + (e.deltaY < 0 ? 5 : -5));
   }
 
   // Glissière verticale dessinée à la main : le range vertical natif varie d'une WebView à l'autre.
@@ -48,7 +48,7 @@
   function valueAt(clientY: number) {
     if (!rail) return;
     const r = rail.getBoundingClientRect();
-    reglerVolume(((r.bottom - clientY) / r.height) * 100);
+    applyVolume(((r.bottom - clientY) / r.height) * 100);
   }
 
   function onPointerDown(e: PointerEvent) {
@@ -62,9 +62,9 @@
 
   function onKeyDown(e: KeyboardEvent) {
     const step = { ArrowUp: 5, ArrowRight: 5, ArrowDown: -5, ArrowLeft: -5, PageUp: 10, PageDown: -10 }[e.key];
-    if (step !== undefined) reglerVolume($volume + step);
-    else if (e.key === "Home") reglerVolume(0);
-    else if (e.key === "End") reglerVolume(100);
+    if (step !== undefined) applyVolume($volume + step);
+    else if (e.key === "Home") applyVolume(0);
+    else if (e.key === "End") applyVolume(100);
     else return;
     e.preventDefault();
     e.stopPropagation();
@@ -134,7 +134,7 @@
           max="100"
           step="1"
           value={$volume}
-          oninput={(e) => reglerVolume(Number(e.currentTarget.value))}
+          oninput={(e) => applyVolume(Number(e.currentTarget.value))}
           onwheel={onWheel}
           class="absolute inset-0 w-full h-full cursor-pointer opacity-0"
           aria-label={$t("common.volume")}

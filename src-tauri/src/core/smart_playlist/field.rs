@@ -134,7 +134,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn un_champ_connu_rend_son_expression() {
+    fn a_known_field_gives_its_expression() {
         let e = resolve("rating").expect("champ connu");
         assert_eq!(e.sql, "lt.rating");
         assert!(e.bind.is_none());
@@ -142,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn un_champ_inconnu_ne_rend_rien() {
+    fn an_unknown_field_gives_nothing() {
         // C'est la porte fermée : une clé imprévue ne peut pas atteindre le SQL.
         assert!(resolve("").is_none());
         assert!(resolve("lt.title; DROP TABLE library_tracks").is_none());
@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn un_tag_part_en_valeur_liee() {
+    fn a_tag_goes_out_as_a_bound_value() {
         let e = resolve("tag:composer").expect("tag nommé");
         assert_eq!(e.sql, "json_extract(lt.tags, ?)");
         assert_eq!(e.bind.as_deref(), Some("$.composer"));
@@ -161,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn le_nom_d_un_tag_hostile_ne_touche_pas_le_sql() {
+    fn a_hostile_tag_name_never_touches_the_sql() {
         for nom in [
             "x'; DROP TABLE library_tracks; --",
             "a\" OR 1=1 --",
@@ -176,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn chaque_champ_annonce_utilise_un_alias_defini() {
+    fn every_announced_field_uses_a_defined_alias() {
         // Un champ dont l'alias n'est pas joint produirait une requête invalide,
         // et l'erreur n'apparaîtrait qu'au moment où une règle l'emploie.
         let alias = ["lt.", "lf.", "lc.", "la.", "a."];
@@ -189,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn les_cles_sont_uniques() {
+    fn keys_are_unique() {
         let mut vues = std::collections::HashSet::new();
         for (cle, _, _, _) in CHAMPS {
             assert!(vues.insert(*cle), "clé en double : {cle}");

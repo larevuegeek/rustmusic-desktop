@@ -6,7 +6,7 @@
   import LibraryTrackRow from "./LibraryTrackRow.svelte";
   import { settingsStore } from "#lib/stores/settings/settings.store";
   import { selectionStore } from "#lib/stores/ui/selection.store";
-  import { COLONNES_FIXES, largeurDe, largeurAjustee, libelleColonne, LARGEUR_MIN, LARGEUR_MAX, LARGEUR_MAX_SOUPLE, type SortDir, type TrackColumn } from "#lib/config/trackColumns";
+  import { COLONNES_FIXES, widthOf, fittedWidth, columnLabel, LARGEUR_MIN, LARGEUR_MAX, LARGEUR_MAX_SOUPLE, type SortDir, type TrackColumn } from "#lib/config/trackColumns";
   import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
   let {
@@ -72,14 +72,14 @@
   // Molette horizontale ou Maj+molette : la barre défile, la page non.
   $effect(() => {
     if (!cadre || !deborde) return;
-    const roue = (e: WheelEvent) => {
+    const handleWheel = (e: WheelEvent) => {
       const dx = e.shiftKey ? e.deltaY || e.deltaX : Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : 0;
       if (!dx || !barre) return;
       e.preventDefault();
       barre.scrollLeft += dx;
     };
-    cadre.addEventListener("wheel", roue, { passive: false });
-    return () => cadre?.removeEventListener("wheel", roue);
+    cadre.addEventListener("wheel", handleWheel, { passive: false });
+    return () => cadre?.removeEventListener("wheel", handleWheel);
   });
 
   const visibles = $derived(groupes ? groupes.flatMap((g) => (g.ouvert ? g.pistes : [])) : tracks);
@@ -96,14 +96,14 @@
   const effectives = $derived(tirage ? { ...largeurs, [tirage.cle]: tirage.largeur } : largeurs);
   const souple = $derived(columns.findIndex((c) => c.flexible && effectives[c.key] === undefined));
 
-  function largeurColonne(col: TrackColumn, reglees: Record<string, number>): number {
+  function columnWidth(col: TrackColumn, reglees: Record<string, number>): number {
     if (col.widget === "cover") return detaille ? 68 : 40;
-    const w = largeurDe(col, reglees);
+    const w = widthOf(col, reglees);
     if (col.widget === "index") return Math.max(w, 28);
     if (col.key === "duration") return Math.max(w, 44);
     return w;
   }
-  const variables = $derived(columns.map((c, i) => `--cw-${i}: ${largeurColonne(c, effectives)}px`).join("; "));
+  const variables = $derived(columns.map((c, i) => `--cw-${i}: ${columnWidth(c, effectives)}px`).join("; "));
   const styleCol = (i: number) =>
     i === souple ? `flex: 1 1 var(--cw-${i}); min-width: ${columns[i].minWidth ?? 0}px` : `width: var(--cw-${i})`;
 
@@ -117,37 +117,37 @@
   }
 
   // Chaque poignée règle sa propre colonne ; le titre part de sa largeur à l'écran, sans à-coup.
-  function tirer(e: PointerEvent, i: number) {
+  function startResize(e: PointerEvent, i: number) {
     e.preventDefault();
     e.stopPropagation();
     const col = columns[i];
     const depart = e.clientX;
-    const initiale = Math.round(ligneEntete?.querySelector(`[data-col="${i}"]`)?.getBoundingClientRect().width ?? largeurDe(col, largeurs));
+    const initiale = Math.round(ligneEntete?.querySelector(`[data-col="${i}"]`)?.getBoundingClientRect().width ?? widthOf(col, largeurs));
     const max = col.flexible ? LARGEUR_MAX_SOUPLE : LARGEUR_MAX;
     const min = Math.max(LARGEUR_MIN, col.flexible ? (col.minWidth ?? 0) : 0);
     tirage = { cle: col.key, largeur: initiale };
-    const suivre = (ev: PointerEvent) => {
+    const resizeMove = (ev: PointerEvent) => {
       tirage = { cle: col.key, largeur: Math.min(max, Math.max(min, initiale + ev.clientX - depart)) };
     };
-    const relacher = () => {
-      window.removeEventListener("pointermove", suivre);
-      window.removeEventListener("pointerup", relacher);
+    const resizeEnd = () => {
+      window.removeEventListener("pointermove", resizeMove);
+      window.removeEventListener("pointerup", resizeEnd);
       if (tirage) enregistrer(tirage.cle, tirage.largeur);
       tirage = null;
     };
-    window.addEventListener("pointermove", suivre);
-    window.addEventListener("pointerup", relacher);
+    window.addEventListener("pointermove", resizeMove);
+    window.addEventListener("pointerup", resizeEnd);
   }
 
   // Double-clic : ajuste au contenu ; sur le titre, le rend à la largeur automatique.
-  function ajuster(i: number) {
+  function autoFit(i: number) {
     const col = columns[i];
     if (col.flexible) enregistrer(col.key, null);
-    else enregistrer(col.key, largeurAjustee(col, visibles));
+    else enregistrer(col.key, fittedWidth(col, visibles));
   }
 
   // Premier clic croissant, le suivant sur la même colonne inverse.
-  function trier(cle: string) {
+  function sortBy(cle: string) {
     onsort?.(cle, sortKey === cle && sortDir === "asc" ? "desc" : "asc");
   }
 </script>
@@ -169,11 +169,11 @@
         {:else}
           <button type="button" class="w-full flex items-center gap-1 cursor-pointer whitespace-nowrap uppercase transition-colors hover:text-(--rg-tx2)
                                       {sortKey === col.key ? 'text-(--rg-g)!' : ''} {col.align === 'right' || col.key === 'duration' ? 'justify-end' : ''}"
-                  title={libelleColonne(col, $t)} onclick={() => trier(col.key)}>
+                  title={columnLabel(col, $t)} onclick={() => sortBy(col.key)}>
             {#if col.key === "duration"}
               <Icon icon="material-symbols:schedule-outline-rounded" width="16" />
             {:else}
-              <span class="truncate">{libelleColonne(col, $t)}</span>
+              <span class="truncate">{columnLabel(col, $t)}</span>
             {/if}
             {#if sortKey === col.key}
               <Icon icon={sortDir === "asc" ? "material-symbols:arrow-upward-rounded" : "material-symbols:arrow-downward-rounded"} width="14" class="shrink-0" />
@@ -183,8 +183,8 @@
         {#if col.widget !== "cover" && col.widget !== "index"}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="absolute top-0 -right-2 w-3 h-full cursor-col-resize z-20 flex items-center justify-center"
-               onpointerdown={(e) => tirer(e, i)}
-               ondblclick={(e) => { e.stopPropagation(); ajuster(i); }}
+               onpointerdown={(e) => startResize(e, i)}
+               ondblclick={(e) => { e.stopPropagation(); autoFit(i); }}
                title={col.flexible ? $t("tracks_view.resize_title") : $t("tracks_view.resize")}>
             <div class="w-px h-3.5 rounded-full transition-colors {tirage?.cle === col.key ? 'bg-(--rg-g)' : 'bg-transparent group-hover/col:bg-(--rg-bd2)'}"></div>
           </div>

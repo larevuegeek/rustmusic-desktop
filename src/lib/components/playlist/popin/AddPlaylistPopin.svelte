@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import { playlistStore } from "#lib/stores/playlist/playlist.store";
   import { profilSelector } from "#lib/stores/profil/profil.store";
@@ -47,7 +47,7 @@
       close();
       apresCreation?.(creee);
     } catch (error) {
-      const message = messageErreur(error);
+      const message = errorMessage(error);
       if (message.includes("UNIQUE") || message.includes("duplicate")) {
         errorName = "popins.playlist_name_taken";
       } else {

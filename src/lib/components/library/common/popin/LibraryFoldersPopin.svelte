@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { tailleLisible } from "#lib/helper/tools/sizeTools";
+  import { readableSize } from "#lib/helper/tools/sizeTools";
   import Icon from "@iconify/svelte";
-  import { oublierLocalisations } from "#lib/helper/library/trackLocation";
+  import { forgetLocations } from "#lib/helper/library/trackLocation";
   import { invoke } from "@tauri-apps/api/core";
   import { handleAddDirectory } from "#lib/actions/library/LibraryAction";
   import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
@@ -9,7 +9,7 @@
   import { toasts } from "#lib/stores/ui/toast.store";
   import { portal } from "#lib/helper/portal";
   import { t, currentLocale } from "#lib/i18n";
-  import { depuisCourt } from "#lib/helper/tools/dateTools";
+  import { shortSince } from "#lib/helper/tools/dateTools";
 
   type LibraryDir = {
     id: string;
@@ -59,7 +59,7 @@
     }
   }
 
-  function signalerOccupe(e: unknown): boolean {
+  function reportBusy(e: unknown): boolean {
     if (e !== 'deja_en_cours') return false;
     toasts.push({ type: "error", title: $t("notify.error"), message: $t("notify.import_busy") });
     return true;
@@ -69,11 +69,11 @@
     rescanningId = dir.id;
     try {
       await invoke('rescan_library_dir', { libraryId, dirId: dir.id });
-      oublierLocalisations();
+      forgetLocations();
       await loadDirs();
       libraryContentStore.load(libraryId);
     } catch (e) {
-      if (!signalerOccupe(e)) console.error('Rescan failed:', e);
+      if (!reportBusy(e)) console.error('Rescan failed:', e);
     } finally {
       rescanningId = null;
     }
@@ -93,7 +93,7 @@
     await loadDirs();
   }
 
-  const formatSize = (bytes: number) => tailleLisible(bytes, $currentLocale);
+  const formatSize = (bytes: number) => readableSize(bytes, $currentLocale);
 
   function nb(n: number, un: string, plusieurs: string): string {
     return n === 1 ? $t(un) : $t(plusieurs).replace('{n}', n.toLocaleString($currentLocale));
@@ -209,7 +209,7 @@
                     {:else if dir.scan_status === 'cancelled'}
                       {$t('folders_popin.cancelled')}
                     {:else if dir.last_scan_at}
-                      {$t('folders_popin.scanned').replace('{ago}', depuisCourt(dir.last_scan_at, maintenant, $t))}
+                      {$t('folders_popin.scanned').replace('{ago}', shortSince(dir.last_scan_at, maintenant, $t))}
                     {:else}
                       {$t('folders_popin.never_scanned')}
                     {/if}

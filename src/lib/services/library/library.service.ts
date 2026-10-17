@@ -14,7 +14,7 @@ import { get } from "svelte/store";
 import { t } from "#lib/i18n";
 
 /** La boîte de dialogue seule : les fichiers choisis, ou rien si l'on annule. */
-export async function choisirFichiers(): Promise<string[]> {
+export async function pickFiles(): Promise<string[]> {
     const choix = await open({
         multiple: true,
         title: get(t)("actions.dialog_open_files"),
@@ -30,7 +30,7 @@ export async function choisirFichiers(): Promise<string[]> {
 }
 
 /** La boîte de dialogue seule : le dossier choisi, ou `null` si l'on annule. */
-export async function choisirDossier(): Promise<string | null> {
+export async function pickFolder(): Promise<string | null> {
     const choix = await open({
         directory: true,
         multiple: false,
@@ -39,7 +39,7 @@ export async function choisirDossier(): Promise<string | null> {
     return typeof choix === "string" ? choix : null;
 }
 
-export async function importerFichiers(libraryId: number, files: string[]): Promise<TrackListView[]> {
+export async function importFiles(libraryId: number, files: string[]): Promise<TrackListView[]> {
     if (files.length === 0) return [];
     libraryStore.setImporting(true);
     try {
@@ -52,7 +52,7 @@ export async function importerFichiers(libraryId: number, files: string[]): Prom
     }
 }
 
-export async function importerDossier(libraryId: number, directory: string): Promise<TrackListView[]> {
+export async function importFolder(libraryId: number, directory: string): Promise<TrackListView[]> {
     libraryStore.setImporting(true);
     try {
         return (await invoke<TrackListView[]>('add_directory', { libraryId, directory })) ?? [];
@@ -67,12 +67,12 @@ export async function importerDossier(libraryId: number, directory: string): Pro
 }
 
 export default async function addLibraryFiles(libraryId: number): Promise<TrackListView[]> {
-    return importerFichiers(libraryId, await choisirFichiers());
+    return importFiles(libraryId, await pickFiles());
 }
 
 export async function addLibraryDirectory(libraryId: number): Promise<TrackListView[]> {
-    const dossier = await choisirDossier();
-    return dossier ? importerDossier(libraryId, dossier) : [];
+    const dossier = await pickFolder();
+    return dossier ? importFolder(libraryId, dossier) : [];
 }
 
 export async function loadTrack(

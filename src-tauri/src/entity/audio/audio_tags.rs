@@ -169,7 +169,7 @@ mod tests {
     /// quatre caractères par octet, à chaque ouverture de morceau, pour une
     /// donnée que l'interface ne lit jamais.
     #[test]
-    fn les_octets_de_pochette_ne_sont_pas_serialises() {
+    fn cover_bytes_are_not_serialised() {
         let mut tags = AudioTags::new();
         tags.attached_images.push(AttachedImage {
             image_type: None,
@@ -192,7 +192,7 @@ mod tests {
 
     /// Le champ reste lisible quand il est absent : `default` le remplit.
     #[test]
-    fn un_json_sans_octets_se_relit() {
+    fn a_json_without_bytes_reads_back() {
         let json = r#"{"image_type":null,"mime_type":"image/png","description":null,"image_src":"x"}"#;
         let image: AttachedImage = serde_json::from_str(json).expect("désérialisation");
         assert!(image.image_data.is_empty());

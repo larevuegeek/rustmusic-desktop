@@ -7,10 +7,10 @@
   import OptionGroup from "#lib/components/ui/input/OptionGroup.svelte";
   import OptionBlock from "#lib/components/ui/input/OptionBlock.svelte";
   import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
-  import TexteAide from "#lib/components/ui/aide/TexteAide.svelte";
-  import { TERMES } from "#lib/config/glossaire";
-  import { CHAINE } from "#lib/helper/audio/chaineAudio";
-  import { texteBrut } from "#lib/helper/tools/texteAide";
+  import HelpText from "#lib/components/ui/help/HelpText.svelte";
+  import { TERMES } from "#lib/config/glossary";
+  import { CHAINE } from "#lib/helper/audio/audioChain";
+  import { plainText } from "#lib/helper/tools/helpText";
   import type { PipelineMode } from "#lib/stores/player/playbackPipeline.store";
 
   // `h` : teinte de la tuile (oklch).
@@ -31,15 +31,15 @@
   let mode = $state<"shared" | "exclusive">("shared");
   let etape = $state(1);
   const choisie = $derived(ETAPES[etape]);
-  const contourne = (cle: string) => mode === "exclusive" && cle === "mixer";
+  const isBypassed = (cle: string) => mode === "exclusive" && cle === "mixer";
   const descEtape = $derived(
-    contourne(choisie.cle) ? $t("guide.step_mixer_desc_exclusive") : $t(`guide.step_${choisie.cle}_desc`),
+    isBypassed(choisie.cle) ? $t("guide.step_mixer_desc_exclusive") : $t(`guide.step_${choisie.cle}_desc`),
   );
 
   // Arrivée par « En savoir plus » ou par l'index : le terme défile au centre et s'éclaire.
   let cible = $state<string | null>(null);
   let extinction: ReturnType<typeof setTimeout> | undefined;
-  async function aller(id: string) {
+  async function goTo(id: string) {
     await tick();
     document.getElementById(id)?.scrollIntoView({ block: "center", behavior: "smooth" });
     cible = id;
@@ -48,13 +48,13 @@
   }
   $effect(() => {
     const id = page.url.hash.slice(1);
-    if (id) aller(id);
+    if (id) goTo(id);
   });
   $effect(() => {
-    const surTerme = (e: Event) => aller((e as CustomEvent<string>).detail);
-    window.addEventListener("aide-terme", surTerme);
+    const onTerm = (e: Event) => goTo((e as CustomEvent<string>).detail);
+    window.addEventListener("aide-terme", onTerm);
     return () => {
-      window.removeEventListener("aide-terme", surTerme);
+      window.removeEventListener("aide-terme", onTerm);
       clearTimeout(extinction);
     };
   });
@@ -89,7 +89,7 @@
         aria-hidden="true"
       ></span>
       {#each ETAPES as e, i (e.cle)}
-        {@const efface = contourne(e.cle)}
+        {@const efface = isBypassed(e.cle)}
         <button
           type="button"
           class="relative flex flex-col items-center gap-2 px-1 text-center cursor-pointer group"
@@ -128,7 +128,7 @@
         <p class="text-[15px] font-bold leading-tight text-(--rg-tx)">
           <span class="font-mono text-xs text-(--rg-mu) mr-1.5">{etape + 1}/5</span>{$t(`guide.step_${choisie.cle}_title`)}
         </p>
-        <p class="mt-1.5 text-sm leading-[1.55] text-(--rg-tx2) text-pretty"><TexteAide texte={descEtape} /></p>
+        <p class="mt-1.5 text-sm leading-[1.55] text-(--rg-tx2) text-pretty"><HelpText texte={descEtape} /></p>
       </div>
     </div>
 
@@ -201,21 +201,21 @@
         type="button"
         class="h-7 px-3 rounded-full border border-(--rg-bd) bg-(--rg-creux) text-[12.5px] font-semibold text-(--rg-tx2)
                hover:border-(--rg-gbd) hover:text-(--rg-gtx) cursor-pointer transition-colors"
-        onclick={() => aller(`terme-${id}`)}
+        onclick={() => goTo(`terme-${id}`)}
       >
         {$t(`glossary.${id}.name`)}
       </button>
     {/each}
   </div>
   {#each TERMES as id (id)}
-    <OptionBlock keywords="{$t(`glossary.${id}.name`)} {texteBrut($t(`glossary.${id}.long`))}">
+    <OptionBlock keywords="{$t(`glossary.${id}.name`)} {plainText($t(`glossary.${id}.long`))}">
       <div
         id="terme-{id}"
         class="grid grid-cols-[170px_minmax(0,1fr)] max-md:grid-cols-1 gap-x-6 gap-y-1.5 px-5 py-4.5 transition-colors duration-500
                {cible === `terme-${id}` ? 'bg-(--rg-creux-on) shadow-[inset_3px_0_0_var(--rg-g)]' : ''}"
       >
         <p class="text-[15px] font-bold leading-snug text-(--rg-tx)">{$t(`glossary.${id}.name`)}</p>
-        <p class="text-sm leading-[1.6] text-(--rg-tx2) text-pretty"><TexteAide texte={$t(`glossary.${id}.long`)} /></p>
+        <p class="text-sm leading-[1.6] text-(--rg-tx2) text-pretty"><HelpText texte={$t(`glossary.${id}.long`)} /></p>
       </div>
     </OptionBlock>
   {/each}

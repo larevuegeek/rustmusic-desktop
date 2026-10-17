@@ -2,7 +2,7 @@
   // Option d'un choix exclusif décrit en toutes lettres : titre, coche, puis explication.
   // À placer dans un conteneur `role="radiogroup"`.
   import RadioCheck from "./RadioCheck.svelte";
-  import TexteAide from "#lib/components/ui/aide/TexteAide.svelte";
+  import HelpText from "#lib/components/ui/help/HelpText.svelte";
 
   let {
     title,
@@ -27,5 +27,5 @@
     <span class="text-[15px] font-semibold leading-[1.2] text-(--rg-tx)">{title}</span>
     <RadioCheck checked={selected} />
   </span>
-  {#if desc}<span class="text-[13px] leading-[1.4] text-(--rg-mu) text-pretty"><TexteAide texte={desc} /></span>{/if}
+  {#if desc}<span class="text-[13px] leading-[1.4] text-(--rg-mu) text-pretty"><HelpText texte={desc} /></span>{/if}
 </div>

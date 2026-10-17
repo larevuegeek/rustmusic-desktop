@@ -2,7 +2,7 @@
   // Éditeur de métadonnées d'un fichier : n'envoie que ce qui a changé, images comprises.
   // Popin `flush` : deux colonnes qui défilent chacune et un pied de page fixe.
   import { open } from "@tauri-apps/plugin-dialog";
-  import { messageErreur } from "#lib/helper/tools/errorTools";
+  import { errorMessage } from "#lib/helper/tools/errorTools";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import TagField from "#lib/components/ui/input/TagField.svelte";
   import ImageLightbox from "#lib/components/ui/image/ImageLightbox.svelte";
@@ -100,7 +100,7 @@
         form = { ...snapshot };
       })
       .catch((e) => {
-        error = messageErreur(e);
+        error = errorMessage(e);
       })
       .finally(() => (isLoading = false));
 
@@ -178,7 +178,7 @@
       const prepared = await prepareImage(selected);
       return newSlot("nouveau", selected, prepared, PICTURE_TYPE_OTHER);
     } catch (e) {
-      error = messageErreur(e);
+      error = errorMessage(e);
       return null;
     } finally {
       mediaBusy = false;
@@ -284,7 +284,7 @@
       popinStore.close();
     } catch (e) {
       // Message explicite du backend (format, verrou, image illisible…), montré tel quel.
-      error = messageErreur(e);
+      error = errorMessage(e);
     } finally {
       isSubmitting = false;
     }

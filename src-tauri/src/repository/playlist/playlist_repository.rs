@@ -170,7 +170,7 @@ impl PlaylistRepository {
         Ok(playlist)
     }
 
-    pub async fn find_all_by_profil_id<'e, E>(exec: E, profil_id: i64) -> Result<Vec<Playlist>, Error>
+    pub async fn find_all_by_profile_id<'e, E>(exec: E, profil_id: i64) -> Result<Vec<Playlist>, Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {

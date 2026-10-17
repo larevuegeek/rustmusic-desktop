@@ -14,7 +14,7 @@
   import { t } from "#lib/i18n";
   import { settingsStore } from "#lib/stores/settings/settings.store";
   import { portal } from "#lib/helper/portal";
-  import { lienTerme, type TermeId } from "#lib/config/glossaire";
+  import { termLink, type TermeId } from "#lib/config/glossary";
 
   let { id, children }: { id: TermeId; children?: Snippet } = $props();
 
@@ -27,7 +27,7 @@
   let bulle = $state<HTMLElement>();
   let place = $state("");
 
-  function ouvrir() {
+  function openPopover() {
     if (!declencheur) return;
     const r = declencheur.getBoundingClientRect();
     const x = Math.round(Math.min(Math.max(8, r.left + r.width / 2 - LARGEUR / 2), innerWidth - LARGEUR - 8));
@@ -42,51 +42,51 @@
     if ($ouverte === moi) ouverte.set(null);
   }
 
-  function basculer(e: Event) {
+  function toggle(e: Event) {
     // La ligne ou la tuile qui contient le terme ne doit pas réagir.
     e.stopPropagation();
     e.preventDefault();
     if (visible) fermer();
-    else ouvrir();
+    else openPopover();
   }
 
-  function clavier(e: KeyboardEvent) {
+  function handleKey(e: KeyboardEvent) {
     if (e.key !== "Enter" && e.key !== " ") return;
-    basculer(e);
+    toggle(e);
     if (visible) tick().then(() => bulle?.querySelector("button")?.focus());
   }
 
-  function enSavoirPlus() {
+  function learnMore() {
     fermer();
     rechercheReglages.set("");
     // Déjà sur le guide : l'adresse ne changerait peut-être pas, on fait défiler directement.
     if (location.pathname === "/settings/guide") window.dispatchEvent(new CustomEvent("aide-terme", { detail: `terme-${id}` }));
-    else goto(lienTerme(id));
+    else goto(termLink(id));
   }
 
   $effect(() => {
     if (!visible) return;
-    const dehors = (e: PointerEvent) => {
+    const handleOutside = (e: PointerEvent) => {
       const cible = e.target as Node;
       if (!bulle?.contains(cible) && !declencheur?.contains(cible)) fermer();
     };
-    const echap = (e: KeyboardEvent) => {
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       fermer();
       declencheur?.focus();
     };
     // Un défilement décolle la bulle de son mot : on la ferme.
-    const defile = (e: Event) => {
+    const handleScroll = (e: Event) => {
       if (!bulle?.contains(e.target as Node)) fermer();
     };
-    window.addEventListener("pointerdown", dehors, true);
-    window.addEventListener("keydown", echap);
-    window.addEventListener("scroll", defile, true);
+    window.addEventListener("pointerdown", handleOutside, true);
+    window.addEventListener("keydown", handleEscape);
+    window.addEventListener("scroll", handleScroll, true);
     window.addEventListener("resize", fermer);
     return () => {
-      window.removeEventListener("pointerdown", dehors, true);
-      window.removeEventListener("keydown", echap);
-      window.removeEventListener("scroll", defile, true);
+      window.removeEventListener("pointerdown", handleOutside, true);
+      window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("resize", fermer);
     };
   });
@@ -101,8 +101,8 @@
     class="cursor-help underline decoration-dotted decoration-[1.5px] underline-offset-[3px] decoration-current/45
            hover:decoration-(--rg-g) focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--rg-g) rounded-xs
            {visible ? 'decoration-(--rg-g)' : ''}"
-    onclick={basculer}
-    onkeydown={clavier}
+    onclick={toggle}
+    onkeydown={handleKey}
   >{#if children}{@render children()}{:else}{$t(`glossary.${id}.name`)}{/if}</span
 >{:else if children}{@render children()}{:else}{$t(`glossary.${id}.name`)}{/if}{#if visible}<div use:portal>
     <div
@@ -118,7 +118,7 @@
       <button
         type="button"
         class="self-start mt-0.5 flex items-center gap-1 text-[13px] font-semibold text-(--rg-gtx) hover:underline cursor-pointer"
-        onclick={enSavoirPlus}
+        onclick={learnMore}
       >
         {$t("glossary.more")}<span aria-hidden="true">→</span>
       </button>

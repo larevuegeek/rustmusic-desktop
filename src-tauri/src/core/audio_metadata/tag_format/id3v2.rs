@@ -703,7 +703,7 @@ mod tests_popm {
     use super::popm_to_stars;
 
     #[test]
-    fn les_pivots_de_windows_media_player_tombent_juste() {
+    fn windows_media_player_pivots_land_exactly() {
         // Ces cinq valeurs sont celles qu'écrit WMP : elles doivent rendre
         // exactement 1 à 5 étoiles pleines.
         assert_eq!(popm_to_stars(1), 1.0);
@@ -714,7 +714,7 @@ mod tests_popm {
     }
 
     #[test]
-    fn les_demi_crans_de_mediamonkey_tombent_juste() {
+    fn mediamonkey_half_steps_land_exactly() {
         assert_eq!(popm_to_stars(31), 1.5);
         assert_eq!(popm_to_stars(96), 2.5);
         assert_eq!(popm_to_stars(160), 3.5);
@@ -722,14 +722,14 @@ mod tests_popm {
     }
 
     #[test]
-    fn zero_reste_zero() {
+    fn zero_stays_zero() {
         // Zéro signifie « pas de note » dans POPM, et ne doit surtout pas
         // devenir une demi-étoile.
         assert_eq!(popm_to_stars(0), 0.0);
     }
 
     #[test]
-    fn chaque_note_tombe_sur_un_demi_cran_exact() {
+    fn every_rating_lands_on_an_exact_half_step() {
         // Le doublement doit rendre un entier, sans reste : c'est ce qui
         // garantit que les comparaisons d'égalité restent exactes malgré le
         // flottant. Vrai ici parce que les dénominateurs sont des puissances
@@ -741,7 +741,7 @@ mod tests_popm {
     }
 
     #[test]
-    fn le_bareme_ne_recule_jamais() {
+    fn the_scale_never_goes_backwards() {
         // Une note plus haute dans le fichier ne peut pas donner moins
         // d'étoiles : sans ça, un tri par note deviendrait incohérent.
         let mut precedent = 0.0;

@@ -62,7 +62,7 @@ pub async fn get_tracks_liked(
     profil_id: i64
 ) -> Result<Vec<TrackLikedView>, String> {
 
-    let tracks: Vec<TrackLikedView> = match TrackLikedRepository::fin_all_by_profil(&state.pool, profil_id).await {
+    let tracks: Vec<TrackLikedView> = match TrackLikedRepository::find_all_by_profile(&state.pool, profil_id).await {
         Ok(tracks) => tracks,
         Err(e) => return Err(format!("Failed to get track liked : {}", e))
     };
@@ -90,7 +90,7 @@ pub async fn get_playlists(
     profil_id: i64,
 ) -> Result<Vec<Playlist>, String> {
 
-    let mut playlists: Vec<Playlist> = match PlaylistRepository::find_all_by_profil_id(&state.pool, profil_id).await {
+    let mut playlists: Vec<Playlist> = match PlaylistRepository::find_all_by_profile_id(&state.pool, profil_id).await {
         Ok(playlists) => playlists,
         Err(e) => return Err(format!("Failed to get playlists : {}", e))
     };

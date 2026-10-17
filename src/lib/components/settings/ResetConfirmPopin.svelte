@@ -17,7 +17,7 @@
 
   const motConfirmation = $derived($t("settings.reset_confirm_word"));
   // Phrase coupée autour de son mot en gras ({b}).
-  const morceaux = (cle: string) => [...$t(cle).split("{b}"), ""];
+  const boldParts = (cle: string) => [...$t(cle).split("{b}"), ""];
   const ELEMENTS = ["libraries", "playlists", "liked", "settings", "thumbnails"];
   // Le bouton ne s'arme qu'une fois le mot tapé à l'identique.
   const confirmationBloquee = $derived(loading || saisie !== motConfirmation);
@@ -48,7 +48,7 @@
     open = false;
   }
 
-  function confirmer() {
+  function confirm() {
     if (!confirmationBloquee) handleConfirm();
   }
 
@@ -56,7 +56,7 @@
   function onKeydown(e: KeyboardEvent) {
     if (!open) return;
     if (e.key === "Escape") handleCancel();
-    else if (e.key === "Enter") confirmer();
+    else if (e.key === "Enter") confirm();
   }
 </script>
 
@@ -106,12 +106,12 @@
 
       <div class="flex-1 min-h-0 overflow-y-auto scrollbar-none px-6 pt-5 pb-6 space-y-5 text-sm">
         <p class="leading-relaxed text-(--rg-tx2) text-pretty">
-          {morceaux("settings.reset_intro")[0]}<span class="font-bold text-red-600 dark:text-red-400">{$t("settings.reset_irreversible")}</span>{morceaux("settings.reset_intro")[1]}
+          {boldParts("settings.reset_intro")[0]}<span class="font-bold text-red-600 dark:text-red-400">{$t("settings.reset_irreversible")}</span>{boldParts("settings.reset_intro")[1]}
         </p>
 
         <ul class="px-4 py-3 rounded-2xl space-y-2 border border-(--rg-bd) bg-(--rg-creux) text-(--rg-tx2)">
           {#each ELEMENTS as el (el)}
-            {@const phrase = morceaux(`settings.reset_item_${el}`)}
+            {@const phrase = boldParts(`settings.reset_item_${el}`)}
             <li class="flex items-center gap-2.5">
               <span class="w-1.5 h-1.5 rounded-full bg-red-500/70 shrink-0"></span>
               <span>{phrase[0]}<span class="font-semibold text-(--rg-tx)">{$t(`settings.reset_item_${el}_b`)}</span>{phrase[1]}</span>
@@ -144,7 +144,7 @@
         cancelDisabled={loading}
         submitLabel={$t("settings.reset_confirm_all")}
         submitIcon="material-symbols:delete-outline-rounded"
-        onsubmit={confirmer}
+        onsubmit={confirm}
         submitDisabled={confirmationBloquee}
         busy={loading}
         tone="danger"

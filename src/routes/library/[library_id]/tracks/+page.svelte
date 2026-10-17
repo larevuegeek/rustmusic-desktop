@@ -14,8 +14,8 @@ import { t, currentLocale } from "#lib/i18n";
 import { libraryHeader } from "#lib/stores/library/libraryHeader";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
-import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
-import { clesAffichees, resoudreColonnes, lireLargeurs, resetTagCache, type SortDir } from "#lib/config/trackColumns";
+import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
+import { shownKeys, resolveColumns, readWidths, resetTagCache, type SortDir } from "#lib/config/trackColumns";
 import LibraryImportingLoader from "#lib/components/library/common/loader/LibraryImportingLoader.svelte";
 import { importAffiche, importsTermines } from "#lib/stores/library/importProgress.store";
 import LibraryTrackTable from "#lib/components/library/track/LibraryTrackTable.svelte";
@@ -38,14 +38,14 @@ const TRIS: { cle: Tri; libelle: string; icone: string }[] = [
   { cle: "duration", libelle: "tracks_view.sort_duration", icone: "material-symbols:schedule-outline-rounded" },
   { cle: "date", libelle: "tracks_view.sort_added", icone: "material-symbols:calendar-month-outline-rounded" },
 ];
-function lire<T>(cle: string, defaut: T): T {
+function readStored<T>(cle: string, defaut: T): T {
   try { return (JSON.parse(localStorage.getItem(cle) ?? "null") as T) ?? defaut; } catch { return defaut; }
 }
-const pref = lire<{ tri?: string; sens?: SortDir }>("morceaux:tri", {});
+const pref = readStored<{ tri?: string; sens?: SortDir }>("morceaux:tri", {});
 // Le tri s'applique aussi aux colonnes non listées (tags) : on garde la clé telle quelle.
 let tri = $state<string>(pref.tri ?? "title");
 let sens = $state<SortDir>(pref.sens ?? "asc");
-let detaille = $state(lire<string>("morceaux:densite", "compact") === "detaille");
+let detaille = $state(readStored<string>("morceaux:densite", "compact") === "detaille");
 $effect(() => {
   try {
     localStorage.setItem("morceaux:tri", JSON.stringify({ tri, sens }));
@@ -69,7 +69,7 @@ let sansPochette = $state(false);
 let genre = $state<string | null>(null);
 
 const filtresActifs = $derived(!!recherche.trim() || hiRes || sansPerte || favoris || sansPochette || !!genre);
-function effacerFiltres() {
+function clearFilters() {
   recherche = "";
   hiRes = sansPerte = favoris = sansPochette = false;
   genre = null;
@@ -79,7 +79,7 @@ let menuGenre = $state(false);
 
 // Genres de la bibliothèque, chargés à la première ouverture du menu.
 let genres = $state<GenreView[] | null>(null);
-async function ouvrirGenres() {
+async function openGenres() {
   menuGenre = !menuGenre;
   if (genres === null) {
     try {
@@ -91,11 +91,11 @@ async function ouvrirGenres() {
 }
 
 // ─── Colonnes : celles de l'utilisateur, habillées pour la maquette ───
-const cles = $derived(clesAffichees($settingsStore.track_columns));
+const cles = $derived(shownKeys($settingsStore.track_columns));
 // L'artiste passe sous le titre ; en détaillé, album, année et qualité passent sur la ligne d'infos.
 const DANS_LE_DETAIL = new Set(["album", "quality", "year", "audio_format", "bits_per_sample", "sample_rate"]);
-const colonnes = $derived(resoudreColonnes(cles).filter((c) => c.key !== "artist" && !(detaille && DANS_LE_DETAIL.has(c.key))));
-const largeurs = $derived(lireLargeurs($settingsStore.track_column_widths));
+const colonnes = $derived(resolveColumns(cles).filter((c) => c.key !== "artist" && !(detaille && DANS_LE_DETAIL.has(c.key))));
+const largeurs = $derived(readWidths($settingsStore.track_column_widths));
 
 // ─── Chargement page par page ───
 const PAGE = 100;
@@ -108,7 +108,7 @@ let suite = $state(false);
 let defilement = $state<HTMLDivElement | null>(null);
 let jeton = 0;
 
-function filtres() {
+function filterParams() {
   return {
     libraryId,
     sortDir: sens,
@@ -119,20 +119,20 @@ function filtres() {
     genre,
   };
 }
-function parametres(offset: number, limit: number) {
-  return { ...filtres(), offset, limit, sortBy: tri };
+function queryParams(offset: number, limit: number) {
+  return { ...filterParams(), offset, limit, sortBy: tri };
 }
 
-async function lirePage(offset: number, limit: number) {
-  return invoke<{ tracks: TrackListView[]; total: number }>("get_tracks_paginated", parametres(offset, limit));
+async function fetchPage(offset: number, limit: number) {
+  return invoke<{ tracks: TrackListView[]; total: number }>("get_tracks_paginated", queryParams(offset, limit));
 }
 
 /** Recharge une fenêtre qui commence à `depart` ; `ancre` = index absolu à amener en haut. */
-async function charger(depart = 0, ancre: number | null = null) {
+async function load(depart = 0, ancre: number | null = null) {
   const moi = ++jeton;
   chargement = true;
   try {
-    const r = await lirePage(depart, PAGE);
+    const r = await fetchPage(depart, PAGE);
     if (moi !== jeton) return;
     resetTagCache();
     tracks = r.tracks;
@@ -140,7 +140,7 @@ async function charger(depart = 0, ancre: number | null = null) {
     total = r.total;
     await tick();
     if (ancre === null) defilement?.scrollTo({ top: 0 });
-    else montrer(ancre);
+    else scrollToIndex(ancre);
   } catch (e) {
     console.error("[morceaux] chargement :", e);
   } finally {
@@ -152,7 +152,7 @@ async function charger(depart = 0, ancre: number | null = null) {
 const FENETRE = 500;
 
 /** Applique `maj` sans que la première ligne visible ne bouge à l'écran. */
-async function sansSaut(maj: () => void) {
+async function withoutJump(maj: () => void) {
   const el = defilement;
   const haut = el?.getBoundingClientRect().top ?? 0;
   const repere = el ? [...el.querySelectorAll<HTMLElement>("[data-piste]")].find((r) => r.getBoundingClientRect().bottom > haut) : undefined;
@@ -162,15 +162,15 @@ async function sansSaut(maj: () => void) {
   if (el && repere?.isConnected) el.scrollTop += repere.getBoundingClientRect().top - avant;
 }
 
-async function chargerApres() {
+async function loadNext() {
   const moi = jeton;
   suite = true;
   try {
-    const r = await lirePage(debut + tracks.length, PAGE);
+    const r = await fetchPage(debut + tracks.length, PAGE);
     if (moi !== jeton) return;
     const tout = [...tracks, ...r.tracks];
     const trop = Math.max(0, tout.length - FENETRE);
-    await sansSaut(() => { tracks = tout.slice(trop); debut += trop; });
+    await withoutJump(() => { tracks = tout.slice(trop); debut += trop; });
   } catch (e) {
     console.error("[morceaux] suite :", e);
   } finally {
@@ -179,14 +179,14 @@ async function chargerApres() {
 }
 
 // Au-dessus de la fenêtre : on insère sans faire sauter ce qu'on regarde.
-async function chargerAvant() {
+async function loadPrevious() {
   const moi = jeton;
   const depart = Math.max(0, debut - PAGE);
   suite = true;
   try {
-    const r = await lirePage(depart, debut - depart);
+    const r = await fetchPage(depart, debut - depart);
     if (moi !== jeton) return;
-    await sansSaut(() => { tracks = [...r.tracks, ...tracks].slice(0, FENETRE); debut = depart; });
+    await withoutJump(() => { tracks = [...r.tracks, ...tracks].slice(0, FENETRE); debut = depart; });
   } catch (e) {
     console.error("[morceaux] précédents :", e);
   } finally {
@@ -194,22 +194,22 @@ async function chargerAvant() {
   }
 }
 
-function defiler(e: Event) {
+function handleScroll(e: Event) {
   const el = e.currentTarget as HTMLDivElement;
   if (suite || chargement) return;
-  if (debut + tracks.length < total && el.scrollHeight - el.scrollTop - el.clientHeight < 400) chargerApres();
-  else if (debut > 0 && el.scrollTop < 400) chargerAvant();
+  if (debut + tracks.length < total && el.scrollHeight - el.scrollTop - el.clientHeight < 400) loadNext();
+  else if (debut > 0 && el.scrollTop < 400) loadPrevious();
 }
 
 // ─── Navigation A–Z : la base dit où commence chaque lettre dans le tri en cours ───
 let lettres = $state<Map<string, number>>(new Map());
 let jetonLettres = 0;
-async function chargerLettres() {
+async function loadLetters() {
   // Filtres changés pendant la requête : ces positions ne valent plus.
   const moi = ++jetonLettres;
   if (tri !== "title") { lettres = new Map(); return; }
   try {
-    const l = await invoke<{ letter: string; offset: number }[]>("get_track_letter_offsets", filtres());
+    const l = await invoke<{ letter: string; offset: number }[]>("get_track_letter_offsets", filterParams());
     if (moi === jetonLettres) lettres = new Map(l.map((x) => [x.letter, x.offset]));
   } catch {
     if (moi === jetonLettres) lettres = new Map();
@@ -217,27 +217,27 @@ async function chargerLettres() {
 }
 
 /** Amène la ligne d'index absolu `i` en haut de la zone (sous l'en-tête collant). */
-function montrer(i: number) {
+function scrollToIndex(i: number) {
   const piste = tracks[i - debut];
   if (piste) defilement?.querySelector(`[data-piste="${CSS.escape(piste.id)}"]`)?.scrollIntoView({ block: "start" });
 }
 
-function allerLettre(l: string) {
+function goToLetter(l: string) {
   const i = lettres.get(l);
   if (i === undefined) return;
-  if (i >= debut && i < debut + tracks.length) montrer(i);
+  if (i >= debut && i < debut + tracks.length) scrollToIndex(i);
   // Un peu de contexte au-dessus : remonter d'une ligne recharge la suite sans à-coup.
-  else charger(Math.max(0, i - 20), i);
+  else load(Math.max(0, i - 20), i);
 }
 
 // Tout changement de bibliothèque, de tri, de filtre ou un import validé repart du début.
 $effect(() => {
   void [libraryId, tri, sens, rechercheEnvoyee, hiRes, sansPerte, favoris, sansPochette, genre, $importsTermines];
-  charger(0);
-  chargerLettres();
+  load(0);
+  loadLetters();
 });
 
-function trierPar(cle: string, dir: SortDir) {
+function changeSort(cle: string, dir: SortDir) {
   tri = cle;
   sens = dir;
 }
@@ -245,10 +245,10 @@ function trierPar(cle: string, dir: SortDir) {
 // « Tout lire » (en-tête) : la liste telle qu'affichée, filtres et tri compris, plafonnée
 // pour ne pas charger la file et ses panneaux de dizaines de milliers de lignes.
 const PLAFOND_LECTURE = 1000;
-async function toutLire() {
+async function playAll() {
   try {
-    const r = await invoke<{ tracks: TrackListView[] }>("get_tracks_paginated", parametres(0, PLAFOND_LECTURE));
-    if (r.tracks.length) await handlePlayTrack(r.tracks[0].path, versFileDAttente(r.tracks));
+    const r = await invoke<{ tracks: TrackListView[] }>("get_tracks_paginated", queryParams(0, PLAFOND_LECTURE));
+    if (r.tracks.length) await handlePlayTrack(r.tracks[0].path, toQueue(r.tracks));
   } catch (e) {
     console.error("[morceaux] tout lire :", e);
   }
@@ -256,11 +256,11 @@ async function toutLire() {
 
 // Dans un effet (après le montage) : la page quittée a déjà remis l'en-tête à zéro.
 $effect(() => {
-  libraryHeader.update(() => ({ action: { cle: "library_head.play_all", icone: "material-symbols:play-arrow-rounded", lancer: toutLire } }));
+  libraryHeader.update(() => ({ action: { cle: "library_head.play_all", icone: "material-symbols:play-arrow-rounded", lancer: playAll } }));
 });
 onDestroy(() => libraryHeader.update((h) => ({ ...h, action: null })));
 
-const nombre = (n: number) => n.toLocaleString($currentLocale);
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 </script>
 
 {#if $importAffiche}
@@ -280,7 +280,7 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
           <FilterChip icon="material-symbols:favorite-outline-rounded" pressed={favoris} title={$t("tracks_view.favorites")} onclick={() => (favoris = !favoris)}><span class="@max-xl:hidden">{$t("tracks_view.favorites")}</span></FilterChip>
           <FilterChip icon="material-symbols:hide-image-outline-rounded" pressed={sansPochette} title={$t("tracks_view.no_cover")} onclick={() => (sansPochette = !sansPochette)}><span class="@max-xl:hidden">{$t("tracks_view.no_cover")}</span></FilterChip>
           <div class="relative">
-            <FilterChip icon="material-symbols:sell-outline-rounded" pressed={!!genre} menu onclick={ouvrirGenres}>
+            <FilterChip icon="material-symbols:sell-outline-rounded" pressed={!!genre} menu onclick={openGenres}>
               <span class="max-w-40 truncate">{genre ?? $t("tracks_view.genre")}</span>
             </FilterChip>
             <Menu bind:open={menuGenre} align="left" class="w-60 max-h-80 overflow-y-auto scrollbar-app">
@@ -291,14 +291,14 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
                 {#each genres as g (g.name)}
                   <MenuItem actif={genre === g.name} onclick={() => { genre = g.name; menuGenre = false; }}>
                     {g.name}
-                    {#snippet fin()}<span class="font-mono text-[11px] text-(--rg-mu2)">{nombre(g.total_tracks)}</span>{/snippet}
+                    {#snippet fin()}<span class="font-mono text-[11px] text-(--rg-mu2)">{formatNumber(g.total_tracks)}</span>{/snippet}
                   </MenuItem>
                 {/each}
               {/if}
             </Menu>
           </div>
           {#if filtresActifs}
-            <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("tracks_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={effacerFiltres} />
+            <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("tracks_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={clearFilters} />
           {/if}
         </div>
 
@@ -329,29 +329,29 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
 
     <!-- ─── Morceaux, chargés au fil du défilement ─── -->
     <div class="flex-1 relative min-h-0">
-      <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16" bind:this={defilement} onscroll={defiler}>
+      <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16" bind:this={defilement} onscroll={handleScroll}>
         {#if chargement && tracks.length === 0}
           <div class="flex items-center justify-center py-20 text-(--rg-mu)">
             <Icon icon="material-symbols:progress-activity" width="26" class="animate-spin" />
           </div>
         {:else if tracks.length === 0}
-          <EmptyResult message={$t("tracks_view.no_match")} effacerLabel={$t("tracks_view.clear_filters")} oneffacer={filtresActifs ? effacerFiltres : null} />
+          <EmptyResult message={$t("tracks_view.no_match")} effacerLabel={$t("tracks_view.clear_filters")} oneffacer={filtresActifs ? clearFilters : null} />
         {:else}
           {#if debut > 0 && suite}
             <div class="flex justify-center py-3 text-(--rg-mu)"><Icon icon="material-symbols:progress-activity" width="20" class="animate-spin" /></div>
           {/if}
-          <LibraryTrackTable {libraryId} {tracks} columns={colonnes} {largeurs} {detaille} sortKey={tri} sortDir={sens} onsort={trierPar} />
+          <LibraryTrackTable {libraryId} {tracks} columns={colonnes} {largeurs} {detaille} sortKey={tri} sortDir={sens} onsort={changeSort} />
           {#if suite}
             <div class="flex justify-center py-4 text-(--rg-mu)"><Icon icon="material-symbols:progress-activity" width="20" class="animate-spin" /></div>
           {/if}
           <p class="py-3 text-center text-[11px] tabular-nums text-(--rg-mu2)">
-            {$t("tracks_view.loaded").replace("{n}", nombre(debut + tracks.length)).replace("{total}", nombre(total))}
+            {$t("tracks_view.loaded").replace("{n}", formatNumber(debut + tracks.length)).replace("{total}", formatNumber(total))}
           </p>
         {/if}
       </div>
 
       {#if tri === "title" && lettres.size > 0}
-        <AlphabetNav availableLetters={new Set(lettres.keys())} onletter={allerLettre} toujours />
+        <AlphabetNav availableLetters={new Set(lettres.keys())} onletter={goToLetter} toujours />
       {/if}
     </div>
   </div>

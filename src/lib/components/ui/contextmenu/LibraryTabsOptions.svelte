@@ -5,15 +5,15 @@
   import {
     ONGLETS_BIBLIOTHEQUE,
     ORDRE_ONGLETS,
-    lireOnglets,
-    lirePlacement,
+    readTabs,
+    readPlacement,
     type LibraryTabKey,
     type PlacementOnglets,
   } from "#lib/config/libraryTabs";
 
   /** Où et quelles sections de la bibliothèque proposer. Partagé par deux menus de la barre. */
-  const placement = $derived(lirePlacement($settingsStore.library_tabs_position));
-  const retenus = $derived(lireOnglets($settingsStore.library_tabs));
+  const placement = $derived(readPlacement($settingsStore.library_tabs_position));
+  const retenus = $derived(readTabs($settingsStore.library_tabs));
 
   const placements: { valeur: PlacementOnglets; labelKey: string; gauche: boolean; haut: boolean }[] = [
     { valeur: 'sidebar', labelKey: 'settings.library_tabs_sidebar', gauche: true,  haut: false },
@@ -22,7 +22,7 @@
   ];
 
   /** Conserve l'ordre d'origine, et refuse de tout décocher. */
-  function basculer(cle: LibraryTabKey) {
+  function toggleTab(cle: LibraryTabKey) {
     const suivant = retenus.includes(cle)
       ? retenus.filter((c) => c !== cle)
       : ORDRE_ONGLETS.filter((c) => c === cle || retenus.includes(c));
@@ -79,7 +79,7 @@
   <button
     class="{ligne} {dernier ? 'cursor-not-allowed' : ''}"
     disabled={dernier}
-    onclick={() => basculer(onglet.key)}
+    onclick={() => toggleTab(onglet.key)}
     title={dernier ? $t('settings.library_tabs_last') : ''}
   >
     <span class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center border

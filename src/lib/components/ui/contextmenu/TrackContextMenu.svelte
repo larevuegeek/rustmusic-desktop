@@ -7,7 +7,7 @@
   import { toasts } from "#lib/stores/ui/toast.store";
   import { toQueueTrack, type TrackLike } from "#lib/helper/tools/queueTools";
   import { playlistStore } from "#lib/stores/playlist/playlist.store";
-  import { playlistsRangees } from "#lib/stores/playlist/couvertures.store";
+  import { playlistsRangees } from "#lib/stores/playlist/covers.store";
   import { invoke } from "@tauri-apps/api/core";
   import type { Playlist } from "#lib/types/db/playlist/Playlist";
   import { t } from "#lib/i18n";

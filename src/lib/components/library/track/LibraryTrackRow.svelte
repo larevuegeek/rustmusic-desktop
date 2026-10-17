@@ -4,18 +4,18 @@ import { goto } from "$app/navigation";
 import Icon from "@iconify/svelte";
 import { t, currentLocale } from "#lib/i18n";
 import { handleSelectTrack, handlePlayTrack } from "#lib/actions/player/PlayerAction";
-import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
 import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import StarRating from "#lib/components/ui/rating/StarRating.svelte";
 import { liked } from "#lib/stores/playlist/like.store";
-import { lecture } from "#lib/stores/player/lecture.store";
+import { lecture } from "#lib/stores/player/playback.store";
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import type { TrackColumn } from "#lib/config/trackColumns";
-import { formatBitrate, formatCourt, palierPiste } from "#lib/helper/tools/audioFormatTools";
-import { minutesSecondes } from "#lib/helper/tools/dateTools";
+import { formatBitrate, formatCourt, trackTier } from "#lib/helper/tools/audioFormatTools";
+import { minutesSeconds } from "#lib/helper/tools/dateTools";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
 let {
@@ -55,7 +55,7 @@ const unClic = $derived($settingsStore.single_click_play === "true");
 const enCours = $derived($lecture.path === track.path);
 const joue = $derived(enCours && $lecture.status === "playing");
 
-const palier = $derived(palierPiste(track.audio_format, track.bits_per_sample, track.sample_rate));
+const palier = $derived(trackTier(track.audio_format, track.bits_per_sample, track.sample_rate));
 const PALIERS = {
     hires: { cle: "tracks_view.hires", classes: "text-amber-700 border-amber-300 bg-amber-50 dark:text-[#e8c46a] dark:border-[#4a3d1c] dark:bg-[#231d0e]" },
     lossless: { cle: "tracks_view.lossless", classes: "text-emerald-700 border-(--rg-gbd) bg-(--rg-gbg) dark:text-[#6ee7a0] dark:bg-[#0f2016]" },
@@ -71,20 +71,20 @@ const fiche = $derived.by(() => {
     return track.bitrate ? `${f} · ${formatBitrate(track.bitrate)}` : formatCourt(track.audio_format, track.bits_per_sample, track.sample_rate);
 });
 
-function lire() {
-    handlePlayTrack(track.path, versFileDAttente(tracks));
+function play() {
+    handlePlayTrack(track.path, toQueue(tracks));
 }
 
 // Toute la ligne : cocher, lire ou précharger, selon le mode et le réglage « un clic ».
-function clic(e: MouseEvent) {
+function handleClick(e: MouseEvent) {
     if (selection.active) {
         if (e.shiftKey) selectionStore.selectRange(track.id);
         else selectionStore.toggle(track.id, track);
-    } else if (unClic) lire();
-    else handleSelectTrack(track.path, versFileDAttente(tracks));
+    } else if (unClic) play();
+    else handleSelectTrack(track.path, toQueue(tracks));
 }
 
-function aller(e: MouseEvent, cible: string | null) {
+function goTo(e: MouseEvent, cible: string | null) {
     e.stopPropagation();
     if (cible) goto(cible);
 }
@@ -110,8 +110,8 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
            hover:after:opacity-0 [&:hover+.ligne-morceau]:after:opacity-0
            {coche ? 'bg-(--rg-creux-on) after:opacity-0' : 'hover:bg-(--rg-carte)'}
            {selection.active ? 'cursor-pointer' : 'cursor-default'}"
-    ondblclick={() => { if (!selection.active && !unClic) lire(); }}
-    onclick={clic}
+    ondblclick={() => { if (!selection.active && !unClic) play(); }}
+    onclick={handleClick}
     oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY }; }}
 >
     {#each columns as col, i (col.key)}
@@ -128,7 +128,7 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
                         <span class="mini-eq flex items-end gap-0.5 h-3.5 group-hover:hidden" style="--eq: var(--rg-g)" data-pause={joue ? undefined : ""}><i></i><i></i><i></i></span>
                     {/if}
                     <button type="button" class="absolute inset-0 hidden group-hover:flex items-center justify-center cursor-pointer text-(--rg-tx)"
-                            title={$t("tracks_view.play")} aria-label={$t("tracks_view.play")} onclick={(e) => { e.stopPropagation(); lire(); }} ondblclick={(e) => e.stopPropagation()}>
+                            title={$t("tracks_view.play")} aria-label={$t("tracks_view.play")} onclick={(e) => { e.stopPropagation(); play(); }} ondblclick={(e) => e.stopPropagation()}>
                         <Icon icon="material-symbols:play-arrow-rounded" width="24" />
                     </button>
                 {/if}
@@ -153,7 +153,7 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
                 {#if artisteSousTitre && track.artist}
                     <p class="mt-0.5 truncate text-[13px] text-(--rg-mu)">
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <span class={lienArtiste ? lien : "text-(--rg-tx2)"} onclick={(e) => aller(e, lienArtiste)}>{track.artist}</span>
+                        <span class={lienArtiste ? lien : "text-(--rg-tx2)"} onclick={(e) => goTo(e, lienArtiste)}>{track.artist}</span>
                     </p>
                 {/if}
                 {#if detaille}
@@ -161,7 +161,7 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
                         {#if track.album}
                             <span class="min-w-0 truncate text-(--rg-mu)">
                                 <!-- svelte-ignore a11y_no_static_element_interactions -->
-                                <span class={lienAlbum ? lien : ""} onclick={(e) => aller(e, lienAlbum)}>{track.album}</span>{#if track.year}{" · "}{track.year}{/if}
+                                <span class={lienAlbum ? lien : ""} onclick={(e) => goTo(e, lienAlbum)}>{track.album}</span>{#if track.year}{" · "}{track.year}{/if}
                             </span>
                         {/if}
                         {@render badge()}
@@ -184,11 +184,11 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
         {:else if col.key === "album"}
             <span class="shrink-0 truncate text-sm text-(--rg-mu)" style={w} title={track.album ?? ""}>
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
-                {#if track.album}<span class={lienAlbum ? lien : ""} onclick={(e) => aller(e, lienAlbum)}>{track.album}</span>{/if}
+                {#if track.album}<span class={lienAlbum ? lien : ""} onclick={(e) => goTo(e, lienAlbum)}>{track.album}</span>{/if}
             </span>
 
         {:else if col.key === "duration"}
-            <span class="shrink-0 text-right text-[13px] tabular-nums text-(--rg-mu)" style={w}>{track.duration ? minutesSecondes(track.duration) : ""}</span>
+            <span class="shrink-0 text-right text-[13px] tabular-nums text-(--rg-mu)" style={w}>{track.duration ? minutesSeconds(track.duration) : ""}</span>
 
         {:else}
             <span class="shrink-0 truncate text-[13px] text-(--rg-mu) {col.align === 'right' ? 'text-right' : ''} {col.numeric ? 'tabular-nums' : ''}"

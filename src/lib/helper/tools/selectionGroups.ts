@@ -21,7 +21,7 @@ import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 export type GroupKind = "album" | "artist" | "genre" | "folder" | "path" | "playlist";
 
 /** Commande et paramètres qui rendent les pistes d'un groupe. */
-function requete(kind: GroupKind, libraryId: number, id: string) {
+function groupQuery(kind: GroupKind, libraryId: number, id: string) {
   switch (kind) {
     case "album":
       return ["get_tracks_by_album", { libraryId, libraryAlbumId: id }] as const;
@@ -45,7 +45,7 @@ function requete(kind: GroupKind, libraryId: number, id: string) {
  * identifiant sans être le même objet, et deux genres homonymes dans deux
  * bibliothèques non plus.
  */
-export function cleGroupe(kind: GroupKind, libraryId: number, id: string): string {
+export function groupKey(kind: GroupKind, libraryId: number, id: string): string {
   return `${kind}:${libraryId}:${id}`;
 }
 
@@ -62,8 +62,8 @@ export async function toggleGroupSelection(
   libraryId: number,
   id: string,
 ): Promise<void> {
-  const [commande, params] = requete(kind, libraryId, id);
-  await toggleTracksGroup(cleGroupe(kind, libraryId, id), () => invoke<TrackListView[]>(commande, params));
+  const [commande, params] = groupQuery(kind, libraryId, id);
+  await toggleTracksGroup(groupKey(kind, libraryId, id), () => invoke<TrackListView[]>(commande, params));
 }
 
 /** Coche ou décoche un groupe dont l'appelant fournit les pistes (titres likés, récents…). */

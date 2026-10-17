@@ -15,21 +15,21 @@ export const PLAYLIST_COLORS = [
 ];
 
 /** `cle` : clé i18n pour `$t` ; `label` la traduit à la lecture, pour les appelants non réactifs. */
-function icone(id: string, cle: string) {
+function iconFor(id: string, cle: string) {
   return { id, cle, get label() { return get(t)(cle); } };
 }
 
 export const PLAYLIST_ICONS = [
-  icone('mynaui:music', 'playlist_icons.music'),
-  icone('mynaui:heart', 'playlist_icons.heart'),
-  icone('mynaui:star', 'playlist_icons.star'),
-  icone('mynaui:fire', 'playlist_icons.fire'),
-  icone('mynaui:moon', 'playlist_icons.moon'),
-  icone('mynaui:sun', 'playlist_icons.sun'),
-  icone('mynaui:lightning', 'playlist_icons.lightning'),
-  icone('mynaui:cloud', 'playlist_icons.cloud'),
-  icone('mynaui:coffee', 'playlist_icons.coffee'),
-  icone('mynaui:leaf', 'playlist_icons.leaf'),
-  icone('mynaui:gift', 'playlist_icons.gift'),
-  icone('mynaui:headphones', 'playlist_icons.headphones'),
+  iconFor('mynaui:music', 'playlist_icons.music'),
+  iconFor('mynaui:heart', 'playlist_icons.heart'),
+  iconFor('mynaui:star', 'playlist_icons.star'),
+  iconFor('mynaui:fire', 'playlist_icons.fire'),
+  iconFor('mynaui:moon', 'playlist_icons.moon'),
+  iconFor('mynaui:sun', 'playlist_icons.sun'),
+  iconFor('mynaui:lightning', 'playlist_icons.lightning'),
+  iconFor('mynaui:cloud', 'playlist_icons.cloud'),
+  iconFor('mynaui:coffee', 'playlist_icons.coffee'),
+  iconFor('mynaui:leaf', 'playlist_icons.leaf'),
+  iconFor('mynaui:gift', 'playlist_icons.gift'),
+  iconFor('mynaui:headphones', 'playlist_icons.headphones'),
 ];

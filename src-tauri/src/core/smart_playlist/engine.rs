@@ -43,7 +43,7 @@ const SELECT: &str = "\
 /// coup. La coupe explicite de l'utilisateur, quand elle existe, passe avant.
 const PLAFOND: i64 = 5000;
 
-fn lier<'q>(
+fn bind_args<'q>(
     mut q: sqlx::query::QueryAs<'q, Sqlite, PlaylistTrackView, sqlx::sqlite::SqliteArguments>,
     binds: &'q [Bind],
 ) -> sqlx::query::QueryAs<'q, Sqlite, PlaylistTrackView, sqlx::sqlite::SqliteArguments> {
@@ -77,8 +77,8 @@ pub async fn evaluate(
     // L'ordre des liaisons suit celui des `?` dans le texte : l'identifiant de
     // playlist du SELECT, puis les valeurs du WHERE, puis celles de l'ORDER BY.
     let mut q = sqlx::query_as::<_, PlaylistTrackView>(sqlx::AssertSqlSafe(sql)).bind(playlist_id);
-    q = lier(q, &filtre.binds);
-    q = lier(q, &ordre_binds);
+    q = bind_args(q, &filtre.binds);
+    q = bind_args(q, &ordre_binds);
 
     q.fetch_all(pool)
         .await
@@ -138,7 +138,7 @@ mod tests {
 
     /// Pose une piste complète. `tags` est le JSON du fichier, comme au scan.
     #[allow(clippy::too_many_arguments)]
-    async fn piste(
+    async fn insert_track(
         pool: &SqlitePool,
         id: &str,
         titre: &str,
@@ -216,7 +216,7 @@ mod tests {
         })
     }
 
-    fn regles(mode: Match, n: Vec<Node>, limit: Option<Limit>) -> SmartRules {
+    fn make_rules(mode: Match, n: Vec<Node>, limit: Option<Limit>) -> SmartRules {
         SmartRules {
             root: Group {
                 match_mode: mode,
@@ -227,13 +227,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn une_regle_de_note_selectionne_les_bonnes_pistes() {
+    async fn a_rating_rule_selects_the_right_tracks() {
         let pool = base().await;
-        piste(&pool, "t1", "Un", "Nirvana", "Grunge", Some(5.0), 3, None).await;
-        piste(&pool, "t2", "Deux", "Nirvana", "Grunge", Some(2.0), 0, None).await;
-        piste(&pool, "t3", "Trois", "Queen", "Rock", None, 9, None).await;
+        insert_track(&pool, "t1", "Un", "Nirvana", "Grunge", Some(5.0), 3, None).await;
+        insert_track(&pool, "t2", "Deux", "Nirvana", "Grunge", Some(2.0), 0, None).await;
+        insert_track(&pool, "t3", "Trois", "Queen", "Rock", None, 9, None).await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r("rating", Op::Gte, Some(Value::Number(4.0)))],
             None,
@@ -248,16 +248,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn une_note_absente_n_est_pas_zero() {
+    async fn a_missing_rating_is_not_zero() {
         // `rating` NULL veut dire « jamais noté ». Ni « au moins 3 » ni
         // « moins de 3 » ne doivent le ramener : sans note, la comparaison n'a
         // pas de sens, et le compter comme zéro fausserait toute règle de
         // sélection par qualité.
         let pool = base().await;
-        piste(&pool, "t1", "Un", "A", "G", None, 0, None).await;
+        insert_track(&pool, "t1", "Un", "A", "G", None, 0, None).await;
 
         for op in [Op::Gte, Op::Lt] {
-            let rg = regles(
+            let rg = make_rules(
                 Match::All,
                 vec![r("rating", op, Some(Value::Number(3.0)))],
                 None,
@@ -267,13 +267,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn un_groupe_any_reunit_ses_conditions() {
+    async fn an_any_group_joins_its_conditions() {
         let pool = base().await;
-        piste(&pool, "t1", "Un", "Nirvana", "Grunge", None, 0, None).await;
-        piste(&pool, "t2", "Deux", "Queen", "Rock", None, 0, None).await;
-        piste(&pool, "t3", "Trois", "Miles", "Jazz", None, 0, None).await;
+        insert_track(&pool, "t1", "Un", "Nirvana", "Grunge", None, 0, None).await;
+        insert_track(&pool, "t2", "Deux", "Queen", "Rock", None, 0, None).await;
+        insert_track(&pool, "t3", "Trois", "Miles", "Jazz", None, 0, None).await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::Any,
             vec![
                 r("genre", Op::Is, Some(Value::Text("Grunge".into()))),
@@ -285,21 +285,21 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn une_regle_porte_sur_un_tag_libre() {
+    async fn a_rule_targets_a_free_tag() {
         // Le cœur de la richesse : filtrer sur un tag que seul le fichier porte.
         let pool = base().await;
-        piste(
+        insert_track(
             &pool, "t1", "Un", "A", "G", None, 0,
             Some(r#"{"custom_tags":[["Label","Sub Pop"]]}"#),
         )
         .await;
-        piste(
+        insert_track(
             &pool, "t2", "Deux", "B", "G", None, 0,
             Some(r#"{"custom_tags":[["Label","Motown"]]}"#),
         )
         .await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r(
                 "tag:custom:Label",
@@ -314,12 +314,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn une_regle_porte_sur_un_champ_de_tag_nomme() {
+    async fn a_rule_targets_a_named_tag_field() {
         let pool = base().await;
-        piste(&pool, "t1", "Un", "A", "G", None, 0, Some(r#"{"composer":"Mozart"}"#)).await;
-        piste(&pool, "t2", "Deux", "B", "G", None, 0, Some(r#"{"composer":"Bach"}"#)).await;
+        insert_track(&pool, "t1", "Un", "A", "G", None, 0, Some(r#"{"composer":"Mozart"}"#)).await;
+        insert_track(&pool, "t2", "Deux", "B", "G", None, 0, Some(r#"{"composer":"Bach"}"#)).await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r("tag:composer", Op::Contains, Some(Value::Text("moz".into())))],
             None,
@@ -328,15 +328,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn la_negation_ramene_aussi_les_champs_vides() {
+    async fn negation_also_returns_empty_fields() {
         // Une piste sans compositeur « n'a pas Mozart comme compositeur ». Sans
         // le COALESCE, SQLite rendrait NULL — donc faux — et la règle raterait
         // exactement les lignes qu'elle devrait retenir.
         let pool = base().await;
-        piste(&pool, "t1", "Un", "A", "G", None, 0, Some(r#"{"composer":"Mozart"}"#)).await;
-        piste(&pool, "t2", "Deux", "B", "G", None, 0, None).await;
+        insert_track(&pool, "t1", "Un", "A", "G", None, 0, Some(r#"{"composer":"Mozart"}"#)).await;
+        insert_track(&pool, "t2", "Deux", "B", "G", None, 0, None).await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r(
                 "tag:composer",
@@ -349,13 +349,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn la_coupe_et_le_tri_sont_appliques() {
+    async fn limit_and_sort_are_applied() {
         let pool = base().await;
         for (id, note) in [("t1", 1.0), ("t2", 5.0), ("t3", 3.0)] {
-            piste(&pool, id, id, "A", "G", Some(note), 0, None).await;
+            insert_track(&pool, id, id, "A", "G", Some(note), 0, None).await;
         }
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r("rating", Op::IsNotEmpty, None)],
             Some(Limit {
@@ -375,15 +375,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn l_ordre_rendu_est_celui_demande_dans_les_deux_sens() {
+    async fn the_returned_order_matches_the_request_both_ways() {
         // C'est l'ordre des lignes qui fait foi, pas un rang : une playlist
         // intelligente n'a pas de position enregistrée.
         let pool = base().await;
-        piste(&pool, "t1", "Un", "A", "G", Some(1.0), 0, None).await;
-        piste(&pool, "t2", "Deux", "A", "G", Some(5.0), 0, None).await;
+        insert_track(&pool, "t1", "Un", "A", "G", Some(1.0), 0, None).await;
+        insert_track(&pool, "t2", "Deux", "A", "G", Some(5.0), 0, None).await;
 
         for (desc, premier) in [(true, "t2"), (false, "t1")] {
-            let rg = regles(
+            let rg = make_rules(
                 Match::All,
                 vec![r("rating", Op::IsNotEmpty, None)],
                 Some(Limit {
@@ -398,12 +398,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn un_champ_inconnu_fait_echouer_proprement() {
+    async fn an_unknown_field_fails_cleanly() {
         // Pas de filtre silencieusement ignoré : une règle intraduisible doit se
         // voir, sinon la playlist rend autre chose que ce qu'on a demandé sans
         // que rien ne l'indique.
         let pool = base().await;
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r(
                 "champ_qui_n_existe_pas",
@@ -417,23 +417,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn des_regles_vides_ramenent_toute_la_bibliotheque() {
+    async fn empty_rules_return_the_whole_library() {
         let pool = base().await;
-        piste(&pool, "t1", "Un", "A", "G", None, 0, None).await;
-        piste(&pool, "t2", "Deux", "B", "G", None, 0, None).await;
+        insert_track(&pool, "t1", "Un", "A", "G", None, 0, None).await;
+        insert_track(&pool, "t2", "Deux", "B", "G", None, 0, None).await;
 
-        let rg = regles(Match::All, vec![], None);
+        let rg = make_rules(Match::All, vec![], None);
         assert_eq!(count(&pool, &rg).await.expect("comptage"), 2);
     }
 
     #[tokio::test]
-    async fn un_pourcentage_saisi_ne_devient_pas_un_joker() {
+    async fn a_typed_percent_does_not_become_a_wildcard() {
         // « contient 100% » ne doit pas ramener toute la bibliothèque.
         let pool = base().await;
-        piste(&pool, "t1", "Pur à 100%", "A", "G", None, 0, None).await;
-        piste(&pool, "t2", "Autre chose", "B", "G", None, 0, None).await;
+        insert_track(&pool, "t1", "Pur à 100%", "A", "G", None, 0, None).await;
+        insert_track(&pool, "t2", "Autre chose", "B", "G", None, 0, None).await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r("title", Op::Contains, Some(Value::Text("100%".into())))],
             None,
@@ -442,20 +442,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn le_classement_somme_les_ecoutes_par_valeur() {
+    async fn ranking_sums_plays_per_value() {
         // Le point qui fait toute la différence : « les genres les plus
         // écoutés » n'est pas « les genres qui contiennent le morceau le plus
         // écouté ». Ici le Jazz a une piste à 100 écoutes, le Rock en a trois à
         // 50 — soit 150. Trier sur le maximum donnerait le Jazz ; sommer donne
         // le Rock, et c'est ce qu'on veut dire.
         let pool = base().await;
-        piste(&pool, "j1", "Jazz1", "A", "Jazz", None, 100, None).await;
-        piste(&pool, "r1", "Rock1", "B", "Rock", None, 50, None).await;
-        piste(&pool, "r2", "Rock2", "B", "Rock", None, 50, None).await;
-        piste(&pool, "r3", "Rock3", "B", "Rock", None, 50, None).await;
-        piste(&pool, "z1", "Zero", "C", "Ambient", None, 0, None).await;
+        insert_track(&pool, "j1", "Jazz1", "A", "Jazz", None, 100, None).await;
+        insert_track(&pool, "r1", "Rock1", "B", "Rock", None, 50, None).await;
+        insert_track(&pool, "r2", "Rock2", "B", "Rock", None, 50, None).await;
+        insert_track(&pool, "r3", "Rock3", "B", "Rock", None, 50, None).await;
+        insert_track(&pool, "z1", "Zero", "C", "Ambient", None, 0, None).await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r("genre", Op::InTopPlayed, Some(Value::Number(1.0)))],
             None,
@@ -468,14 +468,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn le_classement_retient_le_nombre_demande() {
+    async fn ranking_keeps_the_requested_number() {
         let pool = base().await;
-        piste(&pool, "a1", "A", "X", "Jazz", None, 30, None).await;
-        piste(&pool, "b1", "B", "X", "Rock", None, 20, None).await;
-        piste(&pool, "c1", "C", "X", "Ambient", None, 10, None).await;
+        insert_track(&pool, "a1", "A", "X", "Jazz", None, 30, None).await;
+        insert_track(&pool, "b1", "B", "X", "Rock", None, 20, None).await;
+        insert_track(&pool, "c1", "C", "X", "Ambient", None, 10, None).await;
 
         for (n, attendu) in [(1.0, 1), (2.0, 2), (3.0, 3), (9.0, 3)] {
-            let rg = regles(
+            let rg = make_rules(
                 Match::All,
                 vec![r("genre", Op::InTopPlayed, Some(Value::Number(n)))],
                 None,
@@ -489,15 +489,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn le_classement_ignore_les_valeurs_vides() {
+    async fn ranking_ignores_empty_values() {
         // Un genre absent n'est pas un genre : il ne doit pas occuper un rang
         // du classement, sinon « les 3 styles les plus écoutés » en rendrait
         // deux plus un paquet de pistes sans genre.
         let pool = base().await;
-        piste(&pool, "a1", "A", "X", "Jazz", None, 5, None).await;
-        piste(&pool, "b1", "B", "X", "", None, 900, None).await;
+        insert_track(&pool, "a1", "A", "X", "Jazz", None, 5, None).await;
+        insert_track(&pool, "b1", "B", "X", "", None, 900, None).await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r("genre", Op::InTopPlayed, Some(Value::Number(1.0)))],
             None,
@@ -508,15 +508,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn le_classement_fonctionne_sur_un_tag_libre() {
+    async fn ranking_works_on_a_free_tag() {
         // La liaison du nom de tag doit se faire deux fois — dehors et dans la
         // sous-requête — et dans le bon ordre. Une inversion chercherait le tag
         // nommé « 1 ».
         let pool = base().await;
-        piste(&pool, "a1", "A", "X", "G", None, 100, Some(r#"{"custom_tags":[["Label","Sub Pop"]]}"#)).await;
-        piste(&pool, "b1", "B", "X", "G", None, 1, Some(r#"{"custom_tags":[["Label","Motown"]]}"#)).await;
+        insert_track(&pool, "a1", "A", "X", "G", None, 100, Some(r#"{"custom_tags":[["Label","Sub Pop"]]}"#)).await;
+        insert_track(&pool, "b1", "B", "X", "G", None, 1, Some(r#"{"custom_tags":[["Label","Motown"]]}"#)).await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r("tag:custom:Label", Op::InTopPlayed, Some(Value::Number(1.0)))],
             None,
@@ -527,9 +527,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn un_rang_nul_est_refuse() {
+    async fn a_zero_rank_is_refused() {
         let pool = base().await;
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r("genre", Op::InTopPlayed, Some(Value::Number(0.0)))],
             None,
@@ -539,15 +539,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn les_plus_ecoutes_se_composent_avec_le_reste() {
+    async fn most_played_combines_with_the_rest() {
         // La recette « mes morceaux préférés dans mes styles favoris » : le
         // classement doit se combiner aux autres conditions sans les gêner.
         let pool = base().await;
-        piste(&pool, "a1", "A", "X", "Rock", Some(5.0), 90, None).await;
-        piste(&pool, "a2", "B", "X", "Rock", Some(1.0), 80, None).await;
-        piste(&pool, "b1", "C", "X", "Jazz", Some(5.0), 1, None).await;
+        insert_track(&pool, "a1", "A", "X", "Rock", Some(5.0), 90, None).await;
+        insert_track(&pool, "a2", "B", "X", "Rock", Some(1.0), 80, None).await;
+        insert_track(&pool, "b1", "C", "X", "Jazz", Some(5.0), 1, None).await;
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![
                 r("genre", Op::InTopPlayed, Some(Value::Number(1.0))),
@@ -561,15 +561,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn chaque_piste_ne_sort_qu_une_fois() {
+    async fn every_track_comes_out_once() {
         // L'interface indexe la liste par `library_track_id`. Une jointure qui
         // se multiplierait — un album à plusieurs artistes, par exemple —
         // rendrait la même piste deux fois, et l'affichage refuserait la liste
         // entière pour clé en double. Le test verrouille l'unicité à la source.
         let pool = base().await;
-        piste(&pool, "t1", "Un", "A", "Rock", Some(5.0), 3, None).await;
-        piste(&pool, "t2", "Deux", "A", "Rock", Some(4.0), 2, None).await;
-        piste(&pool, "t3", "Trois", "B", "Jazz", Some(4.0), 1, None).await;
+        insert_track(&pool, "t1", "Un", "A", "Rock", Some(5.0), 3, None).await;
+        insert_track(&pool, "t2", "Deux", "A", "Rock", Some(4.0), 2, None).await;
+        insert_track(&pool, "t3", "Trois", "B", "Jazz", Some(4.0), 1, None).await;
 
         // Un album partagé par deux artistes : la configuration qui, avec une
         // jointure de trop, dupliquerait les lignes.
@@ -586,7 +586,7 @@ mod tests {
             .await
             .ok();
 
-        let rg = regles(
+        let rg = make_rules(
             Match::All,
             vec![r("rating", Op::IsNotEmpty, None)],
             None,
@@ -610,10 +610,10 @@ mod tests {
     /// structure vers JSON, JSON vers base, base vers structure. Chacune peut se
     /// tromper sans que le compilateur n'y voie rien.
     #[tokio::test]
-    async fn une_playlist_se_cree_se_relit_et_se_modifie() {
+    async fn a_playlist_is_created_read_and_updated() {
         let pool = base().await;
-        piste(&pool, "t1", "Un", "A", "Rock", Some(5.0), 3, None).await;
-        piste(&pool, "t2", "Deux", "A", "Rock", Some(1.0), 0, None).await;
+        insert_track(&pool, "t1", "Un", "A", "Rock", Some(5.0), 3, None).await;
+        insert_track(&pool, "t2", "Deux", "A", "Rock", Some(1.0), 0, None).await;
 
         let depart = SmartRules {
             root: Group {

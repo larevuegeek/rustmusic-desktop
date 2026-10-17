@@ -1,15 +1,15 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
 import { t, currentLocale } from "#lib/i18n";
-import { teinte } from "#lib/helper/tools/teinte";
+import { hue } from "#lib/helper/tools/hue";
 import Icon from "@iconify/svelte";
-import { iconeGenre } from "#lib/helper/tools/iconeGenre";
+import { genreIcon } from "#lib/helper/tools/genreIcon";
 import type { GenreView } from "#lib/types/ui/library/genre/GenreView";
 
 let { libraryId, genres }: { libraryId: number; genres: GenreView[] } = $props();
 
 const affiches = $derived(genres.slice(0, 6));
-const nombre = (n: number) => new Intl.NumberFormat($currentLocale).format(n);
+const formatNumber = (n: number) => new Intl.NumberFormat($currentLocale).format(n);
 </script>
 
 {#if affiches.length > 0}
@@ -27,17 +27,17 @@ const nombre = (n: number) => new Intl.NumberFormat($currentLocale).format(n);
       <button type="button" onclick={() => goto(`/library/${libraryId}/genres/${encodeURIComponent(g.name)}`)}
               class="genre-tuile group relative h-33 flex items-start rounded-2xl overflow-hidden text-left cursor-pointer
                      transition-transform duration-300 hover:-translate-y-1"
-              style="--h: {teinte(g.name)}">
+              style="--h: {hue(g.name)}">
 
         <!-- L'icône du genre, baignée dans la lueur du coin -->
-        <Icon icon={iconeGenre(g.name)} width={88} height={88} aria-hidden="true"
+        <Icon icon={genreIcon(g.name)} width={88} height={88} aria-hidden="true"
               class="genre-icone absolute right-2 -bottom-2 -rotate-12
                      transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110" />
 
         <span class="relative flex flex-col gap-1 p-4 pr-16">
           <span class="genre-titre text-[19px] font-extrabold tracking-[-0.01em] leading-tight line-clamp-2">{g.name}</span>
           <span class="genre-compte text-[12.5px] font-semibold">
-            {$t('home.genre_count').replace('{n}', nombre(g.total_tracks))}
+            {$t('home.genre_count').replace('{n}', formatNumber(g.total_tracks))}
           </span>
         </span>
       </button>

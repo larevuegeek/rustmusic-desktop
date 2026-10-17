@@ -7,7 +7,7 @@ pub struct QueueTrackRepository;
 
 impl QueueTrackRepository {
 
-    pub async fn get_queue_tracks_by_profil_id<'e, E>(
+    pub async fn get_queue_tracks_by_profile_id<'e, E>(
             exec: E,
             profil_id: i64
         ) -> Result<Vec<QueueTrack>, sqlx::Error>

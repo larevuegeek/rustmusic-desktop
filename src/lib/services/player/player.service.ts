@@ -51,7 +51,7 @@ let playCountedPath: string | null = null;
  * et « les plus écoutés » remonterait ce qu'on a le plus vite passé. Le plafond
  * évite qu'un morceau de vingt minutes ne compte jamais.
  */
-function seuilEcoute(duree: number): number {
+function listenThreshold(duree: number): number {
     if (!duree || duree <= 0) return 60;
     return Math.min(60, duree / 2);
 }
@@ -87,7 +87,7 @@ let actionExplicite = false;
 let premiereLecture = true;
 
 /** Position enregistrée du morceau, s'il mérite une reprise : ni tout début, ni toute fin. */
-async function positionDeReprise(path: string): Promise<number> {
+async function resumePosition(path: string): Promise<number> {
     try {
         const recents = await invoke<RecentFileListView[]>("get_recent_files");
         const r = recents.find((f) => f.path === path);
@@ -606,10 +606,10 @@ class PlayerService {
             await this.resumePlay();
         } else {
             const reprise = premiereLecture && settingsStore.get('resume_playback') !== 'false'
-                ? await positionDeReprise(currentTrack.path)
+                ? await resumePosition(currentTrack.path)
                 : 0;
             await this.playFile(currentTrack);
-            if (reprise && await this.attendrePret()) await this.seekTo(reprise);
+            if (reprise && await this.waitUntilReady()) await this.seekTo(reprise);
         }
     }
 
@@ -641,11 +641,11 @@ class PlayerService {
         const track = qs.tracks[qs.currentIndex];
         if (!track) return;
         await this.playFile(track);
-        if (position > 2 && (await this.attendrePret(10000))) await this.seekTo(position);
+        if (position > 2 && (await this.waitUntilReady(10000))) await this.seekTo(position);
     }
 
     /** Attend que le son parte vraiment : un saut pendant le pré-décodage se perdrait. */
-    async attendrePret(delaiMs = 6000): Promise<boolean> {
+    async waitUntilReady(delaiMs = 6000): Promise<boolean> {
         const debut = Date.now();
         while (Date.now() - debut < delaiMs) {
             const p = get(player);
@@ -775,7 +775,7 @@ class PlayerService {
             if (
                 p.pathFile &&
                 p.pathFile !== playCountedPath &&
-                current >= seuilEcoute(total)
+                current >= listenThreshold(total)
             ) {
                 playCountedPath = p.pathFile;
                 // Sans `await` : un compteur ne doit pas retarder le sondage de

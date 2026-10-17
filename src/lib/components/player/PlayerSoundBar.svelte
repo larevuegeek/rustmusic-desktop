@@ -1,6 +1,7 @@
 <script lang="ts">
   // Sortie, sourdine et volume du lecteur. En DSD natif (DoP), le volume se règle sur le DAC.
   import { invoke } from "@tauri-apps/api/core";
+  import { platformFeatures } from "#lib/stores/settings/platform.store";
   import { playerService } from "#lib/services/player/player.service";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
@@ -10,11 +11,11 @@
   import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
   import { settingsStore } from "#lib/stores/settings/settings.store";
   import { detectOS } from "#lib/helper/tools/osDetection";
-  import { capacitesSortie, decrireSortie, palierQualite, PALIERS } from "#lib/helper/audio/deviceLabel";
+  import { outputCapabilities, describeOutput, qualityTier, PALIERS } from "#lib/helper/audio/deviceLabel";
   import Badge from "#lib/components/ui/text/Badge.svelte";
   import { t } from "#lib/i18n";
   import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
-  import { volume, chargerVolume, reglerVolume } from "#lib/stores/player/volume.store";
+  import { volume, loadVolume, applyVolume } from "#lib/stores/player/volume.store";
   import { networkIcon, networkPlayerStore, type NetworkRenderer } from "#lib/stores/audio/networkPlayer.store";
 
   const surWindows = detectOS() === "windows";
@@ -51,13 +52,13 @@
   });
 
   onMount(async () => {
-    await chargerVolume();
+    await loadVolume();
     previousValue = $volume;
     audioDevicesStore.ensureLoaded();
   });
 
   function handleChange() {
-    reglerVolume(value);
+    applyVolume(value);
   }
 
   function toggleMute() {
@@ -99,20 +100,20 @@
   // Fermeture au clic extérieur.
   $effect(() => {
     if (!showDevices) return;
-    const dehors = (e: MouseEvent) => {
+    const handleOutside = (e: MouseEvent) => {
       if (menuEl && !menuEl.contains(e.target as Node)) showDevices = false;
     };
-    const timer = setTimeout(() => document.addEventListener("click", dehors), 50);
+    const timer = setTimeout(() => document.addEventListener("click", handleOutside), 50);
     return () => {
       clearTimeout(timer);
-      document.removeEventListener("click", dehors);
+      document.removeEventListener("click", handleOutside);
     };
   });
 
   // Palier de qualité réel (exclusif sondé, sinon mixeur) : badge coloré comme dans les réglages.
-  function palier(d: AudioDeviceInfo) {
-    const { taux, bits } = capacitesSortie(d, $audioDevicesStore.exclusive[d.displayName]);
-    const p = palierQualite(taux, bits);
+  function tierOf(d: AudioDeviceInfo) {
+    const { taux, bits } = outputCapabilities(d, $audioDevicesStore.exclusive[d.displayName]);
+    const p = qualityTier(taux, bits);
     return p ? PALIERS[p] : null;
   }
 
@@ -125,7 +126,7 @@
     type="button"
     class="{bouton} text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol) {showDevices ? 'text-(--lc-acc)' : ''}"
     onclick={() => (showDevices = !showDevices)}
-    title={distant ? `${$t("player.output")} : ${distant.name}` : active ? `${$t("player.output")} : ${decrireSortie(active).nom}` : $t("player.output")}
+    title={distant ? `${$t("player.output")} : ${distant.name}` : active ? `${$t("player.output")} : ${describeOutput(active).nom}` : $t("player.output")}
     aria-label={$t("player.output")}
     aria-expanded={showDevices}
   >
@@ -140,8 +141,8 @@
       <p class="px-2.5 pt-1.5 pb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">{$t("player.output")}</p>
       {#each devices as device (device.displayName)}
         {@const choisi = !distant && device.displayName === $audioDevicesStore.activeDisplayName}
-        {@const libelle = decrireSortie(device)}
-        {@const qualite = palier(device)}
+        {@const libelle = describeOutput(device)}
+        {@const qualite = tierOf(device)}
         <!-- Sortie choisie : le vert des réglages, quelle que soit la pochette. -->
         <div class="relative flex items-stretch rounded-[10px] transition-colors {choisi ? 'bg-(--rg-g)/12' : 'hover:bg-(--lc-survol)'}">
           {#if choisi}<span class="absolute left-0 top-2.5 bottom-2.5 w-0.75 rounded-r-[3px] bg-(--rg-g)"></span>{/if}
@@ -226,6 +227,7 @@
             <ToggleSwitch size="sm" checked={wasapiExclusive} label={$t("settings.output_exclusive")} onclick={() => settingsStore.toggle("wasapi_exclusive")} />
           </div>
         {/if}
+        {#if $platformFeatures.exclusive}
         <div class="flex items-center gap-2.5 px-2.5 py-2">
           <span class="min-w-0 flex-1 leading-[1.2] {dopDisponible ? '' : 'opacity-60'}">
             <span class="block text-[13px] font-semibold">{$t("settings.dsd_dop")}</span>
@@ -235,6 +237,7 @@
           </span>
           <ToggleSwitch size="sm" checked={dop} disabled={!dopDisponible} label={$t("settings.dsd_dop")} onclick={() => settingsStore.toggle("dsd_dop")} />
         </div>
+        {/if}
       </div>
       {/if}
     </div>

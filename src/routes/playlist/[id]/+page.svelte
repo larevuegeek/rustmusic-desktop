@@ -15,7 +15,7 @@
   import PlaylistTracksView from "#lib/components/playlist/PlaylistTracksView.svelte";
   import EditPlaylistPopin from "#lib/components/playlist/popin/EditPlaylistPopin.svelte";
   import SmartPlaylistPopin from "#lib/components/playlist/smart/SmartPlaylistPopin.svelte";
-  import { resumerRegles, type FieldOption, type Group, type Vocabulary } from "#lib/components/playlist/smart/types";
+  import { summarizeRules, type FieldOption, type Group, type Vocabulary } from "#lib/components/playlist/smart/types";
   import type { Playlist } from "#lib/types/db/playlist/Playlist";
   import type { PlaylistTrackView } from "#lib/types/ui/playlist/playlistTrackView";
   import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
@@ -84,7 +84,7 @@
         invoke<Vocabulary>("get_rule_vocabulary"),
         invoke<Group | null>("get_smart_playlist_rules", { playlistId: id }),
       ]);
-      return group ? resumerRegles(group, voc, voc.fields as FieldOption[]) : null;
+      return group ? summarizeRules(group, voc, voc.fields as FieldOption[]) : null;
     } catch {
       return null;
     }

@@ -11,7 +11,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { player } from "#lib/stores/player/player.store";
 import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
-import { chargerVolume } from "#lib/stores/player/volume.store";
+import { loadVolume } from "#lib/stores/player/volume.store";
 import { toasts } from "#lib/stores/ui/toast.store";
 import { t } from "#lib/i18n";
 
@@ -108,7 +108,7 @@ function createStore() {
       await change();
       // La chaîne locale ne décrit plus la sortie.
       playbackPipelineStore.set(null);
-      await chargerVolume();
+      await loadVolume();
     }, { replay: resume });
   }
 

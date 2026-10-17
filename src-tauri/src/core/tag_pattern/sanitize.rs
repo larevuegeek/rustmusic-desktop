@@ -189,7 +189,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn les_separateurs_deviennent_des_tirets() {
+    fn separators_become_dashes() {
         assert_eq!(component("AC/DC"), "AC - DC");
         // Le cas qui a motivé ce choix : un medley séparé par des barres.
         assert_eq!(
@@ -200,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn les_ornements_disparaissent() {
+    fn ornaments_disappear() {
         // « Are We Not Men_ » n'apporte rien : le point d'interrogation
         // décorait, il ne structurait pas.
         assert_eq!(component("Are We Not Men?"), "Are We Not Men");
@@ -209,7 +209,7 @@ mod tests {
     }
 
     #[test]
-    fn pas_de_tirets_ni_d_espaces_en_trop() {
+    fn no_extra_dashes_or_spaces() {
         assert_eq!(component("A  /  B"), "A - B");
         assert_eq!(component("Titre - / - Suite"), "Titre - Suite");
         // Une barre en tête ou en fin ne doit pas laisser de tiret orphelin.
@@ -217,25 +217,25 @@ mod tests {
     }
 
     #[test]
-    fn un_tiret_voulu_reste() {
+    fn an_intended_dash_stays() {
         assert_eq!(component("01 - Titre"), "01 - Titre");
     }
 
     #[test]
-    fn le_point_final_disparait() {
+    fn the_trailing_dot_disappears() {
         // Windows le retire lui-même : le fichier existerait sous un autre nom.
         assert_eq!(component("Album."), "Album");
         assert_eq!(component("Album "), "Album");
     }
 
     #[test]
-    fn les_points_internes_restent() {
+    fn inner_dots_stay() {
         assert_eq!(component("R.E.M."), "R.E.M");
         assert_eq!(component("titre.flac"), "titre.flac");
     }
 
     #[test]
-    fn noms_reserves() {
+    fn reserved_names() {
         assert_eq!(component("CON"), "_CON");
         assert_eq!(component("con.flac"), "_con.flac");
         assert_eq!(component("COM1"), "_COM1");
@@ -244,19 +244,19 @@ mod tests {
     }
 
     #[test]
-    fn caracteres_de_controle() {
+    fn control_characters() {
         // Un espace plutôt qu'un souligné, réduit ensuite comme les autres.
         assert_eq!(component("ti\u{7}tre"), "ti tre");
     }
 
     #[test]
-    fn composant_trop_long() {
+    fn component_too_long() {
         let name = "a".repeat(300);
         assert_eq!(component(&name).chars().count(), MAX_COMPONENT);
     }
 
     #[test]
-    fn chemin_relatif_conserve_ses_dossiers() {
+    fn relative_path_keeps_its_folders() {
         assert_eq!(
             relative_path("Angèle/Brol (2018)/03 - La thune.flac"),
             "Angèle/Brol (2018)/03 - La thune.flac"
@@ -264,32 +264,32 @@ mod tests {
     }
 
     #[test]
-    fn une_barre_venue_d_un_tag_ne_cree_pas_de_dossier() {
+    fn a_slash_from_a_tag_does_not_create_a_folder() {
         // Le motif fait le découpage ; le tag ne doit pas pouvoir en ajouter.
         let rendered = format!("{}/album", component("AC/DC"));
         assert_eq!(relative_path(&rendered), "AC - DC/album");
     }
 
     #[test]
-    fn remontees_de_dossier_ecartees() {
+    fn parent_folder_steps_rejected() {
         assert_eq!(relative_path("../../etc/passwd"), "etc/passwd");
         assert_eq!(relative_path("a/./b"), "a/b");
     }
 
     #[test]
-    fn segments_vides_ecartes() {
+    fn empty_segments_dropped() {
         assert_eq!(relative_path("a//b/"), "a/b");
     }
 
     #[test]
-    fn longueur_de_chemin() {
+    fn path_length() {
         let long = format!("C:\\Musique\\{}", "a".repeat(300));
         assert!(matches!(check(&long), Some(PathIssue::TooLong { .. })));
         assert_eq!(check("C:\\Musique\\a.flac"), None);
     }
 
     #[test]
-    fn longueur_comptee_en_caracteres() {
+    fn length_counted_in_characters() {
         // 200 lettres accentuées font 400 octets mais 200 caractères : c'est
         // ainsi que Windows mesure.
         let path = format!("C:\\{}", "é".repeat(200));
@@ -297,7 +297,7 @@ mod tests {
     }
 
     #[test]
-    fn chemin_vide() {
+    fn empty_path() {
         assert_eq!(check("   "), Some(PathIssue::Empty));
     }
 }

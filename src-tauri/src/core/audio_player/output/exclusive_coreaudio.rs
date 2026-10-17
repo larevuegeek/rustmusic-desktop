@@ -90,7 +90,7 @@ impl CoreAudioExclusiveOutput {
         // avant d'ouvrir le stream. L'échec n'est pas fatal (cf. HogGuard) mais
         // il est journalisé — l'utilisateur doit pouvoir comprendre pourquoi sa
         // sortie n'est pas réellement exclusive.
-        let device = super::peripherique::epingler(&device);
+        let device = super::device_lookup::pin_device(&device);
         let hog = HogGuard::acquire(device_id);
 
         let config = cpal::StreamConfig {

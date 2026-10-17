@@ -4,7 +4,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { t } from "#lib/i18n";
   import { formatSampleRate, type AudioDeviceInfo, type WasapiDeviceCapabilities } from "#lib/stores/audio/audioDevices.store";
-  import { decrireSortie } from "#lib/helper/audio/deviceLabel";
+  import { describeOutput } from "#lib/helper/audio/deviceLabel";
   import GhostButton from "#lib/components/ui/button/GhostButton.svelte";
 
   let { device }: { device: AudioDeviceInfo | null } = $props();
@@ -58,7 +58,7 @@
     <div class="flex-1 min-w-0">
       <p class="text-[15px] font-semibold text-(--rg-tx)">{$t("settings.dac_test")}</p>
       <p class="mt-0.75 text-[13px] leading-[1.25] text-(--rg-mu) text-pretty">
-        {device ? $t("settings.dac_test_desc").replace("{device}", decrireSortie(device).nom) : $t("settings.dac_test_none")}
+        {device ? $t("settings.dac_test_desc").replace("{device}", describeOutput(device).nom) : $t("settings.dac_test_none")}
       </p>
     </div>
     <GhostButton

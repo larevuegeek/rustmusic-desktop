@@ -134,9 +134,10 @@ impl AudioBackend {
         {
             Some(AudioBackend::WasapiExclusive)
         }
+        // Flatpak sans accès à la carte son : pas d'exclusif, la lecture reste partagée.
         #[cfg(target_os = "linux")]
         {
-            Some(AudioBackend::AlsaExclusive)
+            crate::core::sandbox::exclusive_possible().then_some(AudioBackend::AlsaExclusive)
         }
         #[cfg(target_os = "macos")]
         {

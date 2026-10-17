@@ -1,11 +1,11 @@
 <script lang="ts">
   // Texte traduit dont les termes balisés « [[id|mot]] » ouvrent une bulle.
-  import Terme from "./Terme.svelte";
-  import { decouper } from "#lib/helper/tools/texteAide";
+  import Term from "./Term.svelte";
+  import { splitHelp } from "#lib/helper/tools/helpText";
 
   let { texte }: { texte: string } = $props();
 
-  const morceaux = $derived(decouper(texte));
+  const morceaux = $derived(splitHelp(texte));
 </script>
 
-{#each morceaux as m}{#if m.terme}<Terme id={m.terme}>{m.texte}</Terme>{:else}{m.texte}{/if}{/each}
+{#each morceaux as m}{#if m.terme}<Term id={m.terme}>{m.texte}</Term>{:else}{m.texte}{/if}{/each}

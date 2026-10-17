@@ -413,7 +413,7 @@ where
         // Exclusif : pas de marge — volume 100 % et gain neutre laissent les échantillons intacts.
         let vol = atomics.volume.load(Ordering::Relaxed) as f32 / 100.0
             * crate::core::audio_player::replay_gain::current_factor();
-        super::echantillons::appliquer_gain(&mut scratch, vol, &mut fade_in_samples, 1.0);
+        super::samples::apply_gain(&mut scratch, vol, &mut fade_in_samples, 1.0);
 
         write_chunk(
             &pcm,
@@ -447,7 +447,7 @@ fn write_chunk(
             buf_i32.extend(
                 samples
                     .iter()
-                    .map(|s| super::echantillons::vers_i32(*s)),
+                    .map(|s| super::samples::to_i32(*s)),
             );
             let io = pcm.io_i32().map_err(|e| format!("io_i32: {e}"))?;
             let mut off = 0usize;
@@ -467,7 +467,7 @@ fn write_chunk(
             buf_i16.extend(
                 samples
                     .iter()
-                    .map(|s| super::echantillons::vers_i16(*s)),
+                    .map(|s| super::samples::to_i16(*s)),
             );
             let io = pcm.io_i16().map_err(|e| format!("io_i16: {e}"))?;
             let mut off = 0usize;

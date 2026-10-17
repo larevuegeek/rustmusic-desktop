@@ -4,15 +4,15 @@
   import Icon from "@iconify/svelte";
   import { t, currentLocale } from "#lib/i18n";
   import { pipelineMode, type PlaybackPipelineInfo } from "#lib/stores/player/playbackPipeline.store";
-  import { CHAINE, messageRepli, frequenceLisible } from "#lib/helper/audio/chaineAudio";
-  import { decrireSortie } from "#lib/helper/audio/deviceLabel";
+  import { CHAINE, fallbackMessage, readableRate } from "#lib/helper/audio/audioChain";
+  import { describeOutput } from "#lib/helper/audio/deviceLabel";
 
   let { info }: { info: PlaybackPipelineInfo } = $props();
 
-  const frequence = (hz: number) => frequenceLisible(hz, $currentLocale);
+  const formatRate = (hz: number) => readableRate(hz, $currentLocale);
 
   const CANAUX: Record<number, string> = { 3: "3.0", 4: "4.0", 5: "5.0", 6: "5.1", 7: "6.1", 8: "7.1" };
-  function canaux(n: number): string {
+  function channelsLabel(n: number): string {
     if (n === 1) return $t("pipeline.channels_mono");
     if (n === 2) return $t("pipeline.channels_stereo");
     return CANAUX[n] ?? `${n} ch`;
@@ -30,7 +30,7 @@
   const dop = $derived((info.backend ?? "").endsWith("DoP"));
   // « WASAPI DoP » → « WASAPI · DoP (DSD natif) » ; idem ALSA et CoreAudio.
   const moteur = $derived(dop ? `${info.backend.replace(/ DoP$/, "")} · ${$t("pipeline.dop_backend")}` : info.backend ?? "CPAL shared");
-  const repli = $derived(messageRepli(info, $t, frequence));
+  const repli = $derived(fallbackMessage(info, $t, formatRate));
 
   type Etape = { icone: string; titre: string; valeur: string; detail?: string; mono?: boolean; ton?: string };
   const AMBRE = "bg-amber-500/14 text-amber-700 dark:text-amber-300";
@@ -40,15 +40,15 @@
     const e: Etape[] = [{
       icone: "material-symbols-light:audio-file-outline-rounded",
       titre: $t("pipeline.source"),
-      valeur: [info.source_format, frequence(info.source_sample_rate), dsd || dop ? "1 bit" : info.source_bits > 0 ? `${info.source_bits} bit` : null].filter(Boolean).join(" · "),
-      detail: canaux(info.source_channels),
+      valeur: [info.source_format, formatRate(info.source_sample_rate), dsd || dop ? "1 bit" : info.source_bits > 0 ? `${info.source_bits} bit` : null].filter(Boolean).join(" · "),
+      detail: channelsLabel(info.source_channels),
       mono: true,
     }];
     if (dsd && info.intermediate_pcm_rate) {
       e.push({
         icone: "material-symbols-light:tune-rounded",
         titre: $t("pipeline.decoding"),
-        valeur: `DSD → PCM ${frequence(info.intermediate_pcm_rate)}`,
+        valeur: `DSD → PCM ${formatRate(info.intermediate_pcm_rate)}`,
         detail: [info.dsd_filter_taps ? $t("pipeline.dsd_filter").replace("{taps}", String(info.dsd_filter_taps)) : null, info.dsd_decimation ? `×${info.dsd_decimation}` : null].filter(Boolean).join(" · ") || undefined,
         mono: true,
         ton: AMBRE,
@@ -58,7 +58,7 @@
       e.push({
         icone: "material-symbols-light:swap-horiz-rounded",
         titre: $t("pipeline.transport"),
-        valeur: `DoP ${frequence(info.output_sample_rate)}`,
+        valeur: `DoP ${formatRate(info.output_sample_rate)}`,
         detail: $t("pipeline.dop_transport_hint"),
         mono: true,
         ton: VIOLET,
@@ -68,7 +68,7 @@
       e.push({
         icone: "material-symbols-light:graphic-eq-rounded",
         titre: $t("pipeline.resampling"),
-        valeur: `${frequence(info.intermediate_pcm_rate ?? info.source_sample_rate)} → ${frequence(info.output_sample_rate)}`,
+        valeur: `${formatRate(info.intermediate_pcm_rate ?? info.source_sample_rate)} → ${formatRate(info.output_sample_rate)}`,
         mono: true,
         ton: AMBRE,
       });
@@ -76,8 +76,8 @@
     e.push({
       icone: "material-symbols-light:speaker-outline-rounded",
       titre: $t("pipeline.output"),
-      valeur: decrireSortie({ name: info.device_name }).nom,
-      detail: [frequence(info.output_sample_rate), canaux(info.output_channels), moteur].join(" · "),
+      valeur: describeOutput({ name: info.device_name }).nom,
+      detail: [formatRate(info.output_sample_rate), channelsLabel(info.output_channels), moteur].join(" · "),
     });
     return e;
   });

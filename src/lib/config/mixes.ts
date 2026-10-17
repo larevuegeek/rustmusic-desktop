@@ -1,5 +1,5 @@
-import { teinte } from "#lib/helper/tools/teinte";
-import { estDatee, decennieDe, courtDecennie, teinteDecennie } from "#lib/helper/library/periode";
+import { hue } from "#lib/helper/tools/hue";
+import { isDated, decadeOf, shortDecade, decadeHue } from "#lib/helper/library/period";
 import type { SourceMix } from "#lib/stores/mix/mix.store";
 import type { GenreMix } from "#lib/types/ui/library/genre/GenreMix";
 import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
@@ -28,12 +28,12 @@ export const MIN_TITRES_MIX = 10;
 
 const specGenre = (g: GenreMix, t: T, type: string): SpecMix => ({
   cle: `genre:${g.nom.toLowerCase()}`, type, nom: g.nom,
-  aide: t("mix_view.genre_desc").replace("{n}", String(g.artistes)), h: teinte(g.nom.toLowerCase()),
+  aide: t("mix_view.genre_desc").replace("{n}", String(g.artistes)), h: hue(g.nom.toLowerCase()),
   source: { kind: "genre", genre: g.nom },
 });
 
 /** « Pour vous » : deux genres du jour (ils tournent parmi les plus fournis), les oubliés, le Hi-Res. */
-export function mixPourVous(genres: GenreMix[], hires: number, t: T): SpecMix[] {
+export function mixesForYou(genres: GenreMix[], hires: number, t: T): SpecMix[] {
   if (genres.length === 0) return [];
   const tournants = genres.slice(0, 6);
   const jour = Math.floor(Date.now() / 86_400_000);
@@ -51,33 +51,33 @@ export function mixGenres(genres: GenreMix[], t: T): SpecMix[] {
 }
 
 /** Une décennie par tranche d'albums datés : « 80 » avant 2000, « 2010 » après. */
-export function mixDecennies(albums: AlbumListView[], t: T): SpecMix[] {
+export function decadeMixes(albums: AlbumListView[], t: T): SpecMix[] {
   const pistesPar = new Map<number, number>();
   for (const a of albums) {
-    if (!estDatee(a.year)) continue;
-    const d = decennieDe(a.year);
+    if (!isDated(a.year)) continue;
+    const d = decadeOf(a.year);
     pistesPar.set(d, (pistesPar.get(d) ?? 0) + (a.total_tracks ?? 0));
   }
   return [...pistesPar.entries()]
     .filter(([, n]) => n >= MIN_TITRES_MIX)
     .sort(([a], [b]) => a - b)
     .map(([d]) => {
-      const court = courtDecennie(d);
+      const court = shortDecade(d);
       return {
         cle: `decennie:${d}`, type: t("home.decade_pre"), nom: t("home.decade_name").replace("{d}", court),
         aide: t("home.decade_kind").replace("{a}", String(d)).replace("{b}", String(d + 9)),
-        h: teinteDecennie(d), source: { kind: "decennie", decennie: d },
+        h: decadeHue(d), source: { kind: "decennie", decennie: d },
         pre: t("home.decade_pre"), court: t("home.decade_short").replace("{d}", court),
       };
     });
 }
 
 /** Les mix créés : des playlists auto marquées « mix ». */
-export function mixCrees(playlists: Playlist[], t: T): SpecMix[] {
+export function createdMixes(playlists: Playlist[], t: T): SpecMix[] {
   return playlists
     .filter((p) => p.is_mix)
     .map((p) => ({
-      cle: `perso:${p.id}`, type: t("mix_view.custom_kind"), nom: p.name, aide: p.name, h: teinte(p.name),
+      cle: `perso:${p.id}`, type: t("mix_view.custom_kind"), nom: p.name, aide: p.name, h: hue(p.name),
       source: { playlistId: p.id }, playlist: p,
     }));
 }

@@ -5,7 +5,7 @@
   import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
   import { goto } from "$app/navigation";
   import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
-  import { versFileDAttente } from "#lib/mapper/queue/mapQueueTrack";
+  import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
   import { sidebarStore } from "#lib/stores/ui/sidebar.store";
   import { t } from "#lib/i18n";
 
@@ -86,7 +86,7 @@
   function handleResultClick(result: SearchResult) {
     if (result.result_type === 'track' && result.path) {
       // Seuls les morceaux de la liste entrent dans la file.
-      handlePlayTrack(result.path, versFileDAttente(
+      handlePlayTrack(result.path, toQueue(
         results.filter((r) => r.result_type === 'track' && r.path)
       ));
     } else if (result.result_type === 'album' && result.library_id) {

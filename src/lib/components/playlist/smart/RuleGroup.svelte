@@ -3,7 +3,7 @@
   import RuleGroup from "./RuleGroup.svelte";
   import { t } from "#lib/i18n";
   import type { FieldOption, Vocabulary, Node, Group } from "./types";
-  import { operatorsFor, defaultRule, arityOf, libelleChamp, libelleOperateur } from "./types";
+  import { operatorsFor, defaultRule, arityOf, fieldLabel, operatorLabel } from "./types";
 
   /**
    * Un groupe de conditions, et ses sous-groupes.
@@ -31,29 +31,29 @@
 
   const PROFONDEUR_MAX = 3;
 
-  function ajouterRegle() {
+  function addRule() {
     group.rules = [...group.rules, defaultRule(fields)];
   }
 
-  function ajouterGroupe() {
+  function addGroup() {
     group.rules = [
       ...group.rules,
       { match: group.match === "all" ? "any" : "all", rules: [defaultRule(fields)] },
     ];
   }
 
-  function retirer(i: number) {
+  function remove(i: number) {
     group.rules = group.rules.filter((_, j) => j !== i);
   }
 
-  function estGroupe(n: Node): n is Group {
+  function isGroup(n: Node): n is Group {
     return 'rules' in n;
   }
 
   /** Change le champ d'une règle, en réajustant l'opérateur si besoin. */
-  function changerChamp(i: number, cle: string) {
+  function changeField(i: number, cle: string) {
     const n = group.rules[i];
-    if (estGroupe(n)) return;
+    if (isGroup(n)) return;
     const ops = operatorsFor(vocabulary, fields, cle);
     // L'opérateur courant peut ne pas exister pour la nouvelle nature de champ
     // — « contient » n'a pas de sens sur une note. On retombe sur le premier
@@ -97,13 +97,13 @@
 
   <div class="space-y-2">
     {#each group.rules as noeud, i (i)}
-      {#if estGroupe(noeud)}
+      {#if isGroup(noeud)}
         <RuleGroup
           bind:group={group.rules[i] as Group}
           {fields}
           {vocabulary}
           depth={depth + 1}
-          onremove={() => retirer(i)}
+          onremove={() => remove(i)}
         />
       {:else}
         {@const ops = operatorsFor(vocabulary, fields, noeud.field)}
@@ -112,11 +112,11 @@
           <!-- Champ -->
           <select
             value={noeud.field}
-            onchange={(e) => changerChamp(i, e.currentTarget.value)}
+            onchange={(e) => changeField(i, e.currentTarget.value)}
             class="h-9 px-2.5 rounded-lg text-[13px] cursor-pointer min-w-0 flex-1 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
           >
             {#each fields as f (f.key)}
-              <option value={f.key}>{libelleChamp(f, $t)}</option>
+              <option value={f.key}>{fieldLabel(f, $t)}</option>
             {/each}
           </select>
 
@@ -126,7 +126,7 @@
             class="h-9 px-2.5 rounded-lg text-[13px] cursor-pointer w-40 shrink-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
           >
             {#each ops as o (o.key)}
-              <option value={o.key}>{libelleOperateur(o, $t)}</option>
+              <option value={o.key}>{operatorLabel(o, $t)}</option>
             {/each}
           </select>
 
@@ -167,7 +167,7 @@
 
           <button
             type="button"
-            onclick={() => retirer(i)}
+            onclick={() => remove(i)}
             class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer shrink-0 text-(--rg-mu) hover:text-red-500 hover:bg-red-500/10"
             aria-label={$t("smart.remove_condition")}
           >
@@ -181,7 +181,7 @@
   <div class="flex items-center gap-2 mt-3">
     <button
       type="button"
-      onclick={ajouterRegle}
+      onclick={addRule}
       class="h-8 px-3 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 cursor-pointer border border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) transition-colors"
     >
       <Icon icon="lucide:plus" width="12" />
@@ -190,7 +190,7 @@
     {#if depth < PROFONDEUR_MAX - 1}
       <button
         type="button"
-        onclick={ajouterGroupe}
+        onclick={addGroup}
         class="h-8 px-3 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 cursor-pointer border border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) transition-colors"
       >
         <Icon icon="lucide:brackets" width="12" />

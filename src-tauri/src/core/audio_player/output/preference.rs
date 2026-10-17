@@ -23,9 +23,10 @@ static DSD_DOP: AtomicBool = AtomicBool::new(false);
 pub fn dop_enabled() -> bool {
     // Windows : DoP via WASAPI exclusive. Linux : DoP via ALSA hw exclusif.
     // macOS : DoP via CoreAudio + hog mode (seule voie DSD native du système).
+    // Sans accès direct à la carte (Flatpak), le DSD passe par la conversion en PCM.
     #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
     {
-        return DSD_DOP.load(Ordering::Relaxed);
+        return DSD_DOP.load(Ordering::Relaxed) && crate::core::sandbox::exclusive_possible();
     }
     #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
     {

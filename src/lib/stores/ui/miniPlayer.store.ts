@@ -135,7 +135,7 @@ async function keepOnScreen(width: number, height: number): Promise<void> {
 }
 
 /** Quitte le plein écran et attend la fin de l'animation : macOS ignore les redimensionnements pendant. */
-async function quitterPleinEcran(win: ReturnType<typeof getCurrentWindow>): Promise<void> {
+async function exitFullscreen(win: ReturnType<typeof getCurrentWindow>): Promise<void> {
   let fin: () => void = () => {};
   const termine = new Promise<void>((r) => { fin = r; });
   let calme: ReturnType<typeof setTimeout> | undefined;
@@ -162,7 +162,7 @@ export async function enterMiniPlayer(): Promise<void> {
     await invoke("set_compact_mode", { active: true });
     const win = getCurrentWindow();
     savedFullscreen = await win.isFullscreen();
-    if (savedFullscreen) await quitterPleinEcran(win);
+    if (savedFullscreen) await exitFullscreen(win);
     savedMaximized = await win.isMaximized();
     if (savedMaximized) await win.unmaximize();
     savedSize = await win.innerSize();
@@ -218,7 +218,7 @@ export async function exitMiniPlayer(): Promise<void> {
  * Au démarrage : plancher du mode normal, et taille d'origine si l'appli a été
  * fermée en mode mini (la taille réduite a alors été gardée pour la prochaine fois).
  */
-export async function assurerTailleNormale(): Promise<void> {
+export async function ensureNormalSize(): Promise<void> {
   try {
     const win = getCurrentWindow();
     await win.setMinSize(new LogicalSize(NORMAL_MIN_W, NORMAL_MIN_H));

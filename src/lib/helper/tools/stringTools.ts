@@ -35,9 +35,9 @@ function displayTitle(
 }
 
 /** « Dido; Dido » → « Dido » : les tags multiples, dédoublonnés et joints. */
-function artistesLisibles(valeur: string | null | undefined): string | null {
+function readableArtists(valeur: string | null | undefined): string | null {
   const noms = [...new Set((valeur ?? "").split(";").map((n) => n.trim()).filter(Boolean))];
   return noms.length > 0 ? noms.join(", ") : null;
 }
 
-export { fileStem, displayTitle, artistesLisibles };
+export { fileStem, displayTitle, readableArtists };

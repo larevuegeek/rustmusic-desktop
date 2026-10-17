@@ -1,5 +1,5 @@
 <script lang="ts">
-import { couverturesPlaylists } from "#lib/stores/playlist/couvertures.store";
+import { couverturesPlaylists } from "#lib/stores/playlist/covers.store";
 import Icon from "@iconify/svelte";
 import { t, currentLocale } from "#lib/i18n";
 import { goto } from "$app/navigation";
@@ -22,13 +22,13 @@ import { sidebarStore } from "#lib/stores/ui/sidebar.store";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { handleClickOpenDirectory, handleClickOpenFile } from "#lib/actions/player/PlayerAction";
 import PlaylistItem from "./PlaylistItem.svelte";
-import SidebarBouton from "./SidebarBouton.svelte";
-import SidebarEpingles from "./SidebarEpingles.svelte";
-import SidebarLigne from "./SidebarLigne.svelte";
+import SidebarButton from "./SidebarButton.svelte";
+import SidebarPins from "./SidebarPins.svelte";
+import SidebarRow from "./SidebarRow.svelte";
 import SidebarNav from "./SidebarNav.svelte";
-import SidebarPied from "./SidebarPied.svelte";
-import SidebarTitre from "./SidebarTitre.svelte";
-import SidebarVignette from "./SidebarVignette.svelte";
+import SidebarFooter from "./SidebarFooter.svelte";
+import SidebarTitle from "./SidebarTitle.svelte";
+import SidebarThumbnail from "./SidebarThumbnail.svelte";
 
 const pathname = $derived(page.url.pathname);
 const replie = $derived($settingsStore.sidebar_collapsed === 'true');
@@ -53,12 +53,12 @@ let menuZone = $state<{ x: number; y: number } | null>(null);
 let menuBibliotheque = $state<{ x: number; y: number } | null>(null);
 let menuOuvrir = $state<{ x: number; y: number } | null>(null);
 
-const sousMenu = (e: MouseEvent) => {
+const openSubMenu = (e: MouseEvent) => {
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
   return { x: r.right, y: r.bottom + 4 };
 };
 
-function compte(genre: string, n: number): string {
+function genreLabel(genre: string, n: number): string {
   if (n === 0) return `${genre} · ${$t('sidebar.empty')}`;
   const titres = n === 1 ? $t('home.track_one') : $t('home.tracks_n').replace('{n}', n.toLocaleString($currentLocale));
   return `${genre} · ${titres}`;
@@ -102,7 +102,7 @@ onMount(() => {
             {bouton.label}
           </button>
         {/each}
-        <SidebarBouton icon="material-symbols:more-horiz" label={$t('nav.open')} onclick={(e) => menuOuvrir = sousMenu(e)} />
+        <SidebarButton icon="material-symbols:more-horiz" label={$t('nav.open')} onclick={(e) => menuOuvrir = openSubMenu(e)} />
       </div>
       <!-- Part avec la section. -->
       <div class="h-px bg-linear-to-r from-transparent via-(--sb-mu)/40 to-transparent" role="presentation"></div>
@@ -138,7 +138,7 @@ onMount(() => {
             type="button"
             class="w-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer transition-colors
                    bg-(--sb-s1) border border-(--sb-bd) text-(--sb-tx2) hover:border-(--sb-bd2) hover:text-(--sb-tx)"
-            onclick={(e) => menuBibliotheque = sousMenu(e)}
+            onclick={(e) => menuBibliotheque = openSubMenu(e)}
             title={$t('sidebar.library_options')}
             aria-label={$t('sidebar.library_options')}
           >
@@ -160,33 +160,33 @@ onMount(() => {
   >
     {#if montrerPlaylists}
     {#if !replie}
-      <SidebarTitre titre={$t('nav.playlists')} aide={$t('playlists_view.all')} onclick={() => nav('/playlists')}>
+      <SidebarTitle titre={$t('nav.playlists')} aide={$t('playlists_view.all')} onclick={() => nav('/playlists')}>
         {#snippet actions()}
-          <SidebarBouton
+          <SidebarButton
             icon="material-symbols:auto-awesome-outline-rounded"
             label={$t('playlist.new_smart')}
             taille={16}
             onclick={() => popinStore.open($t('playlist.new_smart'), SmartPlaylistPopin, {},
               { size: 'xl', icon: 'lucide:sparkles', flush: true })}
           />
-          <SidebarBouton
+          <SidebarButton
             icon="material-symbols:add-rounded"
             label={$t('playlist.new')}
             taille={16}
             onclick={() => popinStore.open($t('nav.playlists'), AddPlaylistPopin, {})}
           />
-          <SidebarBouton
+          <SidebarButton
             icon="material-symbols:more-horiz"
             label={$t('playlist.options')}
             taille={16}
-            onclick={(e) => menuZone = sousMenu(e)}
+            onclick={(e) => menuZone = openSubMenu(e)}
           >
             {#if raccourcisMasques > 0}
               <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-(--sb-g)"></span>
             {/if}
-          </SidebarBouton>
+          </SidebarButton>
         {/snippet}
-      </SidebarTitre>
+      </SidebarTitle>
     {/if}
 
     {#each $playlistStore.playlists.filter((p) => p.pinned && !p.is_mix) as playlist (playlist.id)}
@@ -194,41 +194,41 @@ onMount(() => {
     {/each}
 
     {#if montrerLikes}
-      <SidebarLigne
+      <SidebarRow
         titre={$t('playlist_page.liked_title')}
-        sousTitre={compte($t('sidebar.playlist'), $likedCount)}
+        sousTitre={genreLabel($t('sidebar.playlist'), $likedCount)}
         {replie}
         actif={pathname === '/playlist/liked'}
         onclick={() => nav('/playlist/liked')}
       >
         {#snippet vignette()}
-          <SidebarVignette couvertures={$couverturesPlaylists.liked ?? []} couleur="#f43f5e" icone="material-symbols:favorite-rounded" />
+          <SidebarThumbnail couvertures={$couverturesPlaylists.liked ?? []} couleur="#f43f5e" icone="material-symbols:favorite-rounded" />
         {/snippet}
-      </SidebarLigne>
+      </SidebarRow>
     {/if}
 
     {#if montrerRecents}
-      <SidebarLigne
+      <SidebarRow
         titre={$t('playlist_page.recent_title')}
-        sousTitre={compte($t('sidebar.history'), $recentCount)}
+        sousTitre={genreLabel($t('sidebar.history'), $recentCount)}
         {replie}
         actif={pathname === '/playlist/recent'}
         onclick={() => nav('/playlist/recent')}
       >
         {#snippet vignette()}
-          <SidebarVignette couvertures={$couverturesPlaylists.recent ?? []} couleur="#0ea5e9" icone="material-symbols:history-rounded" />
+          <SidebarThumbnail couvertures={$couverturesPlaylists.recent ?? []} couleur="#0ea5e9" icone="material-symbols:history-rounded" />
         {/snippet}
-      </SidebarLigne>
+      </SidebarRow>
     {/if}
     {/if}
 
     {#if libraryId != null}
-      <SidebarEpingles {libraryId} {replie} />
+      <SidebarPins {libraryId} {replie} />
     {/if}
   </div>
 
   <!-- ─── Pied : état du scan et profil ─── -->
-  <SidebarPied {replie} />
+  <SidebarFooter {replie} />
 </aside>
 
 {#if menuZone}

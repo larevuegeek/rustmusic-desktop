@@ -13,7 +13,7 @@ static REGISTRE: LazyLock<CodecRegistry> = LazyLock::new(|| {
 });
 
 /// À utiliser partout à la place de `symphonia::default::get_codecs()`.
-pub fn registre() -> &'static CodecRegistry {
+pub fn codec_registry() -> &'static CodecRegistry {
     &REGISTRE
 }
 
@@ -21,10 +21,10 @@ pub fn registre() -> &'static CodecRegistry {
 /// chaque entier doit ressortir identique.
 #[cfg(test)]
 mod tests {
-    use super::registre;
+    use super::codec_registry;
     use crate::core::audio_player::audio_utils::convert_audio_buffer_to_interleaved;
-    use crate::core::audio_player::output::echantillons::{vers_i16, vers_i24};
-    use crate::core::audio_player::pipeline_info::{est_entier_sans_perte, profondeur_source};
+    use crate::core::audio_player::output::samples::{to_i16, to_i24};
+    use crate::core::audio_player::pipeline_info::{is_lossless_integer, source_bit_depth};
     use symphonia::core::codecs::audio::AudioDecoderOptions;
     use symphonia::core::formats::probe::Hint;
     use symphonia::core::formats::FormatOptions;
@@ -54,7 +54,7 @@ mod tests {
         let id = piste.id;
         let params = piste.codec_params.as_ref().unwrap().audio().unwrap().clone();
         let canaux = params.channels.as_ref().unwrap().count();
-        let mut dec = registre()
+        let mut dec = codec_registry()
             .make_audio_decoder(&params, &AudioDecoderOptions::default())
             .unwrap_or_else(|e| panic!("{nom} : aucun décodeur ({e:?})"));
         let mut echantillons = Vec::new();
@@ -64,7 +64,7 @@ mod tests {
                 echantillons.extend(convert_audio_buffer_to_interleaved(&buf, canaux));
             }
         }
-        Decode { rate: params.sample_rate.unwrap(), bits: profondeur_source(&params), sans_perte: est_entier_sans_perte(params.codec), echantillons }
+        Decode { rate: params.sample_rate.unwrap(), bits: source_bit_depth(&params), sans_perte: is_lossless_integer(params.codec), echantillons }
     }
 
     fn reference(nom: &str, octets: usize) -> Vec<i32> {
@@ -78,43 +78,43 @@ mod tests {
             .collect()
     }
 
-    fn verifier_exact(nom: &str, bits: u32) {
+    fn assert_exact(nom: &str, bits: u32) {
         let d = decoder(nom);
         let attendu = reference(if bits == 16 { "ref16.raw" } else { "ref24.raw" }, (bits / 8) as usize);
         assert!(d.sans_perte, "{nom} : devrait être reconnu sans perte");
         assert_eq!(d.bits, Some(bits), "{nom} : profondeur");
         assert_eq!(d.echantillons.len(), attendu.len(), "{nom} : nombre d'échantillons");
         for (i, (s, x)) in d.echantillons.iter().zip(&attendu).enumerate() {
-            let sortie = if bits == 16 { vers_i16(*s) as i32 } else { vers_i24(*s) };
+            let sortie = if bits == 16 { to_i16(*s) as i32 } else { to_i24(*s) };
             assert_eq!(sortie, *x, "{nom} : échantillon {i} altéré");
         }
     }
 
     #[test]
-    fn flac_16_et_24_bits_intacts() {
-        verifier_exact("flac16.flac", 16);
-        verifier_exact("flac24.flac", 24);
+    fn flac_16_and_24_bits_intact() {
+        assert_exact("flac16.flac", 16);
+        assert_exact("flac24.flac", 24);
     }
 
     #[test]
-    fn aiff_16_et_24_bits_lus_et_intacts() {
-        verifier_exact("aiff16.aiff", 16);
-        verifier_exact("aiff24.aiff", 24);
+    fn aiff_16_and_24_bits_read_intact() {
+        assert_exact("aiff16.aiff", 16);
+        assert_exact("aiff24.aiff", 24);
     }
 
     #[test]
-    fn alac_16_et_24_bits_lus_et_intacts() {
-        verifier_exact("alac16.m4a", 16);
-        verifier_exact("alac24.m4a", 24);
+    fn alac_16_and_24_bits_read_intact() {
+        assert_exact("alac16.m4a", 16);
+        assert_exact("alac24.m4a", 24);
     }
 
     #[test]
     fn wav_24_bits_intact() {
-        verifier_exact("wav24.wav", 24);
+        assert_exact("wav24.wav", 24);
     }
 
     #[test]
-    fn opus_se_lit_mais_n_est_pas_sans_perte() {
+    fn opus_reads_but_is_not_lossless() {
         let d = decoder("opus.opus");
         assert!(!d.sans_perte);
         assert_eq!(d.rate, 48_000);

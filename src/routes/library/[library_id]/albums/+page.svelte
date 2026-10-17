@@ -1,5 +1,5 @@
 <script lang="ts">
-import { lireLocal, ecrireLocal } from "#lib/helper/tools/stockage";
+import { readLocal, writeLocal } from "#lib/helper/tools/storage";
 import EmptyResult from "#lib/components/ui/feedback/EmptyResult.svelte";
 import SearchField from "#lib/components/ui/input/SearchField.svelte";
 import TextButton from "#lib/components/ui/button/TextButton.svelte";
@@ -15,9 +15,9 @@ import { ordreAlbums } from "#lib/stores/library/albumOrder.store";
 import { libraryStore } from "#lib/stores/library/library.store";
 import { viewMode } from "#lib/stores/ui/viewMode.store";
 import { handleAddFiles, handleAddDirectory } from "#lib/actions/library/LibraryAction";
-import { etiquetteHiRes } from "#lib/helper/tools/audioFormatTools";
-import { cleTri, lettreTri, comparerNaturel } from "#lib/helper/library/cleTri";
-import { differe } from "#lib/helper/tools/differe.svelte";
+import { hiResLabel } from "#lib/helper/tools/audioFormatTools";
+import { sortKey, sortLetter, comparerNaturel } from "#lib/helper/library/sortKey";
+import { debounced } from "#lib/helper/tools/debounced.svelte";
 import LibraryAlbumSkeleton from "#lib/components/library/common/skeleton/LibraryAlbumSkeleton.svelte";
 import LibraryImportingLoader from "#lib/components/library/common/loader/LibraryImportingLoader.svelte";
 import { importAffiche } from "#lib/stores/library/importProgress.store";
@@ -41,13 +41,13 @@ const TRIS: { cle: Tri; libelle: string; icone: string }[] = [
   { cle: "added", libelle: "albums_view.sort_added", icone: "material-symbols:schedule-outline-rounded" },
 ];
 const CLE_TRI = "albums:tri";
-const triLu = lireLocal(CLE_TRI, "title");
+const triLu = readLocal(CLE_TRI, "title");
 let tri = $state<Tri>(TRIS.some((x) => x.cle === triLu) ? (triLu as Tri) : "title");
-$effect(() => ecrireLocal(CLE_TRI, tri));
+$effect(() => writeLocal(CLE_TRI, tri));
 
 // ─── Filtres ───
 let recherche = $state("");
-const cherche = differe(() => recherche);
+const cherche = debounced(() => recherche);
 let hiRes = $state(false);
 let compilations = $state(false);
 let sansPochette = $state(false);
@@ -57,7 +57,7 @@ let genre = $state<string | null>(page.url.searchParams.get("genre"));
 // L'année vient de l'adresse (?annee=1991, depuis le lecteur) : elle se partage et survit au retour.
 const annee = $derived(Number(page.url.searchParams.get("annee")) || null);
 
-function choisirAnnee(y: number | null) {
+function selectYear(y: number | null) {
   menuAnnee = false;
   const url = new URL(page.url.href);
   if (y) url.searchParams.set("annee", String(y));
@@ -68,8 +68,8 @@ function choisirAnnee(y: number | null) {
 let menuGenre = $state(false);
 let menuAnnee = $state(false);
 
-const cleTitre = cleTri;
-const lettre = lettreTri;
+const cleTitre = sortKey;
+const lettre = sortLetter;
 
 const albums = $derived($libraryContentStore.albums);
 const genres = $derived.by(() => {
@@ -100,7 +100,7 @@ const filtres = $derived.by(() => {
   const q = cherche.valeur.trim().toLowerCase();
   return tries.filter(({ a, texte }) =>
     (!q || texte.includes(q)) &&
-    (!hiRes || !!etiquetteHiRes(a.max_bits, a.max_sample_rate)) &&
+    (!hiRes || !!hiResLabel(a.max_bits, a.max_sample_rate)) &&
     (!compilations || a.album_type === "compilation") &&
     (!sansPochette || !a.cover_url) &&
     (!genre || (genre === SANS_GENRE ? !a.genre : a.genre === genre)) &&
@@ -109,11 +109,11 @@ const filtres = $derived.by(() => {
 const visibles = $derived(filtres.map((e) => e.a));
 
 const filtresActifs = $derived(!!recherche.trim() || hiRes || compilations || sansPochette || !!genre || !!annee);
-function effacerFiltres() {
+function clearFilters() {
   recherche = "";
   hiRes = compilations = sansPochette = false;
   genre = null;
-  if (annee) choisirAnnee(null);
+  if (annee) selectYear(null);
 }
 
 
@@ -125,13 +125,13 @@ $effect(() => {
 // ─── Navigation A–Z (tri par titre seulement) ───
 let defilement = $state<HTMLDivElement | null>(null);
 const lettres = $derived(new Set(filtres.map((e) => e.lettre)));
-const premiere = (i: number) => tri === "title" && (i === 0 || filtres[i - 1].lettre !== filtres[i].lettre);
-function allerLettre(l: string) {
+const isLetterStart = (i: number) => tri === "title" && (i === 0 || filtres[i - 1].lettre !== filtres[i].lettre);
+function goToLetter(l: string) {
   // `scrollIntoView` : les cartes hors écran ont une hauteur présumée (`content-visibility`).
   defilement?.querySelector(`[data-letter="${l}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-const nombre = (n: number) => n.toLocaleString($currentLocale);
+const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 </script>
 
 {#if $importAffiche}
@@ -164,7 +164,7 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
     <!-- ─── Outils : une ligne si la place le permet ; sinon recherche + vue en haut, filtres dessous ─── -->
     <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
     <div class="flex flex-wrap items-center gap-2.5">
-      <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={$t("albums_view.filter").replace("{n}", nombre(albums.length))} clearLabel={$t("albums_view.clear_filters")} />
+      <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={$t("albums_view.filter").replace("{n}", formatNumber(albums.length))} clearLabel={$t("albums_view.clear_filters")} />
 
       <div class="order-2 @max-6xl:order-4 @max-6xl:basis-full flex flex-wrap items-center gap-2.5">
       <!-- Très étroit : l'icône seule, le libellé reste en info-bulle. -->
@@ -196,9 +196,9 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
             {annee ?? $t("albums_view.year")}
           </FilterChip>
           <Menu bind:open={menuAnnee} align="left" class="w-48 max-h-80 overflow-y-auto scrollbar-app">
-            <MenuItem actif={!annee} onclick={() => choisirAnnee(null)}>{$t("albums_view.all_years")}</MenuItem>
+            <MenuItem actif={!annee} onclick={() => selectYear(null)}>{$t("albums_view.all_years")}</MenuItem>
             {#each annees as [y, n] (y)}
-              <MenuItem actif={annee === y} onclick={() => choisirAnnee(y)}>
+              <MenuItem actif={annee === y} onclick={() => selectYear(y)}>
                 <span class="tabular-nums">{y}</span>
                 {#snippet fin()}<span class="font-mono text-[11px] text-(--rg-mu2)">{n}</span>{/snippet}
               </MenuItem>
@@ -208,7 +208,7 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
       {/if}
 
       {#if filtresActifs}
-        <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("albums_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={effacerFiltres} />
+        <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("albums_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={clearFilters} />
       {/if}
       </div>
 
@@ -228,12 +228,12 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
     <div class="flex-1 relative min-h-0">
       <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16" bind:this={defilement}>
         {#if visibles.length === 0}
-          <EmptyResult message={annee && !recherche && !hiRes && !compilations && !sansPochette && !genre ? $t("library.year_none").replace("{y}", String(annee)) : $t("albums_view.no_match")} effacerLabel={$t("albums_view.clear_filters")} oneffacer={filtresActifs ? effacerFiltres : null} />
+          <EmptyResult message={annee && !recherche && !hiRes && !compilations && !sansPochette && !genre ? $t("library.year_none").replace("{y}", String(annee)) : $t("albums_view.no_match")} effacerLabel={$t("albums_view.clear_filters")} oneffacer={filtresActifs ? clearFilters : null} />
         {:else if $viewMode === "grid"}
           <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-5 gap-y-6.5 pt-3">
             {#each visibles as album, i (album.id)}
               <div class="relative min-w-0">
-                {#if premiere(i)}<span class="absolute -top-3 left-0 h-0 scroll-mt-4" data-letter={lettre(album.title)}></span>{/if}
+                {#if isLetterStart(i)}<span class="absolute -top-3 left-0 h-0 scroll-mt-4" data-letter={lettre(album.title)}></span>{/if}
                 <AlbumListItem {album} {libraryId} />
               </div>
             {/each}
@@ -241,7 +241,7 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
         {:else}
           <div class="flex flex-col pt-2">
             {#each visibles as album, i (album.id)}
-              {#if premiere(i)}<span class="h-0 scroll-mt-4" data-letter={lettre(album.title)}></span>{/if}
+              {#if isLetterStart(i)}<span class="h-0 scroll-mt-4" data-letter={lettre(album.title)}></span>{/if}
               <AlbumListRow {album} {libraryId} />
             {/each}
           </div>
@@ -249,7 +249,7 @@ const nombre = (n: number) => n.toLocaleString($currentLocale);
       </div>
 
       {#if tri === "title" && visibles.length > 0}
-        <AlphabetNav availableLetters={lettres} onletter={allerLettre} toujours />
+        <AlphabetNav availableLetters={lettres} onletter={goToLetter} toujours />
       {/if}
     </div>
   </div>

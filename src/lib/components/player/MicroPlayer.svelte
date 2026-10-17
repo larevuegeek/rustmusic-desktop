@@ -5,17 +5,17 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { listen } from "@tauri-apps/api/event";
   import { detectOS } from "#lib/helper/tools/osDetection";
-  import AnneauAttente from "#lib/components/ui/loader/AnneauAttente.svelte";
+  import LoadingRing from "#lib/components/ui/loader/LoadingRing.svelte";
   import MiniVolume from "./MiniVolume.svelte";
   import PlayerProgressBar from "./PlayerProgressBar.svelte";
   import { t } from "#lib/i18n";
   import { player } from "#lib/stores/player/player.store";
   import { playerService } from "#lib/services/player/player.service";
-  import { volume, reglerVolume } from "#lib/stores/player/volume.store";
+  import { volume, applyVolume } from "#lib/stores/player/volume.store";
   import { playbackPipelineStore } from "#lib/stores/player/playbackPipeline.store";
   import { settingsStore } from "#lib/stores/settings/settings.store";
   import { couleurMorceau } from "#lib/stores/player/trackColor.store";
-  import { minutesSecondes } from "#lib/helper/tools/dateTools";
+  import { minutesSeconds } from "#lib/helper/tools/dateTools";
   import { exitMicroPlayer, exitMiniPlayer, miniPinned, toggleMiniPin, resizeMicroPlayer, endMicroResize, currentMicroSize } from "#lib/stores/ui/miniPlayer.store";
 
   const NO_COVER = "/images/no-cd.png";
@@ -55,7 +55,7 @@
   let hintTimer: ReturnType<typeof setTimeout> | null = null;
   function onWheel(e: WheelEvent) {
     if (dopActive) return;
-    reglerVolume($volume + (e.deltaY < 0 ? 5 : -5));
+    applyVolume($volume + (e.deltaY < 0 ? 5 : -5));
     volumeHint = true;
     if (hintTimer) clearTimeout(hintTimer);
     hintTimer = setTimeout(() => (volumeHint = false), 900);
@@ -118,7 +118,7 @@
               bg-[linear-gradient(to_bottom,rgba(0,0,0,0.7),rgba(0,0,0,0.5)_35%,rgba(0,0,0,0.5)_65%,rgba(0,0,0,0.75))]">
     <div class="flex items-center gap-0.5 p-1.5">
       {#if hasTrack}
-        <span class="flex-1 pl-1.5 font-mono text-[10px] tabular-nums text-white/80">{minutesSecondes(position)} / {minutesSecondes(duration)}</span>
+        <span class="flex-1 pl-1.5 font-mono text-[10px] tabular-nums text-white/80">{minutesSeconds(position)} / {minutesSeconds(duration)}</span>
       {:else}
         <span class="flex-1"></span>
       {/if}
@@ -144,7 +144,7 @@
               aria-busy={waiting}
               onclick={() => playerService.handleTogglePlay()}>
         <Icon icon={isPlaying ? "material-symbols:pause-rounded" : "material-symbols:play-arrow-rounded"} width="32" />
-        <AnneauAttente actif={waiting} />
+        <LoadingRing actif={waiting} />
       </button>
       <button type="button" class={sideButton} title={$t("player.next")} aria-label={$t("player.next")} onclick={() => playerService.nextTrack()}>
         <Icon icon="material-symbols:skip-next-rounded" width="28" />

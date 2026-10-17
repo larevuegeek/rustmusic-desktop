@@ -2,7 +2,7 @@
   import Icon from "@iconify/svelte";
   import { importProgressStore } from "#lib/stores/library/importProgress.store";
   import { t, currentLocale } from "#lib/i18n";
-  import { minutesSecondes } from "#lib/helper/tools/dateTools";
+  import { minutesSeconds } from "#lib/helper/tools/dateTools";
   import { page } from "$app/state";
   import LibraryFoldersPopin from "#lib/components/library/common/popin/LibraryFoldersPopin.svelte";
 
@@ -20,7 +20,7 @@
   const libraryId = $derived($importProgressStore.libraryId ?? Number(page.params.library_id));
   let dossiers = $state(false);
 
-  let elapsedFormatted = $derived(minutesSecondes(elapsedMs / 1000));
+  let elapsedFormatted = $derived(minutesSeconds(elapsedMs / 1000));
 
   // Estimation du temps restant
   let etaFormatted = $derived.by(() => {
@@ -29,7 +29,7 @@
     const remaining = (total - current) * msPerFile;
     const s = Math.floor(remaining / 1000);
     if (s < 5) return $t("system.almost_done");
-    return $t("system.time_left").replace("{time}", minutesSecondes(s));
+    return $t("system.time_left").replace("{time}", minutesSeconds(s));
   });
 
   const circumference = 2 * Math.PI * 42;
