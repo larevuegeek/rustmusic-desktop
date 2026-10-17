@@ -799,8 +799,10 @@
     "stack_audio": "Audio",
     "license": "Licencia",
     "license_hint": "Condiciones de uso",
-    "license_title": "Gratis para uso personal",
-    "license_summary": "La redistribución, la modificación y el uso comercial están prohibidos sin autorización.",
+    "license_title": "Software libre, bajo licencia GNU GPL v3",
+    "license_summary": "Puedes usarlo, estudiarlo, modificarlo y redistribuirlo, bajo la misma licencia y con el código fuente.",
+    "license_text": "Copyright (c) 2026 LaRevueGeeK. RustMusic es software libre, distribuido bajo la licencia GNU GPL versión 3. Puedes usarlo, estudiarlo, modificarlo y redistribuirlo, incluso modificado, siempre que lo hagas bajo la misma licencia y con el código fuente. Se proporciona sin ninguna garantía.",
+    "license_full": "Texto completo: gnu.org/licenses/gpl-3.0.html",
     "license_read": "Leer la licencia",
     "license_hide": "Ocultar",
     "made_with": "Hecho con pasión",
@@ -2346,5 +2348,19 @@
     "next": "Siguiente",
     "repeat": "Repetir",
     "shuffle": "Aleatorio"
+  },
+  "support": {
+    "prompt_title": "¡Gracias por usar RustMusic {version}!",
+    "prompt_text": "RustMusic es gratuito, sin anuncios y lo desarrolla una sola persona en su tiempo libre. Si te gusta esta versión, un pequeño apoyo ayuda a preparar la siguiente.",
+    "prompt_cta": "Apoyar el proyecto",
+    "prompt_later": "Más tarde",
+    "prompt_never": "No volver a mostrar",
+    "about_title": "Apoyar RustMusic",
+    "about_hint": "Gratis y sin anuncios, gracias a ti",
+    "about_text": "RustMusic no tiene publicidad ni inversores: avanza gracias a quienes lo usan. Un apoyo mensual en Patreon, un café o una donación puntual dan tiempo para corregir, probar y añadir lo que pides. Una estrella en GitHub también ayuda a que otros melómanos lo descubran.",
+    "patreon": "Hacerse miembro en Patreon",
+    "kofi": "Invitar a un café",
+    "paypal": "Donar con PayPal",
+    "star": "Una estrella en GitHub"
   }
 }

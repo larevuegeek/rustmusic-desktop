@@ -9,8 +9,17 @@
   import { derniereVerification, updaterState } from "#lib/stores/updater/updater.store";
   import { checkForUpdate, downloadAndInstall } from "#lib/services/updater/updater.service";
   import { libelleMiseAJour } from "#lib/helper/updater/updateStatus";
+  import { SUPPORT_LINKS } from "#lib/config/support";
 
   let licenceOuverte = $state(false);
+
+  // Patreon d'abord : un soutien mensuel est ce qui fait durer le projet.
+  const soutiens = $derived([
+    { href: SUPPORT_LINKS.patreon, icon: "simple-icons:patreon", label: $t("support.patreon"), principal: true },
+    { href: SUPPORT_LINKS.kofi, icon: "simple-icons:kofi", label: $t("support.kofi"), principal: false },
+    { href: SUPPORT_LINKS.paypal, icon: "simple-icons:paypal", label: $t("support.paypal"), principal: false },
+    { href: SUPPORT_LINKS.github, icon: "lucide:star", label: $t("support.star"), principal: false },
+  ]);
 
   const etat = $derived($updaterState);
   const statut = $derived(libelleMiseAJour($t, etat, $derniereVerification));
@@ -73,6 +82,33 @@
   </OptionBlock>
 </OptionGroup>
 
+<!-- ─── Soutenir ─── -->
+<OptionGroup title={$t("support.about_title")} hint={$t("support.about_hint")}>
+  <OptionBlock
+    keywords="{$t('support.about_title')} patreon ko-fi paypal github don"
+    class="relative overflow-hidden p-5"
+  >
+    <div class="pointer-events-none absolute -top-24 -right-16 w-60 h-60 rounded-full bg-amber-500 opacity-10 blur-[70px]" aria-hidden="true"></div>
+    <p class="relative text-[13px] leading-relaxed text-(--rg-mu) max-w-xl">{$t("support.about_text")}</p>
+    <div class="relative mt-4 flex flex-wrap gap-2">
+      {#each soutiens as lien (lien.href)}
+        <a
+          href={lien.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="h-9 flex items-center gap-2 px-3.5 rounded-lg border transition-colors text-[13px] font-semibold
+                 {lien.principal
+                   ? 'bg-amber-500 border-amber-500 text-neutral-950 hover:bg-amber-400'
+                   : 'bg-(--rg-creux) border-(--rg-line) hover:border-(--rg-bd2) text-(--rg-tx2) hover:text-(--rg-tx)'}"
+        >
+          <Icon icon={lien.icon} width="15" />
+          {lien.label}
+        </a>
+      {/each}
+    </div>
+  </OptionBlock>
+</OptionGroup>
+
 <!-- ─── Technologies ─── -->
 <OptionGroup title={$t("about.stack")} hint={$t("about.stack_hint")}>
   {#each technologies as groupe (groupe.categorie)}
@@ -112,29 +148,12 @@
   </OptionItem>
   {#if licenceOuverte}
     <OptionBlock keywords="licence" class="px-5 pb-5 pt-4">
-      <pre class="whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-(--rg-mu)">Copyright (c) 2026 LaRevueGeeK. Tous droits réservés.
-
-1. AUTORISATION D'UTILISATION
-Le logiciel RustMusic est mis à disposition gratuitement pour un usage personnel et non commercial. Vous êtes autorisé à télécharger, installer et utiliser le logiciel sur vos propres appareils.
-
-2. RESTRICTIONS
-Il est interdit de :
-- Redistribuer, vendre ou sous-licencier le logiciel
-- Modifier, décompiler ou désassembler le logiciel
-- Utiliser le logiciel à des fins commerciales sans autorisation
-- Supprimer ou modifier les mentions de droits d'auteur
-
-3. PROPRIÉTÉ INTELLECTUELLE
-Le logiciel, son code source et son interface restent la propriété exclusive de LaRevueGeeK.
-
-4. ABSENCE DE GARANTIE
-Le logiciel est fourni "tel quel", sans garantie d'aucune sorte.
-
-5. LOGICIELS TIERS
-RustMusic utilise des bibliothèques open-source sous licences MIT, Apache-2.0, BSD, MPL-2.0 et similaires.
-
-6. CONTACT
-contact@rustmusic.dev</pre>
+      <!-- GPL-3.0, comme le dépôt (LICENSE) : même texte dans toutes les langues de l'appli. -->
+      <p class="text-[13px] leading-relaxed text-(--rg-mu)">{$t("about.license_text")}</p>
+      <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer"
+         class="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-(--rg-gtx) hover:underline">
+        <Icon icon="material-symbols:open-in-new-rounded" width="14" />{$t("about.license_full")}
+      </a>
     </OptionBlock>
   {/if}
 </OptionGroup>

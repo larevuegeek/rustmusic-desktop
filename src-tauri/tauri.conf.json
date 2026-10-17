@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RustMusic",
   "mainBinaryName": "RustMusic",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "identifier": "com.larevuegeek.rustmusic",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -29,7 +29,7 @@
       "digestAlgorithm": "sha256",
       "timestampUrl": ""
     },
-    "longDescription": "",
+    "longDescription": "RustMusic is a free, open-source desktop music player built for audiophiles. It plays FLAC, ALAC, WAV, AIFF, MP3 and DSD (DSF/DFF) files with bit-perfect exclusive output, native DSD over DoP, gapless playback and ReplayGain. It manages large libraries with a fast tag workshop (MusicBrainz and Deezer lookups), synced lyrics and a built-in DLNA server, plays to UPnP/DLNA and AirPlay devices, and can act as a remote for Onkyo, Pioneer, Denon, Marantz and Yamaha amplifiers.",
     "macOS": {
       "entitlements": null,
       "exceptionDomain": "",
@@ -39,7 +39,7 @@
       "minimumSystemVersion": "10.15"
     },
     "resources": [],
-    "shortDescription": "",
+    "shortDescription": "Audiophile music player with native DSD, bit-perfect output and network playback",
     "linux": {
       "deb": {
         "depends": []

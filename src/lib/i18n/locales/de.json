@@ -799,8 +799,10 @@
     "stack_audio": "Audio",
     "license": "Lizenz",
     "license_hint": "Nutzungsbedingungen",
-    "license_title": "Kostenlos für den privaten Gebrauch",
-    "license_summary": "Weitergabe, Änderung und kommerzielle Nutzung sind ohne Genehmigung untersagt.",
+    "license_title": "Freie Software unter der GNU GPL v3",
+    "license_summary": "Sie dürfen sie nutzen, untersuchen, ändern und weitergeben – unter derselben Lizenz und mit dem Quellcode.",
+    "license_text": "Copyright (c) 2026 LaRevueGeeK. RustMusic ist freie Software und wird unter der GNU GPL Version 3 verbreitet. Sie dürfen sie nutzen, untersuchen, ändern und weitergeben, auch in geänderter Form, sofern dies unter derselben Lizenz und mit dem Quellcode geschieht. Sie wird ohne jede Gewährleistung bereitgestellt.",
+    "license_full": "Vollständiger Text: gnu.org/licenses/gpl-3.0.html",
     "license_read": "Lizenz lesen",
     "license_hide": "Ausblenden",
     "made_with": "Mit Leidenschaft gemacht",
@@ -2346,5 +2348,19 @@
     "next": "Weiter",
     "repeat": "Wiederholen",
     "shuffle": "Zufall"
+  },
+  "support": {
+    "prompt_title": "Danke, dass du RustMusic {version} nutzt!",
+    "prompt_text": "RustMusic ist kostenlos, werbefrei und wird von einer einzigen Person in ihrer Freizeit entwickelt. Wenn dir diese Version gefällt, hilft eine kleine Unterstützung bei der nächsten.",
+    "prompt_cta": "Projekt unterstützen",
+    "prompt_later": "Später",
+    "prompt_never": "Nicht mehr anzeigen",
+    "about_title": "RustMusic unterstützen",
+    "about_hint": "Kostenlos und werbefrei, dank dir",
+    "about_text": "RustMusic hat keine Werbung und keine Investoren: Es geht dank derer voran, die es nutzen. Eine monatliche Mitgliedschaft auf Patreon, ein Kaffee oder eine einmalige Spende schaffen Zeit, um zu korrigieren, zu testen und umzusetzen, was du dir wünschst. Ein Stern auf GitHub hilft außerdem anderen Musikfans, es zu entdecken.",
+    "patreon": "Mitglied auf Patreon werden",
+    "kofi": "Einen Kaffee spendieren",
+    "paypal": "Spenden über PayPal",
+    "star": "Stern auf GitHub"
   }
 }

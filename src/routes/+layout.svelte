@@ -11,6 +11,7 @@ import Icon from "@iconify/svelte";
 import SearchAutocomplete from "#lib/components/search/SearchAutocomplete.svelte";
 import Toast from "#lib/components/ui/toast/Toast.svelte";
 import UpdateBanner from "#lib/components/updater/UpdateBanner.svelte";
+import SupportPrompt from "#lib/components/support/SupportPrompt.svelte";
 import { onMount } from "svelte";
 import { get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
@@ -345,6 +346,7 @@ function handleKeydown(e: KeyboardEvent) {
   <SelectionBar />
   <Toast />
   <UpdateBanner />
+  <SupportPrompt />
   <Popin />
   <!-- Panneau flottant : un lot peut durer des minutes, l'application doit
        rester utilisable pendant ce temps. -->

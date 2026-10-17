@@ -799,8 +799,10 @@
     "stack_audio": "Audio",
     "license": "Licence",
     "license_hint": "Conditions d'utilisation",
-    "license_title": "Gratuit pour un usage personnel",
-    "license_summary": "La redistribution, la modification et l'usage commercial sont interdits sans autorisation.",
+    "license_title": "Logiciel libre, sous licence GNU GPL v3",
+    "license_summary": "Vous pouvez l'utiliser, l'étudier, le modifier et le redistribuer, sous la même licence et avec le code source.",
+    "license_text": "Copyright (c) 2026 LaRevueGeeK. RustMusic est un logiciel libre, distribué sous licence GNU GPL version 3. Vous pouvez l'utiliser, l'étudier, le modifier et le redistribuer, y compris modifié, à condition de le faire sous la même licence avec le code source. Il est fourni sans aucune garantie.",
+    "license_full": "Texte complet : gnu.org/licenses/gpl-3.0.html",
     "license_read": "Lire la licence",
     "license_hide": "Masquer",
     "made_with": "Fait avec passion",
@@ -2346,5 +2348,19 @@
     "next": "Suivant",
     "repeat": "Répéter",
     "shuffle": "Aléatoire"
+  },
+  "support": {
+    "prompt_title": "Merci d’utiliser RustMusic {version} !",
+    "prompt_text": "RustMusic est gratuit, sans pub et développé par une seule personne sur son temps libre. Si cette version vous plaît, un petit soutien aide à préparer la suivante.",
+    "prompt_cta": "Soutenir le projet",
+    "prompt_later": "Plus tard",
+    "prompt_never": "Ne plus afficher",
+    "about_title": "Soutenir RustMusic",
+    "about_hint": "Gratuit et sans pub, grâce à vous",
+    "about_text": "RustMusic n’a ni publicité ni investisseurs : il avance grâce à ceux qui l’utilisent. Un soutien mensuel sur Patreon, un café ou un don ponctuel donnent du temps pour corriger, tester et ajouter ce que vous demandez. Une étoile sur GitHub aide aussi d’autres mélomanes à le découvrir.",
+    "patreon": "Devenir membre sur Patreon",
+    "kofi": "Offrir un café",
+    "paypal": "Don via PayPal",
+    "star": "Une étoile sur GitHub"
   }
 }
