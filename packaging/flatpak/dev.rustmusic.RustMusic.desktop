@@ -17,3 +17,6 @@ Terminal=false
 Categories=AudioVideo;Audio;Player;
 Keywords=music;player;flac;dsd;hi-res;dlna;upnp;airplay;audiophile;
 StartupNotify=true
+# La fenêtre s'annonce « rustmusic » (nom du programme) : sans ce lien, le dock
+# affichait l'icône de la fenêtre au lieu de celle de l'appli, floue en HiDPI.
+StartupWMClass=rustmusic

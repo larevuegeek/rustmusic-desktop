@@ -21,6 +21,45 @@ pub fn exclusive_possible() -> bool {
     }
 }
 
+/// Cookie PulseAudio de secours. Sans cookie, le client PulseAudio de CPAL en envoie
+/// un vide et PipeWire ferme la connexion : CPAL retombait sur ALSA « default », qui
+/// échoue en Flatpak (`snd_pcm_avail_delay` : I/O error) — pas de son. Le bac à sable
+/// ne voit pas `~/.config/pulse/cookie` (et PipeWire seul n'en crée pas toujours).
+/// libpulse envoie alors 256 octets aléatoires, que le serveur accepte : l'identité
+/// vient du socket. À appeler au démarrage, avant tout appel audio.
+#[cfg(target_os = "linux")]
+pub fn ensure_pulse_cookie() {
+    use std::io::{Read, Write};
+    use std::os::unix::fs::OpenOptionsExt;
+    use std::path::PathBuf;
+
+    let maison = dirs::home_dir();
+    let connu = std::env::var_os("PULSE_COOKIE")
+        .map(PathBuf::from)
+        .into_iter()
+        .chain(maison.iter().flat_map(|h| [h.join(".config/pulse/cookie"), h.join(".pulse-cookie")]))
+        .any(|p| p.exists());
+    if connu {
+        return;
+    }
+    let Some(dossier) = dirs::cache_dir() else { return };
+    let chemin = dossier.join("pulse-cookie");
+    if !chemin.exists() {
+        let mut octets = [0u8; 256];
+        let ecrit = std::fs::File::open("/dev/urandom")
+            .and_then(|mut f| f.read_exact(&mut octets))
+            .and_then(|_| std::fs::create_dir_all(&dossier))
+            .and_then(|_| std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&chemin))
+            .and_then(|mut f| f.write_all(&octets));
+        if let Err(e) = ecrit {
+            log::warn!("🔊 Cookie PulseAudio de secours impossible ({}) : {e}", chemin.display());
+            return;
+        }
+    }
+    std::env::set_var("PULSE_COOKIE", &chemin);
+    log::info!("🔊 Cookie PulseAudio de secours : {}", chemin.display());
+}
+
 /// Ce que l'interface doit savoir pour n'afficher que ce qui marche.
 #[derive(Debug, Clone, Serialize)]
 pub struct PlatformFeatures {

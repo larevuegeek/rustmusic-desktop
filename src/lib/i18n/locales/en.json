@@ -1478,6 +1478,7 @@
     "status_ok": "Up to date",
     "status_scanning": "Scanning",
     "status_error": "Scan error",
+    "status_unavailable": "Unavailable",
     "dirs_one": "1 folder",
     "dirs_n": "{n} folders",
     "rescan": "Rescan",
@@ -2365,5 +2366,13 @@
     "kofi": "Buy me a coffee",
     "paypal": "Donate via PayPal",
     "star": "Star on GitHub"
+  },
+  "library_unavailable": {
+    "title": "Folder unavailable",
+    "remount_found": "The folder “{folder}” is no longer where the library expected it: the network share was mounted as “{old}” and is now mounted as “{new}”. Update the library to this mount? Tracks, playlists and favorites are kept.",
+    "relocate": "Update and rescan",
+    "relocate_failed": "The library could not be updated to the new mount.",
+    "one": "“{folder}” cannot be found: network share not mounted or drive unplugged? It was not scanned and its tracks are kept.",
+    "many": "{n} folders cannot be found: network share not mounted or drive unplugged? They were not scanned and their tracks are kept."
   }
 }

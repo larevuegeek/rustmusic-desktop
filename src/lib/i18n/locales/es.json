@@ -1478,6 +1478,7 @@
     "status_ok": "Al día",
     "status_scanning": "Escaneando",
     "status_error": "Error de escaneo",
+    "status_unavailable": "Inaccesible",
     "dirs_one": "1 carpeta",
     "dirs_n": "{n} carpetas",
     "rescan": "Volver a escanear",
@@ -2365,5 +2366,13 @@
     "kofi": "Invitar a un café",
     "paypal": "Donar con PayPal",
     "star": "Una estrella en GitHub"
+  },
+  "library_unavailable": {
+    "title": "Carpeta inaccesible",
+    "remount_found": "La carpeta «{folder}» ya no está donde la biblioteca la esperaba: el recurso de red estaba montado como «{old}» y ahora lo está como «{new}». ¿Actualizar la biblioteca a este montaje? Se conservan las pistas, listas y favoritos.",
+    "relocate": "Actualizar y volver a escanear",
+    "relocate_failed": "No se pudo actualizar la biblioteca al nuevo montaje.",
+    "one": "No se encuentra «{folder}»: ¿recurso de red sin montar o disco desconectado? No se ha escaneado y se conservan sus pistas.",
+    "many": "No se encuentran {n} carpetas: ¿recurso de red sin montar o disco desconectado? No se han escaneado y se conservan sus pistas."
   }
 }

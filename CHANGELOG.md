@@ -38,6 +38,19 @@ serveur DLNA.
   playlist), elle apparaît même quand la colonne « # » est masquée : la
   colonne revient le temps de la sélection. Un seul bouton « Sélectionner »
   par fiche, celui de la barre du haut, et toujours en toutes lettres.
+- **Import plus rapide**, surtout depuis un NAS : la pochette d'un dossier
+  (cover.jpg…) est cherchée et lue une fois par dossier, et non plus pour
+  chacun de ses morceaux, et chaque fichier n'est plus ouvert qu'une fois.
+  Mesuré sur 10 000 FLAC en partage réseau : 15 fichiers par seconde au lieu
+  de 1,6. Un rescan ne relit plus les fichiers inchangés.
+- **Dossier introuvable au scan** (partage réseau non monté, disque
+  débranché) : il n'est plus scanné comme vide, ce qui remettait ses totaux à
+  zéro. Il est marqué « Inaccessible », un message le signale et ses morceaux
+  sont conservés.
+- **Partage réseau remonté sous un autre nom** (le NAS monté par son adresse,
+  puis par son nom, ou l'inverse) : la bibliothèque ne trouvait plus rien.
+  RustMusic retrouve le même partage et propose de mettre la bibliothèque à
+  jour ; morceaux, playlists, favoris et file d'attente suivent.
 
 ### Lecture
 - **Sortie audio perdue en pleine lecture** (câble USB capricieux, DAC
@@ -59,6 +72,10 @@ serveur DLNA.
   « Dummy Output ». Il y reste désormais, sélectionné.
 - Quitter un lecteur réseau pour une sortie locale reprend directement sur
   la sortie choisie, et non sur la précédente.
+- **Linux : son retrouvé sans cookie PulseAudio** (PipeWire seul, paquet
+  Flatpak) : RustMusic ne joignait pas le serveur son et passait par la
+  sortie ALSA « default », qui pouvait rester muette. Il se connecte
+  maintenant au serveur son dans tous les cas.
 
 ### Soutien
 - **Un merci après une mise à jour** : une petite carte, une fois par
@@ -78,6 +95,17 @@ serveur DLNA.
   RustMusic.
 - **Windows : RustMusic dans winget** (paquet `LaRevueGeeK.RustMusic`) :
   `winget install rustmusic` l'installe, `winget upgrade` le tient à jour.
+- **Linux : paquet Flatpak** (`dev.rustmusic.RustMusic`), préparé pour
+  Flathub. Les partages réseau ouverts dans le gestionnaire de fichiers sont
+  lus en direct, la veille est retenue pendant la lecture par le portail du
+  bureau, et la sortie exclusive et le DSD natif sont masqués quand le bac à
+  sable n'a pas accès à la carte son. La pause automatique avant la mise en
+  veille n'existe pas dans ce paquet.
+- **Logo net sur écran haute densité** : l'icône de la fenêtre et du dock
+  était tirée de l'image de 32 px, floue à 200 %. Elle part maintenant de
+  l'image de 512 px, que les paquets .deb et AppImage installent aussi.
+- **Linux : démarrage sous Wayland sans XWayland** en rendu logiciel : X11
+  n'est plus imposé quand il n'est pas disponible.
 
 ## [0.3.0] - 2026-10-14
 

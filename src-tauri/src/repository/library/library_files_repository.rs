@@ -24,6 +24,28 @@ impl LibraryFilesRepository {
     }
 
 
+    /// Fichiers déjà indexés d'une bibliothèque : chemin → (id, date de modification).
+    /// Le rescan s'en sert pour ne pas relire un fichier inchangé.
+    pub async fn indexed_by_path<'e, E>(
+        exec: E,
+        library_id: i64,
+    ) -> Result<std::collections::HashMap<String, (String, Option<String>)>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        let lignes = sqlx::query(
+            "SELECT path, id, CAST(modified_at AS TEXT) AS modified_at
+             FROM library_files WHERE library_id = ? AND status = 'indexed'",
+        )
+        .bind(library_id)
+        .fetch_all(exec)
+        .await?;
+        Ok(lignes
+            .into_iter()
+            .map(|l| (l.get("path"), (l.get("id"), l.get("modified_at"))))
+            .collect())
+    }
+
     pub async fn insert_library_file<'e, E>(
         exec: E,
         data: LibraryFileCreate,

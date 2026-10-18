@@ -14,6 +14,9 @@ pub mod audio_player {
     pub mod output;
 }
 
+/// Partage réseau remonté sous un autre nom (GVFS).
+pub mod remount;
+
 pub mod audio_analyser {
     pub mod audio_analyser;
 }

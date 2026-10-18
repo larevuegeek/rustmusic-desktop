@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::core::audio_metadata::extractor::extractor as audio_metadata_extractor;
 use crate::entity::audio::audio_file::{AudioFile, AudioFormat};
@@ -24,7 +24,7 @@ impl AudioAnalyser {
     pub fn analyse_audio_file(
         file_path: &PathBuf,
     ) -> Result<AudioFile, Box<dyn std::error::Error>> {
-        Self::analyse_inner(file_path, false)
+        Self::analyse_inner(file_path, false, true)
     }
 
     /// Pour le scan : seule la première image sert (la pochette), sans base64.
@@ -32,12 +32,21 @@ impl AudioAnalyser {
     pub fn analyse_for_scan(
         file_path: &PathBuf,
     ) -> Result<AudioFile, Box<dyn std::error::Error>> {
-        Self::analyse_inner(file_path, true)
+        Self::analyse_inner(file_path, true, true)
+    }
+
+    /// Comme `analyse_for_scan`, sans chercher la pochette du dossier : l'import la
+    /// cherche une seule fois par dossier, au lieu de la relire pour chaque morceau.
+    pub fn analyse_for_import(
+        file_path: &PathBuf,
+    ) -> Result<AudioFile, Box<dyn std::error::Error>> {
+        Self::analyse_inner(file_path, true, false)
     }
 
     fn analyse_inner(
         file_path: &PathBuf,
         scan: bool,
+        folder_cover: bool,
     ) -> Result<AudioFile, Box<dyn std::error::Error>> {
         // Court-circuit pour les formats gérés par notre extractor maison
         // (Symphonia ne sait pas lire DSD, DSF ni DFF).
@@ -72,8 +81,10 @@ impl AudioAnalyser {
             hint.with_extension(ext);
         }
 
-        //On ouvre le fichier dans une box
-        let source: Box<File> = Box::new(File::open(&file_path)?);
+        //On ouvre le fichier dans une box ; sa taille vient du même descripteur.
+        let fichier: File = File::open(&file_path)?;
+        let file_size: u64 = fichier.metadata()?.len();
+        let source: Box<File> = Box::new(fichier);
 
         //Enveloppe le fichier dans un flux média lisible par Symphonia (buffering, seeking, etc.).
         let mss: MediaSourceStream = MediaSourceStream::new(source, Default::default());
@@ -134,12 +145,17 @@ impl AudioAnalyser {
 
         let duration: f32 = duration_sec.unwrap_or(0.0) as f32;
 
-        // Taille du fichier
-        let file_size: u64 = std::fs::metadata(&file_path)?.len();
-
         let path_str: &str = file_path.to_str().ok_or("Chemin non-UTF8")?;
 
-        let bitrate: u32 = match Self::read_audio_header_bitrate(path_str)? {
+        let audio_format: AudioFormat = Self::map_codec_to_format(codec_params.codec);
+
+        // Seuls MP3 et Ogg Vorbis portent un débit dans leur en-tête : pour les
+        // autres, inutile de rouvrir le fichier (coûteux sur un disque réseau).
+        let debit_entete: Option<u32> = match audio_format {
+            AudioFormat::MP3 | AudioFormat::OGG => Self::read_audio_header_bitrate(path_str)?,
+            _ => None,
+        };
+        let bitrate: u32 = match debit_entete {
             Some(br) => br,
             None => {
                 if duration > 0.0 {
@@ -149,8 +165,6 @@ impl AudioAnalyser {
                 }
             }
         };
-
-        let audio_format: AudioFormat = Self::map_codec_to_format(codec_params.codec);
 
         //////////////////////// Gestion des TAGS ////////////////////////////
         let mut tags: AudioTags = AudioTags::new();
@@ -179,29 +193,13 @@ impl AudioAnalyser {
             }
         }
 
-        if !cover_found {
+        if !cover_found && folder_cover {
             // On check le cover.jpg ou folder.jpg présent dans le dossier du fichier
-            if let Some(folder) = file_path.parent() {
-                const COVER_NAMES: [&'static str; 5] =
-                    ["cover", "folder", "Cover", "Folder", "front"];
-                const COVER_EXTS: [&'static str; 5] = ["jpg", "jpeg", "png", "webp", "aviff"];
-
-                if let Some(cover_filepath) = COVER_NAMES
-                    .iter()
-                    .flat_map(|name| {
-                        COVER_EXTS
-                            .iter()
-                            .map(move |ext| folder.join(format!("{name}.{ext}")))
-                    })
-                    .find(|path| path.exists())
-                {
-                    if let Ok(attached_image) = Self::visual_file_reader(&cover_filepath, !scan) {
-                        tags.attached_images.push(attached_image);
-                    }
+            if let Some(cover_filepath) = file_path.parent().and_then(Self::find_folder_cover) {
+                if let Ok(attached_image) = Self::visual_file_reader(&cover_filepath, !scan) {
+                    tags.attached_images.push(attached_image);
                 }
             }
-
-            //println!("Aucune vignette trouvée");
         }
 
         let audiofile: AudioFile = AudioFile {
@@ -367,6 +365,35 @@ impl AudioAnalyser {
         attached_image
     }
 
+    /// Pochette posée à côté des morceaux (cover.jpg, folder.png…), par ordre de
+    /// préférence. Le dossier est lu une fois, au lieu de tester chaque nom : sur un
+    /// disque réseau ou le portail Flatpak, chaque test est un aller-retour. La casse
+    /// exacte d'abord, puis sans tenir compte de la casse (COVER.JPG, disque FAT).
+    pub fn find_folder_cover(folder: &Path) -> Option<PathBuf> {
+        const COVER_NAMES: [&str; 5] = ["cover", "folder", "Cover", "Folder", "front"];
+        const COVER_EXTS: [&str; 5] = ["jpg", "jpeg", "png", "webp", "aviff"];
+
+        let noms: Vec<String> = std::fs::read_dir(folder)
+            .ok()?
+            .filter_map(Result::ok)
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect();
+        let candidats = || {
+            COVER_NAMES
+                .iter()
+                .flat_map(|name| COVER_EXTS.iter().map(move |ext| format!("{name}.{ext}")))
+        };
+        let trouve = candidats()
+            .find(|c| noms.iter().any(|n| n == c))
+            .or_else(|| candidats().find_map(|c| noms.iter().find(|n| n.eq_ignore_ascii_case(&c)).cloned()))?;
+        Some(folder.join(trouve))
+    }
+
+    /// Lit une pochette de dossier (sans base64), pour l'import.
+    pub fn read_cover_file(file: &PathBuf) -> Result<AttachedImage, std::io::Error> {
+        Self::visual_file_reader(file, false)
+    }
+
     fn visual_file_reader(file: &PathBuf, with_base64: bool) -> Result<AttachedImage, std::io::Error> {
         let data: Vec<u8> = std::fs::read(file)?;
 
@@ -507,5 +534,42 @@ impl AudioAnalyser {
         }
 
         Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AudioAnalyser;
+
+    fn dossier(nom: &str, fichiers: &[&str]) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("rustmusic-pochette-{nom}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for f in fichiers {
+            std::fs::write(dir.join(f), b"x").unwrap();
+        }
+        dir
+    }
+
+    #[test]
+    fn folder_cover_follows_preference_order() {
+        // « cover » passe avant « folder », et .jpg avant .png.
+        let dir = dossier("ordre", &["folder.jpg", "cover.png", "cover.jpg", "01.flac"]);
+        assert_eq!(AudioAnalyser::find_folder_cover(&dir), Some(dir.join("cover.jpg")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn folder_cover_ignores_case_as_a_fallback() {
+        let dir = dossier("casse", &["COVER.JPG", "01.flac"]);
+        assert_eq!(AudioAnalyser::find_folder_cover(&dir), Some(dir.join("COVER.JPG")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn folder_without_cover_gives_none() {
+        let dir = dossier("vide", &["01.flac", "livret.pdf"]);
+        assert_eq!(AudioAnalyser::find_folder_cover(&dir), None);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

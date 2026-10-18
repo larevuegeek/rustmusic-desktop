@@ -55,21 +55,39 @@ mod plateforme {
 
 #[cfg(target_os = "linux")]
 mod plateforme {
-    use zbus::zvariant::OwnedFd;
+    use zbus::blocking::Connection;
+    use zbus::zvariant::{OwnedFd, OwnedObjectPath};
 
-    /// Tant que le descripteur rendu par logind est ouvert, la veille est bloquée.
+    /// Blocage en cours : descripteur rendu par logind, ou demande au portail en
+    /// Flatpak (le bac à sable n'a pas accès à logind). Le lâcher lève le blocage.
     #[derive(Default)]
-    pub struct Verrou(Option<OwnedFd>);
+    pub enum Verrou {
+        #[default]
+        Libre,
+        // Jamais lu : seule sa fermeture compte, elle lève le blocage.
+        Logind(#[allow(dead_code)] OwnedFd),
+        Portail(Connection, OwnedObjectPath),
+    }
 
     impl Verrou {
         pub fn set(&mut self, bloquer: bool) {
             if !bloquer {
-                self.0 = None;
-            } else if self.0.is_none() {
-                match super::linux::inhibit("block", "Lecture en cours") {
-                    Ok(fd) => self.0 = Some(fd),
-                    Err(e) => log::warn!("[veille] blocage refusé par logind : {e}"),
+                if let Verrou::Portail(conn, demande) = std::mem::take(self) {
+                    super::linux::portal_release(&conn, &demande);
                 }
+                return;
+            }
+            if !matches!(self, Verrou::Libre) {
+                return;
+            }
+            let verrou = if crate::core::sandbox::flatpak_id().is_some() {
+                super::linux::portal_inhibit("Lecture en cours").map(|(c, d)| Verrou::Portail(c, d))
+            } else {
+                super::linux::inhibit("block", "Lecture en cours").map(Verrou::Logind)
+            };
+            match verrou {
+                Ok(v) => *self = v,
+                Err(e) => log::warn!("[veille] blocage refusé : {e}"),
             }
         }
     }
@@ -125,11 +143,12 @@ mod plateforme {
 
 #[cfg(target_os = "linux")]
 mod linux {
+    use std::collections::HashMap;
     use std::time::Duration;
 
     use tauri::{AppHandle, Emitter};
     use zbus::blocking::{Connection, Proxy};
-    use zbus::zvariant::OwnedFd;
+    use zbus::zvariant::{OwnedFd, OwnedObjectPath, Value};
 
     fn logind(conn: &Connection) -> zbus::Result<Proxy<'_>> {
         Proxy::new(conn, "org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager")
@@ -142,8 +161,43 @@ mod linux {
         Ok(fd)
     }
 
+    /// Blocage de la veille demandé au portail `Inhibit` (Flatpak) : levé par
+    /// `portal_release`, ou quand la connexion se ferme.
+    pub fn portal_inhibit(pourquoi: &str) -> zbus::Result<(Connection, OwnedObjectPath)> {
+        let conn = Connection::session()?;
+        let mut options: HashMap<&str, Value> = HashMap::new();
+        options.insert("reason", Value::from(pourquoi));
+        // 4 = mise en veille seulement : l'écran garde le droit de s'éteindre.
+        let reponse = conn.call_method(
+            Some("org.freedesktop.portal.Desktop"),
+            "/org/freedesktop/portal/desktop",
+            Some("org.freedesktop.portal.Inhibit"),
+            "Inhibit",
+            &("", 4u32, options),
+        )?;
+        let demande: OwnedObjectPath = reponse.body().deserialize()?;
+        Ok((conn, demande))
+    }
+
+    pub fn portal_release(conn: &Connection, demande: &OwnedObjectPath) {
+        if let Err(e) = conn.call_method(
+            Some("org.freedesktop.portal.Desktop"),
+            demande.as_str(),
+            Some("org.freedesktop.portal.Request"),
+            "Close",
+            &(),
+        ) {
+            log::warn!("[veille] fin du blocage par le portail : {e}");
+        }
+    }
+
     /// Prévient l'interface avant la veille (elle met en pause) et au réveil.
     pub fn watch_sleep(app: AppHandle) {
+        // Aucun portail n'annonce la mise en veille, et Flathub refuse l'accès à logind.
+        if crate::core::sandbox::flatpak_id().is_some() {
+            log::info!("[veille] Flatpak : pas de pause automatique avant la veille");
+            return;
+        }
         let _ = std::thread::Builder::new().name("veille-logind".into()).spawn(move || {
             if let Err(e) = run_loop(&app) {
                 log::warn!("[veille] écoute de logind impossible : {e}");

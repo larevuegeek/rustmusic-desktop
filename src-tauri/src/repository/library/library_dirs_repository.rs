@@ -129,6 +129,22 @@ impl LibraryDirRepository {
     // =========================================
     // UPDATE SCAN STATS
     // =========================================
+    /// Dossier introuvable au scan (partage réseau non monté…) : signalé en erreur,
+    /// sans toucher à ses totaux ni à la date du dernier scan réussi.
+    pub async fn mark_unavailable<'e, E>(exec: E, id: &str, error: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "UPDATE library_dirs SET scan_status = 'error', scan_error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        )
+        .bind(error)
+        .bind(id)
+        .execute(exec)
+        .await?;
+        Ok(())
+    }
+
     pub async fn update_scan_result<'e, E>(
         exec: E,
         id: &str,

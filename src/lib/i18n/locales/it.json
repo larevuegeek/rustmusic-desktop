@@ -1478,6 +1478,7 @@
     "status_ok": "Aggiornata",
     "status_scanning": "Scansione in corso",
     "status_error": "Errore di scansione",
+    "status_unavailable": "Non accessibile",
     "dirs_one": "1 cartella",
     "dirs_n": "{n} cartelle",
     "rescan": "Riscansiona",
@@ -2365,5 +2366,13 @@
     "kofi": "Offri un caffè",
     "paypal": "Dona con PayPal",
     "star": "Una stella su GitHub"
+  },
+  "library_unavailable": {
+    "title": "Cartella non accessibile",
+    "remount_found": "La cartella «{folder}» non è più dove la libreria la aspettava: la condivisione di rete era montata come «{old}» e ora lo è come «{new}». Aggiornare la libreria a questo montaggio? Brani, playlist e preferiti vengono mantenuti.",
+    "relocate": "Aggiorna e riscansiona",
+    "relocate_failed": "Non è stato possibile aggiornare la libreria al nuovo montaggio.",
+    "one": "«{folder}» non è stata trovata: condivisione di rete non montata o disco scollegato? Non è stata scansionata e i suoi brani vengono mantenuti.",
+    "many": "{n} cartelle non sono state trovate: condivisione di rete non montata o disco scollegato? Non sono state scansionate e i loro brani vengono mantenuti."
   }
 }

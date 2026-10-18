@@ -4,6 +4,8 @@ build-dir/
 .flatpak-builder/
 repo/
 essai-local.yml
+# Modules partagés de Flathub : sous-module du dépôt Flathub, cloné ici pour l'essai.
+shared-modules/
 # Listes de dépendances générées : elles vont dans le dépôt Flathub, pas ici.
 node-sources.json
 cargo-sources.json

@@ -1,5 +1,7 @@
-use std::path::PathBuf;
-use std::time::Instant;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use chrono::Utc;
 use rayon::prelude::*;
 use serde::Serialize;
@@ -51,12 +53,66 @@ pub struct FileAnalysisResult {
     pub thumbnail_url: Option<String>,
 }
 
+/// Pochettes de dossier (cover.jpg…) d'un import, cherchées une fois par dossier :
+/// avant, chaque morceau testait 25 noms puis relisait l'image. Un seul fil la
+/// cherche, les autres morceaux du dossier attendent son résultat.
+#[derive(Default)]
+struct FolderCovers(Mutex<HashMap<PathBuf, Arc<OnceLock<Option<String>>>>>);
+
+impl FolderCovers {
+    fn thumbnail(&self, folder: &Path, covers_dir: &PathBuf) -> Option<String> {
+        let cellule = self.0.lock().ok()?.entry(folder.to_path_buf()).or_default().clone();
+        cellule
+            .get_or_init(|| {
+                let chemin = AudioAnalyser::find_folder_cover(folder)?;
+                let image = AudioAnalyser::read_cover_file(&chemin).ok()?;
+                if image.image_data.is_empty() {
+                    return None;
+                }
+                thumbnail_saver(covers_dir, &image.image_data, false).ok()
+            })
+            .clone()
+    }
+}
+
+/// Date de modification d'un fichier, en secondes, telle qu'enregistrée en base.
+fn modified_secs(metadata: &std::fs::Metadata) -> Option<String> {
+    metadata.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs().to_string())
+}
+
+/// Sort de la phase d'analyse d'un fichier.
+enum Etape {
+    /// Déjà indexé et inchangé sur le disque : repris de la base (id du fichier).
+    Inchange(String),
+    Analyse(Result<FileAnalysisResult, String>),
+}
+
+/// Un fichier indexé dont la date n'a pas bougé n'est pas relu : le rescan d'une
+/// grande bibliothèque ne coûte plus qu'une date par fichier.
+fn analyse_or_reuse(
+    file: &PathBuf,
+    indexes: &HashMap<String, (String, Option<String>)>,
+    covers_dir: &PathBuf,
+    covers: &FolderCovers,
+) -> Etape {
+    if let Some((id, Some(en_base))) = file.to_str().and_then(|p| indexes.get(p)) {
+        let sur_disque = std::fs::metadata(file).ok().as_ref().and_then(modified_secs);
+        if sur_disque.as_ref() == Some(en_base) {
+            return Etape::Inchange(id.clone());
+        }
+    }
+    Etape::Analyse(analyse_file_sync(file, covers_dir, covers))
+}
+
 // Analyse un fichier audio de manière synchrone (compatible rayon)
 // Cette fonction fait le travail CPU : lire les métadonnées du FS,
 // parser le fichier avec symphonia, extraire la cover
-fn analyse_file_sync(file: &PathBuf, covers_dir: &PathBuf) -> Result<FileAnalysisResult, String> {
+fn analyse_file_sync(file: &PathBuf, covers_dir: &PathBuf, covers: &FolderCovers) -> Result<FileAnalysisResult, String> {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        analyse_file_inner(file, covers_dir)
+        analyse_file_inner(file, covers_dir, covers)
     }))
     .unwrap_or_else(|_| {
         let path = file.to_str().unwrap_or("?");
@@ -65,24 +121,23 @@ fn analyse_file_sync(file: &PathBuf, covers_dir: &PathBuf) -> Result<FileAnalysi
     })
 }
 
-fn analyse_file_inner(file: &PathBuf, covers_dir: &PathBuf) -> Result<FileAnalysisResult, String> {
+fn analyse_file_inner(file: &PathBuf, covers_dir: &PathBuf, covers: &FolderCovers) -> Result<FileAnalysisResult, String> {
     let path = file.to_str().ok_or("Invalid UTF-8 path")?.to_string();
     let filename = file.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
     let extension = file.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()).unwrap_or_default();
 
     let metadata = std::fs::metadata(&path).map_err(|e| format!("metadata: {}", e))?;
     let size = metadata.len() as i64;
-    let file_modified = metadata.modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_secs().to_string());
+    let file_modified = modified_secs(&metadata);
 
-    let audio_file = AudioAnalyser::analyse_for_scan(file).map_err(|e| e.to_string())?;
+    let audio_file = AudioAnalyser::analyse_for_import(file).map_err(|e| e.to_string())?;
 
-    let thumbnail_url = audio_file.tags.attached_images.first().and_then(|img| {
-        if img.image_data.is_empty() { return None; }
-        thumbnail_saver(covers_dir, &img.image_data, false).ok()
-    });
+    // Pochette intégrée d'abord ; à défaut, celle du dossier, partagée par ses morceaux.
+    let thumbnail_url = match audio_file.tags.attached_images.first() {
+        Some(img) if img.image_data.is_empty() => None,
+        Some(img) => thumbnail_saver(covers_dir, &img.image_data, false).ok(),
+        None => file.parent().and_then(|dossier| covers.thumbnail(dossier, covers_dir)),
+    };
 
     Ok(FileAnalysisResult { path, filename, extension, size, file_modified, audio_file, thumbnail_url })
 }
@@ -350,6 +405,13 @@ pub async fn save_files_to_library(
     let covers_dir = ctx.covers_dir.clone();
     let mut annule = false;
     let mut ajoutes: usize = 0;
+    let covers = FolderCovers::default();
+    // Vide au premier import ; au rescan, les fichiers inchangés ne sont pas relus.
+    let indexes = LibraryFilesRepository::indexed_by_path(pool_api, library_id)
+        .await
+        .unwrap_or_default();
+    // Progression : au plus une toutes les 100 ms (l'interface se redessine à chacune).
+    let mut derniere_emission: Option<Instant> = None;
 
     for chunk in files.chunks(BATCH_SIZE) {
 
@@ -364,12 +426,12 @@ pub async fn save_files_to_library(
         // 1. catch_unwind dans analyse_file_sync (par fichier)
         // 2. catch_unwind autour du batch rayon entier (si un thread crash malgré tout)
         // Si le batch crash → on retente les fichiers un par un (séquentiel)
-        let analyses: Vec<(PathBuf, Result<FileAnalysisResult, String>)> = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let analyses: Vec<(PathBuf, Etape)> = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             chunk
                 .par_iter()
                 .map(|file| {
-                    let result = analyse_file_sync(file, &covers_dir);
-                    (file.clone(), result)
+                    let etape = analyse_or_reuse(file, &indexes, &covers_dir, &covers);
+                    (file.clone(), etape)
                 })
                 .collect::<Vec<_>>()
         })) {
@@ -378,8 +440,8 @@ pub async fn save_files_to_library(
                 log::error!("⛔ PANIC batch rayon — fallback séquentiel pour {:?}",
                     chunk.iter().filter_map(|f| f.file_name().map(|n| n.to_string_lossy().to_string())).collect::<Vec<_>>());
                 chunk.iter().map(|file| {
-                    let result = analyse_file_sync(file, &covers_dir);
-                    (file.clone(), result)
+                    let etape = analyse_or_reuse(file, &indexes, &covers_dir, &covers);
+                    (file.clone(), etape)
                 }).collect()
             }
         };
@@ -390,7 +452,7 @@ pub async fn save_files_to_library(
         let mut tx = pool_api.begin_with("BEGIN IMMEDIATE").await
             .map_err(|e| format!("Failed to begin transaction: {}", e))?;
 
-        for (file, analysis_result) in analyses {
+        for (file, etape) in analyses {
             processed += 1;
 
             let file_name = file.file_name()
@@ -398,20 +460,38 @@ pub async fn save_files_to_library(
                 .unwrap_or("?")
                 .to_string();
 
-            // Émettre la progression
-            let _ = app.emit("import-progress", ImportProgress {
-                library_id,
-                directory: directory.clone(),
-                current: processed,
-                total,
-                percent: if total > 0 { (processed * 100) / total } else { 0 },
-                file_name: file_name.clone(),
-                added: ajoutes,
-            });
+            // Émettre la progression (le premier et le dernier fichier passent toujours)
+            let due = derniere_emission.map_or(true, |t| t.elapsed() >= Duration::from_millis(100));
+            if due || processed == total {
+                derniere_emission = Some(Instant::now());
+                let _ = app.emit("import-progress", ImportProgress {
+                    library_id,
+                    directory: directory.clone(),
+                    current: processed,
+                    total,
+                    percent: if total > 0 { (processed * 100) / total } else { 0 },
+                    file_name: file_name.clone(),
+                    added: ajoutes,
+                });
+            }
 
             if let Some(p) = progression.as_deref_mut() {
                 p.advance(&app);
             }
+
+            let analysis_result = match etape {
+                Etape::Inchange(file_id) => {
+                    match LibraryTrackRepository::find_track_view_by_file_id(&mut *tx, &file_id).await {
+                        Ok(Some(vue)) => {
+                            tracks.push(vue);
+                            continue;
+                        }
+                        // Fichier en base sans morceau : incohérence, on le réanalyse.
+                        _ => analyse_file_sync(&file, &covers_dir, &covers),
+                    }
+                }
+                Etape::Analyse(result) => result,
+            };
 
             let analysis = match analysis_result {
                 Ok(a) => a,

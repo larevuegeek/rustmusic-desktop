@@ -1478,6 +1478,7 @@
     "status_ok": "Aktuell",
     "status_scanning": "Scan läuft",
     "status_error": "Scanfehler",
+    "status_unavailable": "Nicht erreichbar",
     "dirs_one": "1 Ordner",
     "dirs_n": "{n} Ordner",
     "rescan": "Neu scannen",
@@ -2365,5 +2366,13 @@
     "kofi": "Einen Kaffee spendieren",
     "paypal": "Spenden über PayPal",
     "star": "Stern auf GitHub"
+  },
+  "library_unavailable": {
+    "title": "Ordner nicht erreichbar",
+    "remount_found": "Der Ordner „{folder}“ ist nicht mehr dort, wo die Bibliothek ihn erwartet: Die Netzwerkfreigabe war als „{old}“ eingebunden und ist es jetzt als „{new}“. Bibliothek auf diese Einbindung umstellen? Titel, Playlists und Favoriten bleiben erhalten.",
+    "relocate": "Umstellen und neu scannen",
+    "relocate_failed": "Die Bibliothek konnte nicht auf die neue Einbindung umgestellt werden.",
+    "one": "„{folder}“ wurde nicht gefunden: Netzwerkfreigabe nicht eingebunden oder Laufwerk getrennt? Er wurde nicht gescannt, seine Titel bleiben erhalten.",
+    "many": "{n} Ordner wurden nicht gefunden: Netzwerkfreigabe nicht eingebunden oder Laufwerk getrennt? Sie wurden nicht gescannt, ihre Titel bleiben erhalten."
   }
 }

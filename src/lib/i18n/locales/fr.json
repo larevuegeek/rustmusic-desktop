@@ -1478,6 +1478,7 @@
     "status_ok": "À jour",
     "status_scanning": "Scan en cours",
     "status_error": "Erreur de scan",
+    "status_unavailable": "Inaccessible",
     "dirs_one": "1 dossier",
     "dirs_n": "{n} dossiers",
     "rescan": "Rescanner",
@@ -2365,5 +2366,13 @@
     "kofi": "Offrir un café",
     "paypal": "Don via PayPal",
     "star": "Une étoile sur GitHub"
+  },
+  "library_unavailable": {
+    "title": "Dossier inaccessible",
+    "remount_found": "Le dossier « {folder} » n'est plus là où la bibliothèque l'attendait : le partage réseau était monté par « {old} », il l'est maintenant par « {new} ». Mettre la bibliothèque à jour vers ce montage ? Morceaux, playlists et favoris sont conservés.",
+    "relocate": "Mettre à jour et rescanner",
+    "relocate_failed": "La bibliothèque n'a pas pu être mise à jour vers le nouveau montage.",
+    "one": "« {folder} » est introuvable : partage réseau non monté ou disque débranché ? Il n'a pas été scanné et ses morceaux sont conservés.",
+    "many": "{n} dossiers sont introuvables : partage réseau non monté ou disque débranché ? Ils n'ont pas été scannés et leurs morceaux sont conservés."
   }
 }

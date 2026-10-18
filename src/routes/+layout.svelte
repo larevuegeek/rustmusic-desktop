@@ -36,6 +36,7 @@ import { initPlaybackPipelineListener } from "#lib/stores/player/playbackPipelin
 import { networkPlayerStore } from "#lib/stores/audio/networkPlayer.store";
 import { ampRemoteStore } from "#lib/stores/audio/ampRemote.store";
 import { initBatchListeners } from "#lib/stores/ui/batch.store";
+import { initUnavailableDirsListener } from "#lib/stores/library/unavailableDirs.store";
 import BatchPanel from "#lib/components/ui/batch/BatchPanel.svelte";
 import { trackNotificationService } from "#lib/services/notification/trackNotification.service";
 import { mediaControlsService } from "#lib/services/mediaControls/mediaControls.service";
@@ -142,6 +143,8 @@ onMount(async () => {
   // Ampli mémorisé : rejoint par le moteur au lancement si la télécommande est active.
   ampRemoteStore.init();
   initBatchListeners();
+  // Dossier introuvable au scan : propose de suivre le partage remonté ailleurs.
+  void initUnavailableDirsListener();
 
   // Notif OS sur changement de morceau (cover + titre + artiste).
   // Skip la 1re émission (restore de la queue au démarrage).

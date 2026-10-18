@@ -19,30 +19,28 @@
       It plays your FLAC, ALAC, WAV, AIFF, MP3 and DSD files in Hi-Res, and manages
       large libraries without slowing down.
     </p>
-    <ul>
-      <li>Hi-Res files, gapless transitions and ReplayGain</li>
-      <li>DSD files (DSF and DFF) played through high-quality conversion</li>
-      <li>Fast library with albums, artists, genres, decades and folders</li>
-      <li>Tag workshop: edit in a table, fill in from MusicBrainz or Deezer</li>
-      <li>Synced lyrics</li>
-      <li>Built-in DLNA server: play your library from your amplifier or TV</li>
-      <li>Play to UPnP/DLNA network players and AirPlay devices</li>
-      <li>Remote control for Onkyo, Pioneer, Integra, Denon, Marantz and Yamaha amplifiers</li>
-    </ul>
     <p xml:lang="fr">
       RustMusic est un lecteur de musique libre et gratuit, pour ceux qui tiennent au son.
       Il lit vos fichiers FLAC, ALAC, WAV, AIFF, MP3 et DSD en Hi-Res, et gère les grandes
       bibliothèques sans ralentir.
     </p>
-    <ul xml:lang="fr">
-      <li>Fichiers Hi-Res, enchaînement sans blanc et Replay Gain</li>
-      <li>Fichiers DSD (DSF et DFF) lus par une conversion de haute qualité</li>
-      <li>Bibliothèque rapide : albums, artistes, genres, décennies et dossiers</li>
-      <li>Atelier de tags : édition en tableau, complétée par MusicBrainz ou Deezer</li>
-      <li>Paroles synchronisées</li>
-      <li>Serveur DLNA intégré : votre bibliothèque sur votre ampli ou votre TV</li>
-      <li>Lecture sur les lecteurs réseau UPnP/DLNA et les appareils AirPlay</li>
-      <li>Télécommande pour les amplis Onkyo, Pioneer, Integra, Denon, Marantz et Yamaha</li>
+    <ul>
+      <li>Hi-Res files, gapless transitions and ReplayGain</li>
+      <li xml:lang="fr">Fichiers Hi-Res, enchaînement sans blanc et Replay Gain</li>
+      <li>DSD files (DSF and DFF) played through high-quality conversion</li>
+      <li xml:lang="fr">Fichiers DSD (DSF et DFF) lus par une conversion de haute qualité</li>
+      <li>Fast library with albums, artists, genres, decades and folders</li>
+      <li xml:lang="fr">Bibliothèque rapide : albums, artistes, genres, décennies et dossiers</li>
+      <li>Tag workshop: edit in a table, fill in from MusicBrainz or Deezer</li>
+      <li xml:lang="fr">Atelier de tags : édition en tableau, complétée par MusicBrainz ou Deezer</li>
+      <li>Synced lyrics</li>
+      <li xml:lang="fr">Paroles synchronisées</li>
+      <li>Built-in DLNA server: play your library from your amplifier or TV</li>
+      <li xml:lang="fr">Serveur DLNA intégré : votre bibliothèque sur votre ampli ou votre TV</li>
+      <li>Play to UPnP/DLNA network players and AirPlay devices</li>
+      <li xml:lang="fr">Lecture sur les lecteurs réseau UPnP/DLNA et les appareils AirPlay</li>
+      <li>Remote control for Onkyo, Pioneer, Integra, Denon, Marantz and Yamaha amplifiers</li>
+      <li xml:lang="fr">Télécommande pour les amplis Onkyo, Pioneer, Integra, Denon, Marantz et Yamaha</li>
     </ul>
   </description>
 

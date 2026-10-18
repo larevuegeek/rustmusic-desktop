@@ -144,6 +144,59 @@ pub async fn repair_artist_links(
     crate::service::library::artist_link_repair::repair(&state.pool, library_id).await
 }
 
+/// Dossier de bibliothèque introuvable au scan, et le montage où il a été retrouvé.
+#[derive(Clone, serde::Serialize)]
+pub struct UnavailableDir {
+    pub dir_id: String,
+    pub path: String,
+    pub remount: Option<crate::core::remount::Remount>,
+}
+
+/// Un dossier absent (partage réseau non monté, ou monté sous un autre nom) n'est
+/// pas scanné : le lister donnait « 0 fichier » et remettait ses totaux à zéro.
+async fn check_dir_available(
+    pool: &sqlx::SqlitePool,
+    dir: &crate::entity::library::library_dirs::LibraryDir,
+) -> Option<UnavailableDir> {
+    if std::path::Path::new(&dir.path).is_dir() {
+        return None;
+    }
+    log::warn!("📁 Dossier inaccessible, non scanné : {}", dir.path);
+    let _ = LibraryDirRepository::mark_unavailable(pool, &dir.id, "unavailable").await;
+    Some(UnavailableDir {
+        dir_id: dir.id.clone(),
+        path: dir.path.clone(),
+        remount: crate::core::remount::find_remount(std::path::Path::new(&dir.path)),
+    })
+}
+
+fn emit_unavailable(app: &tauri::AppHandle, library_id: i64, dirs: Vec<UnavailableDir>) {
+    if !dirs.is_empty() {
+        let _ = app.emit("library-dirs-unavailable", serde_json::json!({
+            "library_id": library_id,
+            "dirs": dirs,
+        }));
+    }
+}
+
+/// Réécrit les chemins de `old_root` vers `new_root` (le même partage, monté sous un
+/// autre nom). Rend le nombre de fichiers déplacés ; un rescan doit suivre.
+#[tauri::command]
+pub async fn relocate_library_root(
+    state: State<'_, AppState>,
+    old_root: String,
+    new_root: String,
+) -> Result<u64, String> {
+    if !std::path::Path::new(&new_root).is_dir() {
+        return Err("nouveau_dossier_introuvable".into());
+    }
+    // Pas pendant un import : il écrirait des chemins que la réécriture ne verrait pas.
+    let Some(_jeton) = IMPORT.start() else { return Err("deja_en_cours".into()) };
+    let n = crate::service::library::relocate::relocate_prefix(&state.pool, &old_root, &new_root).await?;
+    log::info!("📁 Bibliothèque déplacée : {old_root} → {new_root} ({n} fichiers)");
+    Ok(n)
+}
+
 #[tauri::command]
 pub async fn rescan_library(
     app: tauri::AppHandle,
@@ -173,7 +226,12 @@ pub async fn rescan_library(
 
     // Tout est listé d'abord : la progression porte sur la bibliothèque entière.
     let mut lots: Vec<_> = Vec::with_capacity(dirs.len());
+    let mut inaccessibles: Vec<UnavailableDir> = Vec::new();
     for dir in dirs {
+        if let Some(absent) = check_dir_available(&state.pool, &dir).await {
+            inaccessibles.push(absent);
+            continue;
+        }
         let Some(files) = list_files(&app, library_id, &dir.path).await else { break };
         lots.push((dir, files));
     }
@@ -194,6 +252,9 @@ pub async fn rescan_library(
             Err(e) => log::error!("Erreur rescan dossier {}: {}", dir.name, e),
         }
     }
+
+    // Après le scan : la relocalisation proposée doit pouvoir relancer le sien.
+    emit_unavailable(&app, library_id, inaccessibles);
 
     let _ = app.emit("rescan-complete", serde_json::json!({
         "library_id": library_id,
@@ -441,6 +502,11 @@ pub async fn rescan_library_dir(
 
     let dir = dirs.into_iter().find(|d| d.id == dir_id)
         .ok_or_else(|| "Directory not found".to_string())?;
+
+    if let Some(absent) = check_dir_available(&state.pool, &dir).await {
+        emit_unavailable(&app, library_id, vec![absent]);
+        return Ok(Vec::new());
+    }
 
     let Some(jeton) = IMPORT.start() else { return Err("deja_en_cours".into()) };
     save_dir_to_library(app, &state.pool, library_id, dir.path, &jeton).await

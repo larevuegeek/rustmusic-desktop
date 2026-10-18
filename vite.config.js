@@ -70,7 +70,9 @@ export default defineConfig(async () => ({
       : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // `packaging` aussi : les essais Flatpak y laissent des copies entières du
+      // projet (.flatpak-builder, venv…), qui épuisaient la limite inotify.
+      ignored: ["**/src-tauri/**", "**/packaging/**"],
     },
   },
 }));

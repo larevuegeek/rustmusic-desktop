@@ -26,17 +26,31 @@ finish-args:
   - --filesystem=/media
   - --filesystem=/run/media
   - --filesystem=/mnt
+  # Partages réseau montés par le gestionnaire de fichiers (SMB, SFTP…) : lus en direct.
+  # Sinon le sélecteur passe par le portail de documents, une seconde couche FUSE
+  # par-dessus GVFS (12 à 17 s pour précharger un FLAC sur un NAS).
+  - --filesystem=xdg-run/gvfs
   # Contrôles média du bureau (MPRIS) et notifications de changement de morceau.
   - --own-name=org.mpris.MediaPlayer2.rustmusic
   - --talk-name=org.freedesktop.Notifications
+  # Icône de la barre système (StatusNotifierItem, via libayatana-appindicator).
+  - --talk-name=org.kde.StatusNotifierWatcher
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node22/bin
 
 modules:
+  # Icône de la barre système : Tauri charge libayatana-appindicator3 au démarrage, et
+  # le runtime GNOME ne la fournit pas. `shared-modules` : sous-module git de Flathub.
+  - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
+
   - name: rustmusic
     buildsystem: simple
     build-options:
+      # Pas les CFLAGS du SDK (-O2) : placés après le -O0 qu'exige aws-lc-sys pour
+      # jitterentropy, ils font échouer sa compilation. cc-rs optimise déjà en release.
+      cflags: ''
+      cflags-override: true
       env:
         CARGO_HOME: /run/build/rustmusic/cargo
         XDG_CACHE_HOME: /run/build/rustmusic/flatpak-node/cache

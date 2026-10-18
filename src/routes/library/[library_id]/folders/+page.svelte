@@ -196,7 +196,11 @@
     scanning: { cle: "library_head.status_scanning", classes: "bg-(--rg-ambg) text-(--rg-am)" },
     error: { cle: "library_head.status_error", classes: "bg-red-500/10 text-red-600 dark:text-red-400" },
   };
-  const statusOf = (d: LibraryDir) => ETATS[d.scan_status] ?? { cle: "library_head.status_ok", classes: "bg-(--rg-g)/10 text-(--rg-gtx)" };
+  const statusOf = (d: LibraryDir) =>
+    // Introuvable au scan (partage non monté…) : ce n'est pas une erreur de lecture.
+    d.scan_status === "error" && d.scan_error === "unavailable"
+      ? { ...ETATS.error, cle: "library_head.status_unavailable" }
+      : ETATS[d.scan_status] ?? { cle: "library_head.status_ok", classes: "bg-(--rg-g)/10 text-(--rg-gtx)" };
 
   const bouton = "h-8.5 px-3 flex items-center gap-1.5 rounded-[10px] border text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) disabled:opacity-40";
   const tuileDossier = "shrink-0 rounded-xl flex items-center justify-center border";
