@@ -8,6 +8,16 @@ pub fn flatpak_id() -> Option<String> {
     std::env::var("FLATPAK_ID").ok().filter(|v| !v.is_empty())
 }
 
+/// Dossier où écrire l'image de l'icône de la barre système. L'hôte (extension
+/// AppIndicator) la lit par son chemin et ne voit pas le `/run/user` privé du bac à
+/// sable : trois points à la place de l'icône. `$XDG_RUNTIME_DIR/app/<id>` est partagé,
+/// au même chemin, entre l'appli et l'hôte.
+pub fn tray_icon_dir() -> Option<std::path::PathBuf> {
+    let id = flatpak_id()?;
+    let runtime = std::env::var_os("XDG_RUNTIME_DIR")?;
+    Some(std::path::PathBuf::from(runtime).join("app").join(id).join("tray-icon"))
+}
+
 /// Sortie exclusive et DSD natif possibles : la carte son doit être visible. Un Flatpak sans
 /// accès aux périphériques ne voit pas `/dev/snd` ; l'accorder suffit à les rétablir.
 pub fn exclusive_possible() -> bool {

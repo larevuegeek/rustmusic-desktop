@@ -67,6 +67,11 @@ export const taskProgressStore = {
     // ─── Import de fichiers ───
     const u1 = await listen<{ current: number; total: number; percent: number; file_name: string }>(
       'import-progress', (e) => {
+        // Pendant un rescan, sa tâche porte déjà la progression de toute la bibliothèque.
+        if (get(taskWriter)['rescan']?.active) {
+          upsertTask('rescan', { detail: e.payload.file_name });
+          return;
+        }
         upsertTask('import', {
           label: get(t)("system.task_importing"),
           icon: "lucide:hard-drive-download",
@@ -96,6 +101,7 @@ export const taskProgressStore = {
 
     const u2 = await listen<{ total: number; duration_ms: number; cancelled: boolean }>(
       'import-complete', (e) => {
+        if (get(taskWriter)['rescan']?.active) return;
         upsertTask('import', {
           label: e.payload.cancelled
             ? get(t)("system.task_import_stopped")

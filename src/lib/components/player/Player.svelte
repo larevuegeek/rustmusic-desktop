@@ -120,7 +120,7 @@ const nomSortie = $derived.by(() => {
 // Marque LTR : le chemin tronqué par la gauche garde ses « \ » à leur place.
 const MARQUE = "\u200E";
 
-const pastille = "h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border";
+const pastille = "shrink-0 h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border";
 // Service actif : pastille verte, voyant allumé.
 const voyant = "w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor]";
 const pastilleCliquable = "cursor-pointer transition-colors hover:border-current/50";
@@ -305,7 +305,7 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
 
         <span class="w-px h-3.5 shrink-0 bg-(--lc-trait) max-md:hidden"></span>
 
-        <div class="group/chemin flex-1 min-w-0 flex items-center gap-1 font-mono text-[10.5px] max-md:hidden">
+        <div class="group/chemin flex-1 min-w-0 overflow-hidden flex items-center gap-1 font-mono text-[10.5px] max-md:hidden">
           <button type="button" class="min-w-0 flex items-center gap-1.5 cursor-pointer" title={$t("player.open_folder")} onclick={() => $player?.pathFile && handleOpenPath($player.pathFile)}>
             <Icon icon="material-symbols-light:folder-open-outline-rounded" width="15" class="shrink-0 group-hover/chemin:text-(--lc-tx2)" />
             <span class="lecteur-dossier min-w-0 shrink-[999] truncate group-hover/chemin:text-(--lc-tx2)">{MARQUE + cheminDecoupe.dossier + MARQUE}</span>
@@ -327,7 +327,7 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
         <span class="flex-1 pl-1 text-(--lc-mu2)">{$t("player.inactive")}</span>
       {/if}
 
-      <div class="shrink-0 ml-auto flex items-center gap-1.5">
+      <div class="min-w-0 ml-auto flex items-center gap-1.5">
         {#if chaine && !$networkPlayerStore.selected}
           <button type="button" class="{pastille} {chaine.teinte} {pastilleCliquable}" title={repli ?? $t("pipeline.learn")} onclick={() => goto("/settings/guide")}>
             {#if repli}

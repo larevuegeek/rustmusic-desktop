@@ -289,6 +289,14 @@ async fn configure_render_pipeline(app_state: &AppState, db_mode: crate::core::r
         gpu_sentinel::set_booted_gpu(true);
     }
 
+    // Flatpak : le WebKitGTK et le Mesa du runtime font clignoter des éléments en DMA-BUF
+    // et en dessin GPU (Radeon 760M, runtime GNOME 50). Auto coupe les deux ; le GPU garde
+    // la composition, et l'interface sa netteté HiDPI (le mode logiciel force GDK_SCALE=1).
+    let flatpak_safe = !force_software
+        && mode == RenderMode::Auto
+        && env_mode.is_none()
+        && crate::core::sandbox::flatpak_id().is_some();
+
     let dmabuf = crate::core::render_mode::dmabuf_mode(
         SettingsRepository::get(&app_state.pool, crate::core::render_mode::DMABUF_KEY)
             .await
@@ -296,12 +304,12 @@ async fn configure_render_pipeline(app_state: &AppState, db_mode: crate::core::r
             .flatten()
             .as_deref(),
     );
-    apply_linux_render_env(force_software, &reason, dmabuf);
+    apply_linux_render_env(force_software, &reason, dmabuf, flatpak_safe);
 }
 
 /// Apply the WebKitGTK / GDK env vars for the chosen rendering path.
 #[cfg(target_os = "linux")]
-fn apply_linux_render_env(force_software: bool, reason: &str, dmabuf: &str) {
+fn apply_linux_render_env(force_software: bool, reason: &str, dmabuf: &str, flatpak_safe: bool) {
     if force_software {
         log::info!("🖥  Render mode : software ({})", reason);
         crate::core::render_mode::set_software_active(true);
@@ -338,7 +346,11 @@ fn apply_linux_render_env(force_software: bool, reason: &str, dmabuf: &str) {
                     "on" => true,
                     "off" => false,
                     _ => {
-                        raison_coupure = crate::core::system_detect::dmabuf_unsuitable_gpu();
+                        raison_coupure = if flatpak_safe {
+                            Some("Flatpak".into())
+                        } else {
+                            crate::core::system_detect::dmabuf_unsuitable_gpu()
+                        };
                         raison_coupure.is_none()
                     }
                 };
@@ -349,6 +361,10 @@ fn apply_linux_render_env(force_software: bool, reason: &str, dmabuf: &str) {
             }
         };
         crate::core::render_mode::set_dmabuf_active(actif);
+        if flatpak_safe && std::env::var_os("WEBKIT_SKIA_ENABLE_CPU_RENDERING").is_none() {
+            std::env::set_var("WEBKIT_SKIA_ENABLE_CPU_RENDERING", "1");
+            log::info!("🖥  Flatpak : pages dessinées par le processeur, composition par le GPU");
+        }
         log::info!(
             "🖥  Render mode : GPU ({}, DMABUF {} — réglage {}{})",
             reason,
@@ -582,7 +598,13 @@ pub async fn run() {
                 .item(&quit_item)
                 .build()?;
 
-            let _tray = TrayIconBuilder::new()
+            let tray = TrayIconBuilder::new();
+            #[cfg(target_os = "linux")]
+            let tray = match crate::core::sandbox::tray_icon_dir() {
+                Some(dir) => tray.temp_dir_path(dir),
+                None => tray,
+            };
+            let _tray = tray
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("RustMusic")
                 .menu(&tray_menu)

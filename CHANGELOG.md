@@ -51,6 +51,12 @@ serveur DLNA.
   puis par son nom, ou l'inverse) : la bibliothèque ne trouvait plus rien.
   RustMusic retrouve le même partage et propose de mettre la bibliothèque à
   jour ; morceaux, playlists, favoris et file d'attente suivent.
+- **Barre d'état lisible pendant un import** : un rescan affichait deux fois
+  la même progression (« Rescan » et « Import en cours »), et les pastilles
+  serrées faisaient chevaucher le chemin du fichier et la pastille DSP. Une
+  seule pastille suit maintenant le rescan, avec le fichier en cours ; quand
+  la place manque, le nom du fichier se tronque d'abord, puis le libellé,
+  sans rien recouvrir.
 
 ### Lecture
 - **Sortie audio perdue en pleine lecture** (câble USB capricieux, DAC
@@ -100,7 +106,12 @@ serveur DLNA.
   lus en direct, la veille est retenue pendant la lecture par le portail du
   bureau, et la sortie exclusive et le DSD natif sont masqués quand le bac à
   sable n'a pas accès à la carte son. La pause automatique avant la mise en
-  veille n'existe pas dans ce paquet.
+  veille n'existe pas dans ce paquet. En rendu automatique, DMA-BUF est
+  coupé et les pages sont dessinées par le processeur : avec le WebKitGTK
+  du runtime, des éléments de l'interface clignotaient. Le GPU garde
+  l'assemblage de la fenêtre, et l'interface sa netteté en haute densité.
+  L'icône de la barre système s'affiche (trois points à sa place : l'image
+  était écrite là où le bureau ne la voyait pas).
 - **Logo net sur écran haute densité** : l'icône de la fenêtre et du dock
   était tirée de l'image de 32 px, floue à 200 %. Elle part maintenant de
   l'image de 512 px, que les paquets .deb et AppImage installent aussi.
