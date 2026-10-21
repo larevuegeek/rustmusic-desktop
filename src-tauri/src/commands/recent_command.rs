@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use tauri::State;
 
 use crate::{mapper::recent::recent_file_list_view::RecentFileListView, repository::recent::recent_file_repository::RecentFileRepository, state::AppState};
@@ -22,6 +24,10 @@ pub async fn insert_recent_file(
     path: String,
     library_id: Option<i64>
 ) -> Result<(), String> {
+    // Les épisodes ont leur propre suivi : l'historique reste musical.
+    if crate::core::podcast::download::is_episode_path(Path::new(&path)) {
+        return Ok(());
+    }
 
     let _ = match RecentFileRepository::insert_recent_file(&state.pool, path, library_id).await {
         Ok(library) => library,
@@ -64,7 +70,11 @@ pub async fn save_playback_position(
     state: State<'_, AppState>,
     path: String,
     position: f64,
+    duration: Option<f64>,
 ) -> Result<(), String> {
+    if crate::service::podcast::podcast_service::save_position(&state.pool, Path::new(&path), position, duration).await {
+        return Ok(());
+    }
     RecentFileRepository::save_position(&state.pool, &path, position)
         .await
         .map_err(|e| format!("Position d'écoute : {e}"))

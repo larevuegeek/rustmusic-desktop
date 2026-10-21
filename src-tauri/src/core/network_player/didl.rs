@@ -2,7 +2,7 @@
 
 use super::control::format_time;
 use super::media::DLNA_FLAGS;
-use super::xml::escape;
+use crate::helper::xml::escape;
 
 /// Ce qu'on dit d'une piste au lecteur.
 #[derive(Debug, Clone, Default)]
@@ -67,7 +67,7 @@ xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">\
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::network_player::xml;
+    use crate::helper::xml;
 
     #[test]
     fn describes_a_track_readably() {

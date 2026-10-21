@@ -4,7 +4,7 @@
 //! de lui-même chaque changement (télécommande, façade) : l'état reste juste.
 
 use super::model::{Amp, Brand, Caps, Choice, Codec, Command, NavKey, NetLine, Range, Status, Transport, Zone, ZoneState};
-use crate::core::network_player::xml;
+use crate::helper::xml;
 
 pub const PORT: u16 = 60128;
 const HEADER: usize = 16;

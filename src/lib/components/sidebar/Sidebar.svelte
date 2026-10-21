@@ -18,6 +18,8 @@ import { libraryStore } from "#lib/stores/library/library.store";
 import { playlistStore } from "#lib/stores/playlist/playlist.store";
 import { pinsStore } from "#lib/stores/library/pins.store";
 import { recentCount } from "#lib/stores/recent/recent.store";
+import { podcastStore } from "#lib/stores/podcast/podcast.store";
+import { profilSelector } from "#lib/stores/profil/profil.store";
 import { sidebarStore } from "#lib/stores/ui/sidebar.store";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { handleClickOpenDirectory, handleClickOpenFile } from "#lib/actions/player/PlayerAction";
@@ -29,6 +31,7 @@ import SidebarNav from "./SidebarNav.svelte";
 import SidebarFooter from "./SidebarFooter.svelte";
 import SidebarTitle from "./SidebarTitle.svelte";
 import SidebarThumbnail from "./SidebarThumbnail.svelte";
+import { sidebarOrganize } from "#lib/stores/ui/sidebarOrganize.store";
 
 const pathname = $derived(page.url.pathname);
 const replie = $derived($settingsStore.sidebar_collapsed === 'true');
@@ -42,6 +45,99 @@ const montrerRecents = $derived($settingsStore.show_recent_in_playlists !== 'fal
 // Toute la section (Apparence → Barre latérale) : playlists épinglées, likés, récents.
 const montrerPlaylists = $derived($settingsStore.show_sidebar_playlists !== 'false');
 const montrerBoutonsOuvrir = $derived($settingsStore.show_open_buttons === 'true');
+const podcastsActifs = $derived($settingsStore.podcasts === 'true');
+const profilId = $derived($profilSelector.profilSelected?.id ?? null);
+$effect(() => {
+  if (podcastsActifs && profilId != null) podcastStore.ensureLoaded(profilId);
+});
+const podcastsNouveaux = $derived($podcastStore.podcasts.reduce((n, p) => n + p.new_count, 0));
+const podcastsCouvertures = $derived($podcastStore.podcasts.map((p) => p.cover_path).filter((c): c is string => !!c));
+// Podcasts favoris : chacun sa ligne sous « Podcasts ».
+const podcastsFavoris = $derived($podcastStore.podcasts.filter((p) => p.pinned).sort((a, b) => a.title.localeCompare(b.title)));
+const newCountLabel = (n: number) => `${n.toLocaleString($currentLocale)} ${$t(n === 1 ? 'podcasts.new_one' : 'podcasts.new_n')}`;
+
+// ─── Ordre des sections, et mode « Organiser » ───
+type Section = 'playlists' | 'online' | 'pins';
+const TOUTES: Section[] = ['playlists', 'online', 'pins'];
+const ordre = $derived.by((): Section[] => {
+  let lu: unknown = [];
+  try { lu = JSON.parse($settingsStore.sidebar_order || '[]'); } catch { /* réglage abîmé : ordre d'origine */ }
+  const choisi = (Array.isArray(lu) ? lu : []).filter((s): s is Section => TOUTES.includes(s as Section));
+  return [...new Set([...choisi, ...TOUTES])];
+});
+const visible = (s: Section) => s === 'playlists' ? montrerPlaylists : s === 'online' ? podcastsActifs : libraryId != null;
+const sections = $derived(ordre.filter(visible));
+const sectionTitle = (s: Section) => s === 'playlists' ? $t('nav.playlists') : s === 'online' ? $t('podcasts.kicker') : $t('sidebar.pinned');
+const epinglees = $derived($playlistStore.playlists.filter((p) => p.pinned && !p.is_mix));
+
+/** Lignes de la section Playlists : `playlist:<id>`, `liked`, `recent`, dans l'ordre choisi. */
+const elementsPlaylists = $derived.by((): string[] => {
+  const defaut = [...epinglees.map((p) => `playlist:${p.id}`), ...(montrerLikes ? ['liked'] : []), ...(montrerRecents ? ['recent'] : [])];
+  let lu: unknown = [];
+  try { lu = JSON.parse($settingsStore.sidebar_playlists_order || '[]'); } catch { /* réglage abîmé : ordre d'origine */ }
+  const rang = new Map((Array.isArray(lu) ? lu : []).map((k, i) => [String(k), i]));
+  // Les inconnus (playlist épinglée depuis) gardent leur place d'origine, après les rangés.
+  return defaut
+    .map((k, i) => ({ k, r: rang.get(k) ?? 1000 + i }))
+    .sort((a, b) => a.r - b.r)
+    .map((x) => x.k);
+});
+const findPinnedPlaylist = (k: string) => epinglees.find((p) => `playlist:${p.id}` === k) ?? null;
+
+let edition = $state(false);
+// « Essayer » des nouveautés : ouvre l'organisation.
+$effect(() => {
+  if (!$sidebarOrganize) return;
+  sidebarOrganize.set(false);
+  if (!replie) edition = true;
+});
+$effect(() => { if (replie) edition = false; });
+
+/** Place la section `de` à l'endroit de `vers` ; les sections masquées gardent leur rang. */
+function moveSection(de: Section, vers: Section) {
+  if (de === vers) return;
+  const liste = ordre.filter((s) => s !== de);
+  const cible = liste.indexOf(vers) + (ordre.indexOf(de) < ordre.indexOf(vers) ? 1 : 0);
+  liste.splice(cible, 0, de);
+  settingsStore.set('sidebar_order', JSON.stringify(liste));
+}
+function shiftSection(i: number, sens: -1 | 1) {
+  const vers = sections[i + sens];
+  if (vers) moveSection(sections[i], vers);
+}
+function movePlaylist(de: number, vers: number) {
+  if (de === vers) return;
+  const cles = [...elementsPlaylists];
+  const [x] = cles.splice(de, 1);
+  cles.splice(vers, 0, x);
+  settingsStore.set('sidebar_playlists_order', JSON.stringify(cles));
+  // Les playlists gardent aussi cet ordre en base (page Playlists, tri « comme la barre »).
+  const ids = cles.filter((k) => k.startsWith('playlist:')).map((k) => Number(k.slice(9)));
+  if (ids.join() !== epinglees.map((p) => p.id).join()) playlistStore.reorder(ids);
+}
+
+// Glisser-déposer par la poignée (elle capture le pointeur), comme dans la file d'attente.
+let glisse = $state<{ liste: 'sections' | 'playlists'; depart: number; survol: number } | null>(null);
+function grab(e: PointerEvent, liste: 'sections' | 'playlists', i: number) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  glisse = { liste, depart: i, survol: i };
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+}
+function drag(e: PointerEvent) {
+  if (!glisse) return;
+  const attr = glisse.liste === 'sections' ? 'data-sec-i' : 'data-pl-i';
+  const el = document.elementFromPoint(e.clientX, e.clientY)?.closest(`[${attr}]`) as HTMLElement | null;
+  if (el) glisse = { ...glisse, survol: Number(el.getAttribute(attr)) };
+}
+function drop() {
+  if (glisse) {
+    if (glisse.liste === 'sections') moveSection(sections[glisse.depart], sections[glisse.survol]);
+    else movePlaylist(glisse.depart, glisse.survol);
+  }
+  glisse = null;
+}
 
 // Pastille sur le « … » quand un raccourci est masqué : c'est là qu'on le retrouve.
 const raccourcisMasques = $derived(
@@ -76,6 +172,113 @@ onMount(() => {
   playlistStore.init();
 });
 </script>
+
+{#snippet secPlaylists()}
+    {#if !replie}
+      <SidebarTitle titre={$t('nav.playlists')} aide={$t('playlists_view.all')} onclick={() => nav('/playlists')}>
+        {#snippet actions()}
+          <SidebarButton
+            icon="material-symbols:auto-awesome-outline-rounded"
+            label={$t('playlist.new_smart')}
+            taille={16}
+            onclick={() => popinStore.open($t('playlist.new_smart'), SmartPlaylistPopin, {},
+              { size: 'xl', icon: 'lucide:sparkles', flush: true })}
+          />
+          <SidebarButton
+            icon="material-symbols:add-rounded"
+            label={$t('playlist.new')}
+            taille={16}
+            onclick={() => popinStore.open($t('nav.playlists'), AddPlaylistPopin, {})}
+          />
+          <SidebarButton
+            icon="material-symbols:more-horiz"
+            label={$t('playlist.options')}
+            taille={16}
+            onclick={(e) => menuZone = openSubMenu(e)}
+          >
+            {#if raccourcisMasques > 0}
+              <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-(--sb-g)"></span>
+            {/if}
+          </SidebarButton>
+        {/snippet}
+      </SidebarTitle>
+    {/if}
+
+    {#each elementsPlaylists as k (k)}{@render lignePlaylist(k, false)}{/each}
+{/snippet}
+
+{#snippet lignePlaylist(k: string, edite: boolean)}
+  {#if k === 'liked'}
+    <SidebarRow
+      titre={$t('playlist_page.liked_title')}
+      sousTitre={genreLabel($t('sidebar.playlist'), $likedCount)}
+      replie={replie && !edite}
+      actif={!edite && pathname === '/playlist/liked'}
+      onclick={() => nav('/playlist/liked')}
+    >
+      {#snippet vignette()}
+        <SidebarThumbnail couvertures={$couverturesPlaylists.liked ?? []} couleur="#f43f5e" icone="material-symbols:favorite-rounded" />
+      {/snippet}
+    </SidebarRow>
+  {:else if k === 'recent'}
+    <SidebarRow
+      titre={$t('playlist_page.recent_title')}
+      sousTitre={genreLabel($t('sidebar.history'), $recentCount)}
+      replie={replie && !edite}
+      actif={!edite && pathname === '/playlist/recent'}
+      onclick={() => nav('/playlist/recent')}
+    >
+      {#snippet vignette()}
+        <SidebarThumbnail couvertures={$couverturesPlaylists.recent ?? []} couleur="#0ea5e9" icone="material-symbols:history-rounded" />
+      {/snippet}
+    </SidebarRow>
+  {:else}
+    {@const playlist = findPinnedPlaylist(k)}
+    {#if playlist}
+      <PlaylistItem {playlist} replie={replie && !edite} couvertures={$couverturesPlaylists[`playlist:${playlist.id}`] ?? []} />
+    {/if}
+  {/if}
+{/snippet}
+
+{#snippet secOnline()}
+      {#if !replie}
+        <SidebarTitle titre={$t('podcasts.kicker')} aide={$t('podcasts.title')} onclick={() => nav('/podcasts')} />
+      {/if}
+      <SidebarRow
+        titre={$t('podcasts.title')}
+        sousTitre={podcastsNouveaux > 0
+          ? newCountLabel(podcastsNouveaux)
+          : `${$podcastStore.podcasts.length.toLocaleString($currentLocale)} ${$t($podcastStore.podcasts.length === 1 ? 'podcasts.count_one' : 'podcasts.count_n')}`}
+        {replie}
+        actif={pathname.startsWith('/podcasts') && !podcastsFavoris.some((p) => pathname === `/podcasts/${p.id}`)}
+        onclick={() => nav('/podcasts')}
+      >
+        {#snippet vignette()}
+          <SidebarThumbnail couvertures={podcastsCouvertures} couleur="#8b5cf6" icone="material-symbols:podcasts-rounded" />
+        {/snippet}
+      </SidebarRow>
+      {#each podcastsFavoris as p (p.id)}
+        <SidebarRow
+          titre={p.title}
+          sousTitre={p.new_count > 0
+            ? newCountLabel(p.new_count)
+            : (p.author ?? $t('podcasts.kicker_podcast'))}
+          {replie}
+          actif={pathname === `/podcasts/${p.id}`}
+          onclick={() => nav(`/podcasts/${p.id}`)}
+        >
+          {#snippet vignette()}
+            <SidebarThumbnail couvertures={p.cover_path ? [p.cover_path] : []} couleur="#8b5cf6" icone="material-symbols:podcasts-rounded" />
+          {/snippet}
+        </SidebarRow>
+      {/each}
+{/snippet}
+
+{#snippet secPins()}
+  {#if libraryId != null}
+    <SidebarPins {libraryId} {replie} />
+  {/if}
+{/snippet}
 
 <aside
   class="sidebar h-full shrink-0 flex flex-col gap-3 overflow-y-auto overflow-x-hidden smart-scroll
@@ -158,72 +361,57 @@ onMount(() => {
              ? 'flex-1 min-h-0 w-full items-center gap-2 py-2 overflow-y-auto overflow-x-hidden [scrollbar-width:none]'
              : 'flex-[1_0_140px] min-h-35 gap-0.5 -mx-2 px-2 pb-8 overflow-y-auto overflow-x-hidden smart-scroll sb-liste-fondu'}"
   >
-    {#if montrerPlaylists}
-    {#if !replie}
-      <SidebarTitle titre={$t('nav.playlists')} aide={$t('playlists_view.all')} onclick={() => nav('/playlists')}>
-        {#snippet actions()}
-          <SidebarButton
-            icon="material-symbols:auto-awesome-outline-rounded"
-            label={$t('playlist.new_smart')}
-            taille={16}
-            onclick={() => popinStore.open($t('playlist.new_smart'), SmartPlaylistPopin, {},
-              { size: 'xl', icon: 'lucide:sparkles', flush: true })}
-          />
-          <SidebarButton
-            icon="material-symbols:add-rounded"
-            label={$t('playlist.new')}
-            taille={16}
-            onclick={() => popinStore.open($t('nav.playlists'), AddPlaylistPopin, {})}
-          />
-          <SidebarButton
-            icon="material-symbols:more-horiz"
-            label={$t('playlist.options')}
-            taille={16}
-            onclick={(e) => menuZone = openSubMenu(e)}
-          >
-            {#if raccourcisMasques > 0}
-              <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-(--sb-g)"></span>
-            {/if}
-          </SidebarButton>
-        {/snippet}
-      </SidebarTitle>
-    {/if}
-
-    {#each $playlistStore.playlists.filter((p) => p.pinned && !p.is_mix) as playlist (playlist.id)}
-      <PlaylistItem {playlist} {replie} couvertures={$couverturesPlaylists[`playlist:${playlist.id}`] ?? []} />
-    {/each}
-
-    {#if montrerLikes}
-      <SidebarRow
-        titre={$t('playlist_page.liked_title')}
-        sousTitre={genreLabel($t('sidebar.playlist'), $likedCount)}
-        {replie}
-        actif={pathname === '/playlist/liked'}
-        onclick={() => nav('/playlist/liked')}
-      >
-        {#snippet vignette()}
-          <SidebarThumbnail couvertures={$couverturesPlaylists.liked ?? []} couleur="#f43f5e" icone="material-symbols:favorite-rounded" />
-        {/snippet}
-      </SidebarRow>
-    {/if}
-
-    {#if montrerRecents}
-      <SidebarRow
-        titre={$t('playlist_page.recent_title')}
-        sousTitre={genreLabel($t('sidebar.history'), $recentCount)}
-        {replie}
-        actif={pathname === '/playlist/recent'}
-        onclick={() => nav('/playlist/recent')}
-      >
-        {#snippet vignette()}
-          <SidebarThumbnail couvertures={$couverturesPlaylists.recent ?? []} couleur="#0ea5e9" icone="material-symbols:history-rounded" />
-        {/snippet}
-      </SidebarRow>
-    {/if}
-    {/if}
-
-    {#if libraryId != null}
-      <SidebarPins {libraryId} {replie} />
+    {#if edition}
+      <!-- ─── Organiser : sections et playlists épinglées, glissées par leur poignée ─── -->
+      <div class="sticky top-0 z-10 -mx-2 px-2 pt-2 pb-1 bg-(--sb-bg)">
+        <div class="flex items-center gap-2 py-2 pl-2.5 pr-1.5 rounded-xl bg-(--sb-gbg) border border-(--sb-gbd)">
+          <Icon icon="material-symbols:swap-vert-rounded" width="18" class="shrink-0 text-(--sb-g)" />
+          <span class="flex-1 min-w-0 text-xs leading-snug text-(--sb-tx2)">{$t('sidebar.organize_hint')}</span>
+          <button type="button" onclick={() => (edition = false)}
+                  class="shrink-0 h-7 px-2.5 rounded-lg cursor-pointer text-xs font-bold bg-(--sb-g) text-white hover:brightness-110">
+            {$t('sidebar.organize_done')}
+          </button>
+        </div>
+      </div>
+      {#each sections as s, i (s)}
+        <div data-sec-i={i}
+             class="mt-2 rounded-xl border p-1.5 transition-colors
+                    {glisse?.liste === 'sections' && glisse.survol === i ? 'border-(--sb-g) bg-(--sb-gbg)' : 'border-dashed border-(--sb-bd2)'}
+                    {glisse?.liste === 'sections' && glisse.depart === i ? 'opacity-60' : ''}">
+          <div class="flex items-center gap-0.5">
+            <span role="presentation" title={$t('sidebar.move')}
+                  class="w-6 h-7.5 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none text-(--sb-mu) hover:text-(--sb-tx)"
+                  onpointerdown={(e) => grab(e, 'sections', i)} onpointermove={drag} onpointerup={drop} onpointercancel={() => (glisse = null)}>
+              <Icon icon="material-symbols:drag-indicator" width="18" />
+            </span>
+            <span class="flex-1 min-w-0 truncate text-xs font-bold uppercase tracking-[.08em] text-(--sb-hd)">{sectionTitle(s)}</span>
+            {#if i > 0}<SidebarButton icon="material-symbols:keyboard-arrow-up-rounded" label={$t('sidebar.move_up')} taille={18} onclick={() => shiftSection(i, -1)} />{/if}
+            {#if i < sections.length - 1}<SidebarButton icon="material-symbols:keyboard-arrow-down-rounded" label={$t('sidebar.move_down')} taille={18} onclick={() => shiftSection(i, 1)} />{/if}
+          </div>
+          {#if s === 'playlists'}
+            {#each elementsPlaylists as k, j (k)}
+              <div data-pl-i={j}
+                   class="flex items-center gap-0.5 rounded-lg transition-colors
+                          {glisse?.liste === 'playlists' && glisse.survol === j ? 'bg-(--sb-gbg)' : ''}
+                          {glisse?.liste === 'playlists' && glisse.depart === j ? 'opacity-60' : ''}">
+                <span role="presentation" title={$t('sidebar.move')}
+                      class="w-6 h-10 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none text-(--sb-mu) hover:text-(--sb-tx)"
+                      onpointerdown={(e) => grab(e, 'playlists', j)} onpointermove={drag} onpointerup={drop} onpointercancel={() => (glisse = null)}>
+                  <Icon icon="material-symbols:drag-indicator" width="18" />
+                </span>
+                <!-- Inerte pendant l'organisation : ni navigation ni menu par mégarde. -->
+                <div class="flex-1 min-w-0 pointer-events-none">{@render lignePlaylist(k, true)}</div>
+              </div>
+            {:else}
+              <p class="px-2 py-1.5 text-xs text-(--sb-mu)">{$t('sidebar.organize_no_playlist')}</p>
+            {/each}
+          {/if}
+        </div>
+      {/each}
+    {:else}
+      {#each sections as s (s)}
+        {#if s === 'playlists'}{@render secPlaylists()}{:else if s === 'online'}{@render secOnline()}{:else}{@render secPins()}{/if}
+      {/each}
     {/if}
   </div>
 
@@ -232,7 +420,7 @@ onMount(() => {
 </aside>
 
 {#if menuZone}
-  <PlaylistZoneMenu x={menuZone.x} y={menuZone.y} onclose={() => menuZone = null} />
+  <PlaylistZoneMenu x={menuZone.x} y={menuZone.y} onclose={() => menuZone = null} onorganize={() => (edition = true)} />
 {/if}
 
 {#if menuBibliotheque}

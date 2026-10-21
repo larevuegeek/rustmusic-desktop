@@ -4,3 +4,4 @@ pub mod files;
 pub mod library;
 pub mod string;
 pub mod task;
+pub mod xml;

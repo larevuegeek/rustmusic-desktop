@@ -1,5 +1,74 @@
 # Changelog
 
+## [0.3.2] - à venir
+
+Les podcasts arrivent dans RustMusic : recherche dans l'annuaire Apple ou par
+adresse de flux RSS, classement des émissions les plus écoutées par pays,
+écoute pendant le téléchargement, reprise là où on s'était arrêté. La barre
+latérale s'organise à la main, et la lecture s'arrête proprement en fin de
+file.
+
+### Podcasts
+- **Nouvelle section « Écoute en ligne »** dans les réglages : les podcasts
+  s'y activent (désactivés par défaut). On y choisit aussi le mode d'écoute
+  et le pays de l'annuaire, et on y voit la place prise par les
+  téléchargements et ce qui passe par le réseau.
+- **Trouver une émission** : recherche dans Apple Podcasts, ou adresse d'un
+  flux RSS collée telle quelle. « Les plus écoutés » suit le classement
+  Apple du pays choisi (drapeaux dans le menu ; par défaut celui de
+  l'ordinateur), par catégorie, triable par classement, nom ou dernier
+  épisode.
+- **Aperçu sans s'abonner** : un clic sur une émission de l'annuaire ouvre
+  sa description et ses derniers épisodes. Le menu « … » (ou le clic droit)
+  d'une carte propose l'aperçu, l'abonnement ou le désabonnement, et les
+  favoris.
+- **Accueil des podcasts** : « À écouter » (un épisode par émission, celui
+  commencé ou le plus récent), « Mes podcasts » triable par dernier épisode,
+  nom, date d'abonnement ou nouveaux épisodes.
+- **Fiche d'une émission** : épisodes rangés par mois, plus récents ou plus
+  anciens d'abord, filtre « Non écoutés », carte « Reprendre l'écoute »,
+  tout marquer comme écouté, lien vers le site.
+- **Écoute pendant le téléchargement** : la lecture démarre au bout de
+  quelques secondes, et un saut loin devant ne fait pas attendre la fin du
+  téléchargement. Au choix, l'écoute après téléchargement complet. Vers un
+  lecteur réseau UPnP, l'épisode est d'abord téléchargé en entier.
+- **Reprise et suite** : un épisode reprend là où on l'avait laissé, passe
+  « écouté » à la fin, et les épisodes non écoutés qui suivent prennent la
+  suite. « Lire ensuite » et « Ajouter à la file » placent un épisode dans
+  la file d'attente. Les épisodes n'entrent pas dans « Récemment joués » et
+  n'ont pas de bouton favori.
+- **Téléchargements** : une page liste les épisodes gardés sur
+  l'ordinateur, par émission, avec la place prise par chacune ; on y
+  supprime un épisode, une émission, les épisodes écoutés ou tout. Les
+  fichiers portent un nom lisible (`Émission/2026-10-21 Titre.mp3`).
+- **Favoris** : une étoile épingle une émission dans la barre latérale,
+  sous « Podcasts », et en tête de « Mes podcasts ».
+- Les nouveaux épisodes sont cherchés en arrière-plan ; « Tout vérifier »
+  relit tous les flux à la demande.
+
+### Nouveautés
+- **Mégaphone dans la barre du haut**, à droite de la minuterie : les
+  nouveautés de la version en quelques diapos, avec un bouton « Essayer »
+  qui mène à chacune. Elles s'ouvrent d'elles-mêmes au lancement après une
+  mise à jour, jusqu'à ce qu'on coche « Ne plus afficher au démarrage » ;
+  une pastille signale celles qu'on n'a pas encore vues. La carte de
+  soutien attend 30 s après leur fermeture.
+
+### Barre latérale
+- **Organiser la barre latérale** (menu « … » des Playlists) : les
+  sections Playlists, Écoute en ligne et Épinglés se déplacent, comme les
+  playlists épinglées, « Titres likés » et « Récemment joués », par leur
+  poignée ou par les flèches. L'ordre est retenu.
+- **Carte « Épinglez vos favoris »** : sa croix la ferme, et le choix est
+  retenu. Elle masquait jusqu'ici les sections d'albums et d'artistes
+  épinglés.
+
+### Lecture
+- **Fin de la file** : la lecture s'arrêtait sur un morceau resté « en
+  lecture ». Elle s'arrête maintenant et la barre de progression revient au
+  début.
+- Un seul morceau dans la file en répétition « Tout » est bien rejoué.
+
 ## [0.3.1] - à venir
 
 La télécommande s'ouvre aux amplis Denon, Marantz et Yamaha, et retrouve un

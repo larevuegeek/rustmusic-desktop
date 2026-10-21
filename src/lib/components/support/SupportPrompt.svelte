@@ -6,22 +6,44 @@
   import { updaterState } from "#lib/stores/updater/updater.store";
   import { supportPageUrl } from "#lib/config/support";
   import { isSupportMessageDue, markSupportMessageSeen, disableSupportMessage } from "#lib/helper/support/supportPrompt";
+  import { whatsNew } from "#lib/stores/ui/whatsNew.store";
 
   // ─── Merci après une mise à jour ─────────────────────────────────────────
   // Carte discrète en bas à droite, comme la bannière de mise à jour : jamais
   // en même temps qu'elle, et pas tout de suite au lancement.
   const version = __APP_VERSION__;
   let attendu = $state(false);
+  let due = false;
+  let traite = false;
+  let minuterie: ReturnType<typeof setTimeout> | undefined;
+  const schedule = (ms: number) => {
+    clearTimeout(minuterie);
+    minuterie = setTimeout(() => (attendu = true), ms);
+  };
 
   onMount(() => {
-    if (!isSupportMessageDue(version)) return;
-    const minuterie = setTimeout(() => (attendu = true), 8000);
+    due = isSupportMessageDue(version);
+    if (due) schedule(8000);
     return () => clearTimeout(minuterie);
+  });
+
+  // Pas juste après les nouveautés : la carte attend 30 s après leur fermeture.
+  let nouveautesOuvertes = false;
+  $effect(() => {
+    if ($whatsNew.open) {
+      nouveautesOuvertes = true;
+      attendu = false;
+      clearTimeout(minuterie);
+    } else if (nouveautesOuvertes && due && !traite) {
+      nouveautesOuvertes = false;
+      schedule(30000);
+    }
   });
 
   const visible = $derived(attendu && ($updaterState.kind === "idle" || $updaterState.kind === "checking"));
 
   function fermer(jamais = false) {
+    traite = true;
     attendu = false;
     if (jamais) disableSupportMessage(version);
     else markSupportMessageSeen(version);

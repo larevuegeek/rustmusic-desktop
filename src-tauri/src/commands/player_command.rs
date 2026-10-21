@@ -1,22 +1,32 @@
 use std::error::Error;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::core::audio_analyser::audio_analyser::AudioAnalyser;
 use crate::core::audio_player::audio_player::AudioPlayer;
 use crate::commands::playback;
 use crate::entity::audio::audio_file::AudioFile;
 use crate::helper::files::reader::read_dir_deep;
+use crate::service::podcast::podcast_service;
+use crate::state::AppState;
 
 pub static AUDIO_PLAYER: OnceLock<Arc<Mutex<AudioPlayer>>> = OnceLock::new();
+/// Dernière demande de lecture : une préparation d'épisode dépassée ne lance plus rien.
+static PLAY_REQUEST: AtomicU64 = AtomicU64::new(0);
 
 #[tauri::command]
-pub async fn open_file(path: String) -> AudioFile {
+pub async fn open_file(app: AppHandle, path: String) -> AudioFile {
     log::debug!("Fichier sélectionné : {}", path);
 
     let path_file: PathBuf = PathBuf::from(path);
+
+    // Épisode de podcast : sa fiche vient de la base, le fichier n'est peut-être pas encore là.
+    if let Some(file) = podcast_service::audio_file(&app.state::<AppState>().pool, &path_file).await {
+        return file;
+    }
 
     let result_audio_file: Result<AudioFile, Box<dyn Error>> =
         AudioAnalyser::analyse_audio_file(&path_file);
@@ -74,6 +84,19 @@ pub async fn open_files(directory: String) -> Vec<AudioFile> {
 pub async fn play_file(app_handle: AppHandle, path: String) {
     let path_file = PathBuf::from(path);
     log::debug!("File selected {:?}", path_file);
+    let request = PLAY_REQUEST.fetch_add(1, Ordering::SeqCst) + 1;
+    // Épisode : téléchargement lancé d'abord ; un lecteur réseau attend le fichier complet.
+    let whole = playback::target() == playback::Target::Upnp;
+    let pool = app_handle.state::<AppState>().pool.clone();
+    if let Err(e) = podcast_service::prepare(&pool, &path_file, whole).await {
+        log::warn!("🎙️  Épisode illisible : {e}");
+        let _ = app_handle.emit("playback-preparing", false);
+        let _ = app_handle.emit("podcast-error", e);
+        return;
+    }
+    if PLAY_REQUEST.load(Ordering::SeqCst) != request {
+        return;
+    }
     playback::play(app_handle, path_file).await;
 }
 

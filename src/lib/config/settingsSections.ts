@@ -31,7 +31,7 @@ export const settingsSections: SettingsSection[] = [
       "theme", "contrast", "show_help_bubbles",
       "show_open_buttons", "show_pinned_albums", "show_pinned_artists",
       "show_liked_in_playlists", "show_recent_in_playlists", "show_recent_in_home", "show_favorites",
-      "library_tabs_position", "library_tabs",
+      "library_tabs_position", "library_tabs", "sidebar_order", "sidebar_playlists_order", "pins_hint_dismissed",
       "window_controls_style", "window_controls_position",
     ],
   },
@@ -41,6 +41,11 @@ export const settingsSections: SettingsSection[] = [
     cles: ["wasapi_exclusive", "dsd_dop"],
   },
   { id: "network", icon: "material-symbols:cast-rounded", labelKey: "settings.network", hintKey: "settings.network_hint", descKey: "settings.network_desc" },
+  {
+    id: "online", icon: "material-symbols:podcasts-rounded",
+    labelKey: "settings.online", hintKey: "settings.online_hint", descKey: "settings.online_desc",
+    cles: ["podcasts", "podcast_play_mode", "podcast_country"],
+  },
   {
     id: "remote", icon: "material-symbols:settings-remote-outline-rounded",
     labelKey: "settings.remote", hintKey: "settings.remote_hint", descKey: "settings.remote_desc",

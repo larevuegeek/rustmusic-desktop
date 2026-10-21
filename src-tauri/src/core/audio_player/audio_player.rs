@@ -310,7 +310,14 @@ impl AudioPlayer {
                     | crate::core::audio_quality::AudioQualityProfile::Minimal
             );
 
-        let mss: MediaSourceStream = if needs_preload {
+        // Épisode de podcast encore en téléchargement : lu pendant qu'il arrive.
+        let growing = crate::core::podcast::download::reader(&file_path).transpose()?;
+        let arriving = growing.is_some();
+
+        let mss: MediaSourceStream = if let Some(source) = growing {
+            log::info!("🎙️  Lecture pendant le téléchargement");
+            MediaSourceStream::new(Box::new(source), Default::default())
+        } else if needs_preload {
             let bytes: Vec<u8> = std::fs::read(&file_path)?;
             log::info!(
                 "📥 Fichier pré-chargé en RAM : {} MB ({})",
@@ -387,6 +394,10 @@ impl AudioPlayer {
             if let Some(n_frames) = track.num_frames {
                 total_secs = Some(n_frames as f64 / source_sample_rate as f64);
             }
+        }
+        // MP3 sans index en cours de téléchargement : la durée annoncée par le flux.
+        if total_secs.is_none() {
+            total_secs = crate::core::podcast::download::get(&file_path).and_then(|d| d.duration_hint);
         }
         if let Some(secs) = total_secs {
             total_duration.store(secs.to_bits(), Ordering::Relaxed);
@@ -636,6 +647,7 @@ impl AudioPlayer {
                 source_sample_rate,
                 seek_flush_decoder,
                 total_duration_for_decoder,
+                arriving,
             )
         });
 
@@ -2312,6 +2324,8 @@ pub fn decode_thread<P>(
     sample_rate_for_seek: u32,
     seek_flush: Arc<AtomicBool>,
     total_duration: Arc<AtomicU64>,
+    // Fichier encore en téléchargement : combler le début peut être lent.
+    arriving: bool,
 ) -> Result<(), String>
 where
     P: Producer<Item = f32>
@@ -2363,17 +2377,26 @@ where
             let decoded_end = full_buffer_data.read().map(|fb| fb.len()).unwrap_or(0);
 
             // Début en cours de décodage : tout ce qui suit est déjà là.
+            let mut restart_fill = false;
             if let Some(pos) = fill_pos {
-                if target >= pos && target < hole_end {
+                // Fichier qui arrive : le comblement suit le téléchargement, attendre une cible
+                // lointaine ferait de longues secondes de silence. On repart de la cible.
+                let far = arriving && target > pos + 5 * near;
+                let in_fill = target >= pos && target < hole_end;
+                if in_fill && !far {
                     deferred_seek = Some(new_frames);
                     log::debug!("Seek à {:.1}s différé : début du morceau en cours de décodage", seek_seconds);
-                } else {
+                    continue;
+                } else if !in_fill {
                     deferred_seek = None;
                     current_position_frames.store(new_frames, Ordering::Relaxed);
                     seek_flush.store(true, Ordering::Relaxed);
                     log::debug!("Seek FullBuffer à {:.1}s (instantané)", seek_seconds);
+                    continue;
                 }
-                continue;
+                // Comblement abandonné seulement si le saut réussit.
+                restart_fill = true;
+                log::debug!("Seek à {:.1}s loin du comblement : décodage relancé à la cible", seek_seconds);
             }
 
             // Déjà décodé, ou atteint dans la seconde : la sortie repositionne
@@ -2396,6 +2419,11 @@ where
                 symphonia::core::formats::SeekTo::Timestamp { ts: Timestamp::from(seek_ts), track_id },
             ) {
                 Ok(seeked) => {
+                    if restart_fill {
+                        fill_pos = None;
+                        deferred_seek = None;
+                        tail_flushed = false;
+                    }
                     if let Some(ref mut rs) = resampler {
                         rs.reset();
                     }
@@ -2716,6 +2744,7 @@ mod tests {
             RATE,
             Arc::new(AtomicBool::new(false)),
             Arc::new(AtomicU64::new((SECONDS as f64).to_bits())),
+            false,
         )
         .unwrap();
         Arc::try_unwrap(full_buffer).unwrap().into_inner().unwrap()

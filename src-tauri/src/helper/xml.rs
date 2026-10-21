@@ -1,9 +1,4 @@
-//! Lecteur XML minimal pour les descriptions UPnP et les réponses SOAP.
-//!
-//! Ce n'est pas un analyseur général : il retrouve des éléments par leur nom
-//! local (préfixe ignoré, `<u:Volume>` comme `<Volume>`), gère l'imbrication
-//! d'éléments du même nom, saute commentaires, CDATA et instructions, et décode
-//! les entités. C'est tout ce qu'exigent les appareils réseau.
+//! Lecteur XML minimal (UPnP, SOAP, RSS) : éléments par nom local, imbrication, CDATA, entités.
 
 /// Balise trouvée à une position : nom local, ouvrante ou fermante, auto-fermée.
 struct Tag<'a> {
@@ -42,12 +37,24 @@ pub fn elements<'a>(xml: &'a str, name: &str) -> Vec<&'a str> {
 
 /// Comme [`elements`], avec la balise ouvrante de chacun (pour ses attributs).
 pub fn tagged<'a>(xml: &'a str, name: &str) -> Vec<(&'a str, &'a str)> {
+    spans(xml, name).into_iter().map(|s| (&xml[s.open..s.content], &xml[s.content..s.content_end])).collect()
+}
+
+/// Position d'un élément : balise ouvrante, contenu, fin de la balise fermante.
+/// Auto-fermé : contenu vide, l'élément finit avec sa balise.
+struct Span {
+    open: usize,
+    content: usize,
+    content_end: usize,
+    end: usize,
+}
+
+/// Éléments `name` les plus extérieurs, dans l'ordre.
+fn spans(xml: &str, name: &str) -> Vec<Span> {
     let mut out = Vec::new();
-    // Balise ouvrante de l'élément en cours.
-    let mut open_tag: &str = "";
     let mut pos = 0;
-    // (début du contenu, profondeur) de l'élément en cours.
-    let mut open: Option<(usize, usize)> = None;
+    // (balise ouvrante, début du contenu, profondeur) de l'élément en cours.
+    let mut open: Option<(usize, usize, usize)> = None;
 
     while let Some(rel) = xml[pos..].find('<') {
         let start = pos + rel;
@@ -59,16 +66,13 @@ pub fn tagged<'a>(xml: &'a str, name: &str) -> Vec<(&'a str, &'a str)> {
                     continue;
                 }
                 match (&mut open, tag.closing, tag.self_closing) {
-                    (None, false, true) => out.push((&xml[start..tag.end], "")),
-                    (None, false, false) => {
-                        open_tag = &xml[start..tag.end];
-                        open = Some((tag.end, 1));
-                    }
-                    (Some((_, depth)), false, false) => *depth += 1,
-                    (Some((content, depth)), true, _) => {
+                    (None, false, true) => out.push(Span { open: start, content: tag.end, content_end: tag.end, end: tag.end }),
+                    (None, false, false) => open = Some((start, tag.end, 1)),
+                    (Some((_, _, depth)), false, false) => *depth += 1,
+                    (Some((open_at, content, depth)), true, _) => {
                         *depth -= 1;
                         if *depth == 0 {
-                            out.push((open_tag, &xml[*content..start]));
+                            out.push(Span { open: *open_at, content: *content, content_end: start, end: tag.end });
                             open = None;
                         }
                     }
@@ -113,23 +117,14 @@ pub fn text(xml: &str, name: &str) -> Option<String> {
 }
 
 /// Retire les éléments `name` (et leur contenu) : isole un appareil de ses sous-appareils.
-pub fn without<'a>(xml: &'a str, name: &str) -> String {
+pub fn without(xml: &str, name: &str) -> String {
     let mut out = String::with_capacity(xml.len());
-    let mut rest = xml;
-    for inner in elements(xml, name) {
-        // `inner` est une tranche de `xml` : on coupe de la balise ouvrante à la fermante.
-        let content_start = inner.as_ptr() as usize - xml.as_ptr() as usize;
-        let content_end = content_start + inner.len();
-        let before = &xml[..content_start];
-        let open_start = before.rfind('<').unwrap_or(content_start);
-        let close_end = xml[content_end..].find('>').map_or(xml.len(), |i| content_end + i + 1);
-        let offset = rest.as_ptr() as usize - xml.as_ptr() as usize;
-        if open_start >= offset {
-            out.push_str(&xml[offset..open_start]);
-            rest = &xml[close_end..];
-        }
+    let mut from = 0;
+    for s in spans(xml, name) {
+        out.push_str(&xml[from..s.open]);
+        from = s.end;
     }
-    out.push_str(rest);
+    out.push_str(&xml[from..]);
     out
 }
 
@@ -230,6 +225,12 @@ mod tests {
         assert_eq!(attr(members[0].0, "ZoneName").as_deref(), Some("Salon & Cuisine"));
         assert_eq!(attr(members[0].0, "UUID").as_deref(), Some("RINCON_A"));
         assert_eq!(attr(members[0].0, "Missing"), None);
+    }
+
+    #[test]
+    fn removes_self_closing_and_full_elements() {
+        let xml = r#"<channel><title>A</title><itunes:image href="x.jpg"/><image><title>Logo</title></image><link>l</link></channel>"#;
+        assert_eq!(without(xml, "image"), "<channel><title>A</title><link>l</link></channel>");
     }
 
     #[test]

@@ -70,6 +70,15 @@ export type AppSettings = {
   amp_remote: string;               // 'true' | 'false' — télécommande d'ampli, désactivée par défaut
   amp_remote_open: string;          // 'true' | 'false' — panneau de la télécommande sorti
   amp_remote_mini: string;          // 'true' | 'false' — télécommande réduite à l'afficheur et au volume
+  podcasts: string;                 // 'true' | 'false' — podcasts, désactivés par défaut
+  podcast_play_mode: string;        // 'stream' (pendant le téléchargement) | 'download' (après)
+  podcast_country: string;          // pays de l'annuaire (« FR »…) ; vide = celui de l'ordinateur
+  // Ordre des sections de la barre latérale, en JSON (`playlists`, `online`, `pins`).
+  sidebar_order: string;
+  // Ordre de la section Playlists, en JSON : `playlist:<id>`, `liked`, `recent`.
+  sidebar_playlists_order: string;
+  // 'true' : la carte « Épinglez vos favoris » a été fermée (les sections restent).
+  pins_hint_dismissed: string;
   show_pinned_albums: string;
   show_pinned_artists: string;
   // 'true' | 'false' — pied de la barre réduit à une ligne, par sa languette.
@@ -121,6 +130,12 @@ export const settingsDefaults: AppSettings = {
   amp_remote: 'false',
   amp_remote_open: 'false',
   amp_remote_mini: 'false',
+  podcasts: 'false',
+  podcast_play_mode: 'stream',
+  podcast_country: '',
+  sidebar_order: '["playlists","online","pins"]',
+  sidebar_playlists_order: '[]',
+  pins_hint_dismissed: 'false',
   show_pinned_albums: 'true',
   show_pinned_artists: 'true',
   sidebar_footer_collapsed: 'false',
@@ -211,6 +226,15 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
       await ampRemoteStore.setEnabled(value === 'true');
     } catch (e) {
       console.error('[settings] Erreur télécommande:', e);
+    }
+  },
+
+  // Podcasts : coupés, aucun flux n'est contacté.
+  podcasts: async (value: string) => {
+    try {
+      await invoke('set_podcasts_enabled', { enabled: value === 'true' });
+    } catch (e) {
+      console.error('[settings] Erreur podcasts:', e);
     }
   },
 

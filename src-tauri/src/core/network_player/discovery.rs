@@ -12,7 +12,7 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::net::UdpSocket;
 
 use super::interfaces::local_ipv4s;
-use super::xml;
+use crate::helper::xml;
 
 const SSDP_ADDR: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 const SSDP_PORT: u16 = 1900;

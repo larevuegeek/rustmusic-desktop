@@ -70,7 +70,7 @@
     "security": {
       "csp": {
         "default-src": "'self' http://localhost https://localhost ipc: tauri:",
-        "img-src": "'self' asset: http://asset.localhost https://asset.localhost blob: data: https://*.dzcdn.net https://coverartarchive.org https://archive.org https://*.archive.org",
+        "img-src": "'self' asset: http://asset.localhost https://asset.localhost blob: data: https://*.mzstatic.com https://*.dzcdn.net https://coverartarchive.org https://archive.org https://*.archive.org",
         "connect-src": "'self' ipc: tauri: http://ipc.localhost https://ipc.localhost http://localhost https://localhost"
       },
       "assetProtocol": {

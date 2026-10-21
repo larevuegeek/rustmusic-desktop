@@ -1,0 +1,134 @@
+<script lang="ts">
+  // Un épisode : date, titre, résumé, durée ou temps restant ; dépliée, sa description complète.
+  import Icon from "@iconify/svelte";
+  import { invoke } from "@tauri-apps/api/core";
+  import { t, currentLocale } from "#lib/i18n";
+  import SafeHtml from "#lib/components/ui/text/SafeHtml.svelte";
+  import Menu from "#lib/components/ui/menu/Menu.svelte";
+  import MenuItem from "#lib/components/ui/menu/MenuItem.svelte";
+  import { episodeDate, episodeDuration } from "#lib/helper/tools/podcastFormat";
+  import type { EpisodeView } from "#lib/types/ui/podcast/Podcast";
+
+  let { episode, onplay, ontoggleplayed, onnext, onenqueue, ondownload, ondelete, lecture = null, telechargement = false }: {
+    episode: EpisodeView;
+    onplay: () => void;
+    ontoggleplayed: () => void;
+    onnext: () => void;
+    onenqueue: () => void;
+    ondownload: () => void;
+    ondelete: () => void;
+    /** L'épisode est celui du lecteur : en cours ou en pause. */
+    lecture?: "playing" | "paused" | null;
+    /** Téléchargement en cours. */
+    telechargement?: boolean;
+  } = $props();
+
+  let menu = $state(false);
+  const agir = (f: () => void) => () => { menu = false; f(); };
+
+  const enCours = $derived(!episode.played && episode.position > 0);
+  const restant = $derived(
+    enCours && episode.duration ? $t("podcasts.remaining").replace("{t}", episodeDuration(episode.duration - episode.position)) : "",
+  );
+  const avancement = $derived(enCours && episode.duration ? Math.min(100, (episode.position / episode.duration) * 100) : 0);
+
+  // La description complète n'est demandée qu'au dépliage : elle pèse sur les longues listes.
+  let ouvert = $state(false);
+  let description = $state<string | null>(null);
+  async function toggle() {
+    ouvert = !ouvert;
+    if (ouvert && description === null) {
+      const e = await invoke<EpisodeView | null>("get_podcast_episode", { episodeId: episode.id }).catch(() => null);
+      description = e?.description ?? episode.summary ?? "";
+    }
+  }
+</script>
+
+<li class="group flex gap-3.5 py-4 border-b border-(--rg-line) last:border-b-0">
+  <button type="button" onclick={onplay}
+          title={lecture === "playing" ? $t("podcasts.pause") : $t("podcasts.play")}
+          aria-label={lecture === "playing" ? $t("podcasts.pause") : $t("podcasts.play")}
+          class="shrink-0 mt-0.5 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors
+                 {lecture ? 'bg-(--rg-g) text-(--rg-on-g)' : 'bg-(--rg-s2) text-(--rg-tx) hover:bg-(--rg-g) hover:text-(--rg-on-g)'}">
+    <Icon icon={lecture === "playing" ? "material-symbols:pause-rounded" : "material-symbols:play-arrow-rounded"} width="24" />
+  </button>
+
+  <div class="flex-1 min-w-0">
+    <p class="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-(--rg-mu)">
+      {#if episode.is_new && !episode.played}
+        <span class="w-2 h-2 rounded-full bg-(--rg-g)" title={$t("podcasts.new_badge")}></span>
+      {/if}
+      <span>{episodeDate(episode.published_at, $currentLocale)}</span>
+      {#if episode.season != null && episode.episode != null}
+        <span class="normal-case font-medium">· {$t("podcasts.season_episode").replace("{s}", String(episode.season)).replace("{e}", String(episode.episode))}</span>
+      {/if}
+    </p>
+
+    <button type="button" onclick={toggle} aria-expanded={ouvert}
+            class="mt-1 block w-full text-left cursor-pointer">
+      <span class="block text-[15px] font-bold leading-snug {lecture ? 'text-(--rg-gtx)' : episode.played ? 'text-(--rg-mu)' : 'text-(--rg-tx)'}">{episode.title}</span>
+      {#if !ouvert && episode.summary}
+        <span class="mt-1 text-[13px] leading-relaxed text-(--rg-mu) line-clamp-2">{episode.summary}</span>
+      {/if}
+    </button>
+
+    {#if ouvert}
+      {#if description === null}
+        <Icon icon="material-symbols:progress-activity" width="18" class="mt-2 animate-spin text-(--rg-mu)" />
+      {:else}
+        <SafeHtml html={description} class="mt-2 text-[13.5px] leading-relaxed text-(--rg-tx2)" />
+      {/if}
+    {/if}
+
+    <div class="mt-2 flex items-center gap-3 text-[12.5px] text-(--rg-mu)">
+      {#if episode.played}
+        <span class="inline-flex items-center gap-1 font-semibold text-(--rg-gtx)">
+          <Icon icon="material-symbols:check-circle-rounded" width="16" />{$t("podcasts.played")}
+        </span>
+      {:else if enCours}
+        <span class="w-20 h-1 rounded-full bg-(--rg-s2) overflow-hidden" aria-hidden="true">
+          <span class="block h-full rounded-full bg-(--rg-g)" style="width: {avancement}%"></span>
+        </span>
+        <span>{restant}</span>
+      {:else if episode.duration}
+        <span>{episodeDuration(episode.duration)}</span>
+      {/if}
+      {#if episode.file_path}
+        <span class="inline-flex items-center gap-1" title={$t("podcasts.downloaded")}>
+          <Icon icon="material-symbols:download-done-rounded" width="16" /><span class="max-sm:hidden">{$t("podcasts.downloaded")}</span>
+        </span>
+      {/if}
+      <span class="flex-1"></span>
+      {#if telechargement}
+        <span class="w-8 h-8 flex items-center justify-center" title={$t("podcasts.downloading")}>
+          <Icon icon="material-symbols:progress-activity" width="17" class="animate-spin" />
+        </span>
+      {:else if !episode.file_path}
+        <button type="button" onclick={ondownload} title={$t("podcasts.download")} aria-label={$t("podcasts.download")}
+                class="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition
+                       opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-(--rg-s2) hover:text-(--rg-tx)">
+          <Icon icon="material-symbols:download-rounded" width="19" />
+        </button>
+      {/if}
+      <div class="relative">
+        <button type="button" onclick={() => (menu = !menu)} title={$t("common.menu")} aria-label={$t("common.menu")} aria-expanded={menu}
+                class="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition hover:bg-(--rg-s2) hover:text-(--rg-tx)
+                       {menu ? 'bg-(--rg-s2) text-(--rg-tx)' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}">
+          <Icon icon="material-symbols:more-horiz" width="20" />
+        </button>
+        <Menu bind:open={menu} class="w-64">
+          <MenuItem icon="material-symbols:playlist-play-rounded" onclick={agir(onnext)}>{$t("common.add_next")}</MenuItem>
+          <MenuItem icon="material-symbols:playlist-add-rounded" onclick={agir(onenqueue)}>{$t("podcasts.add_to_queue")}</MenuItem>
+          <MenuItem icon={episode.played ? "material-symbols:remove-done-rounded" : "material-symbols:done-all-rounded"} onclick={agir(ontoggleplayed)}>
+            {episode.played ? $t("podcasts.mark_unplayed") : $t("podcasts.mark_played")}
+          </MenuItem>
+          {#if episode.file_path}
+            <MenuItem icon="material-symbols:delete-outline-rounded" danger onclick={agir(ondelete)}>{$t("podcasts.delete_download")}</MenuItem>
+          {:else if !telechargement}
+            <MenuItem icon="material-symbols:download-rounded" onclick={agir(ondownload)}>{$t("podcasts.download")}</MenuItem>
+          {/if}
+        </Menu>
+      </div>
+    </div>
+  </div>
+</li>

@@ -2,7 +2,7 @@
 
 use super::control;
 use super::discovery::{self, Renderer};
-use super::xml;
+use crate::helper::xml;
 
 const ZONE_GROUP_TOPOLOGY: &str = "urn:schemas-upnp-org:service:ZoneGroupTopology:1";
 

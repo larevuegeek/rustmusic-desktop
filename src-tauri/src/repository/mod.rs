@@ -7,3 +7,4 @@ pub mod playlist;
 pub mod queue;
 pub mod recent;
 pub mod settings;
+pub mod podcast;

@@ -6,7 +6,7 @@
   import { settingsStore } from "#lib/stores/settings/settings.store";
 
   /** Les options de la zone des playlists, sous le bouton « … ». */
-  let { x, y, onclose }: { x: number; y: number; onclose: () => void } = $props();
+  let { x, y, onclose, onorganize }: { x: number; y: number; onclose: () => void; onorganize?: () => void } = $props();
 
   /**
    * Les raccourcis bâtis dans l'application.
@@ -37,7 +37,7 @@
   // latérale est contre le bord gauche.
   let menuStyle = $derived.by(() => {
     const largeur = 264;
-    const hauteur = 250;
+    const hauteur = 300;
     const posX = Math.max(8, Math.min(x - largeur + 16, window.innerWidth - largeur - 8));
     const posY = y + hauteur > window.innerHeight ? Math.max(8, y - hauteur) : y;
     return `left: ${posX}px; top: ${posY}px;`;
@@ -81,6 +81,16 @@
     </span>
     <Icon icon="lucide:chevron-right" width="13" class="text-neutral-300 dark:text-neutral-600 shrink-0" />
   </button>
+
+  {#if onorganize}
+    <button class={ligne} onclick={() => { onclose(); onorganize(); }}>
+      <span class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center
+                   bg-neutral-100 dark:bg-white/5 border border-neutral-200/80 dark:border-white/8">
+        <Icon icon="material-symbols:swap-vert-rounded" width="15" class="text-neutral-500 dark:text-neutral-400" />
+      </span>
+      <span class="flex-1 text-[13px] text-neutral-700 dark:text-neutral-200">{$t('sidebar.organize_menu')}</span>
+    </button>
+  {/if}
 
   <div class="h-px mx-2 my-1.5 bg-neutral-200/80 dark:bg-white/8"></div>
 

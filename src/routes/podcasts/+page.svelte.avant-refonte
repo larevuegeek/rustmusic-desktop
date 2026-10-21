@@ -1,0 +1,202 @@
+<script lang="ts">
+  // Podcasts du profil : abonnements, recherche dans l'annuaire, ajout par adresse de flux.
+  import Icon from "@iconify/svelte";
+  import { t, currentLocale } from "#lib/i18n";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
+  import { profilSelector } from "#lib/stores/profil/profil.store";
+  import { podcastStore } from "#lib/stores/podcast/podcast.store";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import SearchField from "#lib/components/ui/input/SearchField.svelte";
+  import PodcastCard from "#lib/components/podcast/PodcastCard.svelte";
+  import PodcastCover from "#lib/components/podcast/PodcastCover.svelte";
+  import type { DirectoryResult } from "#lib/types/ui/podcast/Podcast";
+
+  const actif = $derived($settingsStore.podcasts === "true");
+  const profilId = $derived($profilSelector.profilSelected?.id ?? null);
+  $effect(() => {
+    if (actif && profilId != null && $podcastStore.profilId !== profilId) podcastStore.load(profilId);
+  });
+
+  const podcasts = $derived($podcastStore.profilId === profilId ? $podcastStore.podcasts : []);
+  const nouveaux = $derived(podcasts.reduce((n, p) => n + p.new_count, 0));
+  const suivis = $derived(new Set(podcasts.map((p) => p.feed_url)));
+  const formatNumber = (n: number) => n.toLocaleString($currentLocale);
+
+  // ─── Recherche, ou adresse de flux collée ───
+  let saisie = $state("");
+  let resultats = $state<DirectoryResult[] | null>(null);
+  let cherche = $state(false);
+  let ajout = $state<string | null>(null);
+
+  // Une adresse se reconnaît à son schéma ou à sa forme (domaine + chemin, sans espace).
+  const estAdresse = $derived.by(() => {
+    const s = saisie.trim();
+    return /^(https?|feed|itpc|pcast|podcast):/i.test(s) || (!/\s/.test(s) && /^[\w-]+(\.[\w-]+)+\/\S*$/.test(s));
+  });
+
+  // Pays de l'annuaire : celui de la langue de l'appli.
+  const PAYS: Record<string, string> = { fr: "FR", en: "US", de: "DE", es: "ES", it: "IT" };
+
+  async function submit(e: SubmitEvent) {
+    e.preventDefault();
+    const s = saisie.trim();
+    if (!s) return;
+    if (estAdresse) return follow(s);
+    cherche = true;
+    try {
+      resultats = await podcastStore.search(s, PAYS[$currentLocale] ?? "US");
+    } catch (err) {
+      toasts.push({ type: "error", title: $t("podcasts.error_search"), message: String(err) });
+    } finally {
+      cherche = false;
+    }
+  }
+
+  async function follow(url: string) {
+    ajout = url;
+    try {
+      const p = await podcastStore.follow(url);
+      if (estAdresse) saisie = "";
+      toasts.push({ type: "success", title: $t("podcasts.followed").replace("{title}", p.title) });
+    } catch (err) {
+      toasts.push({ type: "error", title: $t("podcasts.error_follow"), message: String(err) });
+    } finally {
+      ajout = null;
+    }
+  }
+
+  let verification = $state(false);
+  async function checkAll() {
+    verification = true;
+    try {
+      const n = await podcastStore.refreshAll();
+      toasts.push({
+        type: "info",
+        title: n === 0 ? $t("podcasts.up_to_date") : `${formatNumber(n)} ${$t(n === 1 ? "podcasts.new_one" : "podcasts.new_n")}`,
+      });
+    } catch (err) {
+      toasts.push({ type: "error", title: $t("podcasts.error_refresh"), message: String(err) });
+    } finally {
+      verification = false;
+    }
+  }
+
+  $effect(() => {
+    if (!saisie.trim()) resultats = null;
+  });
+</script>
+
+{#if !actif}
+  <div class="flex flex-col items-center justify-center gap-3 h-full px-6 text-center text-(--rg-mu)">
+    <Icon icon="material-symbols:podcasts-rounded" width="40" />
+    <p class="text-sm">{$t("podcasts.disabled")}</p>
+    <a href="/settings/online" class="text-sm font-semibold text-(--rg-gtx) hover:underline">{$t("podcasts.disabled_link")}</a>
+  </div>
+{:else}
+<div class="biblio-maquette flex flex-col h-full">
+  <!-- ─── En-tête ─── -->
+  <div class="shrink-0 flex flex-wrap items-center gap-x-5 gap-y-4 px-4 md:pl-8 md:pr-14 pt-6 pb-4">
+    <div class="w-16 h-16 shrink-0 rounded-2xl border flex items-center justify-center text-violet-600 dark:text-violet-300
+                bg-violet-500/10 border-violet-500/25 max-sm:w-12 max-sm:h-12">
+      <Icon icon="material-symbols:podcasts-rounded" width="30" />
+    </div>
+    <div class="flex-[1_1_240px] min-w-60">
+      <p class="text-xs font-bold uppercase tracking-widest text-(--rg-mu)">{$t("podcasts.kicker")}</p>
+      <h1 class="mt-0.5 mb-1.5 text-[34px] max-sm:text-2xl font-extrabold tracking-[-0.02em] leading-tight text-(--rg-tx)">{$t("podcasts.title")}</h1>
+      <div class="flex flex-wrap items-baseline gap-x-4.5 gap-y-1.5 text-sm text-(--rg-mu)">
+        <span><b class="font-bold text-(--rg-tx)">{formatNumber(podcasts.length)}</b> {$t(podcasts.length === 1 ? "podcasts.count_one" : "podcasts.count_n")}</span>
+        {#if nouveaux > 0}
+          <span><b class="font-bold text-(--rg-gtx)">{formatNumber(nouveaux)}</b> {$t(nouveaux === 1 ? "podcasts.new_one" : "podcasts.new_n")}</span>
+        {/if}
+      </div>
+    </div>
+    {#if podcasts.length > 0}
+      <a href="/podcasts/downloads"
+         class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border text-sm font-semibold transition-colors
+                border-(--rg-bd2) text-(--rg-tx) hover:border-(--rg-gbd) hover:text-(--rg-gtx)">
+        <Icon icon="material-symbols:download-for-offline-outline-rounded" width="18" />{$t("podcasts.downloads")}
+      </a>
+      <button type="button" onclick={checkAll} disabled={verification}
+              class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border cursor-pointer text-sm font-semibold transition-colors
+                     border-(--rg-bd2) text-(--rg-tx) hover:border-(--rg-gbd) hover:text-(--rg-gtx) disabled:opacity-60 disabled:cursor-wait">
+        <Icon icon={verification ? "material-symbols:progress-activity" : "material-symbols:refresh-rounded"} width="18" class={verification ? "animate-spin" : ""} />
+        {verification ? $t("podcasts.checking") : $t("podcasts.check_all")}
+      </button>
+    {/if}
+  </div>
+
+  <!-- ─── Recherche ─── -->
+  <div class="shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3 border-t border-(--rg-line)">
+    <form onsubmit={submit} class="flex flex-wrap items-center gap-2.5">
+      <SearchField bind:value={saisie} class="flex-[1_1_320px] max-w-140" placeholder={$t("podcasts.search_placeholder")} clearLabel={$t("podcasts.clear")} />
+      <button type="submit" disabled={!saisie.trim() || cherche || ajout !== null}
+              class="h-9.5 px-4 inline-flex items-center gap-2 rounded-[10px] cursor-pointer text-sm font-bold bg-(--rg-g) text-(--rg-on-g) hover:brightness-110 transition disabled:opacity-50 disabled:cursor-default">
+        {#if cherche || (estAdresse && ajout)}
+          <Icon icon="material-symbols:progress-activity" width="18" class="animate-spin" />
+        {:else}
+          <Icon icon={estAdresse ? "material-symbols:add-rounded" : "material-symbols:search-rounded"} width="18" />
+        {/if}
+        {estAdresse ? $t("podcasts.add_feed") : $t("podcasts.search")}
+      </button>
+    </form>
+  </div>
+
+  <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pt-2 pb-16">
+    <!-- ─── Résultats de l'annuaire ─── -->
+    {#if resultats}
+      <section class="mb-8">
+        <h2 class="flex items-baseline gap-2.5 mb-2 text-xs font-bold uppercase tracking-widest text-(--rg-mu)">
+          {$t("podcasts.results")}<span class="normal-case tracking-normal font-medium">{$t("podcasts.results_hint")}</span>
+        </h2>
+        {#if resultats.length === 0}
+          <p class="py-3 text-sm text-(--rg-mu)">{$t("podcasts.no_results")}</p>
+        {:else}
+          <ul class="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-x-6">
+            {#each resultats as r (r.feed_url)}
+              {@const deja = suivis.has(r.feed_url)}
+              <li class="flex items-center gap-3.5 py-2.5 border-b border-(--rg-line)">
+                {#if r.image_url}
+                  <img src={r.image_url} alt="" loading="lazy" class="w-14 h-14 shrink-0 rounded-lg object-cover bg-(--rg-s2)" />
+                {:else}
+                  <PodcastCover path={null} icone={24} class="w-14 h-14 shrink-0 rounded-lg" />
+                {/if}
+                <span class="flex-1 min-w-0">
+                  <span class="block truncate text-[15px] font-semibold text-(--rg-tx)">{r.title}</span>
+                  <span class="block truncate text-[13px] text-(--rg-mu)">
+                    {[r.author, r.genre, r.episode_count ? `${formatNumber(r.episode_count)} ${$t(r.episode_count === 1 ? "podcasts.episodes_one" : "podcasts.episodes_n")}` : null].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+                <button type="button" onclick={() => follow(r.feed_url)} disabled={deja || ajout !== null}
+                        class="h-8.5 px-3 shrink-0 inline-flex items-center gap-1.5 rounded-[9px] border text-[13px] font-semibold transition-colors
+                               {deja ? 'border-transparent text-(--rg-gtx) cursor-default' : 'border-(--rg-bd2) text-(--rg-tx) cursor-pointer hover:border-(--rg-gbd) hover:text-(--rg-gtx)'}
+                               disabled:opacity-100">
+                  {#if ajout === r.feed_url}
+                    <Icon icon="material-symbols:progress-activity" width="16" class="animate-spin" />
+                  {:else}
+                    <Icon icon={deja ? "material-symbols:check-rounded" : "material-symbols:add-rounded"} width="17" />
+                  {/if}
+                  {deja ? $t("podcasts.following") : $t("podcasts.follow")}
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    {/if}
+
+    <!-- ─── Abonnements ─── -->
+    {#if podcasts.length > 0}
+      {#if resultats}
+        <h2 class="mb-3 text-xs font-bold uppercase tracking-widest text-(--rg-mu)">{$t("podcasts.subscriptions")}</h2>
+      {/if}
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x-5 gap-y-6 pt-2">
+        {#each podcasts as p (p.id)}
+          <PodcastCard podcast={p} />
+        {/each}
+      </div>
+    {:else if $podcastStore.loaded && !resultats}
+      <p class="mt-8 max-w-md text-sm leading-relaxed text-(--rg-mu)">{$t("podcasts.empty")}</p>
+    {/if}
+  </div>
+</div>
+{/if}

@@ -35,6 +35,8 @@ import { TEINTE, CHAINE, fallbackMessage, readableRate } from "#lib/helper/audio
 
 const audioFile = $derived($player?.audioFile);
 const audioTags = $derived(audioFile?.tags);
+// Épisode de podcast : pas de cœur, il ne rejoint pas les titres aimés.
+const episode = $derived(audioTags?.media_type === "podcast");
 const hasTrack = $derived(!!$player?.pathFile);
 const isPlaying = $derived($player?.status === "playing");
 // Le son n'a pas encore démarré (ouverture du DAC, décodage).
@@ -266,7 +268,7 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
       </div>
 
       <div class="flex items-center justify-end gap-0.5 max-lg:col-start-2 max-lg:row-start-1">
-        {#if hasTrack && $player?.pathFile}
+        {#if hasTrack && $player?.pathFile && !episode}
           {@const aime = $liked.paths.has($player.pathFile)}
           <button type="button" class="favori {ib} {aime ? 'text-[#e2566a]! dark:text-[#ff7a88]!' : ''}" title={$t("player.like")} aria-label={$t("player.like")} aria-pressed={aime}
                   onclick={() => $player?.pathFile && liked.toggle($player.pathFile)}>

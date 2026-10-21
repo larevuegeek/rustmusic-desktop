@@ -112,6 +112,23 @@ export const playlistStore = {
       playlists: state.playlists.map(p => p.id === id ? updated : p)
     }));
   },
+  /** Nouvel ordre des playlists (barre latérale) ; `ids` dans l'ordre voulu, les autres suivent. */
+  reorder: async (ids: number[]) => {
+    const profilId = get(profilSelector).profilSelected?.id;
+    if (!profilId) return;
+    const avant = get(playlistWriter).playlists;
+    const rang = new Map(ids.map((id, i) => [id, i]));
+    const reste = avant.filter((p) => !rang.has(p.id));
+    const ordre = [...avant.filter((p) => rang.has(p.id)).sort((a, b) => rang.get(a.id)! - rang.get(b.id)!), ...reste]
+      .map((p, i) => ({ ...p, position: i }));
+    playlistWriter.update((state) => ({ ...state, playlists: ordre }));
+    try {
+      await invoke('reorder_playlists', { profilId, ids: ordre.map((p) => p.id) });
+    } catch (e) {
+      playlistWriter.update((state) => ({ ...state, playlists: avant }));
+      toasts.push({ type: 'error', title: get(t)('notify.error'), message: String(e) });
+    }
+  },
   /** Épingle la playlist dans la barre latérale, ou l'en retire. */
   setPinned: async (id: number, pinned: boolean) => {
     try {

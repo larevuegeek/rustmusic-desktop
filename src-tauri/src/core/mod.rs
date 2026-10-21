@@ -158,7 +158,6 @@ pub mod network_player {
     pub mod media;
     pub mod session;
     pub mod sonos;
-    pub mod xml;
 }
 /// Télécommande d'ampli (Onkyo/Pioneer/Integra, Denon/Marantz, Yamaha) : pilotage par le réseau.
 pub mod amp_remote {
@@ -170,4 +169,11 @@ pub mod amp_remote {
     pub mod yamaha;
 }
 pub mod sandbox;
+/// Podcasts : flux RSS, annuaires, téléchargement.
+pub mod podcast {
+    pub mod directory;
+    pub mod download;
+    pub mod feed;
+    pub mod fetch;
+}
 pub mod smart_playlist;

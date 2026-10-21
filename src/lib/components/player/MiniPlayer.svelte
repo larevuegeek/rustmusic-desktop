@@ -28,6 +28,7 @@
 
   const audioFile = $derived($player?.audioFile);
   const audioTags = $derived(audioFile?.tags);
+  const episode = $derived(audioTags?.media_type === "podcast");
   const pathFile = $derived($player?.pathFile ?? null);
   const hasTrack = $derived(!!pathFile);
   const isPlaying = $derived($player?.status === "playing");
@@ -235,7 +236,7 @@
           </div>
         {/if}
       </div>
-      {#if hasTrack}
+      {#if hasTrack && !episode}
         <button type="button" class="self-start w-8 h-8 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors hover:bg-(--lc-survol)
                                     {aime ? 'text-[#e2566a] dark:text-[#ff7a88]' : 'text-(--lc-ic) hover:text-(--lc-tx)'}"
                 title={$t("player.like")} aria-label={$t("player.like")} aria-pressed={aime} onclick={() => pathFile && liked.toggle(pathFile)}>

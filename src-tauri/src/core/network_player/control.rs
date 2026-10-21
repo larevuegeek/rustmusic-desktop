@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use super::discovery::Renderer;
-use super::xml;
+use crate::helper::xml;
 
 const AV_TRANSPORT: &str = "urn:schemas-upnp-org:service:AVTransport:1";
 const RENDERING_CONTROL: &str = "urn:schemas-upnp-org:service:RenderingControl:1";

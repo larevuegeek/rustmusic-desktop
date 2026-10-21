@@ -25,13 +25,14 @@ const montrerAlbums = $derived($settingsStore.show_pinned_albums !== "false");
 const montrerArtistes = $derived($settingsStore.show_pinned_artists !== "false");
 const albums = $derived(montrerAlbums ? $pinsStore.pins.filter((p) => p.kind === "album") : []);
 const artistes = $derived(montrerArtistes ? $pinsStore.pins.filter((p) => p.kind === "artist") : []);
-// Une section n'apparaît qu'avec au moins une épingle ; sans aucune, la carte d'accueil.
-const accueil = $derived(!replie && (montrerAlbums || montrerArtistes) && albums.length === 0 && artistes.length === 0);
+// Une section n'apparaît qu'avec au moins une épingle ; sans aucune, la carte d'accueil,
+// jusqu'à ce qu'on la ferme (choix retenu).
+const accueil = $derived(
+  !replie && $settingsStore.pins_hint_dismissed !== "true" && (montrerAlbums || montrerArtistes) && albums.length === 0 && artistes.length === 0,
+);
 
-function hidePins() {
-  settingsStore.set("show_pinned_albums", "false");
-  settingsStore.set("show_pinned_artists", "false");
-}
+// Ferme la carte seulement : les épingles ajoutées ensuite s'affichent toujours.
+const dismissHint = () => settingsStore.set("pins_hint_dismissed", "true");
 const pathname = $derived(page.url.pathname);
 
 let menu = $state<{ pin: LibraryPin; x: number; y: number } | null>(null);
@@ -71,9 +72,9 @@ function openSection(kind: PinKind, e: MouseEvent) {
       type="button"
       class="absolute top-1.5 right-1.5 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-colors
              text-(--sb-mu) hover:bg-(--sb-s2) hover:text-(--sb-tx)"
-      onclick={hidePins}
-      title={`${$t("sidebar.hide_section")} — ${$t("sidebar.hide_section_note")}`}
-      aria-label={$t("sidebar.hide_section")}
+      onclick={dismissHint}
+      title={$t("common.close")}
+      aria-label={$t("common.close")}
     >
       <Icon icon="material-symbols:close-rounded" width="16" />
     </button>

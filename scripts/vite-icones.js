@@ -8,7 +8,7 @@ import { getIcons } from "@iconify/utils";
 
 const ID = "virtual:icones";
 const RESOLU = "\0" + ID;
-const PACKS = ["material-symbols-light", "material-symbols", "simple-icons", "radix-icons", "heroicons", "lucide", "mynaui", "tabler", "uit", "ph"];
+const PACKS = ["material-symbols-light", "material-symbols", "simple-icons", "radix-icons", "heroicons", "lucide", "mynaui", "tabler", "uit", "ph", "circle-flags"];
 // « pack:nom » partout dans le code, chaînes et ternaires compris ; pas « graph:… ».
 const MOTIF = new RegExp(`(?<![\\w-])(${PACKS.join("|")}):([a-z0-9]+(?:-[a-z0-9]+)*)`, "g");
 

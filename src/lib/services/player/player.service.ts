@@ -91,8 +91,14 @@ async function resumePosition(path: string): Promise<number> {
     try {
         const recents = await invoke<RecentFileListView[]>("get_recent_files");
         const r = recents.find((f) => f.path === path);
-        const pos = r?.last_position ?? 0;
-        return pos > 5 && (!r?.duration || pos < r.duration - 5) ? pos : 0;
+        // Épisode de podcast : sa position vit avec lui, pas dans les récents.
+        if (!r) {
+            if (!path.includes("podcasts")) return 0;
+            const pos = (await invoke<number | null>("podcast_resume_position", { path })) ?? 0;
+            return pos > 5 ? pos : 0;
+        }
+        const pos = r.last_position ?? 0;
+        return pos > 5 && (!r.duration || pos < r.duration - 5) ? pos : 0;
     } catch {
         return 0;
     }
@@ -222,12 +228,15 @@ class PlayerService {
             }
 
             const state = get(queueState);
-            if (state.repeatMode === "one") {
-                // Repeat One : relancer le même morceau directement
+            // Même morceau à rejouer : l'index ne change pas, rien d'autre ne le relancerait.
+            if (state.repeatMode === "one" || (state.repeatMode === "all" && state.tracks.length === 1)) {
                 const track = state.tracks[state.currentIndex];
                 if (track) this.playFile(track);
             } else {
-                queueState.next();
+                // Fin de file : arrêt, barre remise à zéro (la file ne change pas, rien ne le ferait).
+                queueState.next().then((suite) => {
+                    if (!suite) this.stopPlay();
+                });
             }
         });
     }
@@ -762,6 +771,7 @@ class PlayerService {
                 invoke('save_playback_position', {
                     path: get(player).pathFile,
                     position: current,
+                    duration: total,
                 }).catch(() => {});
             }
 
