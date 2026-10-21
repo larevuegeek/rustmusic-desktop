@@ -25,14 +25,18 @@
   import { parseLrc, findActiveLineIndex, type LrcLine } from "#lib/helper/lyrics/lrcParser";
   import { exitMiniPlayer, enterMicroPlayer, setMiniExpanded, reportCollapsedHeight, miniPinned, toggleMiniPin } from "#lib/stores/ui/miniPlayer.store";
   import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
+  import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
+  import RadioLogo from "#lib/components/radio/RadioLogo.svelte";
 
   const audioFile = $derived($player?.audioFile);
   const audioTags = $derived(audioFile?.tags);
   const episode = $derived(audioTags?.media_type === "podcast");
   const pathFile = $derived($player?.pathFile ?? null);
-  const hasTrack = $derived(!!pathFile);
-  const isPlaying = $derived($player?.status === "playing");
-  const enAttente = $derived(isPlaying && !!$player?.isPreparing);
+  // Mode radio : la station remplace le morceau (une seule source à la fois).
+  const radio = $derived($radioPlayer.station);
+  const hasTrack = $derived(!!pathFile && !radio);
+  const isPlaying = $derived(radio ? $radioPlayer.status === "playing" : $player?.status === "playing");
+  const enAttente = $derived(radio ? $radioPlayer.status === "connecting" || (isPlaying && !!$player?.isPreparing) : isPlaying && !!$player?.isPreparing);
   const trackTitle = $derived(displayTitle(audioTags?.title, pathFile, $t("common.unknown_title")));
   const coverSrc = $derived(audioTags?.attached_images?.[0]?.image_src ?? null);
   const duration = $derived($player?.duration ?? 0);
@@ -220,12 +224,21 @@
 
     <!-- Pochette, titre, qualité · j'aime -->
     <div class="flex items-center gap-3.5 px-4 pt-1">
+      {#if radio}
+        <RadioLogo path={$radioPlayer.logoPath} favicon={radio.favicon} icone={30} class="lecteur-pochette w-21 h-21 shrink-0 rounded-[10px]" />
+      {:else}
       <div class="lecteur-pochette w-21 h-21 shrink-0 rounded-[10px] overflow-hidden">
         <img src={hasTrack && coverSrc ? coverSrc : SANS_POCHETTE} alt="" class="w-full h-full object-cover" />
       </div>
+      {/if}
       <div class="min-w-0 flex-1 flex flex-col gap-0.75">
+        {#if radio}
+          <span class="truncate text-lg font-extrabold tracking-[-0.01em] text-(--lc-tx)" title={radio.name}>{radio.name}</span>
+          {#if $radioPlayer.title}<span class="truncate text-sm font-medium text-(--lc-acc)">{$radioPlayer.title}</span>{/if}
+        {:else}
         <span class="truncate text-lg font-extrabold tracking-[-0.01em] text-(--lc-tx)" title={trackTitle}>{hasTrack ? trackTitle : $t("player.no_track")}</span>
         {#if audioTags?.artist}<span class="truncate text-sm font-medium text-(--lc-acc)">{audioTags.artist}</span>{/if}
+        {/if}
         {#if hasTrack && (format || qualite)}
           <div class="mt-1.25 flex items-center gap-2 min-w-0 font-mono text-[10px] text-(--lc-tx2)">
             {#if format}<span class="px-1.75 py-0.5 rounded-[5px] font-medium tracking-[0.05em] bg-(--lc-fmt-bg) text-(--lc-fmt-tx)">{format}</span>{/if}
@@ -261,12 +274,28 @@
           <Icon icon="material-symbols:skip-next-rounded" width="28" />
         </button>
       </div>
+      {#if radio}
+        <!-- Radio : le direct, ou le retard et le retour au direct. -->
+        <div class="flex-1 min-w-0 flex items-center justify-center gap-2 text-[10.5px]">
+          {#if $radioPlayer.behindSecs >= 3}
+            <button type="button" onclick={() => radioPlayer.goLive()}
+                    class="h-6 px-2.5 inline-flex items-center gap-1 rounded-full cursor-pointer font-bold bg-rose-600 text-white hover:bg-rose-500">
+              <Icon icon="material-symbols:fast-forward-rounded" width="14" />{$t("radios.go_live")}
+            </button>
+          {:else}
+            <span class="inline-flex items-center gap-1.5 font-bold uppercase tracking-wider text-rose-600 dark:text-rose-300">
+              <span class="w-1.5 h-1.5 rounded-full bg-current {isPlaying ? 'animate-pulse' : ''}"></span>{$t("radios.live")}
+            </span>
+          {/if}
+        </div>
+      {:else}
       <div class="flex-1 min-w-0 flex flex-col gap-0.5">
         <PlayerProgressBar position={percent} onseek={(p) => duration && playerService.seekTo((p / 100) * duration)} />
         <div class="flex justify-between font-mono text-[10px] tabular-nums text-(--lc-mu)">
           <span>{minutesSeconds(jsPosition)}</span><span>{minutesSeconds(duration)}</span>
         </div>
       </div>
+      {/if}
       <MiniVolume buttonClass={ib} />
     </div>
 

@@ -73,6 +73,8 @@ export type AppSettings = {
   podcasts: string;                 // 'true' | 'false' — podcasts, désactivés par défaut
   podcast_play_mode: string;        // 'stream' (pendant le téléchargement) | 'download' (après)
   podcast_country: string;          // pays de l'annuaire (« FR »…) ; vide = celui de l'ordinateur
+  radios: string;                   // 'true' | 'false' — radios, désactivées par défaut
+  radio_country: string;            // pays des radios populaires ; vide = celui de l'ordinateur
   // Ordre des sections de la barre latérale, en JSON (`playlists`, `online`, `pins`).
   sidebar_order: string;
   // Ordre de la section Playlists, en JSON : `playlist:<id>`, `liked`, `recent`.
@@ -133,6 +135,8 @@ export const settingsDefaults: AppSettings = {
   podcasts: 'false',
   podcast_play_mode: 'stream',
   podcast_country: '',
+  radios: 'false',
+  radio_country: '',
   sidebar_order: '["playlists","online","pins"]',
   sidebar_playlists_order: '[]',
   pins_hint_dismissed: 'false',
@@ -235,6 +239,15 @@ const sideEffects: Partial<Record<keyof AppSettings, (value: string) => Promise<
       await invoke('set_podcasts_enabled', { enabled: value === 'true' });
     } catch (e) {
       console.error('[settings] Erreur podcasts:', e);
+    }
+  },
+
+  // Radios : coupées, l'annuaire n'est pas contacté.
+  radios: async (value: string) => {
+    try {
+      await invoke('set_radios_enabled', { enabled: value === 'true' });
+    } catch (e) {
+      console.error('[settings] Erreur radios:', e);
     }
   },
 

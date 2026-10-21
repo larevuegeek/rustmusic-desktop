@@ -302,8 +302,17 @@ impl AudioPlayer {
         // émis par chacun au moment où le son commence réellement.
         let _ = app_handle.emit("playback-preparing", true);
 
+        // Radio en direct : flux sans fin, lu depuis le tampon de différé.
+        let live_reader = crate::core::radio::live::reader(&file_path);
+        let live = live_reader.is_some();
+        if live {
+            if let Some(ext) = crate::core::radio::live::format_hint() {
+                hint.with_extension(ext);
+            }
+        }
+
         let pipeline_profile = crate::core::audio_quality::current_profile();
-        let needs_preload = crate::core::system_detect::is_network_path(&file_path)
+        let needs_preload = !live && crate::core::system_detect::is_network_path(&file_path)
             || matches!(
                 pipeline_profile,
                 crate::core::audio_quality::AudioQualityProfile::Low
@@ -314,7 +323,10 @@ impl AudioPlayer {
         let growing = crate::core::podcast::download::reader(&file_path).transpose()?;
         let arriving = growing.is_some();
 
-        let mss: MediaSourceStream = if let Some(source) = growing {
+        let mss: MediaSourceStream = if let Some(source) = live_reader {
+            log::info!("📻 Radio en direct");
+            MediaSourceStream::new(Box::new(source), Default::default())
+        } else if let Some(source) = growing {
             log::info!("🎙️  Lecture pendant le téléchargement");
             MediaSourceStream::new(Box::new(source), Default::default())
         } else if needs_preload {
@@ -648,6 +660,7 @@ impl AudioPlayer {
                 seek_flush_decoder,
                 total_duration_for_decoder,
                 arriving,
+                live,
             )
         });
 
@@ -2326,6 +2339,8 @@ pub fn decode_thread<P>(
     total_duration: Arc<AtomicU64>,
     // Fichier encore en téléchargement : combler le début peut être lent.
     arriving: bool,
+    // Radio : flux sans fin, rien n'est gardé une fois joué (le différé est en amont, compressé).
+    live: bool,
 ) -> Result<(), String>
 where
     P: Producer<Item = f32>
@@ -2585,7 +2600,8 @@ where
             fill_pos = Some(end);
             continue;
         }
-        {
+        // Radio : pas de FullBuffer, seul l'anneau de la sortie (plus bas).
+        if !live {
             // On récupère le lock en écriture (ça va très vite, CPAL ne fait que lire)
             let mut fb = full_buffer_data.write().unwrap_or_else(|e| e.into_inner());
             fb.extend_from_slice(&adapted_samples);
@@ -2714,6 +2730,11 @@ mod tests {
 
     /// Decodes the whole file, with an optional seek requested before the first packet.
     fn decode_all(output_rate: u32, seek: Option<f64>) -> Vec<f32> {
+        decode_with(output_rate, seek, false).0
+    }
+
+    /// Décode tout ; rend le FullBuffer et le nombre d'échantillons passés par l'anneau.
+    fn decode_with(output_rate: u32, seek: Option<f64>, live: bool) -> (Vec<f32>, usize) {
         let mss = MediaSourceStream::new(Box::new(std::io::Cursor::new(wav_bytes())), Default::default());
         let mut hint = Hint::new();
         hint.with_extension("wav");
@@ -2723,8 +2744,28 @@ mod tests {
         let track = format.tracks().iter().find(|t| t.codec_params.as_ref().and_then(|c| c.audio()).is_some()).unwrap();
         let track_id = track.id;
         let params = track.codec_params.as_ref().unwrap().audio().unwrap().clone();
-        let (producer, _consumer) = ringbuf::HeapRb::<f32>::new(1 << 18).split();
+        let (producer, mut consumer) = ringbuf::HeapRb::<f32>::new(1 << 18).split();
         let full_buffer = Arc::new(RwLock::new(Vec::new()));
+        // L'anneau est vidé à côté, comme le ferait la sortie : en direct, le décodeur l'attend.
+        let done = Arc::new(AtomicBool::new(false));
+        let drained = {
+            let done = done.clone();
+            std::thread::spawn(move || {
+                use ringbuf::traits::{Consumer, Observer};
+                let mut n = 0;
+                let mut buf = vec![0f32; 4096];
+                loop {
+                    let got = consumer.pop_slice(&mut buf);
+                    n += got;
+                    if got == 0 {
+                        if done.load(std::sync::atomic::Ordering::Relaxed) && consumer.is_empty() {
+                            return n;
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(1));
+                    }
+                }
+            })
+        };
         decode_thread(
             format,
             params,
@@ -2745,9 +2786,19 @@ mod tests {
             Arc::new(AtomicBool::new(false)),
             Arc::new(AtomicU64::new((SECONDS as f64).to_bits())),
             false,
+            live,
         )
         .unwrap();
-        Arc::try_unwrap(full_buffer).unwrap().into_inner().unwrap()
+        done.store(true, std::sync::atomic::Ordering::Relaxed);
+        let through_ring = drained.join().unwrap();
+        (Arc::try_unwrap(full_buffer).unwrap().into_inner().unwrap(), through_ring)
+    }
+
+    #[test]
+    fn live_keeps_nothing_and_feeds_the_ring() {
+        let (kept, through_ring) = decode_with(RATE, None, true);
+        assert!(kept.is_empty(), "le direct ne doit rien garder en mémoire");
+        assert_eq!(through_ring, (RATE * SECONDS * 2) as usize);
     }
 
     #[test]

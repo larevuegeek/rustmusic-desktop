@@ -21,6 +21,7 @@
   const paysOptions = $derived(countryOptions($currentLocale, $t("podcasts.country_auto")));
 
   const podcasts = $derived($settingsStore.podcasts === "true");
+  const radios = $derived($settingsStore.radios === "true");
 
   // Place prise par les épisodes téléchargés du profil.
   let occupe = $state<number | null>(null);
@@ -67,6 +68,28 @@
       <div class="min-w-0">
         <p class="text-[15px] font-semibold text-(--rg-tx)">{$t("podcasts.network_title")}</p>
         <p class="mt-0.75 text-[13px] text-(--rg-mu) text-pretty">{$t("podcasts.network_desc")}</p>
+      </div>
+    </OptionBlock>
+  {/if}
+</OptionGroup>
+
+<OptionGroup title={$t("radios.settings_group")} hint={$t("radios.settings_group_hint")}>
+  {#snippet action()}<Badge tone="amber">{$t("settings.beta_badge")}</Badge>{/snippet}
+  <OptionItem
+    title={$t("radios.toggle")}
+    desc={$t("radios.toggle_desc")}
+    keywords="radio radios webradio direct flux stream"
+    onclick={() => settingsStore.toggle("radios")}
+  >
+    <ToggleSwitch checked={radios} label={$t("radios.toggle")} onclick={() => settingsStore.toggle("radios")} />
+  </OptionItem>
+
+  {#if radios}
+    <OptionBlock keywords={$t("radios.network_title")} class="flex gap-3.5 px-5 py-4 leading-[1.25]">
+      <Icon icon="material-symbols:public" width="20" class="shrink-0 mt-px text-(--rg-mu)" />
+      <div class="min-w-0">
+        <p class="text-[15px] font-semibold text-(--rg-tx)">{$t("radios.network_title")}</p>
+        <p class="mt-0.75 text-[13px] text-(--rg-mu) text-pretty">{$t("radios.network_desc")}</p>
       </div>
     </OptionBlock>
   {/if}

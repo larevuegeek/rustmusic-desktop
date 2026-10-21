@@ -2,11 +2,13 @@
 
 ## [0.3.2] - à venir
 
-Les podcasts arrivent dans RustMusic : recherche dans l'annuaire Apple ou par
-adresse de flux RSS, classement des émissions les plus écoutées par pays,
-écoute pendant le téléchargement, reprise là où on s'était arrêté. La barre
-latérale s'organise à la main, et la lecture s'arrête proprement en fin de
-file.
+Les podcasts et les radios arrivent dans RustMusic. Podcasts : recherche
+dans l'annuaire Apple ou par adresse de flux RSS, classement des émissions
+les plus écoutées par pays, écoute pendant le téléchargement, reprise là où
+on s'était arrêté. Radios : des milliers de stations en direct, une pause
+qui ne fait rien perdre (différé jusqu'à 30 minutes) et le titre en cours.
+La barre latérale s'organise à la main, et un mégaphone présente les
+nouveautés de chaque version.
 
 ### Podcasts
 - **Nouvelle section « Écoute en ligne »** dans les réglages : les podcasts
@@ -18,10 +20,11 @@ file.
   Apple du pays choisi (drapeaux dans le menu ; par défaut celui de
   l'ordinateur), par catégorie, triable par classement, nom ou dernier
   épisode.
-- **Aperçu sans s'abonner** : un clic sur une émission de l'annuaire ouvre
-  sa description et ses derniers épisodes. Le menu « … » (ou le clic droit)
-  d'une carte propose l'aperçu, l'abonnement ou le désabonnement, et les
-  favoris.
+- **Ouvrir une émission** : un clic sur une émission de l'annuaire ouvre sa
+  page, avec ses épisodes et la lecture (l'abonnement se fait au passage).
+  Le clic droit ou le menu « … » d'une carte propose un **aperçu** sans
+  s'abonner (fiche et derniers épisodes, en deux colonnes), l'abonnement ou
+  le désabonnement, et les favoris.
 - **Accueil des podcasts** : « À écouter » (un épisode par émission, celui
   commencé ou le plus récent), « Mes podcasts » triable par dernier épisode,
   nom, date d'abonnement ou nouveaux épisodes.
@@ -37,14 +40,45 @@ file.
   suite. « Lire ensuite » et « Ajouter à la file » placent un épisode dans
   la file d'attente. Les épisodes n'entrent pas dans « Récemment joués » et
   n'ont pas de bouton favori.
-- **Téléchargements** : une page liste les épisodes gardés sur
-  l'ordinateur, par émission, avec la place prise par chacune ; on y
-  supprime un épisode, une émission, les épisodes écoutés ou tout. Les
-  fichiers portent un nom lisible (`Émission/2026-10-21 Titre.mp3`).
+- **Téléchargements** : une page fait le bilan des épisodes gardés sur
+  l'ordinateur (nombre, place prise, épisodes déjà écoutés et place
+  récupérable, barre de l'espace par émission) ; on y supprime un épisode,
+  une émission, les épisodes écoutés ou tout. Les fichiers portent un nom
+  lisible (`Émission/2026-10-21 Titre.mp3`).
 - **Favoris** : une étoile épingle une émission dans la barre latérale,
   sous « Podcasts », et en tête de « Mes podcasts ».
 - Les nouveaux épisodes sont cherchés en arrière-plan ; « Tout vérifier »
   relit tous les flux à la demande.
+
+### Radios
+- **Activables dans Réglages → Écoute en ligne** (désactivées par défaut),
+  avec une entrée « Radios » dans la barre latérale, illustrée du logo de
+  la dernière radio écoutée.
+- **Trouver une station** dans l'annuaire libre Radio Browser : recherche
+  par nom, « Les plus écoutées » du pays choisi, par genre (Info, Pop, Rock,
+  Jazz, Classique…). On peut aussi coller l'adresse d'un flux (.mp3, .m3u,
+  .pls) : la station est reconnue par l'annuaire quand il la connaît (nom,
+  logo, genres). Une station listée plusieurs fois n'apparaît qu'une fois,
+  dans sa meilleure version ; un flux AAC+, que le décodeur ne lit qu'en
+  qualité réduite, est signalé.
+- **Mes radios et Dernières écoutées** : l'étoile garde une station en
+  favorite ; les 30 dernières radios lancées sont retenues. Le menu « … »
+  (ou le clic droit) propose aussi le site de la radio et l'adresse du
+  flux.
+- **Écoute en direct** : le lecteur passe en mode radio, avec le logo, la
+  station, le titre en cours quand la station l'annonce, et une bande « EN
+  DIRECT » à la place de la barre de progression ; Précédent et Suivant
+  passent d'une radio favorite à l'autre. Le mini-lecteur suit.
+- **Pause en différé** : pendant une pause, la radio continue d'arriver
+  (jusqu'à 30 minutes gardées) et la lecture reprend là où on l'avait
+  laissée. « Revenir au direct » rattrape le retard. La pause compte d'où
+  qu'elle vienne : bouton, clavier, touches média, minuterie de sommeil.
+- **Coupure réseau** : la radio se reconnecte d'elle-même ; perdue pour de
+  bon, un message le dit.
+- **Une seule source à la fois** : lancer une radio arrête la musique, dont
+  la file reste intacte ; relancer un morceau coupe la radio. L'ordinateur
+  ne se met pas en veille pendant qu'une radio joue.
+- Pas encore sur un lecteur réseau UPnP : un message l'indique.
 
 ### Nouveautés
 - **Mégaphone dans la barre du haut**, à droite de la minuterie : les

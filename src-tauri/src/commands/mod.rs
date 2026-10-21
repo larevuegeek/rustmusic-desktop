@@ -28,3 +28,4 @@ pub mod network_player_command;
 pub mod playback;
 pub mod platform_command;
 pub mod podcast_command;
+pub mod radio_command;

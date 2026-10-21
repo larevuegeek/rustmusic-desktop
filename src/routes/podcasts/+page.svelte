@@ -18,14 +18,12 @@
   import MenuSelect from "#lib/components/ui/menu/MenuSelect.svelte";
   import CarouselSection from "#lib/components/ui/carousel/CarouselSection.svelte";
   import Carousel from "#lib/components/ui/carousel/Carousel.svelte";
-  import PodcastSearchBar from "#lib/components/podcast/PodcastSearchBar.svelte";
+  import HeroSearchBar from "#lib/components/ui/input/HeroSearchBar.svelte";
   import PodcastCard from "#lib/components/podcast/PodcastCard.svelte";
   import PodcastDirectoryCard from "#lib/components/podcast/PodcastDirectoryCard.svelte";
   import PodcastEpisodeCard from "#lib/components/podcast/PodcastEpisodeCard.svelte";
-  import PodcastPreviewPopin from "#lib/components/podcast/PodcastPreviewPopin.svelte";
   import PageState from "#lib/components/ui/layout/PageState.svelte";
   import HeaderGlow from "#lib/components/ui/deco/HeaderGlow.svelte";
-  import { popinStore } from "#lib/stores/ui/popin.store";
   import type { DirectoryResult, EpisodeView, LatestEpisode, PodcastView } from "#lib/types/ui/podcast/Podcast";
 
   const actif = $derived($settingsStore.podcasts === "true");
@@ -108,14 +106,10 @@
     }
   }
 
-  // Clic sur une carte de l'annuaire : sa page si on la suit, sinon un aperçu sans abonnement.
-  function open(r: DirectoryResult) {
-    const id = suivis.get(r.feed_url);
-    if (id != null) {
-      goto(`/podcasts/${id}`);
-      return;
-    }
-    popinStore.open(r.title, PodcastPreviewPopin, { podcast: r }, { size: "lg", bare: true });
+  // Clic sur une carte de l'annuaire : sa page, en s'abonnant si besoin. L'aperçu est au clic droit / « … ».
+  async function open(r: DirectoryResult) {
+    const id = suivis.get(r.feed_url) ?? (await follow(r.feed_url))?.id;
+    if (id != null) goto(`/podcasts/${id}`);
   }
 
   // ─── Les plus écoutés, par catégorie Apple ───
@@ -218,7 +212,9 @@
         </div>
       </div>
       <div class="mt-7">
-        <PodcastSearchBar bind:value={saisie} busy={cherche || (ajout !== null && ajout === saisie.trim())} onsubmit={submit} />
+        <HeroSearchBar bind:value={saisie} busy={cherche || (ajout !== null && ajout === saisie.trim())} onsubmit={submit}
+                       placeholder={$t("podcasts.search_placeholder")} searchLabel={$t("podcasts.search")} addLabel={$t("podcasts.add_feed")}
+                       addressIcon="material-symbols:rss-feed-rounded" />
       </div>
     </div>
   </header>

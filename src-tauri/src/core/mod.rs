@@ -176,4 +176,10 @@ pub mod podcast {
     pub mod feed;
     pub mod fetch;
 }
+/// Radios : annuaire Radio Browser, adresses de flux.
+pub mod radio {
+    pub mod directory;
+    pub mod live;
+    pub mod stream;
+}
 pub mod smart_playlist;

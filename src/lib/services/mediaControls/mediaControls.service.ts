@@ -82,10 +82,10 @@ async function attachListeners() {
     switch (cmd) {
       // Un bureau peut envoyer « pause » au verrouillage ou à la veille : une bascule relançait alors la musique.
       case "play":
-        if (get(player).status !== "playing") playerService.handleTogglePlay();
+        if (!playerService.isPlaying()) playerService.handleTogglePlay();
         break;
       case "pause":
-        if (get(player).status === "playing") playerService.pauseFile();
+        if (playerService.isPlaying()) playerService.pauseFile();
         break;
       case "toggle":
         playerService.handleTogglePlay();

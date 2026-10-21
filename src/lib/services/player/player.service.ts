@@ -13,6 +13,7 @@ import { sleepTimer } from "#lib/stores/player/sleepTimer.store";
 import { sendNotification, isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { t } from "#lib/i18n";
 import { toasts } from "#lib/stores/ui/toast.store";
+import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
 
 let raf: number = 0;
 let basePos = 0;
@@ -125,8 +126,7 @@ class PlayerService {
 
         // Sleep timer : à échéance (mode durée), on met en pause la lecture.
         sleepTimer.setOnFire(() => {
-            const status = get(player).status;
-            if (status === "playing") this.pauseFile();
+            if (this.isPlaying()) this.pauseFile();
         });
     }
 
@@ -203,6 +203,11 @@ class PlayerService {
     private async initPlaybackListener() {
         trackPlaybackEnded = await listen("playback-ended", () => {
             this.stopAnimation();
+            // Radio : le flux ne finit pas, il s'est perdu ; la file musicale n'enchaîne pas.
+            if (radioPlayer.isActive()) {
+                radioPlayer.onEnded();
+                return;
+            }
             if (timer) clearTimeout(timer);
 
             // Garde-fou anti boucle : si le morceau "se termine" en moins de
@@ -455,6 +460,8 @@ class PlayerService {
     // ==========================================
     async playFile(track: QueueTrack) {
         actionExplicite = false;
+        // Une seule source : la radio cède la place (le backend la coupe).
+        radioPlayer.detach();
         premiereLecture = false;
         outputStale = false;
 
@@ -557,6 +564,8 @@ class PlayerService {
     // ⏹ STOP
     // ==========================================
     async stopPlay() {
+        // La radio a son propre arrêt : une file vidée ou rechargée ne la coupe pas.
+        if (radioPlayer.isActive()) return;
         // L'arrêt côté Rust peut durer : le journal montre des « Timeout stop()
         // — le stream ne s'est pas arrêté en 3s ». Pendant ces secondes, une
         // lecture plus récente a le temps de partir. Sans ce garde, l'arrêt
@@ -602,6 +611,7 @@ class PlayerService {
     // ⏯ TOGGLE
     // ==========================================
     async handleTogglePlay() {
+        if (radioPlayer.isActive()) return radioPlayer.toggle();
 
         const queue = get(queueState);
         const currentTrack = queue.tracks[queue.currentIndex] ?? null;
@@ -683,7 +693,17 @@ class PlayerService {
     // ==========================================
     // ⏸ PAUSE
     // ==========================================
+    /** Du son sort-il ? Radio comprise. */
+    isPlaying(): boolean {
+        if (radioPlayer.isActive()) return get(radioPlayer).status === "playing";
+        return get(player).status === "playing";
+    }
+
     async pauseFile() {
+        if (radioPlayer.isActive()) {
+            if (get(radioPlayer).status === "playing") await radioPlayer.toggle();
+            return;
+        }
         try {
             await invoke("pause_play");
 
@@ -703,6 +723,7 @@ class PlayerService {
     // ⏮ PREV
     // ==========================================
     async prevTrack() {
+        if (radioPlayer.isActive()) return radioPlayer.prev();
         await this.stopPlay();
         queueState.previous();
     }
@@ -711,6 +732,7 @@ class PlayerService {
     // ⏭ NEXT
     // ==========================================
     async nextTrack() {
+        if (radioPlayer.isActive()) return radioPlayer.next();
         await this.stopPlay();
         queueState.next();
     }

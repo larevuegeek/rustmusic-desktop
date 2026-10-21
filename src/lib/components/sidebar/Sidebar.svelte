@@ -32,6 +32,8 @@ import SidebarFooter from "./SidebarFooter.svelte";
 import SidebarTitle from "./SidebarTitle.svelte";
 import SidebarThumbnail from "./SidebarThumbnail.svelte";
 import { sidebarOrganize } from "#lib/stores/ui/sidebarOrganize.store";
+import { radioStore } from "#lib/stores/radio/radio.store";
+import RadioLogo from "#lib/components/radio/RadioLogo.svelte";
 
 const pathname = $derived(page.url.pathname);
 const replie = $derived($settingsStore.sidebar_collapsed === 'true');
@@ -46,9 +48,11 @@ const montrerRecents = $derived($settingsStore.show_recent_in_playlists !== 'fal
 const montrerPlaylists = $derived($settingsStore.show_sidebar_playlists !== 'false');
 const montrerBoutonsOuvrir = $derived($settingsStore.show_open_buttons === 'true');
 const podcastsActifs = $derived($settingsStore.podcasts === 'true');
+const radiosActives = $derived($settingsStore.radios === 'true');
 const profilId = $derived($profilSelector.profilSelected?.id ?? null);
 $effect(() => {
   if (podcastsActifs && profilId != null) podcastStore.ensureLoaded(profilId);
+  if (radiosActives && profilId != null) radioStore.ensureLoaded(profilId);
 });
 const podcastsNouveaux = $derived($podcastStore.podcasts.reduce((n, p) => n + p.new_count, 0));
 const podcastsCouvertures = $derived($podcastStore.podcasts.map((p) => p.cover_path).filter((c): c is string => !!c));
@@ -65,7 +69,7 @@ const ordre = $derived.by((): Section[] => {
   const choisi = (Array.isArray(lu) ? lu : []).filter((s): s is Section => TOUTES.includes(s as Section));
   return [...new Set([...choisi, ...TOUTES])];
 });
-const visible = (s: Section) => s === 'playlists' ? montrerPlaylists : s === 'online' ? podcastsActifs : libraryId != null;
+const visible = (s: Section) => s === 'playlists' ? montrerPlaylists : s === 'online' ? podcastsActifs || radiosActives : libraryId != null;
 const sections = $derived(ordre.filter(visible));
 const sectionTitle = (s: Section) => s === 'playlists' ? $t('nav.playlists') : s === 'online' ? $t('podcasts.kicker') : $t('sidebar.pinned');
 const epinglees = $derived($playlistStore.playlists.filter((p) => p.pinned && !p.is_mix));
@@ -242,8 +246,9 @@ onMount(() => {
 
 {#snippet secOnline()}
       {#if !replie}
-        <SidebarTitle titre={$t('podcasts.kicker')} aide={$t('podcasts.title')} onclick={() => nav('/podcasts')} />
+        <SidebarTitle titre={$t('podcasts.kicker')} aide={$t('podcasts.kicker')} onclick={() => nav(podcastsActifs ? '/podcasts' : '/radios')} />
       {/if}
+      {#if podcastsActifs}
       <SidebarRow
         titre={$t('podcasts.title')}
         sousTitre={podcastsNouveaux > 0
@@ -272,6 +277,25 @@ onMount(() => {
           {/snippet}
         </SidebarRow>
       {/each}
+      {/if}
+      {#if radiosActives}
+        <SidebarRow
+          titre={$t('radios.title')}
+          sousTitre={`${$radioStore.radios.length.toLocaleString($currentLocale)} ${$t($radioStore.radios.length === 1 ? 'radios.favorites_one' : 'radios.favorites_n')}`}
+          {replie}
+          actif={pathname.startsWith('/radios')}
+          onclick={() => nav('/radios')}
+        >
+          {#snippet vignette()}
+            <!-- Le logo de la dernière radio écoutée ; à défaut, le poste. -->
+            {#if $radioStore.recent[0]}
+              <RadioLogo path={$radioStore.recent[0].logo_path} favicon={$radioStore.recent[0].favicon_url} icone={18} class="w-full h-full rounded-[inherit]" />
+            {:else}
+              <SidebarThumbnail couvertures={[]} couleur="#f43f5e" icone="material-symbols:radio-rounded" />
+            {/if}
+          {/snippet}
+        </SidebarRow>
+      {/if}
 {/snippet}
 
 {#snippet secPins()}

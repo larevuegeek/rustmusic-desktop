@@ -33,6 +33,10 @@ fn local<R>(f: impl FnOnce(&AudioPlayer) -> R) -> Option<R> {
 
 /// Lance `path` ; sur le lecteur local, un morceau en cours bascule lecture/pause.
 pub async fn play(app: AppHandle, path: PathBuf) {
+    // Une seule source : un morceau ou un épisode coupe la radio.
+    if !crate::core::radio::live::is_live_path(&path) {
+        crate::core::radio::live::stop();
+    }
     match target() {
         Target::Upnp => {
             // Une seule sortie joue : le lecteur local se tait.
@@ -65,12 +69,18 @@ pub async fn toggle_pause() {
             }
         }
         Target::Local => {
-            local(|p| if p.is_paused() { p.resume() } else { p.pause() });
+            local(|p| {
+                if p.is_paused() { p.resume() } else { p.pause() }
+                // Radio : la pause fait le différé.
+                crate::core::radio::live::set_paused(p.is_paused());
+            });
         }
     }
 }
 
 pub async fn stop() {
+    // La radio d'abord : son lecteur attend peut-être des données, il doit lâcher tout de suite.
+    crate::core::radio::live::stop();
     match target() {
         Target::Upnp => {
             if let Err(e) = session::stop().await {

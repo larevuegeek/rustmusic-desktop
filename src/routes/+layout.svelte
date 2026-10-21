@@ -53,6 +53,7 @@ import { applyAccent } from "#lib/helper/theme/accent";
 import SleepTimerButton from "#lib/components/player/SleepTimerButton.svelte";
 import WhatsNewButton from "#lib/components/whatsnew/WhatsNewButton.svelte";
 import { showWhatsNewIfDue } from "#lib/actions/whatsNew/WhatsNewAction";
+import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
 import { fade } from "svelte/transition";
 import { openExternalLinks } from "#lib/helper/tools/externalLinks";
 import { lecture } from "#lib/stores/player/playback.store";
@@ -97,14 +98,15 @@ onMount(preventShiftSelection);
 
 // Pas de veille automatique tant que la musique joue (réglage) ; l'écran peut s'éteindre.
 $effect(() => {
-  const bloquer = $lecture.status === "playing" && $settingsStore.prevent_sleep !== "false";
+  const joue = $lecture.status === "playing" || ($radioPlayer.station !== null && $radioPlayer.status === "playing");
+  const bloquer = joue && $settingsStore.prevent_sleep !== "false";
   invoke("set_sleep_blocked", { bloquer }).catch(() => {});
 });
 
 // Mise en veille annoncée (Linux) : pause, pour ne pas laisser la sortie audio ouverte. Au réveil, on reste en pause.
 onMount(() => {
   const fin = listen<boolean>("systeme-veille", (e) => {
-    if (e.payload && get(player).status === "playing") playerService.pauseFile();
+    if (e.payload && playerService.isPlaying()) playerService.pauseFile();
   });
   return () => { fin.then((f) => f()); };
 });

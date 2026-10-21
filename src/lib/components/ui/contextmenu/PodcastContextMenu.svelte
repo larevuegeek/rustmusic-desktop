@@ -32,7 +32,7 @@
 
   function preview() {
     onclose();
-    popinStore.open(podcast.title, PodcastPreviewPopin, { podcast }, { size: "lg", bare: true });
+    popinStore.open(podcast.title, PodcastPreviewPopin, { podcast }, { size: "xl", bare: true });
   }
 
   function open() {

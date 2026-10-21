@@ -30,6 +30,9 @@ use crate::commands::search_command::search;
 use crate::commands::lyrics_command::{get_lyrics, refresh_lyrics};
 use crate::commands::dlna_command::{dlna_get_settings, dlna_status, dlna_start, dlna_stop, dlna_update_settings};
 use crate::commands::platform_command::{get_platform_features, set_autostart_portal};
+use crate::commands::radio_command::{
+    get_radios, radio_add, radio_logo, radio_remove, radio_rename, radio_resolve, radio_search, radio_top, reorder_radios, set_radios_enabled, get_radio_recent, radio_play, radio_stop, radio_go_live, radio_status,
+};
 use crate::commands::podcast_command::{
     get_podcast, get_podcast_episode, get_podcast_episodes, get_podcasts, podcast_refresh, podcast_search, podcast_set_all_played,
     podcast_resume_position, podcast_preview, set_podcast_pinned, podcast_top, get_podcast_latest, podcast_download, podcast_delete_download, podcast_delete_downloads, get_podcast_downloads, podcast_set_played, podcast_set_position, podcast_subscribe, podcast_unsubscribe, set_podcasts_enabled,
@@ -748,6 +751,12 @@ pub async fn run() {
                 crate::commands::podcast_command::init(&podcast_state, podcast_app).await;
             });
 
+            // ─── RADIOS ──────────────────────────────────────
+            let radio_state = app.state::<AppState>().inner().clone();
+            tauri::async_runtime::spawn(async move {
+                crate::commands::radio_command::init(&radio_state).await;
+            });
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -937,6 +946,21 @@ pub async fn run() {
             podcast_top,
             podcast_preview,
             set_podcast_pinned,
+            set_radios_enabled,
+            radio_search,
+            radio_top,
+            radio_resolve,
+            radio_logo,
+            get_radios,
+            radio_add,
+            radio_remove,
+            radio_rename,
+            reorder_radios,
+            get_radio_recent,
+            radio_play,
+            radio_stop,
+            radio_go_live,
+            radio_status,
             get_podcast_latest,
             podcast_download,
             podcast_delete_download,

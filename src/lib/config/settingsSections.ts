@@ -44,7 +44,7 @@ export const settingsSections: SettingsSection[] = [
   {
     id: "online", icon: "material-symbols:podcasts-rounded",
     labelKey: "settings.online", hintKey: "settings.online_hint", descKey: "settings.online_desc",
-    cles: ["podcasts", "podcast_play_mode", "podcast_country"],
+    cles: ["podcasts", "podcast_play_mode", "podcast_country", "radios", "radio_country"],
   },
   {
     id: "remote", icon: "material-symbols:settings-remote-outline-rounded",

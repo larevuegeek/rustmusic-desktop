@@ -32,6 +32,8 @@ import { networkIcon, networkPlayerStore } from "#lib/stores/audio/networkPlayer
 import NetworkMenu from "#lib/components/player/NetworkMenu.svelte";
 import { describeOutput } from "#lib/helper/audio/deviceLabel";
 import { TEINTE, CHAINE, fallbackMessage, readableRate } from "#lib/helper/audio/audioChain";
+import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
+import RadioPlayerBar from "./RadioPlayerBar.svelte";
 
 const audioFile = $derived($player?.audioFile);
 const audioTags = $derived(audioFile?.tags);
@@ -177,6 +179,9 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
   <!-- Pas d'overflow-hidden : le menu Sortie et le détail de la chaîne débordent vers le haut. -->
   <div class="lecteur relative rounded-[18px]" style:--lh={$couleurMorceau.h} style:--ls={$couleurMorceau.s}>
     <!-- ─── Pochette et titres · commandes et progression · actions ─── -->
+    {#if $radioPlayer.station}
+      <RadioPlayerBar {ib} {gros} />
+    {:else}
     <div
       class="grid grid-cols-[minmax(220px,1fr)_minmax(300px,1.4fr)_minmax(max-content,1fr)] items-center gap-7 max-[1250px]:gap-5 h-23 pl-2 pr-5
              max-lg:grid-cols-[minmax(0,1fr)_auto] max-lg:h-auto max-lg:py-3 max-lg:gap-x-3 max-lg:gap-y-2"
@@ -286,10 +291,21 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
         <PlayerSoundBar />
       </div>
     </div>
+    {/if}
 
     <!-- ─── Ligne d'état : qualité du son · fichier · chaîne et services ─── -->
     <div class="flex items-center gap-2.5 h-8 pl-3 pr-2 rounded-b-[18px] text-[11px] text-(--lc-mu) border-t border-(--lc-statut-bd) bg-(--lc-statut)">
-      {#if audioFile}
+      {#if $radioPlayer.station}
+        {@const st = $radioPlayer.station}
+        <!-- Radio : format et débit du flux, adresse de la station. -->
+        <div class="shrink-0 flex items-center gap-2 whitespace-nowrap">
+          {#if st.codec}<span class="h-5 px-1.5 flex items-center rounded-[5px] text-[10px] font-bold tracking-[0.06em] bg-(--lc-fmt-bg) text-(--lc-fmt-tx)">{st.codec}</span>{/if}
+          {#if $radioPlayer.bitrate}<span class="font-mono font-medium text-(--lc-tx)">{$radioPlayer.bitrate} kbit/s</span>{/if}
+          {#if st.reduced_quality}<span class="text-amber-600 dark:text-amber-400" title={$t("radios.reduced_quality")}>{$t("radios.reduced_short")}</span>{/if}
+        </div>
+        <span class="w-px h-3.5 shrink-0 bg-(--lc-trait) max-md:hidden"></span>
+        <span class="flex-1 min-w-0 truncate font-mono text-[10.5px] max-md:hidden" title={st.stream_url}>{st.stream_url}</span>
+      {:else if audioFile}
         <div
           role="group"
           aria-label={$t("player.audio_chain")}
