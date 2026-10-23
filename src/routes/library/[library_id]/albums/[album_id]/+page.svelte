@@ -35,6 +35,7 @@ import RoundButton from "#lib/components/ui/button/RoundButton.svelte";
 import ToolbarButton from "#lib/components/ui/button/ToolbarButton.svelte";
 import ChipLink from "#lib/components/ui/link/ChipLink.svelte";
 import PathChip from "#lib/components/ui/link/PathChip.svelte";
+import { isRemotePath } from "#lib/types/db/library/Library";
 import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
 import ViewModeSwitch from "#lib/components/ui/input/ViewModeSwitch.svelte";
 import SelectionToggle from "#lib/components/ui/selection/SelectionToggle.svelte";
@@ -52,6 +53,7 @@ import type { AlbumDetailView } from "#lib/types/ui/library/album/AlbumDetailVie
 import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
 import type { ArtistListView } from "#lib/types/ui/library/artist/ArtistListView";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 const libraryId = $derived(Number(page.params.library_id));
 const albumId = $derived(page.params.album_id as string);
@@ -350,6 +352,7 @@ const grille = $derived($viewMode !== "list");
       <div class="flex flex-wrap items-center gap-2.5 text-xs font-bold tracking-widest uppercase text-(--rg-tx2)">
         {$t(`album_view.type_${["single", "ep", "compilation"].includes(album.album_type) ? album.album_type : "album"}`)}
         {#if qualite}<QualityBadge palier={qualite.palier} texte={qualite.texte} class="px-2 py-0.75" />{/if}
+        <CloudMark {libraryId} size={16} label />
       </div>
 
       <h1 class="font-extrabold leading-none tracking-[-0.03em] text-balance line-clamp-3 text-(--rg-tx)
@@ -444,7 +447,7 @@ const grille = $derived($viewMode !== "list");
     <div class="flex flex-wrap items-center gap-x-6 gap-y-2 pt-5 px-3 text-[13px] text-(--rg-mu)">
       {#if sortie}<span>{sortie}</span>{/if}
       {#if fiche.label}<span>{$t("album_view.label")} <b class="font-semibold text-(--rg-tx2)">{fiche.label}</b></span>{/if}
-      {#if dossier}<PathChip chemin={dossier} aReveler={tracks[0]?.path ?? dossier} />{/if}
+      {#if dossier && !isRemotePath(tracks[0]?.path)}<PathChip chemin={dossier} aReveler={tracks[0]?.path ?? dossier} />{/if}
     </div>
   {/if}
 

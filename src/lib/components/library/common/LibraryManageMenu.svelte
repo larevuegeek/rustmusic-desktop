@@ -21,10 +21,13 @@
   import { readableSize } from "#lib/helper/tools/sizeTools";
   import { libraryStore } from "#lib/stores/library/library.store";
   import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
+  import { queueState } from "#lib/stores/queue/queueState.store";
+  import { liked } from "#lib/stores/playlist/like.store";
+  import { recent } from "#lib/stores/recent/recent.store";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import Dialog from "#lib/components/ui/dialog/Dialog.svelte";
   import AddLibraryPopin from "#lib/components/library/common/popin/AddLibraryPopin.svelte";
-  import type { Library } from "#lib/types/db/library/Library";
+  import { libraryIcon, type Library } from "#lib/types/db/library/Library";
   import type { LibraryDir } from "#lib/types/db/library/LibraryDir";
 
   let { library, dirs: fournis, onclose, onfolders, onchange }: {
@@ -113,7 +116,12 @@
       variant: "danger",
       onConfirm: async () => {
         try {
-          await libraryStore.removeLibrary(lib);
+          const removed = new Set(await libraryStore.removeLibrary(lib));
+          if (removed.size) {
+            queueState.dropTracks((path) => removed.has(path));
+            void liked.refresh();
+            void recent.refreshRecent();
+          }
           goto("/library");
         } catch (e) {
           console.error("[bibliothèque] suppression :", e);
@@ -146,14 +154,19 @@
 
 <!-- La bibliothèque, son emplacement et son état -->
 <div class="flex items-center gap-3 px-3.5 pt-3.5 pb-3 border-b border-(--rg-bd) dark:border-[#262d29] bg-linear-135 from-(--rg-g)/10 to-transparent to-70%">
-  <span class="w-9.5 h-9.5 shrink-0 rounded-[10px] border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
-    <Icon icon="material-symbols:library-music-outline-rounded" width="20" />
+  <span class="w-9.5 h-9.5 shrink-0 rounded-[10px] border flex items-center justify-center
+               {library.server_id ? 'bg-sky-500/12 border-sky-500/30 text-sky-600 dark:text-sky-300' : 'bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)'}">
+    <Icon icon={libraryIcon(library)} width="20" />
   </span>
   <span class="flex-1 min-w-0">
     <span class="block truncate text-sm font-bold">{library.name}</span>
+    {#if library.server_id}
+      <span class="block mt-0.5 truncate text-[11.5px] text-(--rg-mu)">{library.server_name}</span>
+    {:else}
     <span class="block mt-0.5 truncate font-mono text-[11px] text-(--rg-mu)" title={dirs.map((d) => d.path).join("\n")}>
       {dirs.length === 1 ? dirs[0].path : dirs.length > 1 ? $t("library_head.dirs_n").replace("{n}", String(dirs.length)) : ""}
     </span>
+    {/if}
   </span>
   <span class="shrink-0 flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap
                {etat === 'scanning' ? 'bg-(--rg-ambg) text-(--rg-am)' : etat === 'error' ? 'bg-red-500/10 text-red-600 dark:text-red-400' : 'bg-(--rg-g)/10 text-(--rg-gtx)'}">
@@ -162,6 +175,13 @@
   </span>
 </div>
 
+{#if library.server_id}
+<!-- Bibliothèque distante : rien à scanner ni à ajouter sur le disque ; elle se gère avec son serveur. -->
+<div class="p-1.5">
+  {@render action("material-symbols:sync-rounded", $t("servers.sync"), $t("servers.sync_desc"), rescan, undefined, false, !!taches.scan)}
+  {@render action("material-symbols:cloud-outline-rounded", $t("servers.manage"), library.server_name ?? "", () => { onclose(); goto("/settings/storage"); }, "fleche")}
+</div>
+{:else}
 <div class="p-1.5">
   {@render action("material-symbols:sync-rounded", $t("library_head.rescan"), $t("library_head.rescan_desc"), rescan, undefined, false, !!taches.scan)}
   {@render action("material-symbols:folder-open-outline-rounded", $t("library_head.folders"),
@@ -174,6 +194,7 @@
   {@render action("material-symbols:person-outline-rounded", $t("library_head.artist_images"), $t("library_head.artist_images_desc"), portraits, undefined, false, !!taches.artists)}
   {@render action("material-symbols:swap-vert-rounded", $t("library_head.import_export"), $t("library_head.import_export_desc"), () => { onclose(); goto("/settings/storage"); }, "fleche")}
 </div>
+{/if}
 
 <div class="p-1.5 border-t border-(--rg-bd) dark:border-[#262d29]">
   {@render action("material-symbols:edit-outline-rounded", $t("selector.rename"), $t("selector.rename_desc"), rename)}

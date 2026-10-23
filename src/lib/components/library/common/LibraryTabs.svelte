@@ -5,6 +5,7 @@ import Icon from "@iconify/svelte";
 import { t } from "#lib/i18n";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { sidebarStore } from "#lib/stores/ui/sidebar.store";
+import { libraryStore } from "#lib/stores/library/library.store";
 import {
   tabLink,
   readTabs,
@@ -20,7 +21,9 @@ let { libraryId }: { libraryId: number | null } = $props();
 const accueil = $derived(page.url.pathname === "/");
 const courant = $derived(ongletCourant(page.url.pathname));
 const tabs = $derived(
-  resolveTabs(readTabs($settingsStore.library_tabs), courant).filter((o) => libraryId != null || o.key === "playlists")
+  resolveTabs(readTabs($settingsStore.library_tabs), courant)
+    .filter((o) => libraryId != null || o.key === "playlists")
+    .filter((o) => !($libraryStore.librarySelected?.server_id && o.key === "folders"))
 );
 
 function navigateTab(key: LibraryTabKey) {

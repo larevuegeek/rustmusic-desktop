@@ -1,46 +1,127 @@
 <script lang="ts">
-  // Illustration d'une diapo : dégradé, grande icône sur verre, petites icônes qui flottent autour.
+  // Illustration d'une diapo : dégradé en taches et grain ; derrière une grande icône de verre, deux rangées
+  // de pastilles (ce qui est pris en charge) qui défilent en sens contraires.
+  // Sans rien de tout ça, quelques petites icônes flottent autour.
   import Icon from "@iconify/svelte";
   import type { WhatsNewSlide } from "#lib/config/whatsNew";
 
   let { slide }: { slide: WhatsNewSlide } = $props();
 
-  const PLACES = ["left-[15%] top-[42%]", "right-[15%] top-[22%]", "right-[25%] bottom-[14%]"];
+  const PLACES = ["left-[15%] top-[44%]", "right-[15%] top-[24%]", "right-[25%] bottom-[14%]"];
+
+  const logos = $derived(slide.logos ?? []);
+
+  /** Une rangée : un élément sur deux, répété pour remplir la largeur (puis doublée pour boucler). */
+  function rangee<T>(items: T[], depart: number): T[] {
+    const moitie = items.filter((_, i) => i % 2 === depart);
+    const base = moitie.length ? moitie : items;
+    let out = [...base];
+    while (out.length < 9) out = [...out, ...base];
+    return out;
+  }
+  const rangeesLogos = $derived(logos.length ? [rangee(logos, 0), rangee(logos, 1)] : []);
+  const [c0, c1] = $derived(slide.colors);
 </script>
 
-<div class="relative h-full w-full overflow-hidden" style="background: linear-gradient(135deg, {slide.colors[0]}, {slide.colors[1]})">
+{#snippet pastille(l: { icon: string; label: string })}
+  <span class="verre h-11 pl-3 pr-4 inline-flex items-center gap-2 rounded-full text-white text-[14px] font-bold whitespace-nowrap">
+    <Icon icon={l.icon} width="21" />{l.label}
+  </span>
+{/snippet}
+
+<div class="art relative h-full w-full overflow-hidden isolate"
+     style="--c0: {c0}; --c1: {c1}; background:
+            radial-gradient(90% 120% at 0% 0%, color-mix(in oklab, var(--c0) 85%, white) 0%, transparent 60%),
+            radial-gradient(80% 110% at 100% 100%, color-mix(in oklab, var(--c1) 80%, black) 0%, transparent 65%),
+            linear-gradient(135deg, var(--c0), var(--c1));">
   {#if slide.image}
     <img src={slide.image} alt="" class="absolute inset-0 w-full h-full object-cover" />
   {:else}
-    <div class="absolute inset-0 art-lumiere" aria-hidden="true"></div>
-    {#each (slide.satellites ?? []).slice(0, PLACES.length) as s, i (s)}
-      <span class="absolute {PLACES[i]} w-12 h-12 rounded-2xl flex items-center justify-center text-white
-                   bg-white/15 border border-white/25 backdrop-blur-sm shadow-[0_10px_24px_rgba(0,0,0,0.18)] art-flotte"
-            style="animation-delay: {i * -1.4}s" aria-hidden="true">
-        <Icon icon={s} width="24" />
-      </span>
-    {/each}
-    <span class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-[30px] flex items-center justify-center text-white
-                 bg-white/20 border border-white/35 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.25)]" aria-hidden="true">
-      <Icon icon={slide.icon} width="58" />
+    <div class="absolute left-[-10%] top-[-30%] w-[55%] h-[110%] rounded-full blur-3xl opacity-60 tache-a" aria-hidden="true"></div>
+    <div class="absolute right-[-12%] bottom-[-40%] w-[60%] h-[120%] rounded-full blur-3xl opacity-50 tache-b" aria-hidden="true"></div>
+    <div class="absolute inset-0 grain" aria-hidden="true"></div>
+
+    {#if rangeesLogos.length}
+      <!-- Deux rangées qui défilent, bords fondus -->
+      <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 py-8 flex flex-col gap-5 fondu" aria-hidden="true">
+        {#each rangeesLogos as r, i (i)}
+          <div class="piste {i ? 'inverse' : ''}">
+            {#each [...r, ...r] as l, j (j)}
+              <span class="shrink-0 pr-3.5">{@render pastille(l)}</span>
+            {/each}
+          </div>
+        {/each}
+      </div>
+      <div class="absolute inset-0 projecteur" aria-hidden="true"></div>
+    {:else}
+      {#each (slide.satellites ?? []).slice(0, PLACES.length) as s, i (s)}
+        <span class="absolute {PLACES[i]} art-flotte" style="animation-delay: {i * -1.4}s" aria-hidden="true">
+          <span class="verre w-12 h-12 rounded-2xl flex items-center justify-center text-white"><Icon icon={s} width="24" /></span>
+        </span>
+      {/each}
+    {/if}
+
+    <span class="absolute left-1/2 top-1/2 w-56 h-56 -ml-28 -mt-28 rounded-full bg-white/30 blur-3xl" aria-hidden="true"></span>
+    <span class="centre absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[124px] h-[124px] rounded-[36px]
+                 flex items-center justify-center text-white" aria-hidden="true">
+      <Icon icon={slide.icon} width="62" class="icone" />
     </span>
   {/if}
 </div>
 
 <style>
-  .art-lumiere {
-    background:
-      radial-gradient(60% 80% at 20% 0%, rgb(255 255 255 / 0.28), transparent 70%),
-      radial-gradient(50% 70% at 100% 100%, rgb(0 0 0 / 0.22), transparent 70%);
+  .tache-a { background: color-mix(in oklab, var(--c0) 55%, white); }
+  .tache-b { background: color-mix(in oklab, var(--c1) 70%, white); }
+  .grain {
+    opacity: 0.16;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  .art-flotte {
-    animation: flotte 5.6s ease-in-out infinite;
+  .fondu {
+    mask-image: linear-gradient(90deg, transparent, black 14%, black 86%, transparent);
+    opacity: 0.78;
+  }
+  .piste {
+    display: flex;
+    width: max-content;
+    animation: defile 46s linear infinite;
+  }
+  .piste.inverse {
+    animation-direction: reverse;
+    margin-left: -40px;
+  }
+  .projecteur {
+    background: radial-gradient(180px 150px at 50% 50%, color-mix(in oklab, var(--c0) 92%, var(--c1)) 38%, transparent 100%);
+  }
+  .verre {
+    background: linear-gradient(160deg, rgb(255 255 255 / 0.32), rgb(255 255 255 / 0.10));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.55),
+      0 0 0 1px rgb(255 255 255 / 0.28),
+      0 10px 24px color-mix(in oklab, var(--c1) 45%, rgb(0 0 0 / 0.5));
+    backdrop-filter: blur(10px);
+  }
+  .centre {
+    background: linear-gradient(155deg, rgb(255 255 255 / 0.45), rgb(255 255 255 / 0.14) 55%, rgb(255 255 255 / 0.22));
+    box-shadow:
+      inset 0 1.5px 0 rgb(255 255 255 / 0.7),
+      inset 0 -10px 24px rgb(255 255 255 / 0.10),
+      0 0 0 1px rgb(255 255 255 / 0.35),
+      0 26px 60px color-mix(in oklab, var(--c1) 55%, rgb(0 0 0 / 0.6));
+    backdrop-filter: blur(18px);
+  }
+  .centre :global(.icone) { filter: drop-shadow(0 4px 14px rgb(255 255 255 / 0.45)); }
+  .art-flotte { animation: flotte 5.6s ease-in-out infinite; }
+
+  @keyframes defile {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
   }
   @keyframes flotte {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-7px); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .art-flotte { animation: none; }
+    .piste, .art-flotte { animation: none; }
   }
 </style>

@@ -167,6 +167,56 @@ async fn start(app: &AppHandle, path: PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+/// Radio sur le lecteur : il lit lui-même le flux (ni différé, ni titre ICY côté RustMusic).
+/// Un Sonos veut ses radios MP3 en `x-rincon-mp3radio://` (il gère alors le flux sans fin).
+pub async fn play_stream(app: AppHandle, url: &str, station: &str, codec: Option<&str>, logo: Option<&str>) -> Result<(), String> {
+    let chosen = controller()?;
+    let ctl = match super::sonos::coordinator(chosen.renderer()).await {
+        Some(coordinator) => Controller::new(coordinator),
+        None => chosen,
+    };
+    state().transport = Some(ctl.clone());
+    let generation = GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
+    let _ = app.emit("playback-preparing", true);
+
+    let codec = codec.unwrap_or("mp3").to_ascii_lowercase();
+    let sonos = ctl.renderer().manufacturer.to_ascii_lowercase().contains("sonos");
+    let uri = match url.split_once("://") {
+        Some((_, rest)) if sonos && codec == "mp3" => format!("x-rincon-mp3radio://{rest}"),
+        _ => url.to_string(),
+    };
+    let hls = url.split(['?', '#']).next().unwrap_or(url).to_ascii_lowercase().ends_with(".m3u8");
+    let mime = match codec.as_str() {
+        _ if hls => "application/vnd.apple.mpegurl",
+        "aac" | "aac+" => "audio/aac",
+        "ogg" | "vorbis" | "opus" => "application/ogg",
+        "flac" => "audio/flac",
+        _ => "audio/mpeg",
+    };
+    let didl = super::didl::broadcast(station, &uri, mime, logo);
+    {
+        let mut s = state();
+        s.current = Some(Loaded { path: PathBuf::from(crate::core::radio::live::LIVE_PATH), url: uri.clone() });
+        s.next = None;
+        s.wanted_next = None;
+        s.position = 0.0;
+        s.duration = 0.0;
+        s.paused = false;
+        s.user_stopped = false;
+        s.saw_playing = false;
+        s.ended_sent = false;
+    }
+    if let Err(e) = ctl.set_uri(&uri, &didl).await {
+        log::debug!("📡 Nouvelle adresse refusée, arrêt puis nouvel essai : {e}");
+        let _ = ctl.stop().await;
+        ctl.set_uri(&uri, &didl).await?;
+    }
+    ctl.play().await?;
+    log::info!("📡 Radio sur {} : {station}", ctl.renderer().name);
+    tokio::spawn(poll(app, ctl, generation));
+    Ok(())
+}
+
 /// Piste suivante annoncée par l'interface (`None` : plus rien après).
 pub async fn set_next(path: Option<PathBuf>) {
     let seq = NEXT_SEQ.fetch_add(1, Ordering::Relaxed) + 1;
@@ -209,12 +259,14 @@ async fn prepare_next(ctl: &Controller, path: &Path, seq: u64) -> Result<(), Str
 /// Publie `path` et prépare ses métadonnées.
 async fn prepare(ctl: &Controller, path: &Path) -> Result<(Loaded, TrackMeta, String), String> {
     let host = local_ip_toward(ctl.renderer().ip).ok_or("adresse locale introuvable vers le lecteur")?;
-    let owned = path.to_path_buf();
+    // Morceau distant : son fichier du cache, déjà complet.
+    let file = crate::core::subsonic::stream::cached(path).unwrap_or_else(|| path.to_path_buf());
+    let owned = file.clone();
     let (mut meta, cover) = tokio::task::spawn_blocking(move || read_meta(&owned))
         .await
         .map_err(|e| e.to_string())?;
-    check_format(ctl, path).await?;
-    let published = media::publish(path, cover, host).await?;
+    check_format(ctl, &file).await?;
+    let published = media::publish(&file, cover, host).await?;
     meta.cover_url = published.cover_url.clone();
     let didl = didl::item(&meta, &published.url, &published.mime);
     Ok((Loaded { path: path.to_path_buf(), url: published.url }, meta, didl))

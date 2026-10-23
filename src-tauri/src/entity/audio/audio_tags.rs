@@ -81,6 +81,13 @@ pub struct AttachedImage {
     pub image_src: String,
 }
 
+impl AttachedImage {
+    /// Pochette avant déjà encodée (`data:image/jpeg;base64,…`).
+    pub fn cover(image_src: String) -> Self {
+        Self { image_type: Some(ImageType::CoverFront), mime_type: "image/jpeg".into(), description: None, image_data: Vec::new(), image_src }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ImageType {
     Other,

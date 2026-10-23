@@ -8,6 +8,9 @@ import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import { playerService } from "#lib/services/player/player.service";
 import NowPlayingCard from "#lib/components/player/NowPlayingCard.svelte";
 import { t, currentLocale } from "#lib/i18n";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
+import PodcastQueueList from "#lib/components/queue/PodcastQueueList.svelte";
+import { podcastQueue } from "#lib/stores/podcast/podcastQueue.store";
 
 function onKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") closeQueuePanel();
@@ -246,6 +249,9 @@ function handleRelease() {
       </div>
     {/if}
 
+    <!-- ===== ÉPISODES (file des podcasts, quand l'un joue) ===== -->
+    {#if monte}<PodcastQueueList />{/if}
+
     <!-- ===== UPCOMING TRACKS ===== -->
     {#if monte && upcomingTracks.length > 0}
       <div class="sticky top-0 z-10 mb-1
@@ -258,7 +264,7 @@ function handleRelease() {
             <Icon icon="mynaui:list" width="14" height="14" class="text-neutral-400 dark:text-neutral-500" />
           </div>
           <h3 class="text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500 dark:text-neutral-400">
-            {$t("queue_panel.up_next")}
+            {$podcastQueue.active ? $t("queue_panel.music_waiting") : $t("queue_panel.up_next")}
           </h3>
         </div>
         <span class="text-[11px] font-semibold tabular-nums text-neutral-300 dark:text-neutral-600">
@@ -339,7 +345,7 @@ function handleRelease() {
                 {queueTrack.title}
               </span>
               <span class="truncate text-[11px] font-medium text-neutral-400 dark:text-neutral-500">
-                {queueTrack.artist ?? $t("common.unknown_artist")}
+                <CloudMark path={queueTrack.path} size={12} />{" "}{queueTrack.artist ?? $t("common.unknown_artist")}
               </span>
             </div>
 

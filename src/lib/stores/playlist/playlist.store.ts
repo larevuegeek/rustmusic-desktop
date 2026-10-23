@@ -2,6 +2,7 @@ import type { Playlist } from "#lib/types/db/playlist/Playlist";
 import { profilSelector } from "#lib/stores/profil/profil.store";
 import { writable, get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
+import { sourceFilter } from "#lib/stores/source/sourceFilter.store";
 import { toasts } from "#lib/stores/ui/toast.store";
 import { t } from "#lib/i18n";
 
@@ -40,6 +41,7 @@ export const playlistStore = {
     try {
       const playlists = await invoke<Playlist[]>('get_playlists', {
         profilId: profilId,
+        sourceId: get(sourceFilter),
       });
 
       playlistWriter.update(state => ({
@@ -64,6 +66,7 @@ export const playlistStore = {
     try {
       const playlists = await invoke<Playlist[]>('get_playlists', {
         profilId: profilId,
+        sourceId: get(sourceFilter),
       });
 
       playlistWriter.update(state => ({
@@ -74,14 +77,17 @@ export const playlistStore = {
       console.error("Failed to refresh playlists", error);
     }
   },
-  addPlaylist: async (profilId: number, name: string, description: string | null, color: string = '#8b5cf6', icon: string = 'mynaui:music') => {
+  /** `serverId` : créée sur ce serveur et synchronisée avec lui. `sourceId` : sa source (défaut : celle affichée). */
+  addPlaylist: async (profilId: number, name: string, description: string | null, color: string = '#8b5cf6', icon: string = 'mynaui:music', serverId: number | null = null, sourceId: number | null = null) => {
     const newPlaylist: Playlist = await invoke<Playlist>('create_playlist', {
       payload: {
         profil_id: profilId,
         name: name.trim(),
         description: description?.trim() || null,
         color,
-        icon
+        icon,
+        server_id: serverId,
+        source_id: serverId ?? sourceId ?? get(sourceFilter) ?? 0,
       }
     });
 

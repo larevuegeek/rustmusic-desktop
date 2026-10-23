@@ -2,7 +2,7 @@ import { writable, get } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { profilSelector } from "#lib/stores/profil/profil.store";
-import type { RadioRecent, RadioResult, RadioView } from "#lib/types/ui/radio/Radio";
+import type { RadioRecent, RadioResult, RadioView, StreamVariant } from "#lib/types/ui/radio/Radio";
 
 type RadioState = {
   radios: RadioView[];
@@ -109,6 +109,15 @@ export const radioStore = {
     const r = await invoke<RadioView>("radio_add", { profilId, station });
     radioWriter.update((s) => ({ ...s, radios: [...s.radios.filter((x) => x.id !== r.id), r] }));
     return r;
+  },
+
+  /** Les versions du flux d'une station, d'après l'annuaire. */
+  variants: (name: string, country: string | null) => invoke<StreamVariant[]>("radio_variants", { name, country }),
+
+  /** La favorite passe à une autre version de son flux. */
+  async setStream(id: number, variant: StreamVariant) {
+    await invoke("radio_set_stream", { radioId: id, variant });
+    radioWriter.update((s) => ({ ...s, radios: s.radios.map((x) => (x.id === id ? { ...x, ...variant } : x)) }));
   },
 
   async remove(id: number) {

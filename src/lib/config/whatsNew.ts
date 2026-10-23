@@ -13,19 +13,66 @@ export type WhatsNewSlide = {
   satellites?: string[];
   /** Capture ou image (dans `static/`) à la place de l'icône. */
   image?: string;
+  /** Ce qui est pris en charge : pastilles icône + nom qui défilent (à la place des satellites). */
+  logos?: { icon: string; label: string }[];
   /** Bouton « Essayer » : mène à la nouveauté. */
   action?: () => void;
 };
 
 const podcastsEnabled = () => get(settingsStore).podcasts === "true";
+const radiosEnabled = () => get(settingsStore).radios === "true";
+
 
 const RELEASES: Record<string, WhatsNewSlide[]> = {
-  "0.3.2": [
+  "0.4.0": [
+    {
+      id: "servers",
+      icon: "material-symbols:cloud-outline-rounded",
+      colors: ["#0ea5e9", "#6366f1"],
+      satellites: ["material-symbols:dns-outline-rounded", "material-symbols:cloud-download-outline-rounded", "material-symbols:favorite-rounded"],
+      logos: [
+        { icon: "simple-icons:jellyfin", label: "Jellyfin" },
+        { icon: "material-symbols:cloud-outline-rounded", label: "Navidrome" },
+        { icon: "simple-icons:dlna", label: "DLNA" },
+        { icon: "material-symbols:cloud-outline-rounded", label: "Subsonic" },
+        { icon: "simple-icons:truenas", label: "TrueNAS" },
+        { icon: "simple-icons:synology", label: "Synology" },
+      ],
+      action: () => goto("/settings/storage"),
+    },
+    {
+      id: "sources",
+      icon: "material-symbols:stacks-outline-rounded",
+      colors: ["#8b5cf6", "#0ea5e9"],
+      satellites: ["material-symbols:computer-outline-rounded", "material-symbols:cloud-outline-rounded", "material-symbols:swap-horiz-rounded"],
+    },
+    {
+      id: "radios",
+      icon: "material-symbols:radio-outline-rounded",
+      colors: ["#f97316", "#e11d48"],
+      satellites: ["material-symbols:history-rounded", "material-symbols:high-quality-outline-rounded", "material-symbols:cast-rounded"],
+      logos: [
+        { icon: "material-symbols:public", label: "Radio Browser" },
+        { icon: "material-symbols:history-rounded", label: "Historique" },
+        { icon: "material-symbols:high-quality-outline-rounded", label: "AAC · MP3 · HLS" },
+        { icon: "material-symbols:cast-rounded", label: "UPnP" },
+        { icon: "simple-icons:sonos", label: "Sonos" },
+        { icon: "material-symbols:music-note-rounded", label: "Titre en direct" },
+      ],
+      action: () => goto(radiosEnabled() ? "/radios" : "/settings/online"),
+    },
     {
       id: "podcasts",
       icon: "material-symbols:podcasts-rounded",
       colors: ["#8b5cf6", "#c026d3"],
       satellites: ["material-symbols:search-rounded", "material-symbols:rss-feed-rounded", "material-symbols:trophy-outline-rounded"],
+      logos: [
+        { icon: "simple-icons:applepodcasts", label: "Apple Podcasts" },
+        { icon: "material-symbols:rss-feed-rounded", label: "RSS" },
+        { icon: "material-symbols:trophy-outline-rounded", label: "Top 100" },
+        { icon: "material-symbols:download-rounded", label: "Hors ligne" },
+        { icon: "material-symbols:upload-file-outline-rounded", label: "OPML" },
+      ],
       action: () => goto(podcastsEnabled() ? "/podcasts" : "/settings/online"),
     },
     {

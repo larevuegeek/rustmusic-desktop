@@ -5,7 +5,9 @@ import { t } from "#lib/i18n";
 import Icon from "@iconify/svelte";
 import { goto } from "$app/navigation";
 import { scale } from "svelte/transition";
-import type { Library } from "#lib/types/db/library/Library";
+import { libraryIcon, type Library } from "#lib/types/db/library/Library";
+import { serverStore } from "#lib/stores/mediaServer/mediaServer.store";
+import StatusDot from "#lib/components/ui/status/StatusDot.svelte";
 import { popinStore } from "#lib/stores/ui/popin.store";
 import AddLibraryPopin from "#lib/components/library/common/popin/AddLibraryPopin.svelte";
 import LibraryManageMenu, { isLibraryBusy } from "#lib/components/library/common/LibraryManageMenu.svelte";
@@ -13,6 +15,7 @@ import LibraryFoldersPopin from "#lib/components/library/common/popin/LibraryFol
 import { page } from "$app/state";
 import { portal } from "#lib/helper/portal";
 import { currentLocale } from "#lib/i18n";
+import { currentSource, sourceLibraries } from "#lib/stores/source/source.store";
 
 let { replie = false }: { replie?: boolean } = $props();
 
@@ -22,13 +25,14 @@ let dropdownEl: HTMLElement | null = $state(null);
 let position = $state("");
 
 let activeLibrary = $derived($libraryStore.librarySelected);
-let otherLibraries = $derived($libraryStore.libraries.filter(lib => lib.id !== activeLibrary?.id));
+let otherLibraries = $derived($sourceLibraries.filter(lib => lib.id !== activeLibrary?.id));
 
 const sousTitre = $derived.by(() => {
   const n = $pistesAvecImport(activeLibrary);
   const titres = n === 1 ? $t('home.track_one') : $t('home.tracks_n').replace('{n}', n.toLocaleString($currentLocale));
-  const nb = $libraryStore.libraries.length;
-  return nb > 1 ? `${titres} · ${$t('sidebar.libraries_n').replace('{n}', String(nb))}` : titres;
+  const nb = $sourceLibraries.length;
+  const avecServeur = activeLibrary?.server_name ? `${activeLibrary.server_name} · ${titres}` : titres;
+  return nb > 1 ? `${avecServeur} · ${$t('sidebar.libraries_n').replace('{n}', String(nb))}` : avecServeur;
 });
 
 // Porté dans `body` : la barre défile et, repliée, rognerait le menu.
@@ -136,8 +140,10 @@ $effect(() => {
     aria-expanded={isOpen}
     title={$t('sidebar.change_library')}
   >
-    <span class="w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)">
-      <Icon icon="material-symbols:library-music-outline-rounded" width="20" class="sb-icone" />
+    <!-- Distante : teinte bleue et pastille d'état du serveur. -->
+    <span class="relative w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center
+                 {activeLibrary?.server_id ? 'bg-sky-500/12 text-sky-600 dark:text-sky-300' : 'bg-(--sb-gbg) text-(--sb-g)'}">
+      <Icon icon={libraryIcon(activeLibrary)} width="20" class="sb-icone" />
     </span>
 
     {#if !replie}
@@ -146,7 +152,9 @@ $effect(() => {
           <small class="text-xs text-(--sb-mu)">{$t('common.loading')}</small>
         {:else if activeLibrary}
           <b class="text-sm font-bold truncate text-(--sb-tx)">{activeLibrary.name}</b>
-          <small class="text-xs truncate text-(--sb-mu)">{sousTitre}</small>
+          <small class="text-xs truncate text-(--sb-mu)">
+            {#if activeLibrary.server_id}<StatusDot online={$serverStore.online[activeLibrary.server_id]} class="mr-1.5 -mt-px" />{/if}{sousTitre}
+          </small>
         {:else}
           <small class="text-xs text-(--sb-mu)">{$t('selector.no_library')}</small>
         {/if}
@@ -177,7 +185,7 @@ $effect(() => {
         </div>
 
         <div class="max-h-64 overflow-y-auto px-1.5">
-          {#if $libraryStore.libraries.length === 0}
+          {#if $sourceLibraries.length === 0}
             <div class="px-3 py-6 text-center">
               <div class="w-10 h-10 rounded-xl mx-auto mb-2
                           bg-green-500/10 flex items-center justify-center">
@@ -188,7 +196,8 @@ $effect(() => {
           {:else}
             <!-- Deux boutons côte à côte : sélectionner, et ⋯ pour gérer (un bouton
                  imbriqué dans un autre n'est pas du HTML valide). -->
-            {#each $libraryStore.libraries as library (library.id)}
+            <!-- Celles de la source affichée seulement. -->
+            {#each $sourceLibraries as library (library.id)}
               {@const isActive = library.id === activeLibrary?.id}
               <div
                 class="w-full flex items-center gap-1 pr-1 rounded-lg
@@ -203,16 +212,18 @@ $effect(() => {
                   onclick={() => handleSelectLibrary(library)}
                 >
                   <!-- Check / icône -->
-                  <div class="w-7 h-7 rounded-md shrink-0 flex items-center justify-center
+                  <div class="relative w-7 h-7 rounded-md shrink-0 flex items-center justify-center
                               {isActive
                                 ? 'bg-green-500/20 text-green-500'
-                                : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500'}">
+                                : library.server_id
+                                  ? 'bg-sky-500/10 text-sky-600 dark:text-sky-300'
+                                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500'}">
                     {#if isActive}
                       <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                         <path d="m4.5 12.75 6 6 9-13.5"/>
                       </svg>
                     {:else}
-                      <Icon icon="lucide:library" width="12" />
+                      <Icon icon={libraryIcon(library)} width="14" />
                     {/if}
                   </div>
 
@@ -237,8 +248,8 @@ $effect(() => {
                         </span>
                       {/if}
                     </div>
-                    <div class="text-[10px] text-neutral-400 dark:text-neutral-500">
-                      {$pistesAvecImport(library)} titre{$pistesAvecImport(library) !== 1 ? 's' : ''}
+                    <div class="text-[10px] truncate text-neutral-400 dark:text-neutral-500">
+                      {#if library.server_id}<StatusDot online={$serverStore.online[library.server_id]} class="mr-1 -mt-px" />{/if}{#if library.server_name}{library.server_name}{" · "}{/if}{$pistesAvecImport(library)} titre{$pistesAvecImport(library) !== 1 ? 's' : ''}
                       · {library.total_albums} album{library.total_albums !== 1 ? 's' : ''}
                     </div>
                   </div>
@@ -279,6 +290,8 @@ $effect(() => {
               {$t('selector.view')}
             </button>
           {/if}
+          <!-- Source serveur : ses dossiers se choisissent dans Réglages → Serveurs. -->
+          {#if !(typeof $currentSource === 'number' && $currentSource > 0)}
           <button
             type="button"
             class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg
@@ -293,6 +306,7 @@ $effect(() => {
             <Icon icon="lucide:plus" width="12" />
             {$t('selector.new')}
           </button>
+          {/if}
         </div>
       </div>
     </div>

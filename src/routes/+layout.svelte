@@ -54,6 +54,7 @@ import SleepTimerButton from "#lib/components/player/SleepTimerButton.svelte";
 import WhatsNewButton from "#lib/components/whatsnew/WhatsNewButton.svelte";
 import { showWhatsNewIfDue } from "#lib/actions/whatsNew/WhatsNewAction";
 import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
+import { serverStore } from "#lib/stores/mediaServer/mediaServer.store";
 import { fade } from "svelte/transition";
 import { openExternalLinks } from "#lib/helper/tools/externalLinks";
 import { lecture } from "#lib/stores/player/playback.store";
@@ -63,6 +64,8 @@ import { volume, loadVolume, applyVolume } from "#lib/stores/player/volume.store
 
 // Affichage du bouton sleep timer dans le header (désactivable dans les réglages).
 let showSleepTimer = $derived($settingsStore.show_sleep_timer !== 'false');
+let showWhatsNew = $derived($settingsStore.show_whats_new_button !== 'false');
+let showThemeToggle = $derived($settingsStore.show_theme_toggle !== 'false');
 import type { Snippet } from "svelte";
 
 let { children }: { children: Snippet } = $props();
@@ -130,6 +133,8 @@ onMount(async () => {
 
   await profilSelector.init();
   await libraryStore.init();
+  // Serveurs : pastille verte ou rouge sur les bibliothèques distantes.
+  serverStore.watch();
   await queueState.init();
   playerService.init();
   importProgressStore.init();
@@ -292,8 +297,8 @@ function handleKeydown(e: KeyboardEvent) {
         {#if showSleepTimer}
           <SleepTimerButton />
         {/if}
-        <WhatsNewButton />
-        <SwitchTheme />
+        {#if showWhatsNew}<WhatsNewButton />{/if}
+        {#if showThemeToggle}<SwitchTheme />{/if}
         <ProfilSelectorInput />
       </div>
     {/if}

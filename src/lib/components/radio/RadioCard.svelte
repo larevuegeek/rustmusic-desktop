@@ -81,5 +81,5 @@
 </div>
 
 {#if menu}
-  <RadioContextMenu x={menu.x} y={menu.y} top={menu.top} {station} {onplay} onclose={() => (menu = null)} />
+  <RadioContextMenu x={menu.x} y={menu.y} top={menu.top} {station} {logoPath} {onplay} onclose={() => (menu = null)} />
 {/if}

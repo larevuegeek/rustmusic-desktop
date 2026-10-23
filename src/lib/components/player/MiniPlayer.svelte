@@ -154,7 +154,7 @@
     dejaCentre = true;
   });
 
-  const SOURCES: Record<string, string> = { sidecar: "mini.src_sidecar", lrclib: "mini.src_lrclib", manual: "mini.src_manual" };
+  const SOURCES: Record<string, string> = { sidecar: "mini.src_sidecar", lrclib: "mini.src_lrclib", manual: "mini.src_manual", server: "mini.src_server" };
 
   // ─── Fenêtre ───
   let entete = $state<HTMLDivElement | null>(null);

@@ -1,3 +1,11 @@
+/** Une autre version du flux d'une station (format, débit). */
+export type StreamVariant = {
+  stream_url: string;
+  codec: string | null;
+  bitrate: number | null;
+  reduced_quality: boolean;
+};
+
 /** Une station de l'annuaire Radio Browser, ou décrite depuis une adresse collée. */
 export type RadioResult = {
   uuid: string | null;
@@ -11,6 +19,8 @@ export type RadioResult = {
   bitrate: number | null;
   /** AAC+ : le son passe, mais étouffé. */
   reduced_quality: boolean;
+  /** Les versions du flux dans l'annuaire, la meilleure d'abord (vide s'il n'y en a qu'une). */
+  variants?: StreamVariant[];
 };
 
 /** Une radio favorite du profil. */

@@ -13,6 +13,7 @@ import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { minutesSeconds } from "#lib/helper/tools/dateTools";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 let {
     libraryId,
@@ -115,7 +116,9 @@ const ib = "w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-[9px] 
     {/if}
 
     <div class="min-w-0 flex flex-col gap-0.5">
-        <p class="truncate text-[15px] font-semibold {enCours ? 'text-(--rg-g)' : 'text-(--rg-tx)'}" title={track.title}>{track.title}</p>
+        <p class="flex items-center gap-1.5 min-w-0 text-[15px] font-semibold {enCours ? 'text-(--rg-g)' : 'text-(--rg-tx)'}" title={track.title}>
+            <CloudMark path={track.path} /><span class="truncate">{track.title}</span>
+        </p>
         {#if invite}
             <p class="truncate text-[12.5px] text-(--rg-mu)" title={invite}>{invite}</p>
         {/if}

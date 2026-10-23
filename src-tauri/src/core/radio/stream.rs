@@ -75,7 +75,7 @@ async fn probe(raw: &str) -> Result<RadioResult, String> {
                 }
                 let text = String::from_utf8_lossy(&body[..body.len().min(limit)]);
                 if text.contains("#EXT-X-") {
-                    return Err("flux HLS (.m3u8) : pas encore pris en charge".into());
+                    return Ok(describe_hls(&url, &text, resp.headers()));
                 }
                 match first_url(&text) {
                     Some(next) => url = next,
@@ -115,6 +115,18 @@ fn codec_of(content_type: &str) -> Option<String> {
     Some(c.into())
 }
 
+/// Station HLS : nom d'après l'hôte, format et débit d'après la meilleure variante.
+fn describe_hls(url: &str, text: &str, headers: &HeaderMap) -> RadioResult {
+    let mut r = describe(url, headers, "");
+    if let Ok(super::hls::Playlist::Master(variants)) = super::hls::parse(text, url) {
+        if let Some(v) = super::hls::pick(&variants) {
+            r.codec = super::hls::codec_label(v.codecs.as_deref()).map(str::to_string);
+            r.bitrate = (v.bandwidth > 0).then_some((v.bandwidth / 1000) as u32);
+        }
+    }
+    with_quality(r)
+}
+
 fn describe(url: &str, headers: &HeaderMap, content_type: &str) -> RadioResult {
     let icy = |k: &str| headers.get(k).and_then(|v| v.to_str().ok()).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
     let host = reqwest::Url::parse(url).ok().and_then(|u| u.host_str().map(str::to_string)).unwrap_or_else(|| url.to_string());
@@ -127,6 +139,7 @@ fn describe(url: &str, headers: &HeaderMap, content_type: &str) -> RadioResult {
         ![".mp3", ".aac", ".ogg", ".opus", ".m4a", ".flac"].iter().any(|e| n.ends_with(e))
     });
     with_quality(RadioResult {
+        variants: Vec::new(),
         uuid: None,
         name: name.unwrap_or(host),
         stream_url: url.to_string(),

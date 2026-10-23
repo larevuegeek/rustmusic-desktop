@@ -14,6 +14,7 @@ import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 import { hiResLabel } from "#lib/helper/tools/audioFormatTools";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 let { libraryId, album, onopen }: {
     libraryId: number;
@@ -108,7 +109,8 @@ async function loadAlbumTracks() {
     </div>
 
     <div class="text-[15px] font-bold leading-[1.3] line-clamp-2 text-(--rg-tx)" title={album.title}>{album.title}</div>
-    <div class="-mt-1.5 flex gap-1.5 min-w-0 text-[13px] text-(--rg-mu)">
+    <div class="-mt-1.5 flex items-center gap-1.5 min-w-0 text-[13px] text-(--rg-mu)">
+        <CloudMark {libraryId} />
         <span class="truncate text-(--rg-tx2)">{album.artist || $t("albums_view.unknown_artist")}</span>
         {#if album.year}<span class="shrink-0">· {album.year}</span>{/if}
     </div>

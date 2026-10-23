@@ -85,6 +85,54 @@ impl RadioRepository {
     }
 
     /// Retient l'écoute ; seules les `KEEP` plus récentes restent.
+    /// La favorite passe à une autre version du flux de sa station.
+    pub async fn set_stream(pool: &SqlitePool, id: i64, v: &crate::core::radio::directory::StreamVariant) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE radio_stations SET stream_url = ?, codec = ?, bitrate = ?, reduced_quality = ? WHERE id = ?")
+            .bind(&v.stream_url)
+            .bind(&v.codec)
+            .bind(v.bitrate.map(i64::from))
+            .bind(v.reduced_quality)
+            .bind(id)
+            .execute(pool)
+            .await
+            .map(|_| ())
+    }
+
+    /// Titre entendu ; seuls les 300 derniers du profil sont gardés.
+    pub async fn record_title(pool: &SqlitePool, profil_id: i64, station: &str, stream_url: &str, title: &str) -> Result<(), sqlx::Error> {
+        const KEEP: i64 = 300;
+        sqlx::query("INSERT INTO radio_titles (profil_id, station, stream_url, title) VALUES (?, ?, ?, ?)")
+            .bind(profil_id)
+            .bind(station)
+            .bind(stream_url)
+            .bind(title)
+            .execute(pool)
+            .await?;
+        sqlx::query("DELETE FROM radio_titles WHERE profil_id = ?1 AND id NOT IN (SELECT id FROM radio_titles WHERE profil_id = ?1 ORDER BY id DESC LIMIT ?2)")
+            .bind(profil_id)
+            .bind(KEEP)
+            .execute(pool)
+            .await
+            .map(|_| ())
+    }
+
+    pub async fn titles(pool: &SqlitePool, profil_id: i64, limit: i64) -> Result<Vec<crate::entity::radio::radio::RadioTitle>, sqlx::Error> {
+        sqlx::query_as(
+            "SELECT t.id, t.station, t.stream_url, t.title, t.played_at, r.logo_path
+               FROM radio_titles t
+               LEFT JOIN radio_recent r ON r.profil_id = t.profil_id AND r.stream_url = t.stream_url
+              WHERE t.profil_id = ? ORDER BY t.id DESC LIMIT ?",
+        )
+        .bind(profil_id)
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+    }
+
+    pub async fn clear_titles(pool: &SqlitePool, profil_id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM radio_titles WHERE profil_id = ?").bind(profil_id).execute(pool).await.map(|_| ())
+    }
+
     pub async fn record_recent(pool: &SqlitePool, profil_id: i64, r: &RadioResult, logo_path: Option<&str>) -> Result<(), sqlx::Error> {
         const KEEP: i64 = 30;
         sqlx::query(

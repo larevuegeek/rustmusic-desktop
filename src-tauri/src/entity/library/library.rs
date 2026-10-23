@@ -18,6 +18,11 @@ pub struct Library {
     pub is_default: bool,
     pub created_at: String,
     pub updated_at: Option<String>,
+    /// Bibliothèque distante : son serveur (sinon locale).
+    #[sqlx(default)]
+    pub server_id: Option<i64>,
+    #[sqlx(default)]
+    pub server_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

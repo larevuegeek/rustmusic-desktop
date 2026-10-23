@@ -14,8 +14,9 @@
     episode: EpisodeView;
     onplay: () => void;
     ontoggleplayed: () => void;
-    onnext: () => void;
-    onenqueue: () => void;
+    /** Absents : aucune file d'épisodes en cours (rien après quoi ajouter). */
+    onnext?: () => void;
+    onenqueue?: () => void;
     ondownload: () => void;
     ondelete: () => void;
     /** L'épisode est celui du lecteur : en cours ou en pause. */
@@ -114,8 +115,8 @@
           <Icon icon="material-symbols:more-horiz" width="20" />
         </button>
         <Menu bind:open={menu} class="w-64">
-          <MenuItem icon="material-symbols:playlist-play-rounded" onclick={closeMenuThen(onnext)}>{$t("common.add_next")}</MenuItem>
-          <MenuItem icon="material-symbols:playlist-add-rounded" onclick={closeMenuThen(onenqueue)}>{$t("podcasts.add_to_queue")}</MenuItem>
+          {#if onnext}<MenuItem icon="material-symbols:playlist-play-rounded" onclick={closeMenuThen(onnext)}>{$t("common.add_next")}</MenuItem>{/if}
+          {#if onenqueue}<MenuItem icon="material-symbols:playlist-add-rounded" onclick={closeMenuThen(onenqueue)}>{$t("podcasts.add_to_queue")}</MenuItem>{/if}
           <MenuItem icon={episode.played ? "material-symbols:remove-done-rounded" : "material-symbols:done-all-rounded"} onclick={closeMenuThen(ontoggleplayed)}>
             {episode.played ? $t("podcasts.mark_unplayed") : $t("podcasts.mark_played")}
           </MenuItem>

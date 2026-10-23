@@ -92,7 +92,9 @@ impl LibraryRepository {
                 )) AS total_artists,
                 is_default,
                 created_at,
-                updated_at
+                updated_at,
+                server_id,
+                (SELECT s.name FROM media_servers s WHERE s.id = library.server_id) AS server_name
             FROM library
             WHERE id = ?
             "#
@@ -144,6 +146,8 @@ impl LibraryRepository {
                 created_at,
                 updated_at
             FROM library
+            -- Les bibliothèques distantes n'ont pas de fichiers à servir.
+            WHERE server_id IS NULL
             ORDER BY position ASC, id ASC
             "#
         )
@@ -191,9 +195,13 @@ impl LibraryRepository {
                 )) AS total_artists,
                 is_default,
                 created_at,
-                updated_at
+                updated_at,
+                server_id,
+                (SELECT s.name FROM media_servers s WHERE s.id = library.server_id) AS server_name
             FROM library
+            -- Serveur désactivé : ses bibliothèques disparaissent, sans rien perdre.
             WHERE profil_id = ?
+              AND (server_id IS NULL OR server_id IN (SELECT id FROM media_servers WHERE enabled = 1))
             ORDER BY position ASC
             "#
         )
@@ -298,10 +306,12 @@ impl LibraryRepository {
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
 
+        // Une playlist rattachée à la bibliothèque est gardée, détachée (son lien bloquait la suppression).
         sqlx::query(
             r#"
+            UPDATE playlists SET library_id = NULL WHERE library_id = ?1;
             DELETE FROM library
-            WHERE id = ?
+            WHERE id = ?1
             "#
         )
         .bind(library_id)

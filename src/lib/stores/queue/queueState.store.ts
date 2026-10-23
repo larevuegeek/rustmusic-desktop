@@ -68,6 +68,23 @@ function shuffleArray<T>(arr: T[]): T[] {
     return a;
 }
 
+/** Index qui suit selon la répétition, en sautant les pistes `skip` ; -1 en fin de file. */
+export function followingIndex(qs: QueueState, skip: (track: QueueTrack) => boolean = () => false): number {
+    const total = qs.tracks.length;
+    if (total === 0) return -1;
+    if (qs.repeatMode === "one") return qs.currentIndex;
+    let index = qs.currentIndex;
+    for (let step = 0; step < total; step++) {
+        index += 1;
+        if (index >= total) {
+            if (qs.repeatMode !== "all") return -1;
+            index = 0;
+        }
+        if (!skip(qs.tracks[index])) return index;
+    }
+    return -1;
+}
+
 export const queueState = {
     subscribe: queueStateWritable.subscribe,
 
@@ -157,6 +174,17 @@ export const queueState = {
             console.error("❌ Erreur SQLite lors de la suppression :", err);
         }
     },
+    // Retire les pistes dont le chemin correspond (serveur ou bibliothèque distante supprimés).
+    dropTracks: (gone: (path: string) => boolean) => {
+        const qs = get(queueStateWritable);
+        if (!qs.tracks.some((t) => gone(t.path))) return;
+        const playingId = qs.tracks[qs.currentIndex]?.queueId;
+        const tracks = qs.tracks.filter((t) => !gone(t.path)).map((t, position) => ({ ...t, position }));
+        const currentIndex = playingId ? tracks.findIndex((t) => t.queueId === playingId) : -1;
+        if (originalTracks) originalTracks = originalTracks.filter((t) => !gone(t.path));
+        queueStateWritable.update((state) => ({ ...state, tracks, currentIndex }));
+        enregistrerFile(tracks, currentIndex);
+    },
     // Réorganiser la file (Drag & Drop)
     reorderTracks: async (fromIndex: number, toIndex: number) => {
         const qs = get(queueStateWritable);
@@ -241,30 +269,10 @@ export const queueState = {
         }
     },
     /** Passe au morceau suivant ; `false` en fin de file (rien après, sans répétition). */
-    next: async (): Promise<boolean> => {
-        const qs = get(queueStateWritable);
-        const total = qs.tracks.length;
-
-        if (total === 0) return false;
-
-        let nextIndex;
-
-        if (qs.repeatMode === "one") {
-            nextIndex = qs.currentIndex;
-        } else {
-            // Shuffle ou pas, on avance simplement de +1
-            // (en shuffle la liste est déjà mélangée)
-            nextIndex = qs.currentIndex + 1;
-
-            if (nextIndex >= total) {
-                if (qs.repeatMode === "all") {
-                    nextIndex = 0;
-                } else {
-                    return false;
-                }
-            }
-        }
-
+    // En shuffle la liste est déjà mélangée : on avance simplement. `skip` écarte les pistes injouables.
+    next: async (skip?: (track: QueueTrack) => boolean): Promise<boolean> => {
+        const nextIndex = followingIndex(get(queueStateWritable), skip);
+        if (nextIndex < 0) return false;
         await queueState.setCurrentIndex(nextIndex);
         return true;
     },

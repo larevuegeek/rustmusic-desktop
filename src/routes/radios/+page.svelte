@@ -14,6 +14,7 @@
   import HeaderGlow from "#lib/components/ui/deco/HeaderGlow.svelte";
   import PageState from "#lib/components/ui/layout/PageState.svelte";
   import RadioCard from "#lib/components/radio/RadioCard.svelte";
+  import RadioTitleHistory from "#lib/components/radio/RadioTitleHistory.svelte";
   import type { RadioResult } from "#lib/types/ui/radio/Radio";
 
   const actif = $derived($settingsStore.radios === "true");
@@ -139,6 +140,8 @@
           {#snippet ligne(r)}<RadioCard station={toResult(r)} logoPath={r.logo_path} onplay={() => radioPlayer.play(toResult(r), r.logo_path)} />{/snippet}
         </CarouselSection>
       {/if}
+
+      {#if profilId != null}<RadioTitleHistory {profilId} />{/if}
 
       <section class="mt-12">
         <div class="flex flex-wrap items-end gap-3 mb-3.5">

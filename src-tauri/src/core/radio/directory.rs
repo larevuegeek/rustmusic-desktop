@@ -9,6 +9,15 @@ use serde_json::Value;
 
 use crate::core::podcast::fetch::client;
 
+/// Une autre version du flux d'une station (format, débit).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StreamVariant {
+    pub stream_url: String,
+    pub codec: Option<String>,
+    pub bitrate: Option<u32>,
+    pub reduced_quality: bool,
+}
+
 /// Une station, telle que l'annuaire (ou une adresse collée) la décrit.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RadioResult {
@@ -24,6 +33,9 @@ pub struct RadioResult {
     pub bitrate: Option<u32>,
     /// AAC+ (HE-AAC) : le décodeur n'en lit que la base, le son est étouffé.
     pub reduced_quality: bool,
+    /// Les versions du flux de la station dans l'annuaire (vide s'il n'y en a qu'une).
+    #[serde(default)]
+    pub variants: Vec<StreamVariant>,
 }
 
 /// Miroirs connus, si la liste officielle ne répond pas.
@@ -155,20 +167,18 @@ pub(crate) fn with_quality(mut r: RadioResult) -> RadioResult {
     r
 }
 
-/// Stations de la réponse, sans HLS (pas encore lu) ni doublons.
+/// Stations de la réponse, sans doublons.
 fn parse_stations(json: &Value) -> Vec<RadioResult> {
     let Some(list) = json.as_array() else { return Vec::new() };
     let text = |s: &Value, k: &str| s.get(k).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
     let stations = list.iter().filter_map(|s| {
-        if s.get("hls").and_then(Value::as_i64) == Some(1) {
-            return None;
-        }
         let url = text(s, "url_resolved").or_else(|| text(s, "url"))?;
         if !url.starts_with("http") {
             return None;
         }
         let tags = text(s, "tags").map(|t| clean_tags(&t)).unwrap_or_default();
         let bitrate = s.get("bitrate").and_then(Value::as_u64).filter(|&b| b > 0).map(|b| b as u32);
+        let hls = s.get("hls").and_then(Value::as_i64) == Some(1) || url.to_ascii_lowercase().contains(".m3u8");
         Some(with_quality(RadioResult {
             uuid: text(s, "stationuuid"),
             name: text(s, "name")?,
@@ -177,34 +187,63 @@ fn parse_stations(json: &Value) -> Vec<RadioResult> {
             favicon: text(s, "favicon").filter(|f| f.starts_with("http")),
             country_code: text(s, "countrycode"),
             tags,
-            codec: text(s, "codec"),
+            // « UNKNOWN » de l'annuaire : rien à afficher, sauf un flux HLS qui se dit tel.
+            codec: text(s, "codec").filter(|c| !c.eq_ignore_ascii_case("unknown")).or_else(|| hls.then(|| "HLS".to_string())),
             bitrate,
             reduced_quality: false,
+            variants: Vec::new(),
         }))
     });
     prefer_best(stations.collect())
 }
 
-/// Une station listée plusieurs fois (formats, débits) : la meilleure version, à la place de la première.
+fn variant_of(r: &RadioResult) -> StreamVariant {
+    StreamVariant { stream_url: r.stream_url.clone(), codec: r.codec.clone(), bitrate: r.bitrate, reduced_quality: r.reduced_quality }
+}
+
+/// Une station listée plusieurs fois (formats, débits) : la meilleure version, à la place de la première,
+/// et toutes ses versions (la meilleure d'abord) pour choisir le flux.
 fn prefer_best(list: Vec<RadioResult>) -> Vec<RadioResult> {
     let key = |r: &RadioResult| (r.name.trim().to_lowercase(), r.country_code.clone());
-    let score = |r: &RadioResult| (!r.reduced_quality, r.bitrate.unwrap_or(0));
+    let score = |r: &StreamVariant| (!r.reduced_quality, r.bitrate.unwrap_or(0));
     let mut best: HashMap<(String, Option<String>), usize> = HashMap::new();
     let mut out: Vec<RadioResult> = Vec::new();
     for r in list {
         match best.get(&key(&r)) {
             Some(&i) => {
-                if score(&r) > score(&out[i]) {
-                    out[i] = r;
+                let v = variant_of(&r);
+                if !out[i].variants.iter().any(|x| x.stream_url == v.stream_url) {
+                    out[i].variants.push(v);
+                }
+                if score(&variant_of(&r)) > score(&variant_of(&out[i])) {
+                    let variants = std::mem::take(&mut out[i].variants);
+                    out[i] = RadioResult { variants, ..r };
                 }
             }
             None => {
                 best.insert(key(&r), out.len());
-                out.push(r);
+                let v = variant_of(&r);
+                out.push(RadioResult { variants: vec![v], ..r });
             }
         }
     }
+    for r in &mut out {
+        // Une adresse par qualité (format, débit), la https d'abord : l'annuaire en liste souvent plusieurs.
+        r.variants.sort_by_key(|v| (std::cmp::Reverse(score(v)), !v.stream_url.starts_with("https")));
+        let mut seen = std::collections::HashSet::new();
+        r.variants.retain(|v| seen.insert((v.codec.as_deref().unwrap_or("").to_ascii_uppercase(), v.bitrate)));
+        if r.variants.len() < 2 {
+            r.variants.clear();
+        }
+    }
     out
+}
+
+/// Les versions du flux d'une station (même nom, même pays), la meilleure d'abord.
+pub async fn variants(name: &str, country: Option<&str>) -> Result<Vec<StreamVariant>, String> {
+    let found = search(name, country, None).await?;
+    let wanted = name.trim().to_lowercase();
+    Ok(found.into_iter().find(|r| r.name.trim().to_lowercase() == wanted).map(|r| r.variants).unwrap_or_default())
 }
 
 #[cfg(test)]
@@ -220,9 +259,16 @@ mod tests {
             { "stationuuid": "d", "name": "Sans flux" }
         ]);
         let r = parse_stations(&json);
-        assert_eq!(r.len(), 1);
-        assert_eq!(r[0].uuid.as_deref(), Some("c"));
-        assert!(!r[0].reduced_quality);
+        // FIP : la meilleure version (MP3 plutôt qu'AAC+), ses deux flux proposés ; la station HLS est gardée.
+        assert_eq!(r.len(), 2);
+        let fip = r.iter().find(|s| s.name.trim().eq_ignore_ascii_case("fip")).unwrap();
+        assert_eq!(fip.uuid.as_deref(), Some("c"));
+        assert!(!fip.reduced_quality);
+        let urls: Vec<&str> = fip.variants.iter().map(|v| v.stream_url.as_str()).collect();
+        assert_eq!(urls, vec!["https://x/fip-midfi.mp3", "https://x/fip-hifi.aac"]);
+        let hls = r.iter().find(|s| s.uuid.as_deref() == Some("b")).unwrap();
+        assert_eq!(hls.codec.as_deref(), Some("HLS"));
+        assert!(hls.variants.is_empty());
     }
 
     #[test]
@@ -242,5 +288,15 @@ mod tests {
         let jazz = search("jazz", Some("FR"), None).await.unwrap();
         println!("Top FR : {} ({:?}…), jazz : {}", top.len(), top.iter().take(5).map(|r| &r.name).collect::<Vec<_>>(), jazz.len());
         assert!(!top.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore = "réseau"]
+    async fn real_variants() {
+        let v = variants(&std::env::var("STATION").unwrap_or_else(|_| "France Inter".into()), Some("FR")).await.unwrap();
+        for x in &v {
+            println!("{:?} {:?} {} {}", x.codec, x.bitrate, x.reduced_quality, x.stream_url);
+        }
+        assert!(!v.is_empty());
     }
 }

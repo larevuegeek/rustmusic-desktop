@@ -21,7 +21,7 @@ export const settingsSections: SettingsSection[] = [
     cles: [
       "auto_start", "minimize_to_tray", "scan_on_startup",
       "single_click_play", "resume_playback", "gapless", "prevent_sleep",
-      "system_media_controls", "show_notifications", "show_sleep_timer",
+      "system_media_controls", "show_notifications", "show_sleep_timer", "show_whats_new_button", "show_theme_toggle",
     ],
   },
   {

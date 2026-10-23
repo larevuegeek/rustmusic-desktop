@@ -11,6 +11,7 @@
   import { playerService } from "#lib/services/player/player.service";
   import { toQueueTracks } from "#lib/helper/tools/queueTools";
   import { toasts } from "#lib/stores/ui/toast.store";
+  import { offlineStore } from "#lib/stores/mediaServer/offline.store";
   import { portal } from "#lib/helper/portal";
   import EditPlaylistPopin from "#lib/components/playlist/popin/EditPlaylistPopin.svelte";
   import SmartPlaylistPopin from "#lib/components/playlist/smart/SmartPlaylistPopin.svelte";
@@ -71,7 +72,27 @@
     }
   }
 
+  // Playlist d'un serveur : tous ses morceaux gardés hors ligne.
+  async function keepOffline() {
+    onclose();
+    try {
+      const pistes = await invoke<TrackListView[]>("get_playlist_tracks_view", { playlistId: playlist.id });
+      const added = await offlineStore.add(pistes.map((p) => p.path).filter((p): p is string => !!p));
+      toasts.push({ type: "success", title: $t("servers.offline_keep"),
+                    message: $t(added === 1 ? "servers.offline_added_one" : "servers.offline_added_n").replace("{n}", String(added)) });
+    } catch (e) {
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(e) });
+    }
+  }
+
+  // Playlist d'un serveur : un premier clic prévient, le second supprime (aussi sur le serveur).
+  let confirmRemove = $state(false);
+
   async function remove() {
+    if (playlist.server_id && !confirmRemove) {
+      confirmRemove = true;
+      return;
+    }
     onclose();
     const nom = playlist.name;
     try {
@@ -124,6 +145,13 @@
     {playlist.is_smart ? $t('playlist.edit_rules') : $t('playlist.edit')}
   </button>
 
+  {#if playlist.server_id}
+    <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={keepOffline}>
+      <Icon icon="material-symbols:download-for-offline-outline-rounded" width="15" class="opacity-60" />
+      {$t("servers.offline_keep")}
+    </button>
+  {/if}
+
   <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={pin}>
     <Icon icon={playlist.pinned ? 'material-symbols:keep-off-outline-rounded' : 'material-symbols:keep-outline-rounded'} width="15" class="opacity-60" />
     {playlist.pinned ? $t('sidebar.unpin') : $t('sidebar.pin')}
@@ -131,9 +159,9 @@
 
   <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
-  <button class="{ligne} text-red-600 dark:text-red-400 hover:bg-red-500/10" onclick={remove}>
-    <Icon icon="lucide:trash-2" width="14" class="opacity-60" />
-    {$t('playlist.delete')}
+  <button class="{ligne} text-red-600 dark:text-red-400 hover:bg-red-500/10 {confirmRemove ? 'bg-red-500/10 font-semibold' : ''}" onclick={remove}>
+    <Icon icon={confirmRemove ? "material-symbols:cloud-off-outline-rounded" : "lucide:trash-2"} width="14" class="opacity-60" />
+    {confirmRemove ? $t('servers.playlist_delete_confirm') : $t('playlist.delete')}
   </button>
 </div>
 </div>

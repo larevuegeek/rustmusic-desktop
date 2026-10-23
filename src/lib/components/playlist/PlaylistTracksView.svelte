@@ -20,10 +20,12 @@
   import LibraryTrackTable from "#lib/components/library/track/LibraryTrackTable.svelte";
   import AlbumTrackRow from "#lib/components/library/album/AlbumTrackRow.svelte";
   import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+  import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
   let {
     title,
     kicker,
+    serverId = null,
     subtitle = null,
     color,
     icon,
@@ -38,6 +40,8 @@
   }: {
     title: string;
     kicker: string;
+    /** Playlist d'un serveur : son nuage et son nom dans l'en-tête. */
+    serverId?: number | null;
     /** Sous le titre : les règles d'une playlist auto. */
     subtitle?: string | null;
     color: string;
@@ -112,6 +116,7 @@
     <div class="flex-[1_1_320px] min-w-0 flex flex-col gap-3">
       <div class="flex items-center gap-2 text-xs font-bold tracking-[0.1em] uppercase text-(--rg-tx2)">
         <span class="w-5 h-0.75 rounded-full" style="background: {color}"></span>{kicker}
+        <CloudMark {serverId} size={16} label class="ml-1" />
       </div>
       <h1 class="font-extrabold leading-none tracking-[-0.03em] text-balance line-clamp-2 text-(--rg-tx)
                  {title.length > 24 ? 'text-[56px] @max-[760px]:text-[34px]' : 'text-[72px] @max-[760px]:text-[44px]'}" {title}>{title}</h1>

@@ -7,13 +7,19 @@ import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
 import type { AudioFile } from "#lib/types/db/audioFile/AudioFile";
 import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
 import { recent } from "#lib/stores/recent/recent.store";
-import { queueState } from "#lib/stores/queue/queueState.store";
+import { profilSelector } from "#lib/stores/profil/profil.store";
+import { queueState, followingIndex } from "#lib/stores/queue/queueState.store";
+import { serverStore } from "#lib/stores/mediaServer/mediaServer.store";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { sleepTimer } from "#lib/stores/player/sleepTimer.store";
 import { sendNotification, isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { t } from "#lib/i18n";
 import { toasts } from "#lib/stores/ui/toast.store";
 import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
+import { podcastQueue } from "#lib/stores/podcast/podcastQueue.store";
+
+/** Morceau d'un serveur injoignable ou désactivé : sauté à l'enchaînement. */
+const skipUnavailable = (track: QueueTrack) => serverStore.unavailable(track.path);
 
 let raf: number = 0;
 let basePos = 0;
@@ -84,13 +90,17 @@ let initialized = false;
  */
 let actionExplicite = false;
 
+/** Le profil actif : l'historique et les positions sont les siens. */
+const currentProfilId = () => get(profilSelector).profilSelected?.id ?? null;
+
 // « Reprendre là où je m'étais arrêté » ne vaut que pour la première lecture de la session.
 let premiereLecture = true;
 
 /** Position enregistrée du morceau, s'il mérite une reprise : ni tout début, ni toute fin. */
 async function resumePosition(path: string): Promise<number> {
     try {
-        const recents = await invoke<RecentFileListView[]>("get_recent_files");
+        const profilId = currentProfilId();
+        const recents = profilId == null ? [] : await invoke<RecentFileListView[]>("get_recent_files", { profilId });
         const r = recents.find((f) => f.path === path);
         // Épisode de podcast : sa position vit avec lui, pas dans les récents.
         if (!r) {
@@ -232,6 +242,14 @@ class PlayerService {
                 return;
             }
 
+            // Épisode de podcast : le suivant de sa file, la musique reste en attente.
+            if (podcastQueue.isActive()) {
+                const next = podcastQueue.advance();
+                if (next) this.playFile(next, true);
+                else this.stopPlay();
+                return;
+            }
+
             const state = get(queueState);
             // Même morceau à rejouer : l'index ne change pas, rien d'autre ne le relancerait.
             if (state.repeatMode === "one" || (state.repeatMode === "all" && state.tracks.length === 1)) {
@@ -239,7 +257,7 @@ class PlayerService {
                 if (track) this.playFile(track);
             } else {
                 // Fin de file : arrêt, barre remise à zéro (la file ne change pas, rien ne le ferait).
-                queueState.next().then((suite) => {
+                queueState.next(skipUnavailable).then((suite) => {
                     if (!suite) this.stopPlay();
                 });
             }
@@ -260,6 +278,9 @@ class PlayerService {
             // shuffle, repeat…) passe ici : c'est le point unique où l'on
             // réévalue « quelle est la suite ? » pour le préchargement.
             this.syncNextTrack();
+
+            // Un épisode joue : la file musique change sans le couper.
+            if (podcastQueue.isActive()) return;
 
             if (!track) {
                 this.stopPlay();
@@ -304,18 +325,8 @@ class PlayerService {
         // Minuterie « fin du morceau » : il ne doit rien y avoir après.
         const sleepMode = get(sleepTimer).mode;
 
-        if (sleepMode !== "end-of-track" && qs.tracks.length > 0 && qs.currentIndex >= 0) {
-            let index: number;
-
-            if (qs.repeatMode === "one") {
-                index = qs.currentIndex;
-            } else {
-                index = qs.currentIndex + 1;
-                if (index >= qs.tracks.length) {
-                    index = qs.repeatMode === "all" ? 0 : -1;
-                }
-            }
-
+        if (sleepMode !== "end-of-track" && !podcastQueue.isActive() && qs.tracks.length > 0 && qs.currentIndex >= 0) {
+            const index = followingIndex(qs, skipUnavailable);
             const next = index >= 0 ? qs.tracks[index] : null;
             if (next) candidate = { track: next, index };
         }
@@ -396,14 +407,8 @@ class PlayerService {
                 await queueState.setCurrentIndex(advanced.index);
 
                 // Historique et notification, comme pour une lecture normale.
-                const libraryCacheId = await invoke<number | null>(
-                    "get_library_cache_id_by_path",
-                    { path: track.path }
-                );
-                await invoke<void>("insert_recent_file", {
-                    path: track.path,
-                    libraryId: libraryCacheId,
-                });
+                const profilId = currentProfilId();
+                if (profilId != null) await invoke<void>("insert_recent_file", { profilId, path: track.path });
                 recent.refreshRecent();
                 this.sendTrackNotification(track, audioFile);
             } catch (err) {
@@ -458,10 +463,14 @@ class PlayerService {
     // ==========================================
     // ▶ PLAY
     // ==========================================
-    async playFile(track: QueueTrack) {
+    /** `podcast` : épisode de la file des podcasts ; sinon la musique reprend la main. */
+    async playFile(track: QueueTrack, podcast = false) {
         actionExplicite = false;
         // Une seule source : la radio cède la place (le backend la coupe).
         radioPlayer.detach();
+        if (!podcast) podcastQueue.detach();
+        // Ce qui suit dépend de la source : rien après un épisode, la file musique sinon.
+        this.syncNextTrack();
         premiereLecture = false;
         outputStale = false;
 
@@ -494,21 +503,20 @@ class PlayerService {
 
             this.runPosition();
 
-            // Gestion récents
-            const libraryCacheId = await invoke<number | null>(
-                "get_library_cache_id_by_path",
-                { path: track.path }
-            );
-
-            await invoke<void>("insert_recent_file", {
-                path: track.path,
-                libraryId: libraryCacheId
-            });
+            // Gestion récents (l'entrée du cache se retrouve côté moteur)
+            const profilId = currentProfilId();
+            if (profilId != null) await invoke<void>("insert_recent_file", { profilId, path: track.path });
 
             recent.refreshRecent();
 
             // Notification système si activée dans les paramètres
             this.sendTrackNotification(track, audioFile);
+
+            // Épisode : repris là où on l'avait laissé.
+            if (podcast) {
+                const from = await resumePosition(track.path);
+                if (from > 0 && currentRequestId === playRequestId && (await this.waitUntilReady(15000))) await this.seekTo(from);
+            }
 
         } catch (err) {
             console.error("Erreur lecture:", err);
@@ -724,6 +732,11 @@ class PlayerService {
     // ==========================================
     async prevTrack() {
         if (radioPlayer.isActive()) return radioPlayer.prev();
+        if (podcastQueue.isActive()) {
+            const episode = podcastQueue.back();
+            if (episode) await this.playFile(episode, true);
+            return;
+        }
         await this.stopPlay();
         queueState.previous();
     }
@@ -733,8 +746,13 @@ class PlayerService {
     // ==========================================
     async nextTrack() {
         if (radioPlayer.isActive()) return radioPlayer.next();
+        if (podcastQueue.isActive()) {
+            const episode = podcastQueue.advance();
+            if (episode) await this.playFile(episode, true);
+            return;
+        }
         await this.stopPlay();
-        queueState.next();
+        queueState.next(skipUnavailable);
     }
 
     // ==========================================
@@ -791,6 +809,7 @@ class PlayerService {
             if (get(player).pathFile && current - positionEnregistree >= 5) {
                 positionEnregistree = current;
                 invoke('save_playback_position', {
+                    profilId: currentProfilId() ?? 0,
                     path: get(player).pathFile,
                     position: current,
                     duration: total,

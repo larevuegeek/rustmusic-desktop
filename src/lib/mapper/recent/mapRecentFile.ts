@@ -34,7 +34,7 @@ export function mapRecentFile(view: RecentFileListView): RecentFile {
 
   return {
     id: view.id,
-    library_id: view.library_id ?? 0,
+    library_cache_id: view.library_cache_id ?? 0,
     path: view.path,
     last_played_at: view.last_played_at,
     last_position: view.last_position,

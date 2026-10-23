@@ -5,6 +5,7 @@ import { t } from "#lib/i18n";
 import { dateToYear } from "#lib/helper/tools/dateTools";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 let { libraryId, albums }: { libraryId: number; albums: AlbumListView[] } = $props();
 
@@ -41,7 +42,7 @@ const affiches = $derived(
         </div>
         <span class="text-[15px] font-semibold truncate text-neutral-900 dark:text-neutral-100">{album.title}</span>
         <span class="text-[13px] -mt-1.5 truncate text-neutral-500 dark:text-[#9aa39e]">
-          {[album.artist, album.year ? dateToYear(String(album.year)) : ''].filter(Boolean).join(' · ')}
+          <CloudMark {libraryId} size={13} />{" "}{[album.artist, album.year ? dateToYear(String(album.year)) : ''].filter(Boolean).join(' · ')}
         </span>
       </button>
     {/each}

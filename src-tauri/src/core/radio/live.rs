@@ -269,6 +269,12 @@ async fn run(live: Arc<Live>, ready: tokio::sync::oneshot::Sender<Result<(), Str
             last_error = "cette adresse est une page web, pas un flux audio".into();
             break;
         }
+        // Liste HLS : relue au fil de l'eau, segment par segment.
+        let path = resp.url().path().to_ascii_lowercase();
+        if content_type.to_ascii_lowercase().contains("mpegurl") || path.ends_with(".m3u8") {
+            drop(resp);
+            return run_hls(live, ready).await;
+        }
         *live.format.lock().unwrap_or_else(|e| e.into_inner()) = Some(format_of(&content_type, resp.url().as_str()));
         if let Some(br) = header("icy-br").and_then(|b| b.split(',').next()?.trim().parse::<u32>().ok()).filter(|&b| b > 0) {
             live.bitrate.store(br, Ordering::Relaxed);
@@ -315,6 +321,106 @@ async fn run(live: Arc<Live>, ready: tokio::sync::oneshot::Sender<Result<(), Str
         return;
     }
     log::warn!("📻 Radio perdue : {last_error}");
+    match ready.take() {
+        Some(tx) => {
+            let _ = tx.send(Err(last_error));
+        }
+        None => live.fail(last_error),
+    }
+}
+
+async fn fetch_text(url: &str) -> Result<String, String> {
+    let resp = client().get(url).timeout(Duration::from_secs(10)).send().await.and_then(|r| r.error_for_status());
+    resp.map_err(|e| format!("liste HLS injoignable : {e}"))?.text().await.map_err(|e| format!("liste HLS illisible : {e}"))
+}
+
+async fn fetch_bytes(url: &str) -> Result<Vec<u8>, String> {
+    let resp = client().get(url).timeout(STALL).send().await.and_then(|r| r.error_for_status());
+    Ok(resp.map_err(|e| format!("segment HLS injoignable : {e}"))?.bytes().await.map_err(|e| format!("segment HLS interrompu : {e}"))?.to_vec())
+}
+
+/// Radio en HLS : la liste est relue au fil de l'eau, le son de chaque nouveau segment rejoint le tampon.
+async fn run_hls(live: Arc<Live>, mut ready: Option<tokio::sync::oneshot::Sender<Result<(), String>>>) {
+    let mut media_url = live.url.clone();
+    let mut last_seq: Option<u64> = None;
+    let mut extractor = super::hls::Extractor::default();
+    let (started, mut received) = (Instant::now(), 0u64);
+    let (mut failures, mut last_error) = (0u32, String::new());
+    while !live.cancelled.load(Ordering::Relaxed) && failures <= MAX_RETRIES {
+        let playlist = match fetch_text(&media_url).await.and_then(|t| super::hls::parse(&t, &media_url)) {
+            Ok(p) => p,
+            Err(e) => {
+                last_error = e;
+                failures += 1;
+                tokio::time::sleep(Duration::from_secs(2)).await;
+                continue;
+            }
+        };
+        let media = match playlist {
+            super::hls::Playlist::Master(variants) => {
+                let Some(v) = super::hls::pick(&variants) else {
+                    last_error = "liste HLS sans variante".into();
+                    break;
+                };
+                if live.bitrate.load(Ordering::Relaxed) == 0 && v.bandwidth > 0 {
+                    live.bitrate.store((v.bandwidth / 1000) as u32, Ordering::Relaxed);
+                }
+                media_url = v.uri.clone();
+                continue;
+            }
+            super::hls::Playlist::Media(m) => m,
+        };
+        if media.fmp4 {
+            last_error = "HLS en fragments MP4 : pas encore pris en charge".into();
+            break;
+        }
+        // Première lecture : les trois derniers segments, de quoi démarrer près du direct.
+        let first_new = last_seq.map_or_else(|| (media.sequence + media.segments.len() as u64).saturating_sub(3), |s| s + 1);
+        for (i, seg) in media.segments.iter().enumerate() {
+            let seq = media.sequence + i as u64;
+            if seq < first_new {
+                continue;
+            }
+            if live.cancelled.load(Ordering::Relaxed) {
+                return;
+            }
+            let bytes = match fetch_bytes(&seg.uri).await {
+                Ok(b) => b,
+                Err(e) => {
+                    last_error = e;
+                    failures += 1;
+                    break;
+                }
+            };
+            last_seq = Some(seq);
+            failures = 0;
+            let (audio, format) = extractor.extract(&bytes);
+            if let Some(f) = format {
+                live.format.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(f);
+            }
+            if audio.is_empty() {
+                continue;
+            }
+            received += audio.len() as u64;
+            let secs = started.elapsed().as_secs_f64();
+            if live.bitrate.load(Ordering::Relaxed) == 0 && secs > 8.0 {
+                live.bitrate.store(((received as f64 * 8.0 / 1000.0) / secs) as u32, Ordering::Relaxed);
+            }
+            live.push(&audio, seg.title.clone().map(|t| vec![(0, t)]).unwrap_or_default());
+            if let Some(tx) = ready.take() {
+                let _ = tx.send(Ok(()));
+            }
+        }
+        if media.ended && last_seq.is_some_and(|s| s + 1 >= media.sequence + media.segments.len() as u64) {
+            last_error = "la radio a terminé sa diffusion".into();
+            break;
+        }
+        tokio::time::sleep(Duration::from_secs_f64((media.target_duration / 2.0).clamp(1.0, 10.0))).await;
+    }
+    if live.cancelled.load(Ordering::Relaxed) {
+        return;
+    }
+    log::warn!("📻 Radio HLS perdue : {last_error}");
     match ready.take() {
         Some(tx) => {
             let _ = tx.send(Err(last_error));

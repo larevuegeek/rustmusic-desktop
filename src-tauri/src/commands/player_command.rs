@@ -11,6 +11,7 @@ use crate::commands::playback;
 use crate::entity::audio::audio_file::AudioFile;
 use crate::helper::files::reader::read_dir_deep;
 use crate::service::podcast::podcast_service;
+use crate::service::external_server::track_service;
 use crate::state::AppState;
 
 pub static AUDIO_PLAYER: OnceLock<Arc<Mutex<AudioPlayer>>> = OnceLock::new();
@@ -21,10 +22,16 @@ static PLAY_REQUEST: AtomicU64 = AtomicU64::new(0);
 pub async fn open_file(app: AppHandle, path: String) -> AudioFile {
     log::debug!("Fichier sélectionné : {}", path);
 
+    let pool = &app.state::<AppState>().pool;
+    // Morceau d'un serveur : sa fiche vient de la synchronisation.
+    if let Some(file) = track_service::audio_file(pool, &path).await {
+        return file;
+    }
+
     let path_file: PathBuf = PathBuf::from(path);
 
     // Épisode de podcast : sa fiche vient de la base, le fichier n'est peut-être pas encore là.
-    if let Some(file) = podcast_service::audio_file(&app.state::<AppState>().pool, &path_file).await {
+    if let Some(file) = podcast_service::audio_file(pool, &path_file).await {
         return file;
     }
 
@@ -94,9 +101,25 @@ pub async fn play_file(app_handle: AppHandle, path: String) {
         let _ = app_handle.emit("podcast-error", e);
         return;
     }
+    // Morceau d'un serveur : pris dans le cache ou téléchargé pendant l'écoute.
+    crate::core::subsonic::stream::play_only(&path_file);
+    let wait = if whole { track_service::Wait::Whole } else { track_service::Wait::Start };
+    if let Err(e) = track_service::prepare(&pool, &path_file, wait).await {
+        // Un autre morceau a été lancé entre-temps : son échec (souvent une annulation) ne compte plus.
+        if PLAY_REQUEST.load(Ordering::SeqCst) != request {
+            return;
+        }
+        log::warn!("☁️  Morceau distant illisible : {e}");
+        let _ = app_handle.emit("playback-preparing", false);
+        let _ = app_handle.emit("server-play-error", e);
+        return;
+    }
     if PLAY_REQUEST.load(Ordering::SeqCst) != request {
         return;
     }
+    // Morceau d'un serveur : il apprend ce qui joue (« en cours » de ses autres clients).
+    let state = app_handle.state::<AppState>();
+    crate::commands::playlist_command::send_feedback(&state, path_file.to_string_lossy().into_owned(), crate::service::external_server::feedback_service::Feedback::NowPlaying);
     playback::play(app_handle, path_file).await;
 }
 

@@ -6,7 +6,7 @@ use sqlx::FromRow;
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct RecentFileListView {
     pub id: i64,
-    pub library_id: Option<i64>,
+    pub library_cache_id: Option<i64>,
     pub path: String,
     pub last_played_at: DateTime<Utc>,
     pub last_position: f64,

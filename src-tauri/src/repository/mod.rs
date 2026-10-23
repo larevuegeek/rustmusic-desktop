@@ -9,3 +9,4 @@ pub mod recent;
 pub mod settings;
 pub mod podcast;
 pub mod radio;
+pub mod server;

@@ -8,7 +8,7 @@
   import { playlistsRangees } from "#lib/stores/playlist/covers.store";
   import { invoke } from "@tauri-apps/api/core";
   import { toasts } from "#lib/stores/ui/toast.store";
-  import type { Playlist } from "#lib/types/db/playlist/Playlist";
+  import { playlistAcceptsLibrary, type Playlist } from "#lib/types/db/playlist/Playlist";
   import { fade, fly } from "svelte/transition";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import { batchStore } from "#lib/stores/ui/batch.store";
@@ -18,10 +18,12 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { tagWorkshop } from "#lib/stores/tags/tagWorkshop.store";
+  import { libraryStore } from "#lib/stores/library/library.store";
 
   let selection = $derived($selectionStore);
+  const remote = $derived(!!$libraryStore.librarySelected?.server_id);
   let showPlaylistMenu = $state(false);
-  let playlists = $derived($playlistsRangees);
+  let playlists = $derived($playlistsRangees.filter((pl) => playlistAcceptsLibrary(pl, $libraryStore.librarySelected?.server_id)));
 
   /** « 1 morceau » / « n morceaux », nombre au format de la langue. */
   function count(n: number, one: string, many: string): string {
@@ -173,6 +175,7 @@
         {$t("albums_view.play")}
       </button>
 
+      {#if !remote}
       <!-- Modifier les tags -->
       <button
         type="button"
@@ -200,6 +203,7 @@
         <Icon icon="lucide:table-properties" width={13} />
         {$t("workshop.short")}
       </button>
+      {/if}
 
       <!-- Add to queue -->
       <button

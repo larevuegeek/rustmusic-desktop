@@ -22,6 +22,18 @@ pub struct RadioView {
     pub created_at: String,
 }
 
+/// Un titre passé à l'antenne pendant l'écoute.
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct RadioTitle {
+    pub id: i64,
+    pub station: String,
+    pub stream_url: String,
+    pub title: String,
+    pub played_at: String,
+    /// Logo de la station, s'il est en cache (radios récentes).
+    pub logo_path: Option<String>,
+}
+
 /// Une radio écoutée récemment (favorite ou non).
 #[derive(Debug, Clone, Serialize, FromRow)]
 pub struct RadioRecent {

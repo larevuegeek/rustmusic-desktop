@@ -1,6 +1,6 @@
 export interface RecentFileListView {
   id: number;
-  library_id: number | null;
+  library_cache_id: number | null;
   path: string;
   last_played_at: string; // ISO date string
   last_position: number;

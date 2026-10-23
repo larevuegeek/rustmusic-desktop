@@ -1,6 +1,7 @@
 <script lang="ts">
   // Titres likés : la page commune des playlists ; « Retirer des likes » dans le menu des morceaux.
   import { invoke } from "@tauri-apps/api/core";
+  import { sourceFilter } from "#lib/stores/source/sourceFilter.store";
   import { untrack } from "svelte";
   import { t } from "#lib/i18n";
   import { liked } from "#lib/stores/playlist/like.store";
@@ -22,13 +23,14 @@
 
   $effect(() => {
     const id = profilId;
+    void $sourceFilter; // relu quand la source change
     if (id != null) untrack(() => load(id, ++run));
   });
 
   async function load(id: number, n: number) {
     loading = true;
     try {
-      const likes = await invoke<TrackLikedView[]>("get_tracks_liked", { profilId: id });
+      const likes = await invoke<TrackLikedView[]>("get_tracks_liked", { profilId: id, sourceId: $sourceFilter });
       const paths = [...new Set(likes.map((x) => x.path).filter(Boolean))];
       const view = paths.length ? await invoke<TrackListView[]>("get_tracks_view_by_paths", { paths }) : [];
       if (n !== run) return;

@@ -45,6 +45,27 @@ pub async fn podcast_preview(url: String) -> Result<PodcastPreview, String> {
 }
 
 /// Favori : épinglé dans la barre latérale.
+/// Abonnements depuis un fichier OPML (exporté d'une autre appli de podcasts).
+#[tauri::command]
+pub async fn podcast_import_opml(state: State<'_, AppState>, profil_id: i64, path: String) -> Result<podcast_service::OpmlImport, String> {
+    let xml = tokio::fs::read_to_string(&path).await.map_err(|e| format!("fichier illisible : {e}"))?;
+    podcast_service::import_opml(&state.pool, profil_id, &xml).await
+}
+
+/// Abonnements du profil écrits en OPML à `path` ; rend leur nombre.
+#[tauri::command]
+pub async fn podcast_export_opml(state: State<'_, AppState>, profil_id: i64, path: String) -> Result<usize, String> {
+    let (xml, count) = podcast_service::export_opml(&state.pool, profil_id).await?;
+    tokio::fs::write(&path, xml).await.map_err(|e| format!("fichier non écrit : {e}"))?;
+    Ok(count)
+}
+
+/// Télécharge automatiquement les nouveaux épisodes de ce podcast (ceux qui paraîtront).
+#[tauri::command]
+pub async fn set_podcast_auto_download(state: State<'_, AppState>, podcast_id: i64, on: bool) -> Result<(), String> {
+    PodcastRepository::set_auto_download(&state.pool, podcast_id, on).await.map_err(db)
+}
+
 #[tauri::command]
 pub async fn set_podcast_pinned(state: State<'_, AppState>, podcast_id: i64, pinned: bool) -> Result<(), String> {
     PodcastRepository::set_pinned(&state.pool, podcast_id, pinned).await.map_err(db)

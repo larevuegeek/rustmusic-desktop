@@ -87,8 +87,19 @@ pub async fn init_from_settings(state: &AppState) {
 /// lecture, réordonnancement, shuffle, repeat, ajout ou retrait. `None`
 /// signifie « rien après » (fin de file, minuterie de fin de morceau).
 #[tauri::command]
-pub fn set_next_track(path: Option<String>) {
-    crate::commands::playback::set_next(path.map(std::path::PathBuf::from));
+pub async fn set_next_track(state: tauri::State<'_, AppState>, path: Option<String>) -> Result<(), String> {
+    let path = path.map(std::path::PathBuf::from);
+    // Suivant distant : son téléchargement commence dès maintenant, l'enchaînement le trouvera prêt.
+    // Un lecteur réseau, lui, le reçoit entier.
+    if let Some(p) = &path {
+        use crate::service::external_server::track_service::{prepare, Wait};
+        let upnp = crate::commands::playback::target() == crate::commands::playback::Target::Upnp;
+        if let Err(e) = prepare(&state.pool, p, if upnp { Wait::Whole } else { Wait::Nothing }).await {
+            log::warn!("☁️  Morceau suivant indisponible : {e}");
+        }
+    }
+    crate::commands::playback::set_next(path);
+    Ok(())
 }
 
 /// Synchronise la préférence « lecture sans blanc » vers l'atomique lu par les

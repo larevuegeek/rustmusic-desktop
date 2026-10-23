@@ -151,7 +151,9 @@
         {$t("common.delete")}
       </button>
     {:else}
-      <span class="text-xs font-semibold text-red-600 dark:text-red-400 truncate">{$t("profil.confirm_delete")}</span>
+      <span class="text-xs font-semibold text-red-600 dark:text-red-400 truncate">
+        {playlist.server_id ? $t("servers.playlist_delete_confirm") : $t("profil.confirm_delete")}
+      </span>
       <button
         type="button"
         class="shrink-0 h-8 px-3 rounded-lg text-xs font-bold text-white bg-red-600 hover:brightness-110 cursor-pointer transition disabled:opacity-50 disabled:cursor-default"

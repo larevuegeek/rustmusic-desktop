@@ -94,6 +94,12 @@ export const podcastStore = {
     }
   },
 
+  /** Téléchargement automatique des nouveaux épisodes de ce podcast. */
+  async setAutoDownload(id: number, on: boolean) {
+    await invoke("set_podcast_auto_download", { podcastId: id, on });
+    podcastWriter.update((s) => ({ ...s, podcasts: s.podcasts.map((p) => (p.id === id ? { ...p, auto_download: on } : p)) }));
+  },
+
   preview: (url: string) => invoke<PodcastPreview>("podcast_preview", { url }),
 
   async unfollow(id: number) {

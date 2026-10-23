@@ -44,7 +44,7 @@
       {#each slides as s, i (s.id)}
         <section class="w-full shrink-0 flex flex-col" aria-hidden={i !== index} inert={i !== index}
                  aria-label="{i + 1} / {slides.length}">
-          <div class="h-56 max-sm:h-44"><WhatsNewArt slide={s} /></div>
+          <div class="h-64 max-sm:h-48"><WhatsNewArt slide={s} /></div>
           <div class="px-7 pt-6 pb-2 max-sm:px-5">
             <p class="text-[12px] font-bold uppercase tracking-widest" style="color: {s.colors[1]}">{i + 1} / {slides.length}</p>
             <h2 class="mt-1.5 text-[23px] font-extrabold leading-tight tracking-[-0.01em] text-(--rg-tx)">{$t(`whats_new.slides.${s.id}.title`)}</h2>

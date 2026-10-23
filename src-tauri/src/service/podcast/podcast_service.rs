@@ -13,7 +13,8 @@ use crate::core::podcast::download;
 use crate::core::podcast::fetch::{self, Outcome};
 use crate::core::audio_analyser::audio_analyser::AudioAnalyser;
 use crate::entity::audio::audio_file::{AudioFile, AudioFormat};
-use crate::entity::audio::audio_tags::{AttachedImage, AudioTags, ImageType};
+use crate::entity::audio::audio_tags::{AttachedImage, AudioTags};
+use crate::helper::library::thumbnail_helper::cover_data_url;
 use crate::repository::settings::settings_repository::SettingsRepository;
 use crate::core::podcast::feed;
 use crate::helper::library::{image_fetch, thumbnail_helper};
@@ -71,6 +72,61 @@ pub async fn subscribe(pool: &SqlitePool, profil_id: i64, raw_url: &str) -> Resu
     Ok(id)
 }
 
+/// Bilan d'un import OPML.
+#[derive(Debug, Default, serde::Serialize)]
+pub struct OpmlImport {
+    pub added: usize,
+    pub existing: usize,
+    pub failed: usize,
+}
+
+/// Abonne le profil aux flux d'un fichier OPML, quatre à la fois ; ceux déjà suivis sont comptés à part.
+pub async fn import_opml(pool: &SqlitePool, profil_id: i64, xml: &str) -> Result<OpmlImport, String> {
+    ensure_enabled()?;
+    let mut summary = OpmlImport::default();
+    let mut todo = Vec::new();
+    for o in crate::core::podcast::opml::parse(xml) {
+        let known = match fetch::normalize_url(&o.feed_url) {
+            Ok(url) => PodcastRepository::find_id_by_url(pool, profil_id, &url).await.ok().flatten().is_some(),
+            Err(_) => false,
+        };
+        if known {
+            summary.existing += 1;
+        } else {
+            todo.push(o.feed_url);
+        }
+    }
+    for chunk in todo.chunks(4) {
+        let mut set = tokio::task::JoinSet::new();
+        for url in chunk {
+            let (pool, url) = (pool.clone(), url.clone());
+            set.spawn(async move { (subscribe(&pool, profil_id, &url).await, url) });
+        }
+        while let Some(done) = set.join_next().await {
+            match done {
+                Ok((Ok(_), _)) => summary.added += 1,
+                Ok((Err(e), url)) => {
+                    log::warn!("[podcasts] OPML : {url} ignoré : {e}");
+                    summary.failed += 1;
+                }
+                Err(_) => summary.failed += 1,
+            }
+        }
+    }
+    Ok(summary)
+}
+
+/// Les abonnements du profil en OPML.
+pub async fn export_opml(pool: &SqlitePool, profil_id: i64) -> Result<(String, usize), String> {
+    let items: Vec<(String, String, Option<String>)> =
+        sqlx::query_as("SELECT title, feed_url, link FROM podcasts WHERE profil_id = ? ORDER BY position, title")
+            .bind(profil_id)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    Ok((crate::core::podcast::opml::build(&items), items.len()))
+}
+
 /// Aperçu d'un flux sans s'y abonner : rien n'est enregistré.
 pub async fn preview(raw_url: &str) -> Result<crate::entity::podcast::podcast::PodcastPreview, String> {
     use crate::entity::podcast::podcast::{PodcastPreview, PreviewEpisode};
@@ -120,6 +176,9 @@ pub async fn refresh_one(pool: &SqlitePool, podcast_id: i64) -> Result<usize, St
             let added = PodcastRepository::update(pool, podcast_id, &parsed, got.etag.as_deref(), got.last_modified.as_deref())
                 .await
                 .map_err(|e| e.to_string())?;
+            if added > 0 {
+                auto_download(pool, podcast_id, added).await;
+            }
             // Pochette absente ou changée par l'éditeur.
             if let Some(image) = parsed.image_url.as_deref() {
                 if state.cover_path.is_none() || state.image_url.as_deref() != Some(image) {
@@ -129,6 +188,44 @@ pub async fn refresh_one(pool: &SqlitePool, podcast_id: i64) -> Result<usize, St
             Ok(added)
         }
     }
+}
+
+/// Podcast en téléchargement automatique : ses nouveaux épisodes (ceux parus à l'instant) se téléchargent.
+async fn auto_download(pool: &SqlitePool, podcast_id: i64, added: usize) {
+    let ids = PodcastRepository::auto_download_candidates(pool, podcast_id, added as i64).await.unwrap_or_default();
+    for id in ids {
+        match download_episode(pool, id).await {
+            Ok(()) => log::info!("🎙️  Téléchargement automatique de l'épisode {id}"),
+            Err(e) => log::warn!("🎙️  Téléchargement automatique impossible ({id}) : {e}"),
+        }
+    }
+}
+
+/// Délai avant d'effacer un épisode écouté : `never`, `now`, `24h` (défaut), `7d`, `30d`.
+const CLEANUP_KEY: &str = "podcast_cleanup";
+
+fn cleanup_hours(setting: Option<&str>) -> Option<i64> {
+    match setting.unwrap_or("24h") {
+        "never" => None,
+        "now" => Some(0),
+        "7d" => Some(7 * 24),
+        "30d" => Some(30 * 24),
+        _ => Some(24),
+    }
+}
+
+/// Efface les épisodes téléchargés écoutés depuis le délai choisi ; rend les octets libérés.
+pub async fn cleanup_played(pool: &SqlitePool) -> u64 {
+    let setting = SettingsRepository::get(pool, CLEANUP_KEY).await.ok().flatten();
+    let Some(hours) = cleanup_hours(setting.as_deref()) else { return 0 };
+    let mut freed = 0;
+    for id in PodcastRepository::played_downloads(pool, hours).await.unwrap_or_default() {
+        // Un fichier encore ouvert (en lecture) refuse l'effacement : il partira au passage suivant.
+        if let Ok(Some(bytes)) = delete_download(pool, id).await {
+            freed += bytes;
+        }
+    }
+    freed
 }
 
 /// Pochettes : `covers/podcasts/{full,1x,2x}/<id>.jpg`, rangées comme les portraits d'artistes.
@@ -294,21 +391,8 @@ pub async fn audio_file(pool: &SqlitePool, path: &Path) -> Option<AudioFile> {
     // Repère pour l'interface : ni cœur ni note sur un épisode.
     file.tags.media_type = Some("podcast".into());
     file.tags.duration = ep.duration.map(|d| d as u32);
-    // La miniature 2x suffit au lecteur ; la grande à défaut.
-    if let Some(cover) = ep.cover_path {
-        // `…/full/<id>.jpg` → `…/2x/<id>.jpg`.
-        let full = Path::new(&cover);
-        let small = full.parent().and_then(Path::parent).zip(full.file_name()).map(|(dir, name)| dir.join("2x").join(name));
-        if let Ok(bytes) = small.map_or_else(|| std::fs::read(full), std::fs::read).or_else(|_| std::fs::read(full)) {
-            use base64::Engine;
-            file.tags.attached_images.push(AttachedImage {
-                image_type: Some(ImageType::CoverFront),
-                mime_type: "image/jpeg".into(),
-                description: None,
-                image_data: Vec::new(),
-                image_src: format!("data:image/jpeg;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes)),
-            });
-        }
+    if let Some(src) = ep.cover_path.as_deref().and_then(|c| cover_data_url(Path::new(c))) {
+        file.tags.attached_images.push(AttachedImage::cover(src));
     }
     Some(file)
 }
@@ -387,7 +471,15 @@ pub fn start_background(app: AppHandle, pool: SqlitePool) {
         let mut last: Option<Instant> = None;
         loop {
             tokio::time::sleep(Duration::from_secs(60)).await;
-            if !enabled() || last.is_some_and(|t| t.elapsed() < REFRESH_EVERY) {
+            if !enabled() {
+                continue;
+            }
+            let freed = cleanup_played(&pool).await;
+            if freed > 0 {
+                log::info!("🎙️  Ménage des épisodes écoutés : {} Mo libérés", freed / 1_000_000);
+                let _ = app.emit("podcast-downloaded", 0);
+            }
+            if last.is_some_and(|t| t.elapsed() < REFRESH_EVERY) {
                 continue;
             }
             last = Some(Instant::now());
@@ -398,4 +490,40 @@ pub fn start_background(app: AppHandle, pool: SqlitePool) {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    #[test]
+    fn cleanup_delays() {
+        assert_eq!(cleanup_hours(None), Some(24));
+        assert_eq!(cleanup_hours(Some("never")), None);
+        assert_eq!(cleanup_hours(Some("now")), Some(0));
+        assert_eq!(cleanup_hours(Some("7d")), Some(168));
+    }
+
+    #[tokio::test]
+    async fn only_old_enough_played_downloads_are_picked() {
+        let pool = SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!("./SQL/").run(&pool).await.unwrap();
+        sqlx::query("INSERT OR IGNORE INTO profil (id, name) VALUES (1, 'Socle')").execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO podcasts (id, profil_id, feed_url, title, auto_download) VALUES (1, 1, 'http://f', 'P', 1)").execute(&pool).await.unwrap();
+        // 1 : écouté il y a 2 jours ; 2 : écouté à l'instant ; 3 : pas écouté ; 4 : écouté mais pas téléchargé ; 5 : nouveau.
+        for (id, played, ago, file, new) in [(1, 1, "-48 hours", true, 0), (2, 1, "0 hours", true, 0), (3, 0, "", true, 0), (4, 1, "-48 hours", false, 0), (5, 0, "", false, 1)] {
+            sqlx::query(
+                "INSERT INTO podcast_episodes (id, podcast_id, guid, title, audio_url, played, played_at, file_path, is_new, published_at)
+                 VALUES (?1, 1, ?1, 't', 'http://a', ?2, CASE WHEN ?2 THEN datetime('now', ?3) END, ?4, ?5, datetime('now', '-' || ?1 || ' days'))",
+            )
+            .bind(id).bind(played).bind(ago).bind(file.then_some("x.mp3")).bind(new)
+            .execute(&pool).await.unwrap();
+        }
+        assert_eq!(PodcastRepository::played_downloads(&pool, 24).await.unwrap(), vec![1]);
+        let mut now = PodcastRepository::played_downloads(&pool, 0).await.unwrap();
+        now.sort();
+        assert_eq!(now, vec![1, 2]);
+        assert_eq!(PodcastRepository::auto_download_candidates(&pool, 1, 3).await.unwrap(), vec![5]);
+    }
 }

@@ -4,6 +4,7 @@
   import { page } from "$app/state";
   import { t, currentLocale } from "#lib/i18n";
   import { sidebarStore } from "#lib/stores/ui/sidebar.store";
+  import { libraryStore } from "#lib/stores/library/library.store";
   import PlaylistContextMenu from "#lib/components/ui/contextmenu/PlaylistContextMenu.svelte";
   import SidebarRow from "./SidebarRow.svelte";
   import SidebarThumbnail from "./SidebarThumbnail.svelte";
@@ -18,7 +19,8 @@
 
   const sousTitre = $derived.by(() => {
     const n = playlist.track_count;
-    const genre = playlist.is_smart ? $t('sidebar.playlist_auto') : $t('sidebar.playlist');
+    const serveur = playlist.server_id ? $libraryStore.libraries.find((l) => l.server_id === playlist.server_id)?.server_name : null;
+    const genre = serveur ?? (playlist.is_smart ? $t('sidebar.playlist_auto') : $t('sidebar.playlist'));
     // Une playlist auto pas encore évaluée compte 0 : ne pas la dire vide.
     if (n === 0) return playlist.is_smart ? genre : `${genre} · ${$t('sidebar.empty')}`;
     const titres = n === 1 ? $t('home.track_one') : $t('home.tracks_n').replace('{n}', n.toLocaleString($currentLocale));

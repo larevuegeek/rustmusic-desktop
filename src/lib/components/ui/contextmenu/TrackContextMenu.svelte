@@ -9,7 +9,9 @@
   import { playlistStore } from "#lib/stores/playlist/playlist.store";
   import { playlistsRangees } from "#lib/stores/playlist/covers.store";
   import { invoke } from "@tauri-apps/api/core";
-  import type { Playlist } from "#lib/types/db/playlist/Playlist";
+  import { playlistAccepts, type Playlist } from "#lib/types/db/playlist/Playlist";
+  import { isRemotePath } from "#lib/types/db/library/Library";
+  import { offlineStore } from "#lib/stores/mediaServer/offline.store";
   import { t } from "#lib/i18n";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import AddPlaylistPopin from "#lib/components/playlist/popin/AddPlaylistPopin.svelte";
@@ -74,7 +76,7 @@
     );
     onclose();
   }
-  let playlists = $derived($playlistsRangees);
+  let playlists = $derived($playlistsRangees.filter((pl) => playlistAccepts(pl, track.path)));
 
   // Position ajustée pour ne pas sortir de l'écran
   let menuStyle = $derived.by(() => {
@@ -121,6 +123,21 @@
     });
   }
 
+  async function toggleOffline(kept: boolean) {
+    onclose();
+    const path = track.path;
+    if (!path) return;
+    try {
+      if (kept) await offlineStore.remove([path]);
+      else {
+        await offlineStore.add([path]);
+        toasts.push({ type: "success", title: $t("servers.offline_keep"), message: track.title ?? "" });
+      }
+    } catch (e) {
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(e) });
+    }
+  }
+
   async function handleAddToPlaylist(pl: Playlist) {
     try {
       // Construire les params selon ce qu'on a :
@@ -150,7 +167,8 @@
 
       toasts.push({ type: "success", title: $t("notify.added"), message: $t("notify.added_to").replace("{name}", pl.name) });
     } catch (e) {
-      toasts.push({ type: "error", title: $t("notify.error"), message: String(e) });
+      const message = String(e) === "server_playlist_foreign_track" ? $t("servers.playlist_foreign") : String(e);
+      toasts.push({ type: "error", title: $t("notify.error"), message });
     }
     onclose();
   }
@@ -335,6 +353,20 @@
         {$t("actions.view_artist")}
       </button>
     {/if}
+  {/if}
+
+  <!-- Morceau d'un serveur : le garder hors ligne (jouable serveur éteint). -->
+  {#if isRemotePath(track.path)}
+    {@const gardé = $offlineStore.ready.has(track.path ?? "") || $offlineStore.pending.has(track.path ?? "")}
+    <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
+    <button
+      class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
+             text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+      onclick={() => toggleOffline(gardé)}
+    >
+      <Icon icon={gardé ? "material-symbols:cloud-off-outline-rounded" : "material-symbols:download-for-offline-outline-rounded"} width="15" class="opacity-60" />
+      {gardé ? $t("servers.offline_remove") : $t("servers.offline_keep")}
+    </button>
   {/if}
 
   <!-- Modifier les tags — masqué si le format n'est pas réinscriptible -->

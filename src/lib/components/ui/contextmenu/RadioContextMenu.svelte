@@ -5,20 +5,45 @@
   import { toasts } from "#lib/stores/ui/toast.store";
   import { portal } from "#lib/helper/portal";
   import { isWebUrl } from "#lib/helper/tools/safeHtml";
-  import type { RadioResult } from "#lib/types/ui/radio/Radio";
+  import type { RadioResult, StreamVariant } from "#lib/types/ui/radio/Radio";
+  import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
 
   /** Les actions d'une station (annuaire ou favorite), au « … » ou au clic droit. */
-  let { x, y, top = y, station, onplay, onclose }: {
+  let { x, y, top = y, station, logoPath = null, onplay, onclose }: {
     x: number;
     y: number;
     /** Bord haut de l'ancre : le menu s'ouvre au-dessus quand la place manque en bas. */
     top?: number;
     station: RadioResult;
+    /** Logo en cache, repris quand on change de flux. */
+    logoPath?: string | null;
     onplay: () => void;
     onclose: () => void;
   } = $props();
 
   const favorite = $derived(findFavorite($radioStore.radios, station));
+
+  // Qualité du flux : les versions de la station (jointes par l'annuaire, sinon demandées).
+  let fetched = $state<StreamVariant[]>([]);
+  const variants = $derived(station.variants?.length ? station.variants : fetched);
+  $effect(() => {
+    if (station.variants?.length) return;
+    radioStore.variants(station.name, station.country_code).then((v) => (fetched = v)).catch(() => {});
+  });
+  const current = $derived($radioPlayer.station?.name === station.name ? $radioPlayer.station.stream_url : station.stream_url);
+  const label = (v: StreamVariant) =>
+    [v.codec ?? "?", v.bitrate ? `${v.bitrate} kbit/s` : null].filter(Boolean).join(" · ");
+
+  async function chooseVariant(v: StreamVariant) {
+    onclose();
+    try {
+      if (favorite) await radioStore.setStream(favorite.id, v);
+      const { variants: _, ...base } = station;
+      await radioPlayer.play({ ...base, ...v }, logoPath, favorite?.id ?? null);
+    } catch (err) {
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(err) });
+    }
+  }
 
   let hauteur = $state(0);
   let menuStyle = $derived.by(() => {
@@ -89,6 +114,19 @@
           class={favorite ? "text-amber-500 dark:text-amber-300" : "opacity-60"} />
     {favorite ? $t("radios.unfavorite") : $t("radios.favorite")}
   </button>
+  {#if variants.length > 1}
+    <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
+    <p class="px-3.5 pt-1.5 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-(--rg-mu)">{$t("radios.stream_quality")}</p>
+    {#each variants as v (v.stream_url)}
+      {@const actif = v.stream_url === current}
+      <button type="button" role="menuitemradio" aria-checked={actif} class="{ligne} {actif ? 'font-semibold' : ''}" onclick={() => chooseVariant(v)}>
+        <Icon icon={actif ? "material-symbols:check-rounded" : "material-symbols:graphic-eq-rounded"} width="17"
+              class={actif ? "text-rose-600 dark:text-rose-300" : "opacity-60"} />
+        <span class="flex-1 min-w-0 truncate">{label(v)}</span>
+        {#if v.reduced_quality}<span class="text-[11px] text-amber-600 dark:text-amber-400">{$t("radios.reduced_short")}</span>{/if}
+      </button>
+    {/each}
+  {/if}
   <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
   {#if isWebUrl(station.homepage)}
     <a href={station.homepage} role="menuitem" class={ligne} onclick={onclose}>

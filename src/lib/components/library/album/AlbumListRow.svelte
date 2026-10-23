@@ -13,6 +13,7 @@ import { handleAlbumAddToQueue, handleAlbumEnqueue } from "#lib/actions/queue/Qu
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 let { libraryId, album, onopen }: {
     libraryId: number;
@@ -104,7 +105,7 @@ const act = "w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-p
             {/if}
         </p>
         <p class="mt-0.75 truncate text-sm text-(--rg-mu)">
-            <span class="text-(--rg-tx2)">{album.artist || $t("albums_view.unknown_artist")}</span>{#if album.year}{" · "}{album.year}{/if}
+            <CloudMark {libraryId} />{" "}<span class="text-(--rg-tx2)">{album.artist || $t("albums_view.unknown_artist")}</span>{#if album.year}{" · "}{album.year}{/if}
         </p>
     </div>
 

@@ -11,6 +11,7 @@ import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.stor
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 let { libraryId, artist }: { libraryId: number; artist: ArtistListView } = $props();
 
@@ -80,7 +81,7 @@ function withoutNavigating(e: MouseEvent, action: () => void) {
 
     <div class="w-full text-[15px] font-bold leading-[1.3] truncate text-(--rg-tx)" title={artist.name}>{artist.name}</div>
     <div class="-mt-1.5 w-full truncate text-[13px] text-(--rg-mu)">
-        {nb(artist.total_albums, "library_head.albums_one", "library_head.albums_n")} · {nb(artist.total_tracks, "library_head.tracks_one", "library_head.tracks_n")}
+        <CloudMark {libraryId} size={13} />{" "}{nb(artist.total_albums, "library_head.albums_one", "library_head.albums_n")} · {nb(artist.total_tracks, "library_head.tracks_one", "library_head.tracks_n")}
     </div>
 </a>
 

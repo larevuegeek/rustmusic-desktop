@@ -11,6 +11,7 @@ import { handleAddDirectory } from "#lib/actions/library/LibraryAction";
 import HomeHeader from "#lib/components/home/HomeHeader.svelte";
 import HomeResume from "#lib/components/home/HomeResume.svelte";
 import HomeWelcome from "#lib/components/home/HomeWelcome.svelte";
+import HomeRemoteWelcome from "#lib/components/home/HomeRemoteWelcome.svelte";
 import HomeMixes from "#lib/components/home/HomeMixes.svelte";
 import HomeGenres from "#lib/components/home/HomeGenres.svelte";
 import HomeRecentlyAdded from "#lib/components/home/HomeRecentlyAdded.svelte";
@@ -30,6 +31,9 @@ const libraryId = $derived(($libraryStore.librarySelected?.id as number | undefi
 // Aucune bibliothèque, ou une bibliothèque encore vide : accueil de bienvenue.
 const accueilVide = $derived(!$libraryStore.isLoading
   && ($libraryStore.libraries.length === 0 || $libraryStore.librarySelected?.total_tracks === 0));
+
+// Bibliothèque d'un serveur : elle se synchronise, elle ne s'importe pas.
+const distante = $derived($libraryStore.librarySelected?.server_id ? $libraryStore.librarySelected : null);
 
 let stats = $state<LibraryStats | null>(null);
 let genres = $state<GenreView[]>([]);
@@ -72,10 +76,12 @@ function addMusic() {
 
     <div class="-mb-4">
       <HomeHeader nom={profil?.name} {libraryId} {stats} onajouter={addMusic}
-                  sousTitre={accueilVide ? $t('home_welcome.subtitle') : null} bouton={!accueilVide} />
+                  sousTitre={accueilVide ? (distante ? $t('servers.home_subtitle') : $t('home_welcome.subtitle')) : null} bouton={!accueilVide} />
     </div>
 
-    {#if accueilVide}
+    {#if accueilVide && distante}
+      <HomeRemoteWelcome library={distante} />
+    {:else if accueilVide}
       <HomeWelcome />
     {:else}
       <HomeResume onajouter={addMusic} {libraryId} ancreRecents={montrerRecents} />

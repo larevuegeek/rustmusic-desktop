@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -22,6 +22,8 @@ const STALL_TIMEOUT: Duration = Duration::from_secs(30);
 const BLOCK: u64 = 256 * 1024;
 /// En deçà de cette avance, attendre le téléchargement coûte moins qu'une requête de plus.
 const NEAR: u64 = 1024 * 1024;
+/// Fin d'un fichier de taille estimée, lue d'avance pour ses tags : réputée vide.
+const TAIL: u64 = 256 * 1024;
 /// Blocs gardés en mémoire (~12 Mo).
 const MAX_BLOCKS: usize = 48;
 
@@ -106,6 +108,8 @@ pub struct Download {
     blocks: Mutex<HashMap<u64, Arc<Vec<u8>>>>,
     /// Durée annoncée par le flux : à défaut d'en-tête, le décodeur ne la connaît pas.
     pub duration_hint: Option<f64>,
+    /// Taille estimée quand le serveur ne l'annonce pas (0 = inconnue) : le décodeur en a besoin pour sauter.
+    size_hint: AtomicU64,
     progress: Mutex<Progress>,
     changed: Condvar,
 }
@@ -115,6 +119,15 @@ impl Download {
     pub fn progress(&self) -> (u64, Option<u64>) {
         let p = self.progress.lock().unwrap_or_else(|e| e.into_inner());
         (p.written, p.total)
+    }
+
+    pub fn set_size_hint(&self, bytes: u64) {
+        self.size_hint.store(bytes, Ordering::Relaxed);
+    }
+
+    /// Taille annoncée, sinon estimée.
+    fn expected_len(&self) -> Option<u64> {
+        self.progress().1.or(Some(self.size_hint.load(Ordering::Relaxed)).filter(|&n| n > 0))
     }
 
     /// (reçus, taille annoncée, fini).
@@ -143,13 +156,20 @@ impl Download {
         let url = self.url.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let (Some(url), Some(total)) = (url, self.progress().1) else { return Ok(None) };
         let start = index * BLOCK;
-        let resp = client()
+        let resp = match client()
             .get(&url)
             .header(RANGE, format!("bytes={start}-{}", (start + BLOCK).min(total) - 1))
             .timeout(Duration::from_secs(20))
             .send()
             .await
-            .map_err(|e| io::Error::other(format!("morceau d'épisode injoignable : {e}")))?;
+        {
+            Ok(r) => r,
+            // Serveur débordé : la suite viendra par le téléchargement.
+            Err(e) => {
+                log::info!("[podcasts] requête partielle sans réponse ({e}) : lecture au fil du téléchargement");
+                return Ok(None);
+            }
+        };
         // Même fichier que le téléchargement : réponse partielle, et même taille totale.
         let same_file = resp.status() == StatusCode::PARTIAL_CONTENT
             && resp
@@ -232,6 +252,7 @@ pub fn start(
         ranges: AtomicBool::new(true),
         blocks: Mutex::new(HashMap::new()),
         duration_hint,
+        size_hint: AtomicU64::new(0),
         progress: Mutex::new(Progress::default()),
         changed: Condvar::new(),
     });
@@ -242,7 +263,11 @@ pub fn start(
     tauri::async_runtime::spawn(async move {
         let result = fetch_into(&task, &url).await;
         if let Err(e) = &result {
-            log::warn!("[podcasts] téléchargement interrompu ({url}) : {e}");
+            if task.cancelled.load(Ordering::Relaxed) {
+                log::debug!("[téléchargement] annulé : {url}");
+            } else {
+                log::warn!("[téléchargement] interrompu ({url}) : {e}");
+            }
             let _ = std::fs::remove_file(&task.part);
             task.update(|p| p.error = Some(e.clone()));
         }
@@ -262,9 +287,18 @@ async fn fetch_into(dl: &Arc<Download>, url: &str) -> Result<(), String> {
         .timeout(Duration::from_secs(24 * 3600))
         .send()
         .await
-        .map_err(|e| format!("épisode injoignable : {e}"))?;
+        .map_err(|e| format!("fichier injoignable : {e}"))?;
     if !resp.status().is_success() {
-        return Err(format!("épisode refusé : HTTP {}", resp.status().as_u16()));
+        return Err(format!("fichier refusé : HTTP {}", resp.status().as_u16()));
+    }
+    // Un serveur Subsonic répond aux erreurs en JSON ou XML, avec un statut 200.
+    let kind = resp.headers().get(reqwest::header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("").to_ascii_lowercase();
+    if kind.contains("json") || kind.contains("xml") || kind.starts_with("text/html") {
+        let body = resp.text().await.unwrap_or_default();
+        let message = serde_json::from_str::<serde_json::Value>(&body)
+            .ok()
+            .and_then(|v| v.pointer("/subsonic-response/error/message").and_then(|m| m.as_str()).map(str::to_string));
+        return Err(message.unwrap_or_else(|| "le serveur n'a pas envoyé de fichier audio".into()));
     }
     let total = resp.content_length();
     dl.update(|p| p.total = total);
@@ -286,6 +320,12 @@ async fn fetch_into(dl: &Arc<Download>, url: &str) -> Result<(), String> {
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
         let n = chunk.len() as u64;
         dl.update(|p| p.written += n);
+    }
+    // Flux transcodé coupé net par le serveur : trop court pour le cache.
+    let hint = dl.size_hint.load(Ordering::Relaxed);
+    let written = dl.progress().0;
+    if dl.progress().1.is_none() && hint > 0 && written < hint * 9 / 10 {
+        return Err(format!("flux interrompu par le serveur ({} Ko sur ~{} Ko)", written / 1024, hint / 1024));
     }
     file.flush().await.map_err(|e| e.to_string())?;
     drop(file);
@@ -351,6 +391,14 @@ impl Read for GrowingFile {
             if total.is_some_and(|t| self.pos >= t) {
                 return Ok(0);
             }
+            // Taille seulement estimée : la fin n'est lue que pour ses tags, on ne l'attend pas.
+            let hint = self.dl.size_hint.load(Ordering::Relaxed);
+            if total.is_none() && hint > 0 && self.pos + TAIL >= hint {
+                let n = buf.len().min(hint.saturating_sub(self.pos) as usize);
+                buf[..n].fill(0);
+                self.pos += n as u64;
+                return Ok(n);
+            }
             if let Some(block) = self.dl.block(self.pos / BLOCK)? {
                 let off = (self.pos % BLOCK) as usize;
                 if off >= block.len() {
@@ -376,10 +424,7 @@ impl Read for GrowingFile {
 
 impl Seek for GrowingFile {
     fn seek(&mut self, to: SeekFrom) -> io::Result<u64> {
-        let end = || {
-            let (written, total) = self.dl.progress();
-            total.unwrap_or(written)
-        };
+        let end = || self.dl.expected_len().unwrap_or_else(|| self.dl.progress().0);
         let pos = match to {
             SeekFrom::Start(n) => n as i64,
             SeekFrom::Current(d) => self.pos as i64 + d,
@@ -400,7 +445,7 @@ impl MediaSource for GrowingFile {
 
     /// Taille annoncée : le décodeur en déduit la durée d'un MP3 sans index.
     fn byte_len(&self) -> Option<u64> {
-        self.dl.progress().1
+        self.dl.expected_len()
     }
 }
 
@@ -419,6 +464,7 @@ mod tests {
             ranges: AtomicBool::new(false),
             blocks: Mutex::new(HashMap::new()),
             duration_hint: None,
+            size_hint: AtomicU64::new(0),
             progress: Mutex::new(Progress { total, ..Default::default() }),
             changed: Condvar::new(),
         });

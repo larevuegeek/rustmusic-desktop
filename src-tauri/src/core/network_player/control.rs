@@ -135,7 +135,7 @@ impl Controller {
 }
 
 /// Envoie une action SOAP et rend le corps de la réponse.
-pub(super) async fn call(
+pub(crate) async fn call(
     client: &reqwest::Client,
     url: &str,
     service: &str,

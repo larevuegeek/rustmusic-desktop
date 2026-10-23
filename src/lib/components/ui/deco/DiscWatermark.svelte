@@ -1,8 +1,9 @@
 <script lang="ts">
-  let { class: classe = "" }: { class?: string } = $props();
+  // `sky` : bibliothèque d'un serveur.
+  let { class: classe = "", tone = "green" }: { class?: string; tone?: "green" | "sky" } = $props();
 </script>
 
-<svg class="disque pointer-events-none text-(--rg-g) {classe}" viewBox="0 0 200 200" aria-hidden="true">
+<svg class="disque pointer-events-none {tone === 'sky' ? 'text-sky-500 dark:text-sky-400' : 'text-(--rg-g)'} {classe}" viewBox="0 0 200 200" aria-hidden="true">
   {#each [96, 84, 72, 60, 48, 36] as r, i (r)}
     <circle cx="100" cy="100" {r} fill="none" stroke="currentColor"
             stroke-width={i === 0 ? 1.4 : 0.7} opacity={0.10 + i * 0.035}

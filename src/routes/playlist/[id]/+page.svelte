@@ -138,6 +138,7 @@
   <PlaylistTracksView
     title={shown.name}
     kicker={shown.is_smart ? $t("playlist.new_smart") : $t("home.playlist")}
+    serverId={shown.server_id ?? null}
     subtitle={rules}
     color={shown.color}
     icon={shown.icon}
@@ -171,6 +172,12 @@
       </span>
       <h3 class="mb-1 text-base font-bold text-(--rg-tx)">{$t("playlist_page.delete_playlist")}</h3>
       <p class="mb-6 text-sm text-(--rg-mu)">{confirmParts[0]}<strong class="text-(--rg-tx)">{shown.name}</strong>{confirmParts[1] ?? ""}</p>
+      {#if shown.server_id}
+        <!-- Playlist d'un serveur : la suppression part aussi là-bas. -->
+        <p class="-mt-3 mb-6 flex items-center justify-center gap-1.5 text-[13px] font-medium text-sky-700 dark:text-sky-300">
+          <Icon icon="material-symbols:cloud-outline-rounded" width="16" />{$t("servers.playlist_delete_note")}
+        </p>
+      {/if}
       <div class="flex gap-3">
         <button type="button" class="flex-1 h-10 rounded-xl text-sm font-semibold cursor-pointer text-(--rg-tx2) hover:bg-(--rg-hover)"
                 onclick={() => (confirmDelete = false)}>{$t("common.cancel")}</button>

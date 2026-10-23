@@ -14,6 +14,7 @@
   import { player } from "#lib/stores/player/player.store";
   import { playerService } from "#lib/services/player/player.service";
   import { playEpisode, playEpisodeNext, enqueueEpisode, downloadEpisode, deleteEpisodeDownload } from "#lib/actions/podcast/PodcastAction";
+  import { podcastQueue } from "#lib/stores/podcast/podcastQueue.store";
   import { episodeDate, episodeDuration } from "#lib/helper/tools/podcastFormat";
   import { isWebUrl } from "#lib/helper/tools/safeHtml";
   import DetailPage from "#lib/components/ui/layout/DetailPage.svelte";
@@ -212,6 +213,17 @@
     }
   }
 
+  async function toggleAutoDownload() {
+    if (!podcast) return;
+    const on = !podcast.auto_download;
+    try {
+      await podcastStore.setAutoDownload(id, on);
+      podcast = { ...podcast, auto_download: on };
+    } catch (err) {
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(err) });
+    }
+  }
+
   let abonnement = $state(false);
   let confirmer = $state(false);
   async function unfollow() {
@@ -298,6 +310,13 @@
               <MenuItem icon="material-symbols:close-rounded" onclick={() => (confirmer = false)}>{$t("common.cancel")}</MenuItem>
             {:else}
               <MenuItem icon="material-symbols:refresh-rounded" onclick={() => { abonnement = false; refresh(); }}>{$t("podcasts.refresh")}</MenuItem>
+              <!-- Les épisodes qui paraîtront se téléchargent seuls. -->
+              <MenuItem icon="material-symbols:download-for-offline-outline-rounded" actif={podcast.auto_download} onclick={toggleAutoDownload}>
+                {$t("podcasts.auto_download")}
+                {#snippet fin()}
+                  {#if podcast?.auto_download}<Icon icon="material-symbols:check-rounded" width="17" />{/if}
+                {/snippet}
+              </MenuItem>
               <MenuItem icon="material-symbols:do-not-disturb-on-outline-rounded" danger onclick={() => (confirmer = true)}>{$t("podcasts.unsubscribe")}</MenuItem>
             {/if}
           </Menu>
@@ -383,7 +402,8 @@
           {#each g.items as e (e.id)}
             <PodcastEpisodeRow episode={e} lecture={playbackStateOf(e)} telechargement={telechargements.has(e.id)}
                                onplay={() => play(e)} ontoggleplayed={() => togglePlayed(e)}
-                               onnext={() => podcast && playEpisodeNext(podcast, e)} onenqueue={() => podcast && enqueueEpisode(podcast, e)}
+                               onnext={$podcastQueue.active ? () => podcast && playEpisodeNext(podcast, e) : undefined}
+                               onenqueue={$podcastQueue.active ? () => podcast && enqueueEpisode(podcast, e) : undefined}
                                ondownload={() => download(e)} ondelete={() => deleteDownload(e)} />
           {/each}
         </ul>

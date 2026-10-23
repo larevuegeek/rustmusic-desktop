@@ -389,6 +389,8 @@ impl LibraryAlbumRepository {
         exec: E,
         search_term: &str,
         limit: i64,
+        profil_id: i64,
+        source: Option<i64>,
     ) -> Result<Vec<crate::entity::search::search_result::SearchResult>, sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
@@ -406,11 +408,15 @@ impl LibraryAlbumRepository {
             FROM library_albums la
             LEFT JOIN artists a ON la.artist_id = a.id
             WHERE LOWER(la.title) LIKE ?1
+              AND la.library_id IN (SELECT id FROM library WHERE profil_id = ?4)
+              AND (CASE WHEN ?3 IS NULL THEN la.library_id IN (SELECT id FROM library WHERE server_id IS NULL OR server_id IN (SELECT id FROM media_servers WHERE enabled = 1)) ELSE la.library_id IN (SELECT id FROM library WHERE COALESCE(server_id, 0) = ?3) END)
             LIMIT ?2
             "#
         )
         .bind(search_term)
         .bind(limit)
+        .bind(source)
+        .bind(profil_id)
         .fetch_all(exec)
         .await
     }

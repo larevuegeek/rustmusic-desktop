@@ -17,6 +17,10 @@ import type { TrackColumn } from "#lib/config/trackColumns";
 import { formatBitrate, formatCourt, trackTier } from "#lib/helper/tools/audioFormatTools";
 import { minutesSeconds } from "#lib/helper/tools/dateTools";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import { remoteServerId } from "#lib/types/db/library/Library";
+import { serverStore } from "#lib/stores/mediaServer/mediaServer.store";
+import { offlineStore } from "#lib/stores/mediaServer/offline.store";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 let {
     libraryId,
@@ -54,6 +58,10 @@ const coche = $derived(selection.active && selection.ids.has(track.id));
 const unClic = $derived($settingsStore.single_click_play === "true");
 const enCours = $derived($lecture.path === track.path);
 const joue = $derived(enCours && $lecture.status === "playing");
+
+// Morceau d'un serveur : grisé quand le serveur ne répond pas (la lecture le saute).
+const serveur = $derived(remoteServerId(track.path));
+const horsLigne = $derived(serveur != null && $serverStore.online[serveur] === false && !$offlineStore.ready.has(track.path));
 
 const palier = $derived(trackTier(track.audio_format, track.bits_per_sample, track.sample_rate));
 const PALIERS = {
@@ -96,6 +104,8 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
 </script>
 
 {#snippet badge()}
+    <!-- Le nuage va devant l'artiste quand il est affiché sous le titre (la colonne Qualité est étroite). -->
+    {#if !(artisteSousTitre && track.artist)}<CloudMark path={track.path} />{/if}
     <span class="shrink-0 px-1.5 py-0.5 rounded-[5px] border text-[10.5px] font-bold tracking-[0.04em] {PALIERS[palier].classes}">{$t(PALIERS[palier].cle)}</span>
 {/snippet}
 
@@ -109,6 +119,7 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
            after:absolute after:left-2.5 after:right-2.5 after:top-0 after:h-px [.ligne-morceau+&]:after:bg-(--rg-line)
            hover:after:opacity-0 [&:hover+.ligne-morceau]:after:opacity-0
            {coche ? 'bg-(--rg-creux-on) after:opacity-0' : 'hover:bg-(--rg-carte)'}
+           {horsLigne ? 'opacity-45' : ''}
            {selection.active ? 'cursor-pointer' : 'cursor-default'}"
     ondblclick={() => { if (!selection.active && !unClic) play(); }}
     onclick={handleClick}
@@ -152,6 +163,7 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
                 <p class="truncate font-semibold {detaille ? 'text-base' : 'text-[15px]'} {enCours ? 'text-(--rg-g)' : 'text-(--rg-tx)'}" title={track.title}>{track.title}</p>
                 {#if artisteSousTitre && track.artist}
                     <p class="mt-0.5 truncate text-[13px] text-(--rg-mu)">
+                        {#if serveur != null}<CloudMark path={track.path} />{" "}{/if}
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
                         <span class={lienArtiste ? lien : "text-(--rg-tx2)"} onclick={(e) => goTo(e, lienArtiste)}>{track.artist}</span>
                     </p>

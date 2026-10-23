@@ -95,8 +95,9 @@ pub fn get_rule_vocabulary() -> RuleVocabulary {
 pub async fn count_smart_playlist(
     state: State<'_, AppState>,
     rules: rules::SmartRules,
+    source_id: Option<i64>,
 ) -> Result<i64, String> {
-    engine::count(&state.pool, &rules).await
+    engine::count(&state.pool, &rules, source_id).await
 }
 
 /// Rend un échantillon de ce que les règles donneraient.
@@ -104,8 +105,9 @@ pub async fn count_smart_playlist(
 pub async fn preview_smart_playlist(
     state: State<'_, AppState>,
     rules: rules::SmartRules,
+    source_id: Option<i64>,
 ) -> Result<Vec<PlaylistTrackView>, String> {
-    engine::evaluate(&state.pool, 0, &rules).await
+    engine::evaluate(&state.pool, 0, &rules, source_id).await
 }
 
 /// Crée une playlist intelligente.
@@ -118,6 +120,7 @@ pub async fn create_smart_playlist(
     icon: Option<String>,
     rules: rules::SmartRules,
     is_mix: Option<bool>,
+    source_id: Option<i64>,
 ) -> Result<i64, String> {
     // Les règles sont validées avant d'être enregistrées : une playlist qu'on
     // ne saurait pas évaluer ne doit pas exister.
@@ -127,8 +130,8 @@ pub async fn create_smart_playlist(
     let json = serde_json::to_string(&rules).map_err(|e| format!("Règles : {e}"))?;
 
     let (id,): (i64,) = sqlx::query_as(
-        "INSERT INTO playlists (profil_id, name, color, icon, is_smart, rules, is_mix, pinned)
-         VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+        "INSERT INTO playlists (profil_id, name, color, icon, is_smart, rules, is_mix, pinned, source_id)
+         VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)
          RETURNING id",
     )
     .bind(profil_id)
@@ -139,6 +142,7 @@ pub async fn create_smart_playlist(
     .bind(is_mix.unwrap_or(false))
     // Un mix ne s'épingle pas : il vit sur la page Mix.
     .bind(!is_mix.unwrap_or(false))
+    .bind(source_id.unwrap_or(0))
     .fetch_one(&state.pool)
     .await
     .map_err(|e| format!("Création : {e}"))?;
@@ -214,7 +218,8 @@ pub async fn get_smart_playlist_rules(
 /// Un échec n'interrompt rien : le compteur est un confort, et le perdre ne
 /// justifie pas de refuser la création d'une playlist par ailleurs valide.
 async fn refresh_count(pool: &sqlx::SqlitePool, id: i64, regles: &rules::SmartRules) {
-    let Ok(n) = engine::count(pool, regles).await else {
+    let source = crate::repository::playlist::playlist_repository::PlaylistRepository::source_of(pool, id).await.unwrap_or(0);
+    let Ok(n) = engine::count(pool, regles, Some(source)).await else {
         return;
     };
     let _ = sqlx::query("UPDATE playlists SET track_count = ? WHERE id = ?")

@@ -32,6 +32,7 @@ use crate::repository::library::library_track_artist_repository::LibraryTrackArt
 use crate::service::library::artist_link_repair::ArtistLinkReport;
 use crate::service::library::library_service::{IMPORT, LibrarySaveContext, RescanProgress, create_context, list_files, save_dir_to_library, save_files_to_library, save_track_to_library};
 use crate::{state::AppState};
+use crate::service::external_server::feedback_service::{self, Feedback};
 use crate::mapper::library::track::track_list_item_view::TrackListView;
 
 #[tauri::command]
@@ -203,6 +204,13 @@ pub async fn rescan_library(
     state: State<'_, AppState>,
     library_id: i64,
 ) -> Result<Vec<TrackListView>, String> {
+    // Bibliothèque distante : on synchronise avec son serveur.
+    if LibraryRepository::find_library_by_id(&state.pool, library_id).await.is_ok_and(|l| l.server_id.is_some()) {
+        let Some(jeton) = IMPORT.start() else { return Err("deja_en_cours".into()) };
+        crate::service::external_server::sync_service::sync_library(app, &state.pool, library_id, &jeton).await?;
+        return Ok(Vec::new());
+    }
+
     // Récupérer tous les dossiers actifs de la bibliothèque
     let dirs = LibraryDirRepository::find_active(&state.pool, library_id)
         .await
@@ -609,11 +617,12 @@ pub async fn create_library(
         .unwrap_or(library))
 }
 
+/// Rend les chemins des morceaux distants retirés, pour que l'interface les sorte de la file.
 #[tauri::command]
 pub async fn remove_library(
     state: State<'_, AppState>,
     library_id: i64
-) -> Result<(), String> {
+) -> Result<Vec<String>, String> {
 
     // Le profil est lu AVANT la suppression : après, la ligne n'existe plus et
     // on ne saurait plus à qui redonner un défaut.
@@ -622,9 +631,23 @@ pub async fn remove_library(
         .map(|library| library.profil_id)
         .ok();
 
+    // Distante : ses chemins `remote://`, à effacer aussi du cache, de la file et des titres aimés.
+    let remote_paths: Vec<String> = sqlx::query_scalar(
+        "SELECT f.path FROM library_files f JOIN library l ON l.id = f.library_id WHERE f.library_id = ? AND l.server_id IS NOT NULL",
+    )
+    .bind(library_id)
+    .fetch_all(&state.pool)
+    .await
+    .unwrap_or_default();
+
     LibraryRepository::remove_library(&state.pool, library_id)
         .await
         .map_err(|e| format!("Failed to remove library: {}", e))?;
+
+    if !remote_paths.is_empty() {
+        let mut conn = state.pool.acquire().await.map_err(|e| e.to_string())?;
+        let _ = crate::repository::server::server_repository::purge_paths(&mut conn, &remote_paths).await;
+    }
 
     // Supprimer la bibliothèque par défaut laisserait le profil sans point
     // d'entrée au démarrage : on en promeut une autre.
@@ -632,7 +655,7 @@ pub async fn remove_library(
         let _ = LibraryRepository::ensure_default(&state.pool, profil_id).await;
     }
 
-    Ok(())
+    Ok(remote_paths)
 }
 
 /// Désigne la bibliothèque ouverte au démarrage, pour le profil concerné.
@@ -756,7 +779,18 @@ pub async fn set_track_rating(
     });
     LibraryTrackRepository::update_rating(&state.pool, &track_id, normalized)
         .await
-        .map_err(|e| format!("Failed to update rating: {}", e))
+        .map_err(|e| format!("Failed to update rating: {}", e))?;
+    // Morceau d'un serveur : la note lui est renvoyée (entière, de 0 à 5).
+    let path: Option<String> = sqlx::query_scalar("SELECT lf.path FROM library_tracks lt JOIN library_files lf ON lf.id = lt.file_id WHERE lt.id = ?")
+        .bind(&track_id)
+        .fetch_optional(&state.pool)
+        .await
+        .ok()
+        .flatten();
+    if let Some(path) = path {
+        crate::commands::playlist_command::send_feedback(&state, path, Feedback::Rating(feedback_service::server_rating(normalized)));
+    }
+    Ok(())
 }
 
 
@@ -814,6 +848,9 @@ pub async fn mark_track_played(
     } else {
         log::info!("♪ Écoute comptée : {path}");
     }
+    // Morceau d'un serveur : l'écoute lui est aussi comptée (scrobble).
+    let now = chrono::Utc::now().timestamp_millis();
+    crate::commands::playlist_command::send_feedback(&state, path, Feedback::Scrobble(now));
 
     Ok(())
 }

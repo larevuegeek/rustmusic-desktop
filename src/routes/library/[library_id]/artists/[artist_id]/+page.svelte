@@ -45,6 +45,7 @@ import type { ArtistDetailView } from "#lib/types/ui/library/artist/ArtistDetail
 import type { ArtistListView } from "#lib/types/ui/library/artist/ArtistListView";
 import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 const libraryId = $derived(Number(page.params.library_id));
 const artistId = $derived(String(page.params.artist_id));
@@ -390,7 +391,9 @@ const sortArrow = (cle: string) => (tri === cle ? (sens === "asc" ? "material-sy
       </div>
 
       <div class="flex-[1_1_320px] min-w-0 flex flex-col gap-3">
-        <div class="text-xs font-bold tracking-[0.1em] uppercase text-(--rg-tx2)">{$t("artist_view.kicker")}</div>
+        <div class="flex flex-wrap items-center gap-2.5 text-xs font-bold tracking-[0.1em] uppercase text-(--rg-tx2)">
+          {$t("artist_view.kicker")}<CloudMark {libraryId} size={16} label />
+        </div>
         <h1 class="font-extrabold leading-none tracking-[-0.03em] text-balance line-clamp-2 text-(--rg-tx)
                    {artist.name.length > 24 ? 'text-[56px] @max-[760px]:text-[34px]' : 'text-[72px] @max-[760px]:text-[44px]'}" title={artist.name}>{artist.name}</h1>
 

@@ -11,6 +11,7 @@ import LibraryErrorLoading from "#lib/components/library/common/error/LibraryErr
 import Icon from "@iconify/svelte";
 import LibraryHeader from "#lib/components/library/common/LibraryHeader.svelte";
 import ImportWelcome from "#lib/components/library/common/ImportWelcome.svelte";
+import PageState from "#lib/components/ui/layout/PageState.svelte";
 import { importAffiche } from "#lib/stores/library/importProgress.store";
 import { ongletCourant } from "#lib/config/libraryTabs";
 import { invoke } from "@tauri-apps/api/core";
@@ -123,7 +124,9 @@ async function importer(chemins: string[]) {
 {:else if library}
 <div class="biblio-maquette flex flex-col h-full relative">
 
-  {#if vide}
+  {#if vide && library.server_id}
+    <PageState icon="material-symbols:cloud-outline-rounded" message={$t("servers.library_empty")} />
+  {:else if vide}
     <ImportWelcome {library} section={ongletCourant(page.url.pathname)} />
   {:else}
   {#if !isFocusedView}

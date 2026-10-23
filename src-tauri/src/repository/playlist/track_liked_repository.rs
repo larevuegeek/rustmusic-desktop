@@ -20,9 +20,10 @@ impl TrackLikedRepository {
                 path,
                 profil_id,
                 library_cache_id,
-                created_at
+                created_at,
+                source_id
             )
-            VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)
+            VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP, ?4)
 
             ON CONFLICT(path, profil_id)
             DO NOTHING
@@ -33,6 +34,7 @@ impl TrackLikedRepository {
         .bind(path)
         .bind(profil_id)
         .bind(library_cache_id)
+        .bind(crate::core::remote::source_of(path))
         .fetch_one(exec)
         .await?;
 
@@ -41,14 +43,16 @@ impl TrackLikedRepository {
     }
 
 
+    /// `source` : celle à garder ; `None` : toutes les sources actives.
     pub async fn find_all_by_profile<'e, E>(
         exec: E,
         profil_id: i64,
+        source: Option<i64>,
     ) -> Result<Vec<TrackLikedView>, sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
-        let results: Vec<TrackLikedView> = sqlx::query_as::<_, TrackLikedView>(
+        let sql = format!(
             r#"
                 SELECT
                 tl.id,
@@ -65,13 +69,16 @@ impl TrackLikedRepository {
                 lc.mime_type
                 FROM track_liked tl
                 LEFT JOIN library_cache lc ON lc.id = tl.library_cache_id
-                WHERE profil_id = ?1
+                WHERE profil_id = ?1 {}
                 ORDER BY tl.created_at DESC
-            "#
-        )
-        .bind(profil_id)
-        .fetch_all(exec)
-        .await?;
+            "#,
+            if source.is_some() { "AND tl.source_id = ?2".to_string() } else { format!("AND {}", crate::core::remote::enabled_source("tl.source_id")) }
+        );
+        let mut query = sqlx::query_as::<_, TrackLikedView>(sqlx::AssertSqlSafe(sql)).bind(profil_id);
+        if let Some(s) = source {
+            query = query.bind(s);
+        }
+        let results = query.fetch_all(exec).await?;
 
         Ok(results)
     }

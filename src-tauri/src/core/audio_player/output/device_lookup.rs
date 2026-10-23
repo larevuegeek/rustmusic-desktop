@@ -58,7 +58,15 @@ pub fn choose(host: &cpal::Host, name: Option<&str>) -> Result<cpal::Device, Str
             None if held_card(name).is_some() => log::info!(
                 "Sortie '{name}' hors service le temps de la lecture exclusive : sortie système pour la configuration"
             ),
-            None => log::error!("Device '{name}' introuvable, fallback default"),
+            // Sortie débranchée : repli normal sur celle du système, signalé une fois (pas à chaque morceau).
+            None => {
+                static WARNED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+                let mut last = WARNED.lock().unwrap_or_else(|e| e.into_inner());
+                if last.as_deref() != Some(name) {
+                    log::warn!("Sortie '{name}' absente (débranchée ?) : sortie du système à la place");
+                    *last = Some(name.to_string());
+                }
+            }
         }
     }
     host.default_output_device()

@@ -987,6 +987,8 @@ impl LibraryTrackRepository {
         exec: E,
         search_term: &str,
         limit: i64,
+        profil_id: i64,
+        source: Option<i64>,
     ) -> Result<Vec<crate::entity::search::search_result::SearchResult>, sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
@@ -1004,13 +1006,17 @@ impl LibraryTrackRepository {
             FROM library_tracks lt
             LEFT JOIN library_cache lc ON lt.cache_id = lc.id
             LEFT JOIN library_files lf ON lt.file_id = lf.id
-            WHERE LOWER(lt.title) LIKE ?1
-               OR LOWER(COALESCE(lc.artist, '')) LIKE ?1
+            WHERE (LOWER(lt.title) LIKE ?1
+               OR LOWER(COALESCE(lc.artist, '')) LIKE ?1)
+              AND lt.library_id IN (SELECT id FROM library WHERE profil_id = ?4)
+              AND (CASE WHEN ?3 IS NULL THEN lt.library_id IN (SELECT id FROM library WHERE server_id IS NULL OR server_id IN (SELECT id FROM media_servers WHERE enabled = 1)) ELSE lt.library_id IN (SELECT id FROM library WHERE COALESCE(server_id, 0) = ?3) END)
             LIMIT ?2
             "#
         )
         .bind(search_term)
         .bind(limit)
+        .bind(source)
+        .bind(profil_id)
         .fetch_all(exec)
         .await
     }

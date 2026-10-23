@@ -1,6 +1,8 @@
 <script lang="ts">
 // Toutes les playlists du profil : la barre latérale n'en montre que les épinglées.
 import { couverturesPlaylists } from "#lib/stores/playlist/covers.store";
+import { sourceFilter } from "#lib/stores/source/sourceFilter.store";
+import { profilSelector } from "#lib/stores/profil/profil.store";
 import Icon from "@iconify/svelte";
 import { t, currentLocale } from "#lib/i18n";
 import { playlistStore } from "#lib/stores/playlist/playlist.store";
@@ -58,6 +60,13 @@ const visibles = $derived.by(() => {
       && (sorte === "toutes" || (sorte === "auto") === p.is_smart))
     .sort(TRI_FN[tri]);
 });
+// Source serveur : celles du serveur à part de celles gardées dans RustMusic.
+const groupes = $derived.by((): { titre: string | null; liste: Playlist[] }[] => {
+  const app = visibles.filter((p) => p.server_id == null);
+  const serveur = visibles.filter((p) => p.server_id != null);
+  if (!app.length || !serveur.length) return [{ titre: null, liste: visibles }];
+  return [{ titre: $t("servers.playlists_app"), liste: app }, { titre: $t("servers.playlists_server"), liste: serveur }];
+});
 // Les raccourcis bâtis dans l'application, en tête quand rien n'est filtré.
 const montrerLikes = $derived($settingsStore.show_favorites !== "false");
 const raccourcis = $derived(!filtresActifs);
@@ -89,7 +98,7 @@ const tracksByPaths = (paths: string[]) => invoke<TrackListView[]>("get_tracks_v
 const selectLiked = () => toggleTracksGroup(LIKED_KEY, () => tracksByPaths([...get(liked).paths]));
 const selectRecent = () =>
   toggleTracksGroup(RECENT_KEY, async () => {
-    const files = await invoke<RecentFileListView[]>("get_recent_files");
+    const files = await invoke<RecentFileListView[]>("get_recent_files", { profilId: $profilSelector.profilSelected?.id ?? 0, sourceId: get(sourceFilter) });
     return tracksByPaths(files.map((f) => f.path).filter((x): x is string => !!x));
   });
 </script>
@@ -164,12 +173,20 @@ const selectRecent = () =>
                         couleur="#0ea5e9" icone="material-symbols:history-rounded" couvertures={$couverturesPlaylists.recent ?? []}
                         selected={$selectionStore.groupes.has(RECENT_KEY)} onselect={selectRecent} />
         {/if}
-        {#each visibles as p (p.id)}
-          <PlaylistCard liste={!grille} href={`/playlist/${p.id}`} nom={p.name} sousTitre={subtitle(p)}
-                        couleur={p.color} icone={p.icon} auto={p.is_smart} couvertures={$couverturesPlaylists[`playlist:${p.id}`] ?? []}
-                        epinglee={p.pinned} onepingler={() => playlistStore.setPinned(p.id, !p.pinned)}
-                        onmenu={(x, y) => (menu = { x, y, playlist: p })}
-                        selected={$selectionStore.groupes.has(playlistKey(p.id))} onselect={() => toggleGroupSelection("playlist", 0, String(p.id))} />
+        {#each groupes as g (g.titre ?? "")}
+          {#if g.titre}
+            <h2 class="col-span-full mt-4 first:mt-0 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">
+              <Icon icon={g.liste[0]?.server_id != null ? "material-symbols:cloud-outline-rounded" : "material-symbols:hard-drive-outline"} width="15" />
+              {g.titre} <span class="font-semibold">· {formatNumber(g.liste.length)}</span>
+            </h2>
+          {/if}
+          {#each g.liste as p (p.id)}
+            <PlaylistCard liste={!grille} href={`/playlist/${p.id}`} nom={p.name} sousTitre={subtitle(p)}
+                          couleur={p.color} icone={p.icon} auto={p.is_smart} couvertures={$couverturesPlaylists[`playlist:${p.id}`] ?? []}
+                          epinglee={p.pinned} onepingler={() => playlistStore.setPinned(p.id, !p.pinned)}
+                          onmenu={(x, y) => (menu = { x, y, playlist: p })}
+                          selected={$selectionStore.groupes.has(playlistKey(p.id))} onselect={() => toggleGroupSelection("playlist", 0, String(p.id))} />
+          {/each}
         {/each}
       </div>
       {#if playlists.length === 0}

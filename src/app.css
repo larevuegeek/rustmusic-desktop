@@ -657,6 +657,10 @@ html, body {
 
 /* Hero de reprise : toujours sombre, pochette floutée en fond ou vert discret. */
 .hero-reprise { background: #121614; border: 1px solid rgba(255, 255, 255, 0.06); }
+/* Variante bleu ciel : bibliothèque d'un serveur. */
+.hero-ciel {
+  background: linear-gradient(120deg, oklch(0.36 0.08 235) 0%, oklch(0.22 0.04 235) 55%, #121614 100%);
+}
 .hero-vert {
   background: linear-gradient(120deg, oklch(0.36 0.08 155) 0%, oklch(0.22 0.04 155) 55%, #121614 100%);
 }
@@ -749,6 +753,7 @@ html, body {
 :root:not(.dark) .hero-voile {
   background: linear-gradient(110deg, rgba(255, 251, 248, 0.5) 0%, rgba(255, 251, 248, 0.74) 55%, rgba(255, 251, 248, 0.88) 100%);
 }
+:root:not(.dark) .hero-ciel { background: linear-gradient(120deg, #d9ebf5 0%, #edf5f9 55%, #f8f6f1 100%); }
 :root:not(.dark) .hero-vert { background: linear-gradient(120deg, #dcefe1 0%, #eef6f0 55%, #f8f6f1 100%); }
 :root:not(.dark) .ensuite-panneau {
   background: rgba(255, 255, 255, 0.6);

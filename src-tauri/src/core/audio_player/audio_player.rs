@@ -233,7 +233,9 @@ impl AudioPlayer {
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Court-circuit DSF/DFF : Symphonia ne sait pas lire DSD,
         // on dispatche vers notre pipeline maison (audio_decoder::dsd).
-        let ext_lower = file_path
+        // Morceau distant : l'extension de son fichier du cache (le chemin `remote://` n'en a pas).
+        let ext_lower = crate::core::subsonic::stream::cached(&file_path)
+            .unwrap_or_else(|| file_path.clone())
             .extension()
             .and_then(|s| s.to_str())
             .map(|e| e.to_ascii_lowercase());
@@ -321,7 +323,10 @@ impl AudioPlayer {
 
         // Épisode de podcast encore en téléchargement : lu pendant qu'il arrive.
         let growing = crate::core::podcast::download::reader(&file_path).transpose()?;
-        let arriving = growing.is_some();
+        // Morceau d'un serveur : son fichier du cache, peut-être encore en route.
+        let remote_file = crate::core::subsonic::stream::cached(&file_path);
+        let remote = crate::core::subsonic::stream::open(&file_path).transpose()?;
+        let arriving = growing.is_some() || remote_file.as_ref().is_some_and(|f| crate::core::podcast::download::get(f).is_some());
 
         let mss: MediaSourceStream = if let Some(source) = live_reader {
             log::info!("📻 Radio en direct");
@@ -329,6 +334,12 @@ impl AudioPlayer {
         } else if let Some(source) = growing {
             log::info!("🎙️  Lecture pendant le téléchargement");
             MediaSourceStream::new(Box::new(source), Default::default())
+        } else if let Some((source, ext)) = remote {
+            log::info!("☁️  Morceau distant {}", if arriving { "lu pendant le téléchargement" } else { "lu depuis le cache" });
+            if let Some(ext) = ext {
+                hint.with_extension(&ext);
+            }
+            MediaSourceStream::new(source, Default::default())
         } else if needs_preload {
             let bytes: Vec<u8> = std::fs::read(&file_path)?;
             log::info!(
@@ -409,7 +420,8 @@ impl AudioPlayer {
         }
         // MP3 sans index en cours de téléchargement : la durée annoncée par le flux.
         if total_secs.is_none() {
-            total_secs = crate::core::podcast::download::get(&file_path).and_then(|d| d.duration_hint);
+            let file = remote_file.as_deref().unwrap_or(&file_path);
+            total_secs = crate::core::podcast::download::get(file).and_then(|d| d.duration_hint);
         }
         if let Some(secs) = total_secs {
             total_duration.store(secs.to_bits(), Ordering::Relaxed);
@@ -1160,16 +1172,20 @@ impl AudioPlayer {
     ) -> Result<(), Box<dyn std::error::Error>> {
         log::debug!("🎵 [DSD] Fichier sélectionné : {:?}", file_path);
 
+        // Morceau distant : son fichier du cache, complet (la préparation l'a attendu entier).
+        // `file_path` reste le repère renvoyé à l'interface.
+        let source = crate::core::subsonic::stream::cached(&file_path).unwrap_or_else(|| file_path.clone());
+
         // ─── 1. Open the right container reader (DSF or DFF) → boxed trait object ───
-        let ext = file_path
+        let ext = source
             .extension()
             .and_then(|s| s.to_str())
             .map(|e| e.to_ascii_lowercase())
             .unwrap_or_default();
 
         let decoder: Box<dyn DsdContainerReader + Send> = match ext.as_str() {
-            "dsf" => Box::new(DsfDecoder::open(&file_path)?),
-            "dff" => Box::new(DffDecoder::open(&file_path)?),
+            "dsf" => Box::new(DsfDecoder::open(&source)?),
+            "dff" => Box::new(DffDecoder::open(&source)?),
             other => {
                 return Err(format!(
                     "Extension {:?} non supportée par le pipeline DSD",
@@ -1190,7 +1206,7 @@ impl AudioPlayer {
         // Le DoP ne passe pas ici (écriture verbatim, aucun gain).
         {
             use crate::core::audio_player::replay_gain;
-            let info = crate::core::audio_metadata::extractor::extractor::extract(&file_path)
+            let info = crate::core::audio_metadata::extractor::extractor::extract(&source)
                 .map(|file| replay_gain::from_custom_tags(&file.tags.custom_tags))
                 .unwrap_or_default();
             replay_gain::apply_track(info);

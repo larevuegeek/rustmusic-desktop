@@ -17,6 +17,46 @@
   import type { DownloadView } from "#lib/types/ui/podcast/Podcast";
   import MenuSelect from "#lib/components/ui/menu/MenuSelect.svelte";
   import { countryOptions } from "#lib/helper/tools/podcastCountry";
+  import { open, save } from "@tauri-apps/plugin-dialog";
+  import { toasts } from "#lib/stores/ui/toast.store";
+  import { podcastStore } from "#lib/stores/podcast/podcast.store";
+
+  // OPML : les abonnements, échangés avec les autres applis de podcasts.
+  let opml = $state<"import" | "export" | null>(null);
+  const opmlFilter = [{ name: "OPML", extensions: ["opml", "xml"] }];
+
+  async function importOpml() {
+    const profilId = $profilSelector.profilSelected?.id;
+    const path = await open({ title: $t("podcasts.opml_import"), filters: opmlFilter, multiple: false, directory: false });
+    if (!profilId || typeof path !== "string") return;
+    opml = "import";
+    try {
+      const r = await invoke<{ added: number; existing: number; failed: number }>("podcast_import_opml", { profilId, path });
+      await podcastStore.load(profilId);
+      const message = $t("podcasts.opml_imported").replace("{added}", String(r.added)).replace("{existing}", String(r.existing))
+        + (r.failed ? " · " + $t("podcasts.opml_failed").replace("{n}", String(r.failed)) : "");
+      toasts.push({ type: r.added || r.existing ? "success" : "error", title: $t("podcasts.opml_import"), message });
+    } catch (e) {
+      toasts.push({ type: "error", title: $t("podcasts.opml_import"), message: String(e) });
+    } finally {
+      opml = null;
+    }
+  }
+
+  async function exportOpml() {
+    const profilId = $profilSelector.profilSelected?.id;
+    const path = await save({ title: $t("podcasts.opml_export"), defaultPath: "rustmusic-podcasts.opml", filters: opmlFilter });
+    if (!profilId || !path) return;
+    opml = "export";
+    try {
+      const n = await invoke<number>("podcast_export_opml", { profilId, path });
+      toasts.push({ type: "success", title: $t("podcasts.opml_export"), message: $t("podcasts.opml_exported").replace("{n}", String(n)) });
+    } catch (e) {
+      toasts.push({ type: "error", title: $t("podcasts.opml_export"), message: String(e) });
+    } finally {
+      opml = null;
+    }
+  }
 
   const paysOptions = $derived(countryOptions($currentLocale, $t("podcasts.country_auto")));
 
@@ -57,6 +97,16 @@
     <OptionItem title={$t("podcasts.country")} desc={$t("podcasts.country_desc")} keywords="podcast pays country classement annuaire langue">
       <MenuSelect value={$settingsStore.podcast_country} onchange={(v) => settingsStore.set("podcast_country", v)}
                   options={paysOptions} menuClass="w-64 max-h-80 overflow-y-auto" />
+    </OptionItem>
+    <OptionItem title={$t("podcasts.cleanup")} desc={$t("podcasts.cleanup_desc")} keywords="podcast ménage effacer écoutés téléchargements espace">
+      <MenuSelect value={$settingsStore.podcast_cleanup} onchange={(v) => settingsStore.set("podcast_cleanup", v)}
+                  options={["never", "now", "24h", "7d", "30d"].map((v) => ({ value: v, label: $t(`podcasts.cleanup_${v}`) }))} menuClass="w-56" />
+    </OptionItem>
+    <OptionItem title={$t("podcasts.opml")} desc={$t("podcasts.opml_desc")} keywords="podcast opml import export abonnements sauvegarde">
+      <div class="flex flex-wrap gap-2">
+        <GhostButton icon="material-symbols:upload-file-outline-rounded" label={$t("podcasts.opml_import_short")} busy={opml === "import"} disabled={opml !== null} onclick={importOpml} />
+        <GhostButton icon="material-symbols:download-rounded" label={$t("podcasts.opml_export_short")} busy={opml === "export"} disabled={opml !== null} onclick={exportOpml} />
+      </div>
     </OptionItem>
     <OptionItem title={$t("podcasts.downloads")}
                 desc={$t("podcasts.space_used").replace("{size}", readableSize(occupe ?? 0, $currentLocale) || "0")}

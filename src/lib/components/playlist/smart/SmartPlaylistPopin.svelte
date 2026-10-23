@@ -4,6 +4,7 @@
   import { t, currentLocale } from "#lib/i18n";
   import { popinStore } from "#lib/stores/ui/popin.store";
   import { playlistStore } from "#lib/stores/playlist/playlist.store";
+  import { sourceFilter } from "#lib/stores/source/sourceFilter.store";
   import { profilSelector } from "#lib/stores/profil/profil.store";
   import { libraryStore } from "#lib/stores/library/library.store";
   import { forget } from "#lib/stores/mix/mix.store";
@@ -38,6 +39,8 @@
   } = $props();
 
   const mix = $derived(mixDemande || !!$playlistStore.playlists.find((p) => p.id === playlistId)?.is_mix);
+  // Source des morceaux retenus : celle de la playlist, ou celle affichée pour une nouvelle.
+  const source = $derived($playlistStore.playlists.find((p) => p.id === playlistId)?.source_id ?? $sourceFilter ?? 0);
   // Les tailles proposées pour un mix ; le tirage est toujours au hasard.
   const TAILLES = [30, 50, 100];
   const limitOf = (n: number | null | undefined): Limit => ({ count: n ?? 50, sort: "random", desc: false });
@@ -159,6 +162,7 @@
       const nettoyees = pruneGroup(group, vocabulary, fields);
       compte = await invoke<number>("count_smart_playlist", {
         rules: { ...nettoyees, limit: null },
+        sourceId: source,
       });
     } catch (e) {
       compte = null;
@@ -247,6 +251,7 @@
           icon: icon.id,
           rules: regles,
           isMix: mix,
+          sourceId: source,
         });
       }
 

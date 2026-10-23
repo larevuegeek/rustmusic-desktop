@@ -11,6 +11,7 @@ import Icon from "@iconify/svelte";
 import { t } from "#lib/i18n";
 import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import StarRating from "#lib/components/ui/rating/StarRating.svelte";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 import { widthOf, isFlexible, cellStyle, type TrackColumn } from "#lib/config/trackColumns";
 
 // Les colonnes viennent de la page : la ligne n'a pas à relire les réglages.
@@ -94,9 +95,8 @@ function handleClick(e?: MouseEvent) {
           class="text-left cursor-pointer"
           style={cellStyle(col, largeurs)}
         >
-          <span class="text-sm text-neutral-800 dark:text-neutral-200 truncate block"
-                title={track.title}>
-            {track.title}
+          <span class="flex items-center gap-1.5 min-w-0 text-sm text-neutral-800 dark:text-neutral-200" title={track.title}>
+            <CloudMark path={track.path} size={13} /><span class="truncate">{track.title}</span>
           </span>
         </button>
 

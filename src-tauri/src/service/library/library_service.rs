@@ -569,7 +569,7 @@ pub async fn save_files_to_library(
 // Prend le résultat d'analyse (CPU) et écrit tout en DB dans la transaction.
 // Gère aussi le skip si le fichier est déjà indexé et inchangé.
 
-async fn save_analysed_to_db(
+pub(crate) async fn save_analysed_to_db(
     conn: &mut SqliteConnection,
     library_id: i64,
     library_dir_id: Option<String>,

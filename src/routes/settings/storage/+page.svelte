@@ -17,6 +17,7 @@
   import OptionItem from "#lib/components/ui/input/OptionItem.svelte";
   import GhostButton from "#lib/components/ui/button/GhostButton.svelte";
   import ResetConfirmPopin from "#lib/components/settings/ResetConfirmPopin.svelte";
+  import ServersSettings from "#lib/components/settings/ServersSettings.svelte";
 
   let showResetDialog = $state(false);
   let rescanning = $state(false);
@@ -275,6 +276,8 @@
 </OptionGroup>
 
 <!-- ─── Sauvegarde ─── -->
+<ServersSettings />
+
 <OptionGroup title={$t("settings.backup_group")} hint={$t("settings.backup_group_hint")}>
   <OptionItem title={$t("settings.export_title")} desc={$t("settings.export_desc")} keywords="json sauvegarde">
     <GhostButton

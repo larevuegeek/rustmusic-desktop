@@ -48,7 +48,7 @@ pub struct Renderer {
 /// Cherche les lecteurs pendant `wait`, sur chaque réseau. Les appareils muets ou
 /// dont la description est illisible sont ignorés.
 pub async fn discover(wait: Duration) -> Vec<Renderer> {
-    let locations = search(wait).await;
+    let locations = search(wait, &[RENDERER_TYPE, SONOS_TYPE]).await;
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
         .build()
@@ -89,9 +89,10 @@ where
     out
 }
 
-/// Envoie la recherche sur chaque carte et rend les adresses de description reçues.
-async fn search(wait: Duration) -> Vec<String> {
-    let requests: Vec<String> = [RENDERER_TYPE, SONOS_TYPE]
+/// Envoie la recherche des appareils `types` sur chaque carte et rend les adresses de description reçues.
+pub(crate) async fn search(wait: Duration, types: &[&str]) -> Vec<String> {
+    let types: Vec<String> = types.iter().map(|t| t.to_string()).collect();
+    let requests: Vec<String> = types
         .iter()
         .map(|st| format!("M-SEARCH * HTTP/1.1\r\nHOST: {SSDP_ADDR}:{SSDP_PORT}\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\nST: {st}\r\n\r\n"))
         .collect();
@@ -107,7 +108,7 @@ async fn search(wait: Duration) -> Vec<String> {
     let deadline = tokio::time::Instant::now() + wait;
     let mut tasks = Vec::new();
     for socket in sockets {
-        let requests = requests.clone();
+        let (requests, types) = (requests.clone(), types.clone());
         tasks.push(tokio::spawn(async move {
             let mut found = Vec::new();
             // Deux envois : l'UDP multicast se perd volontiers.
@@ -119,7 +120,7 @@ async fn search(wait: Duration) -> Vec<String> {
             }
             let mut buf = vec![0u8; 2048];
             while let Ok(Ok((n, _))) = tokio::time::timeout_at(deadline, socket.recv_from(&mut buf)).await {
-                if let Some(location) = parse_search_response(&String::from_utf8_lossy(&buf[..n])) {
+                if let Some(location) = parse_search_response(&String::from_utf8_lossy(&buf[..n]), &types) {
                     found.push(location);
                 }
             }
@@ -148,24 +149,24 @@ pub(super) fn open_socket(ip: Ipv4Addr) -> std::io::Result<UdpSocket> {
     UdpSocket::from_std(socket.into())
 }
 
-/// `LOCATION` d'une réponse à la recherche, si elle vient d'un lecteur.
-fn parse_search_response(response: &str) -> Option<String> {
+/// `LOCATION` d'une réponse à la recherche, si elle vient d'un appareil cherché.
+fn parse_search_response(response: &str, types: &[String]) -> Option<String> {
     let mut lines = response.lines();
     if !lines.next()?.contains("200") {
         return None;
     }
     let mut location = None;
-    let mut is_renderer = false;
+    let mut wanted = false;
     for line in lines {
         let Some((key, value)) = line.split_once(':') else { continue };
         let value = value.trim();
         match key.trim().to_ascii_lowercase().as_str() {
             "location" => location = Some(value.to_string()),
-            "st" => is_renderer = value.eq_ignore_ascii_case(RENDERER_TYPE) || value.eq_ignore_ascii_case(SONOS_TYPE),
+            "st" => wanted = types.iter().any(|t| value.eq_ignore_ascii_case(t)),
             _ => {}
         }
     }
-    location.filter(|_| is_renderer)
+    location.filter(|_| wanted)
 }
 
 /// Lit une description d'appareil : le lecteur peut être l'appareil racine ou un sous-appareil.
@@ -263,7 +264,7 @@ fn renderer_from(own: &str, base: &str, ip: Ipv4Addr) -> Option<Renderer> {
 }
 
 /// `http://hôte:port` d'une adresse complète.
-fn origin(url: &str) -> String {
+pub(crate) fn origin(url: &str) -> String {
     let after_scheme = url.find("://").map_or(0, |i| i + 3);
     let end = url[after_scheme..].find('/').map_or(url.len(), |i| after_scheme + i);
     url[..end].to_string()
@@ -276,7 +277,7 @@ fn host_ipv4(url: &str) -> Option<Ipv4Addr> {
 }
 
 /// Adresse absolue d'une URL de description (absolue, depuis la racine ou relative).
-fn resolve(base: &str, url: &str) -> String {
+pub(crate) fn resolve(base: &str, url: &str) -> String {
     if url.starts_with("http://") || url.starts_with("https://") {
         return url.to_string();
     }
@@ -396,11 +397,12 @@ mod tests {
 
     #[test]
     fn keeps_only_renderer_search_answers() {
-        let ok = "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nLocation: http://10.0.0.5:49152/d.xml\r\nST: urn:schemas-upnp-org:device:MediaRenderer:1\r\n\r\n";
-        assert_eq!(parse_search_response(ok).as_deref(), Some("http://10.0.0.5:49152/d.xml"));
+        let types = [RENDERER_TYPE.to_string(), SONOS_TYPE.to_string()];
+        let ok ="HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nLocation: http://10.0.0.5:49152/d.xml\r\nST: urn:schemas-upnp-org:device:MediaRenderer:1\r\n\r\n";
+        assert_eq!(parse_search_response(ok, &types).as_deref(), Some("http://10.0.0.5:49152/d.xml"));
         let other = ok.replace("MediaRenderer", "MediaServer");
-        assert_eq!(parse_search_response(&other), None);
+        assert_eq!(parse_search_response(&other, &types), None);
         let sonos = ok.replace("device:MediaRenderer:1", "device:ZonePlayer:1");
-        assert!(parse_search_response(&sonos).is_some());
+        assert!(parse_search_response(&sonos, &types).is_some());
     }
 }

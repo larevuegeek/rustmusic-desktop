@@ -317,13 +317,24 @@ fn decode_track(
     is_stopped: &AtomicBool,
     generation: u64,
 ) -> Result<Option<PreloadedTrack>, String> {
-    let file = std::fs::File::open(path).map_err(|e| format!("ouverture : {e}"))?;
-    let mss = MediaSourceStream::new(Box::new(file), Default::default());
-
     let mut hint = Hint::new();
-    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-        hint.with_extension(ext);
-    }
+    // Morceau distant : son fichier du cache (attendu s'il arrive encore).
+    let mss = match crate::core::subsonic::stream::open(path) {
+        Some(remote) => {
+            let (source, ext) = remote.map_err(|e| format!("ouverture : {e}"))?;
+            if let Some(ext) = ext {
+                hint.with_extension(&ext);
+            }
+            MediaSourceStream::new(source, Default::default())
+        }
+        None => {
+            let file = std::fs::File::open(path).map_err(|e| format!("ouverture : {e}"))?;
+            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                hint.with_extension(ext);
+            }
+            MediaSourceStream::new(Box::new(file), Default::default())
+        }
+    };
 
     let mut reader: Box<dyn FormatReader> = get_probe()
         .probe(

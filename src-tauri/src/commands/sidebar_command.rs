@@ -23,13 +23,20 @@ const POCHETTE: &str = "COALESCE(NULLIF(la.cover_url, ''), lc.thumbnail_path)";
 pub async fn get_sidebar_covers(
     state: State<'_, AppState>,
     profil_id: i64,
+    source_id: Option<i64>,
 ) -> Result<Vec<CollectionCovers>, String> {
     let pool = &state.pool;
     let mut sortie = Vec::new();
+    // Filtre de source (un entier : sûr dans le texte de la requête).
+    let de_la_source = |alias: &str| match source_id {
+        Some(s) => format!(" AND {alias}.source_id = {s}"),
+        None => format!(" AND {}", crate::core::remote::enabled_source(&format!("{alias}.source_id"))),
+    };
 
-    let playlists: Vec<(i64, Option<String>)> = sqlx::query_as(
-        "SELECT id, CASE WHEN is_smart = 1 THEN rules END FROM playlists WHERE profil_id = ? AND is_mix = 0",
-    )
+    let playlists: Vec<(i64, Option<String>)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT id, CASE WHEN is_smart = 1 THEN rules END FROM playlists p WHERE profil_id = ? AND is_mix = 0{}",
+        de_la_source("p")
+    )))
     .bind(profil_id)
     .fetch_all(pool)
     .await
@@ -56,21 +63,20 @@ pub async fn get_sidebar_covers(
          JOIN library_tracks lt ON lt.file_id = lf.id
          LEFT JOIN library_albums la ON la.id = lt.library_album_id
          LEFT JOIN library_cache lc ON lc.id = lt.cache_id
-         WHERE tl.profil_id = ? AND {POCHETTE} IS NOT NULL
-         ORDER BY tl.created_at DESC LIMIT {PISTES_LUES}"
+         WHERE tl.profil_id = ? AND {POCHETTE} IS NOT NULL{}
+         ORDER BY tl.created_at DESC LIMIT {PISTES_LUES}", de_la_source("tl")
     ), Some(profil_id)).await?;
     sortie.push(CollectionCovers { key: "liked".into(), covers: aimes });
 
-    // L'historique n'est pas rangé par profil.
     let recents = cover_paths(pool, format!(
         "SELECT {POCHETTE} FROM recent_files rf
          JOIN library_files lf ON lf.path = rf.path
          JOIN library_tracks lt ON lt.file_id = lf.id
          LEFT JOIN library_albums la ON la.id = lt.library_album_id
          LEFT JOIN library_cache lc ON lc.id = lt.cache_id
-         WHERE {POCHETTE} IS NOT NULL
-         ORDER BY rf.last_played_at DESC LIMIT {PISTES_LUES}"
-    ), None).await?;
+         WHERE rf.profil_id = ? AND {POCHETTE} IS NOT NULL{}
+         ORDER BY rf.last_played_at DESC LIMIT {PISTES_LUES}", de_la_source("rf")
+    ), Some(profil_id)).await?;
     sortie.push(CollectionCovers { key: "recent".into(), covers: recents });
 
     Ok(sortie)
@@ -92,7 +98,8 @@ async fn cover_paths(pool: &SqlitePool, sql: String, param: Option<i64>) -> Resu
 async fn smart_covers(pool: &SqlitePool, playlist_id: i64, json: &str) -> Result<Vec<String>, String> {
     let rules: crate::core::smart_playlist::rules::SmartRules =
         serde_json::from_str(json).map_err(|e| format!("Règles illisibles : {e}"))?;
-    let pistes = crate::core::smart_playlist::engine::evaluate(pool, playlist_id, &rules).await?;
+    let source = crate::repository::playlist::playlist_repository::PlaylistRepository::source_of(pool, playlist_id).await.map_err(|e| e.to_string())?;
+    let pistes = crate::core::smart_playlist::engine::evaluate(pool, playlist_id, &rules, Some(source)).await?;
     let ids: Vec<String> = pistes.into_iter().take(PISTES_LUES as usize).map(|t| t.library_track_id).collect();
     if ids.is_empty() {
         return Ok(Vec::new());

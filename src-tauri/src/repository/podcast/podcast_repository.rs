@@ -82,6 +82,35 @@ impl PodcastRepository {
         sqlx::query("DELETE FROM podcasts WHERE id = ?").bind(id).execute(pool).await.map(|_| ())
     }
 
+    pub async fn set_auto_download(pool: &SqlitePool, id: i64, on: bool) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE podcasts SET auto_download = ? WHERE id = ?").bind(on).bind(id).execute(pool).await.map(|_| ())
+    }
+
+    /// Les `limit` nouveaux épisodes d'un podcast en téléchargement automatique, pas encore téléchargés.
+    pub async fn auto_download_candidates(pool: &SqlitePool, podcast_id: i64, limit: i64) -> Result<Vec<i64>, sqlx::Error> {
+        sqlx::query_scalar(
+            "SELECT e.id FROM podcast_episodes e JOIN podcasts p ON p.id = e.podcast_id
+              WHERE e.podcast_id = ? AND p.auto_download = 1 AND e.is_new = 1 AND e.played = 0 AND e.file_path IS NULL
+              ORDER BY e.published_at DESC LIMIT ?",
+        )
+        .bind(podcast_id)
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+    }
+
+    /// Épisodes téléchargés et écoutés depuis au moins `hours` heures (0 : tout de suite).
+    pub async fn played_downloads(pool: &SqlitePool, hours: i64) -> Result<Vec<i64>, sqlx::Error> {
+        sqlx::query_scalar(
+            "SELECT id FROM podcast_episodes
+              WHERE played = 1 AND file_path IS NOT NULL AND played_at IS NOT NULL
+                AND played_at <= datetime('now', '-' || ? || ' hours')",
+        )
+        .bind(hours)
+        .fetch_all(pool)
+        .await
+    }
+
     pub async fn set_pinned(pool: &SqlitePool, id: i64, pinned: bool) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE podcasts SET pinned = ? WHERE id = ?").bind(pinned).bind(id).execute(pool).await.map(|_| ())
     }

@@ -11,6 +11,7 @@ import { selectionStore } from "#lib/stores/ui/selection.store";
 import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
 import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
 import { listenDuration } from "#lib/helper/tools/dateTools";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 let { libraryId, artist }: { libraryId: number; artist: ArtistListView } = $props();
 
@@ -73,7 +74,7 @@ const chiffre = "text-right text-[13px] tabular-nums whitespace-nowrap text-(--r
         {/if}
     </div>
 
-    <p class="min-w-0 truncate text-base font-semibold text-(--rg-tx)">{artist.name}</p>
+    <p class="min-w-0 truncate text-base font-semibold text-(--rg-tx)"><CloudMark {libraryId} />{" "}{artist.name}</p>
 
     <span class={chiffre}><b class="font-medium text-(--rg-tx2)">{artist.total_albums}</b> {$t(artist.total_albums === 1 ? "library_head.albums_one" : "library_head.albums_n")}</span>
     <span class="{chiffre} max-[900px]:hidden"><b class="font-medium text-(--rg-tx2)">{artist.total_tracks}</b> {$t(artist.total_tracks === 1 ? "library_head.tracks_one" : "library_head.tracks_n")}</span>

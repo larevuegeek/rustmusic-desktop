@@ -36,9 +36,10 @@ import StarRating from "#lib/components/ui/rating/StarRating.svelte";
 import TrackContextMenu from "#lib/components/ui/contextmenu/TrackContextMenu.svelte";
 import EditTagsPopin from "#lib/components/library/common/popin/EditTagsPopin.svelte";
 import AlbumTrackRow from "#lib/components/library/album/AlbumTrackRow.svelte";
-import type { Library } from "#lib/types/db/library/Library";
+import { isRemotePath, type Library } from "#lib/types/db/library/Library";
 import type { TrackDetailView } from "#lib/types/ui/library/track/TrackDetailView";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 /** Artistes crédités ; `library_artist_id` vide quand l'artiste n'est pas dans cette bibliothèque. */
 type Credit = { artist_id: string; library_artist_id: string | null; name: string };
@@ -228,6 +229,8 @@ function editTags() {
   }, { size: "xl", flush: true, icon: "material-symbols:sell-outline-rounded" });
 }
 
+// Morceau d'un serveur : pas de fichier local (tags, chemin, dossier).
+const distant = $derived(isRemotePath(track?.path));
 const copy = () => track && copyPath(track.path, chemin.fichier);
 const openFolder = () => track && revealInFolder(track.path);
 
@@ -286,6 +289,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
         <div class="flex flex-wrap items-center gap-2.5 text-xs font-bold tracking-widest uppercase text-(--rg-tx2)">
           {$t("track_view.kicker")}
           {#if qualite}<QualityBadge palier={qualite.palier} texte={qualite.texte} class="px-2 py-0.75" />{/if}
+          <CloudMark path={track.path} size={16} label />
         </div>
 
         <h1 class="font-extrabold leading-none tracking-[-0.03em] text-balance line-clamp-3 text-(--rg-tx)
@@ -374,10 +378,12 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
       <section class={carteCls}>
         <h3 class={titreCarte}>
           {$t("track_view.tags")}<span class="flex-1"></span>
+          {#if !distant}
           <button type="button" class="h-7.5 pl-2 pr-2.5 flex items-center gap-1.5 rounded-lg border text-[12.5px] font-semibold tracking-normal normal-case cursor-pointer transition-colors border-(--rg-bd2) text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
                   onclick={editTags}>
             <Icon icon="material-symbols:edit-outline-rounded" width="16" />{$t("track_view.edit")}
           </button>
+          {/if}
         </h3>
         <dl class="[&>div:last-child]:border-b-0">
           {#snippet ligne(libelle: string)}
@@ -466,19 +472,28 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
     <!-- ─── Fichier ─── -->
     <section class="{carteCls} mt-5">
       <h3 class={titreCarte}>{$t("track_view.file")}</h3>
+      {#if distant}
+      <!-- Fichier sur le serveur : ni chemin à copier, ni dossier à ouvrir. -->
+      <div class="flex items-center gap-2.5 py-3 pl-4 pr-3 rounded-xl border bg-(--c-fond) dark:bg-zinc-950 border-(--rg-bd) text-[13px] text-(--rg-mu)">
+        <CloudMark path={track.path} size={18} label />
+      </div>
+      {:else}
       <div class="flex items-center gap-2.5 py-3 pl-4 pr-3 rounded-xl border bg-(--c-fond) dark:bg-zinc-950 border-(--rg-bd)">
         <span class="flex-1 min-w-0 font-mono text-[12.5px] text-(--rg-mu) wrap-anywhere">{chemin.dossier}<span class="text-(--rg-tx)">{chemin.fichier}</span></span>
         <button type="button" class={petitBouton} onclick={copy}>
           <Icon icon="material-symbols:content-copy-outline-rounded" width="17" />{$t("track_view.copy")}
         </button>
       </div>
+      {/if}
       <div class="flex flex-wrap items-center gap-x-4.5 gap-y-1.5 mt-3 text-[13px] text-(--rg-mu)">
         {#if longDate(track.created_at)}<span>{$t("track_view.added")} <b class="font-semibold text-(--rg-tx2)">{longDate(track.created_at)}</b></span>{/if}
         {#if longDate(track.last_scanned_at)}<span>{$t("track_view.scanned")} <b class="font-semibold text-(--rg-tx2)">{longDate(track.last_scanned_at)}</b></span>{/if}
         <span class="flex-1"></span>
+        {#if !distant}
         <button type="button" class={petitBouton} onclick={openFolder}>
           <Icon icon="material-symbols:folder-outline-rounded" width="17" />{$t("track_view.reveal")}
         </button>
+        {/if}
       </div>
     </section>
 

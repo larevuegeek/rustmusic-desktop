@@ -1,5 +1,7 @@
 <script lang="ts">
   import { detectOS } from "#lib/helper/tools/osDetection";
+  import { sourceFilter } from "#lib/stores/source/sourceFilter.store";
+  import { profilSelector } from "#lib/stores/profil/profil.store";
   import Icon from "@iconify/svelte";
   import { invoke } from "@tauri-apps/api/core";
   import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
@@ -8,20 +10,21 @@
   import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
   import { sidebarStore } from "#lib/stores/ui/sidebar.store";
   import { t } from "#lib/i18n";
+  import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
+  import { libraryStore } from "#lib/stores/library/library.store";
 
-  type SearchResult = {
-    id: string;
-    result_type: string;
-    title: string;
-    subtitle: string | null;
-    thumbnail_path: string | null;
-    path: string | null;
-    library_id: number | null;
-  };
+  import { groupVersions, type SearchHit, type SearchResult } from "#lib/helper/search/searchVersions";
+  import VersionMarks from "#lib/components/ui/status/VersionMarks.svelte";
+  import { activeServers, currentSource } from "#lib/stores/source/source.store";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
 
   let { query = $bindable('') }: { query?: string } = $props();
 
   let results: SearchResult[] = $state([]);
+  // « Toutes les sources » : un même résultat local et serveur n'en fait qu'un (version préférée en tête).
+  const hits = $derived(groupVersions(results, $libraryStore.libraries, $currentSource === "all" && $activeServers.length > 0,
+    $settingsStore.duplicate_version === "server"));
+
   let loading = $state(false);
   let showDropdown = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -46,7 +49,7 @@
     if (demande.length < 2) return;
     loading = true;
     try {
-      const r = await invoke<SearchResult[]>('search', { query: demande, limit: 10 });
+      const r = await invoke<SearchResult[]>('search', { query: demande, limit: 10, profilId: $profilSelector.profilSelected?.id ?? 0, sourceId: $sourceFilter });
       // Champ modifié ou vidé pendant la recherche : ce résultat n'est plus le bon.
       if (demande !== query) return;
       results = r;
@@ -65,14 +68,14 @@
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      selectedIndex = Math.min(selectedIndex + 1, results.length - 1);
+      selectedIndex = Math.min(selectedIndex + 1, hits.length - 1);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       selectedIndex = Math.max(selectedIndex - 1, -1);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (selectedIndex >= 0) {
-        handleResultClick(results[selectedIndex]);
+        handleResultClick(hits[selectedIndex]);
       } else if (query.length >= 2) {
         // Aller à la page de résultats complète
         goto(`/search?q=${encodeURIComponent(query)}`);
@@ -87,7 +90,7 @@
     if (result.result_type === 'track' && result.path) {
       // Seuls les morceaux de la liste entrent dans la file.
       handlePlayTrack(result.path, toQueue(
-        results.filter((r) => r.result_type === 'track' && r.path)
+        hits.filter((r) => r.result_type === 'track' && r.path)
       ));
     } else if (result.result_type === 'album' && result.library_id) {
       goto(`/library/${result.library_id}/albums/${result.id}`);
@@ -95,6 +98,17 @@
       goto(`/library/${result.library_id}/artists/${result.id}`);
     }
     close();
+  }
+
+  // Une version choisie à la main : elle remplace la préférée dans la file.
+  function openVersion(hit: SearchHit, r: SearchResult) {
+    if (r.result_type === 'track' && r.path) {
+      const pistes = hits.filter((x) => x.result_type === 'track' && x.path).map((x) => (x === hit ? { ...r, versions: hit.versions } : x));
+      handlePlayTrack(r.path, toQueue(pistes));
+      close();
+    } else {
+      handleResultClick(r);
+    }
   }
 
   function close() {
@@ -183,8 +197,13 @@
                 rounded-xl shadow-2xl shadow-black/20
                 overflow-hidden max-h-[400px] overflow-y-auto">
 
-      {#each results as result, i (result.id + result.result_type)}
-        <button
+      {#each hits as result, i (result.id + result.result_type)}
+        <!-- Pas un <button> : les pastilles de version, cliquables, sont à l'intérieur. -->
+        <div
+          role="option"
+          tabindex="-1"
+          aria-selected={i === selectedIndex}
+          onkeydown={(e) => { if (e.key === 'Enter') handleResultClick(result); }}
           class="w-full flex items-center gap-3 px-4 py-2.5 text-left cursor-pointer
                  transition-colors duration-100
                  {i === selectedIndex
@@ -207,7 +226,11 @@
           <!-- Infos -->
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">
-              {result.title}
+              {#if result.versions.length > 1}
+                <VersionMarks versions={result.versions} onopen={(r) => openVersion(result, r)} />
+              {:else}
+                <CloudMark path={result.path} libraryId={result.library_id} size={13} />
+              {/if}{" "}{result.title}
             </p>
             {#if result.subtitle}
               <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate">
@@ -222,7 +245,7 @@
                        text-neutral-400 dark:text-neutral-500 shrink-0">
             {getTypeLabel(result.result_type)}
           </span>
-        </button>
+        </div>
       {/each}
 
       <!-- Voir tous les résultats -->

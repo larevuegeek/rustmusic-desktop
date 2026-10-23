@@ -8,6 +8,8 @@
     rows = 2,
     disabled = false,
     invalid = false,
+    password = false,
+    mono = false,
     oninput,
     onenter,
   }: {
@@ -18,6 +20,10 @@
     rows?: number;
     disabled?: boolean;
     invalid?: boolean;
+    /** Saisie masquée (mot de passe). */
+    password?: boolean;
+    /** Adresse, clé : chasse fixe, sans correction. */
+    mono?: boolean;
     oninput?: () => void;
     /** Entrée dans un champ d'une ligne. */
     onenter?: () => void;
@@ -35,12 +41,14 @@
 {:else}
   <input
     {id}
-    type="text"
+    type={password ? "password" : "text"}
+    autocomplete={password ? "current-password" : "off"}
+    spellcheck={!(password || mono)}
     {placeholder}
     {disabled}
     bind:value
     {oninput}
     onkeydown={(e) => { if (e.key === "Enter") onenter?.(); }}
-    class="{classes} h-11"
+    class="{classes} h-11 {mono ? 'font-mono text-[13px]' : ''}"
   />
 {/if}

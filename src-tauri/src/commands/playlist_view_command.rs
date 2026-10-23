@@ -48,7 +48,7 @@ pub async fn get_playlist_tracks_view(
         }
 
         let calculees =
-            crate::core::smart_playlist::engine::evaluate(&state.pool, playlist_id, &rules).await?;
+            crate::core::smart_playlist::engine::evaluate(&state.pool, playlist_id, &rules, Some(crate::repository::playlist::playlist_repository::PlaylistRepository::source_of(&state.pool, playlist_id).await.map_err(|e| e.to_string())?)).await?;
 
         let ids: Vec<String> = calculees.into_iter().map(|t| t.library_track_id).collect();
         let pistes = fill_in_order(&state.pool, &ids).await?;

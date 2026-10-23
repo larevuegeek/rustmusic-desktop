@@ -10,6 +10,8 @@ pub enum LyricsSource {
     Sidecar,
     Lrclib,
     Manual,
+    /// Le serveur d'un morceau distant (paroles de ses fichiers).
+    Server,
     None,
 }
 

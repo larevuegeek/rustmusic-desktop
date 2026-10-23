@@ -21,6 +21,8 @@ export type AppSettings = {
   hardware_acceleration: string;
   single_click_play: string;
   show_sleep_timer: string;          // 'true' | 'false' — bouton minuteur de veille dans le header
+  show_whats_new_button: string;     // 'true' | 'false' — mégaphone des nouveautés dans le header
+  show_theme_toggle: string;         // 'true' | 'false' — bascule clair / sombre dans le header
   system_media_controls: string;     // 'true' | 'false' — SMTC / MPRIS / Now Playing
   wasapi_exclusive: string;          // 'true' | 'false' — Windows uniquement, bit-perfect
   dsd_dop: string;                   // 'true' | 'false' — DSD natif (DoP) via WASAPI exclusive
@@ -71,7 +73,8 @@ export type AppSettings = {
   amp_remote_open: string;          // 'true' | 'false' — panneau de la télécommande sorti
   amp_remote_mini: string;          // 'true' | 'false' — télécommande réduite à l'afficheur et au volume
   podcasts: string;                 // 'true' | 'false' — podcasts, désactivés par défaut
-  podcast_play_mode: string;        // 'stream' (pendant le téléchargement) | 'download' (après)
+  podcast_play_mode: string;
+  podcast_cleanup: string;          // épisodes écoutés effacés : 'never' | 'now' | '24h' | '7d' | '30d'        // 'stream' (pendant le téléchargement) | 'download' (après)
   podcast_country: string;          // pays de l'annuaire (« FR »…) ; vide = celui de l'ordinateur
   radios: string;                   // 'true' | 'false' — radios, désactivées par défaut
   radio_country: string;            // pays des radios populaires ; vide = celui de l'ordinateur
@@ -81,6 +84,10 @@ export type AppSettings = {
   sidebar_playlists_order: string;
   // 'true' : la carte « Épinglez vos favoris » a été fermée (les sections restent).
   pins_hint_dismissed: string;
+  // Source affichée : '0' = cet ordinateur, '<id>' = un serveur, 'all' = toutes.
+  current_source: string;
+  // Résultat en double (local + serveur) en « Toutes les sources » : version ouverte d'abord, 'local' | 'server'.
+  duplicate_version: string;
   show_pinned_albums: string;
   show_pinned_artists: string;
   // 'true' | 'false' — pied de la barre réduit à une ligne, par sa languette.
@@ -101,6 +108,8 @@ export const settingsDefaults: AppSettings = {
   visual_effects: 'auto',
   single_click_play: 'false',
   show_sleep_timer: 'true',
+  show_whats_new_button: 'true',
+  show_theme_toggle: 'true',
   system_media_controls: 'true',
   wasapi_exclusive: 'false',
   dsd_dop: 'false',
@@ -134,12 +143,15 @@ export const settingsDefaults: AppSettings = {
   amp_remote_mini: 'false',
   podcasts: 'false',
   podcast_play_mode: 'stream',
+  podcast_cleanup: '24h',
   podcast_country: '',
   radios: 'false',
   radio_country: '',
   sidebar_order: '["playlists","online","pins"]',
   sidebar_playlists_order: '[]',
   pins_hint_dismissed: 'false',
+  current_source: '0',
+  duplicate_version: 'local',
   show_pinned_albums: 'true',
   show_pinned_artists: 'true',
   sidebar_footer_collapsed: 'false',

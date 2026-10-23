@@ -18,6 +18,7 @@ import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import BlurredCover from "#lib/components/ui/image/BlurredCover.svelte";
 import type { QueueTrack } from "#lib/types/db/queue/QueueTrack";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 
 let { onajouter, libraryId = null, ancreRecents = false }:
   { onajouter: () => void; libraryId?: number | null; ancreRecents?: boolean } = $props();
@@ -102,7 +103,7 @@ $effect(() => {
 });
 
 type Carte = {
-  cle: string; titre: string; artiste: string; duree: number | null;
+  cle: string; chemin: string; titre: string; artiste: string; duree: number | null;
   pochette: string | null; lancer: () => void;
 };
 type Groupe = { cle: "file" | "recents" | "hasard"; libelle: string; cartes: Carte[] };
@@ -112,7 +113,7 @@ const groupes = $derived.by((): Groupe[] => {
   if (ensuite.length) liste.push({
     cle: "file", libelle: $t('home.up_next'),
     cartes: ensuite.map(({ track, index }) => ({
-      cle: `f:${track.queueId}`, titre: track.title, pochette: track.cover ?? null,
+      cle: `f:${track.queueId}`, chemin: track.path, titre: track.title, pochette: track.cover ?? null,
       artiste: track.artist ?? '', duree: track.duration ?? null,
       lancer: () => playFromQueue(track, index),
     })),
@@ -120,7 +121,7 @@ const groupes = $derived.by((): Groupe[] => {
   if (recentsSuivants.length) liste.push({
     cle: "recents", libelle: $t('home.recently_played'),
     cartes: recentsSuivants.map((r) => ({
-      cle: `r:${r.path}`, titre: r.title ?? displayTitle(null, r.path, $t('common.unknown_title')),
+      cle: `r:${r.path}`, chemin: r.path, titre: r.title ?? displayTitle(null, r.path, $t('common.unknown_title')),
       pochette: r.thumbnail_path ?? null, artiste: r.artist ?? '', duree: r.duration ?? null,
       lancer: () => handlePlayTrack(r.path, toQueue($recent)),
     })),
@@ -129,7 +130,7 @@ const groupes = $derived.by((): Groupe[] => {
   if (hasard.length) liste.push({
     cle: "hasard", libelle: $t('home.random_pick'),
     cartes: hasard.map((p) => ({
-      cle: `h:${p.path}`, titre: p.title, pochette: p.thumbnail_path ?? null,
+      cle: `h:${p.path}`, chemin: p.path, titre: p.title, pochette: p.thumbnail_path ?? null,
       artiste: p.artist ?? '', duree: p.duration ?? null,
       lancer: () => handlePlayTrack(p.path, toQueue(hasard)),
     })),
@@ -246,7 +247,7 @@ async function playFromQueue(track: QueueTrack, index: number) {
 
     <p class="text-[16px] @5xl:text-[18px] @7xl:text-[19px] text-[#3d403c] dark:text-white/85 truncate"
        title={[fiche.artiste, fiche.album, fiche.annee].filter(Boolean).join(' · ')}>
-      {[fiche.artiste, fiche.album, fiche.annee].filter(Boolean).join(' · ')}
+      <CloudMark path={fiche.path} size={17} />{" "}{[fiche.artiste, fiche.album, fiche.annee].filter(Boolean).join(' · ')}
     </p>
 
     {#if fiche.duree > 0}
@@ -338,7 +339,7 @@ async function playFromQueue(track: QueueTrack, index: number) {
             </span>
             <span class="min-w-0 flex flex-col gap-px">
               <span class="text-[14px] font-semibold leading-tight text-[#1a1c1a] dark:text-white truncate">{c.titre}</span>
-              <span class="text-[12.5px] leading-tight text-[#5e625d] dark:text-white/55 truncate">{c.artiste}</span>
+              <span class="text-[12.5px] leading-tight text-[#5e625d] dark:text-white/55 truncate"><CloudMark path={c.chemin} size={13} />{" "}{c.artiste}</span>
             </span>
             <span class="hidden @5xl:inline text-[12px] font-mono tabular-nums text-[#5e625d] group-hover:text-[#1a1c1a]
                          dark:text-white/45 dark:group-hover:text-white/80 transition-colors">

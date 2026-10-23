@@ -109,6 +109,14 @@ pub fn thumbnail_saver(
 
 }
 
+/// Pochette pour le lecteur, en `data:` : la miniature 2x (`…/2x/<id>.jpg`), sinon la grande.
+pub fn cover_data_url(full: &std::path::Path) -> Option<String> {
+    use base64::Engine;
+    let small = full.parent().and_then(std::path::Path::parent).zip(full.file_name()).map(|(dir, name)| dir.join("2x").join(name));
+    let bytes = small.and_then(|p| std::fs::read(p).ok()).or_else(|| std::fs::read(full).ok())?;
+    Some(format!("data:image/jpeg;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes)))
+}
+
 pub fn create_thumbnail_dirs(
     covers_dir: &PathBuf
 ) -> Result<(), String> {

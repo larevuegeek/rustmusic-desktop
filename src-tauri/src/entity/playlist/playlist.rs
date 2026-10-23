@@ -29,6 +29,14 @@ pub struct Playlist {
     /// Affichée dans la barre latérale (épinglée).
     #[serde(default = "default_true")]
     pub pinned: bool,
+    /// Playlist d'un serveur (synchronisée avec lui), sinon locale.
+    #[serde(default)]
+    #[sqlx(default)]
+    pub server_id: Option<i64>,
+    /// Source à laquelle elle appartient : 0 = « Cet ordinateur », sinon l'id du serveur.
+    #[serde(default)]
+    #[sqlx(default)]
+    pub source_id: i64,
     pub created_at: String,
     pub updated_at: Option<String>,
 }

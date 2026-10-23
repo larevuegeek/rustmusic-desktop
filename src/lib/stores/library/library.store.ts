@@ -155,11 +155,8 @@ export const libraryStore = {
   },
   removeLibrary: async (library: Library) => {
     
-    if(library.id) {
-      await invoke<Library>('remove_library', {
-        libraryId: library.id
-      });
-    }
+    // Distante : les chemins retirés, que l'appelant sort de la file.
+    const removed = library.id ? await invoke<string[]>('remove_library', { libraryId: library.id }) : [];
 
     libraryWriter.update(state => {
       const libraries = state.libraries.filter(l => l.id !== library.id);
@@ -177,6 +174,7 @@ export const libraryStore = {
         librarySelected
       };
     });
+    return removed;
   },
   clear: () => {
     libraryWriter.set(initialState);

@@ -12,7 +12,7 @@ import NowPlayingCard from "#lib/components/player/NowPlayingCard.svelte";
 import { t } from "#lib/i18n";
 
 // Libellé de la source, comme le mini-lecteur.
-const SOURCES: Record<string, string> = { sidecar: "mini.src_sidecar", lrclib: "mini.src_lrclib", manual: "mini.src_manual" };
+const SOURCES: Record<string, string> = { sidecar: "mini.src_sidecar", lrclib: "mini.src_lrclib", manual: "mini.src_manual", server: "mini.src_server" };
 
 type Status = "idle" | "loading" | "ready" | "empty" | "error";
 

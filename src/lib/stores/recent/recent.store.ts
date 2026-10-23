@@ -1,4 +1,6 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
+import { sourceFilter } from "#lib/stores/source/sourceFilter.store";
+import { profilSelector } from "#lib/stores/profil/profil.store";
 import { invoke } from "@tauri-apps/api/core";
 import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
 
@@ -13,7 +15,7 @@ function createRecentStore() {
         loading = true;
     try {
 
-      const files = await invoke<RecentFileListView[]>('get_recent_files');
+      const files = await invoke<RecentFileListView[]>('get_recent_files', { profilId: get(profilSelector).profilSelected?.id ?? 0, sourceId: get(sourceFilter) });
       
       set(files);
       totalTracks.set(files.length);
@@ -27,7 +29,7 @@ function createRecentStore() {
       set([])
       totalTracks.set(0);
 
-      await invoke<void>('clear_recent_files');
+      await invoke<void>('clear_recent_files', { profilId: get(profilSelector).profilSelected?.id ?? 0, sourceId: get(sourceFilter) });
   }
 
   return { subscribe, refreshRecent, totalTracks, clearRecent };

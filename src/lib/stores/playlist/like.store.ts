@@ -1,6 +1,7 @@
 import { get, writable } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { profilSelector } from "../profil/profil.store";
+import { sourceFilter } from "#lib/stores/source/sourceFilter.store";
 import type { TrackLikedView } from "#lib/types/ui/like/trackLikedView";
 
 type LikedState = {
@@ -24,7 +25,7 @@ function createLikedStore() {
     update((s) => ({ ...s, loading: true }));
 
     try {
-      const rows = await invoke<TrackLikedView[]>('get_tracks_liked', { profilId: profil.profilSelected.id });
+      const rows = await invoke<TrackLikedView[]>('get_tracks_liked', { profilId: profil.profilSelected.id, sourceId: get(sourceFilter) });
       const next = new Set(rows.map((r) => r.path));
       set({ paths: next, loading: false });
       likedCount.set(next.size);

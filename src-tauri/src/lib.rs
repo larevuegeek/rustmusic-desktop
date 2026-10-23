@@ -30,12 +30,15 @@ use crate::commands::search_command::search;
 use crate::commands::lyrics_command::{get_lyrics, refresh_lyrics};
 use crate::commands::dlna_command::{dlna_get_settings, dlna_status, dlna_start, dlna_stop, dlna_update_settings};
 use crate::commands::platform_command::{get_platform_features, set_autostart_portal};
+use crate::commands::server_command::{
+    get_servers, servers_check, server_sync, server_add, server_add_libraries, server_browse, server_discover, server_folders, server_probe, server_remove, server_rename, server_set_enabled, server_set_pin_playlists, server_set_transcode, offline_list, offline_add, offline_remove,
+};
 use crate::commands::radio_command::{
-    get_radios, radio_add, radio_logo, radio_remove, radio_rename, radio_resolve, radio_search, radio_top, reorder_radios, set_radios_enabled, get_radio_recent, radio_play, radio_stop, radio_go_live, radio_status,
+    get_radios, radio_add, radio_logo, radio_remove, radio_rename, radio_resolve, radio_search, radio_top, reorder_radios, set_radios_enabled, get_radio_recent, radio_play, radio_stop, radio_go_live, radio_status, get_radio_titles, clear_radio_titles, radio_variants, radio_set_stream,
 };
 use crate::commands::podcast_command::{
     get_podcast, get_podcast_episode, get_podcast_episodes, get_podcasts, podcast_refresh, podcast_search, podcast_set_all_played,
-    podcast_resume_position, podcast_preview, set_podcast_pinned, podcast_top, get_podcast_latest, podcast_download, podcast_delete_download, podcast_delete_downloads, get_podcast_downloads, podcast_set_played, podcast_set_position, podcast_subscribe, podcast_unsubscribe, set_podcasts_enabled,
+    podcast_resume_position, podcast_preview, set_podcast_pinned, set_podcast_auto_download, podcast_import_opml, podcast_export_opml, podcast_top, get_podcast_latest, podcast_download, podcast_delete_download, podcast_delete_downloads, get_podcast_downloads, podcast_set_played, podcast_set_position, podcast_subscribe, podcast_unsubscribe, set_podcasts_enabled,
 };
 use crate::commands::amp_remote_command::{amp_remote_cover, amp_remote_discover, amp_remote_select, amp_remote_send, amp_remote_status, set_amp_remote_enabled};
 use crate::commands::network_player_command::{network_player_select, network_player_selected, network_players_discover, set_airplay_enabled, set_network_players_enabled};
@@ -946,6 +949,9 @@ pub async fn run() {
             podcast_top,
             podcast_preview,
             set_podcast_pinned,
+            set_podcast_auto_download,
+            podcast_import_opml,
+            podcast_export_opml,
             set_radios_enabled,
             radio_search,
             radio_top,
@@ -957,10 +963,31 @@ pub async fn run() {
             radio_rename,
             reorder_radios,
             get_radio_recent,
+            server_probe,
+            server_discover,
+            server_browse,
+            server_add,
+            get_servers,
+            servers_check,
+            server_sync,
+            server_folders,
+            server_add_libraries,
+            server_set_enabled,
+            server_rename,
+            server_set_transcode,
+            server_set_pin_playlists,
+            offline_list,
+            offline_add,
+            offline_remove,
+            server_remove,
             radio_play,
             radio_stop,
             radio_go_live,
             radio_status,
+            get_radio_titles,
+            clear_radio_titles,
+            radio_variants,
+            radio_set_stream,
             get_podcast_latest,
             podcast_download,
             podcast_delete_download,

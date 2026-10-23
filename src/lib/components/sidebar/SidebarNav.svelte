@@ -32,7 +32,9 @@ const tuiles = $derived.by((): Tuile[] => {
     actif: pathname === "/", aller: () => nav("/"),
   };
   const id = libraryId;
-  const onglets = resolveTabs(readTabs($settingsStore.library_tabs));
+  // Bibliothèque distante : pas de vue Dossiers.
+  const onglets = resolveTabs(readTabs($settingsStore.library_tabs))
+    .filter((o) => !($libraryStore.librarySelected?.server_id && o.key === "folders"));
 
   // Sans bibliothèque, les sections mènent à l'import ; les playlists, au profil, restent accessibles.
   if (id == null) {

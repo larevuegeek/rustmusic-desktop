@@ -20,6 +20,23 @@ pub struct TrackMeta {
 }
 
 /// Document DIDL-Lite d'une piste servie à `url` au type `mime`.
+/// Une radio en direct : flux sans fin, ni durée ni saut.
+pub fn broadcast(station: &str, url: &str, mime: &str, logo: Option<&str>) -> String {
+    let mut out = String::from(
+        "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" \
+xmlns:dc=\"http://purl.org/dc/elements/1.1/\" \
+xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">\
+<item id=\"0\" parentID=\"-1\" restricted=\"1\">",
+    );
+    out.push_str(&format!("<dc:title>{}</dc:title>", escape(station)));
+    if let Some(logo) = logo {
+        out.push_str(&format!("<upnp:albumArtURI>{}</upnp:albumArtURI>", escape(logo)));
+    }
+    out.push_str("<upnp:class>object.item.audioItem.audioBroadcast</upnp:class>");
+    out.push_str(&format!("<res protocolInfo=\"http-get:*:{}:*\">{}</res></item></DIDL-Lite>", escape(mime), escape(url)));
+    out
+}
+
 pub fn item(meta: &TrackMeta, url: &str, mime: &str) -> String {
     let mut out = String::from(
         "<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" \
@@ -68,6 +85,16 @@ xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\">\
 mod tests {
     use super::*;
     use crate::helper::xml;
+
+    #[test]
+    fn a_radio_is_a_broadcast_without_duration() {
+        let d = broadcast("FIP & co", "x-rincon-mp3radio://icecast.radiofrance.fr/fip-midfi.mp3", "audio/mpeg", None);
+        assert_eq!(xml::text(&d, "title").as_deref(), Some("FIP & co"));
+        assert!(d.contains("object.item.audioItem.audioBroadcast"));
+        assert!(d.contains("http-get:*:audio/mpeg:*"));
+        assert!(!d.contains("duration="));
+        assert_eq!(xml::text(&d, "res").as_deref(), Some("x-rincon-mp3radio://icecast.radiofrance.fr/fip-midfi.mp3"));
+    }
 
     #[test]
     fn describes_a_track_readably() {

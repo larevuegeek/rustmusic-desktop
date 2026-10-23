@@ -28,8 +28,9 @@ async fn find_file_id_by_path(
 /// 2. Lookup library_tracks via file_id → métadonnées + library_track_id
 /// 3. Cache DB (renvoyé tel quel même si partiel ou "none")
 /// 4. Sidecar `.lrc` à côté du fichier
-/// 5. LRCLIB en ligne
-/// 6. Sinon → marque `source=none` pour ne pas re-spammer
+/// 5. Morceau d'un serveur : ses paroles
+/// 6. LRCLIB en ligne
+/// 7. Sinon → marque `source=none` pour ne pas re-spammer
 #[tauri::command]
 pub async fn get_lyrics(
     state: State<'_, AppState>,
@@ -80,9 +81,21 @@ pub async fn get_lyrics(
         return Ok(Some(saved));
     }
 
-    // 5. LRCLIB
     let artist = track.artist.unwrap_or_default();
     let title = track.title.clone();
+
+    // 5. Morceau d'un serveur : ses paroles (intégrées aux fichiers ou .lrc posés à côté, là-bas).
+    if let Some(found) = crate::service::external_server::track_service::server_lyrics(&state.pool, &path, &artist, &title).await {
+        let saved = LyricsRepository::upsert(
+            &state.pool,
+            LyricsUpsert { track_id: track_id.clone(), plain: found.plain, synced: found.synced, source: LyricsSource::Server, lrclib_id: None },
+        )
+        .await
+        .map_err(|e| format!("DB upsert error : {}", e))?;
+        return Ok(Some(saved));
+    }
+
+    // 6. LRCLIB
     let album = track.album;
     let duration = track.duration.unwrap_or(0.0).round() as u32;
 

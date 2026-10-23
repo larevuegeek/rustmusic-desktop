@@ -4,6 +4,10 @@ use crate::entity::playlist::playlist::Playlist;
 
 pub struct PlaylistRepository;
 
+/// Nombre de morceaux, relu (une intelligente garde le sien, recalculé par `get_playlists`).
+const COUNT_ITEMS: &str = "CASE WHEN is_smart = 1 THEN track_count \
+     ELSE (SELECT COUNT(*) FROM playlist_items pi WHERE pi.playlist_id = playlists.id) END";
+
 impl PlaylistRepository {
 
     pub async fn insert_playlist<'e, E>(
@@ -16,6 +20,7 @@ impl PlaylistRepository {
         icon: String,
         cover: Option<String>,
         position: i64,
+        source_id: i64,
     ) -> Result<Playlist, Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
@@ -23,12 +28,12 @@ impl PlaylistRepository {
         let playlist = sqlx::query_as::<_, Playlist>(
             r#"
             INSERT INTO playlists (
-                profil_id, library_id, name, description, color, icon, cover, position
+                profil_id, library_id, name, description, color, icon, cover, position, source_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING
                 id, profil_id, library_id, name, description, color, icon, cover,
-                track_count, duration, position, is_smart, is_mix, pinned, created_at, updated_at
+                track_count, duration, position, is_smart, is_mix, pinned, server_id, source_id, created_at, updated_at
             "#,
         )
         .bind(profil_id)
@@ -39,6 +44,7 @@ impl PlaylistRepository {
         .bind(icon)
         .bind(cover)
         .bind(position)
+        .bind(source_id)
         .fetch_one(exec)
         .await?;
 
@@ -69,7 +75,7 @@ impl PlaylistRepository {
             WHERE id = ?
             RETURNING
                 id, profil_id, library_id, name, description, color, icon, cover,
-                track_count, duration, position, is_smart, is_mix, pinned, created_at, updated_at
+                track_count, duration, position, is_smart, is_mix, pinned, server_id, created_at, updated_at
             "#,
         )
         .bind(name)
@@ -102,7 +108,7 @@ impl PlaylistRepository {
             WHERE id = ?
             RETURNING
                 id, profil_id, library_id, name, description, color, icon, cover,
-                track_count, duration, position, is_smart, is_mix, pinned, created_at, updated_at
+                track_count, duration, position, is_smart, is_mix, pinned, server_id, created_at, updated_at
             "#,
         )
         .bind(track_count)
@@ -151,18 +157,16 @@ impl PlaylistRepository {
     {
         // Même recalcul qu'à la liste : un compteur entretenu ne survit pas aux
         // suppressions en cascade. Voir `find_all_by_profil_id`.
-        let playlist = sqlx::query_as::<_, Playlist>(
+        let playlist = sqlx::query_as::<_, Playlist>(sqlx::AssertSqlSafe(format!(
             r#"
             SELECT
                 id, profil_id, library_id, name, description, color, icon, cover,
-                CASE WHEN is_smart = 1 THEN track_count
-                     ELSE (SELECT COUNT(*) FROM playlist_items pi WHERE pi.playlist_id = playlists.id)
-                END AS track_count,
-                duration, position, is_smart, is_mix, pinned, created_at, updated_at
+                {COUNT_ITEMS} AS track_count,
+                duration, position, is_smart, is_mix, pinned, server_id, source_id, created_at, updated_at
             FROM playlists
             WHERE id = ?
-            "#,
-        )
+            "#
+        )))
         .bind(id)
         .fetch_optional(exec)
         .await?;
@@ -170,7 +174,8 @@ impl PlaylistRepository {
         Ok(playlist)
     }
 
-    pub async fn find_all_by_profile_id<'e, E>(exec: E, profil_id: i64) -> Result<Vec<Playlist>, Error>
+    /// `source` : celle à garder ; `None` : toutes.
+    pub async fn find_all_by_profile_id<'e, E>(exec: E, profil_id: i64, source: Option<i64>) -> Result<Vec<Playlist>, Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
@@ -194,24 +199,32 @@ impl PlaylistRepository {
         // et c'est la commande `get_playlists` qui la remplace par un compte
         // frais : évaluer des règles demande de les interpréter, ce que ce
         // dépôt n'a pas à savoir faire.
-        let playlists = sqlx::query_as::<_, Playlist>(
+        // Sans source : toutes les actives (celles d'un serveur désactivé restent cachées).
+        let filter = if source.is_some() { "AND source_id = ?".to_string() } else { format!("AND {}", crate::core::remote::enabled_source("source_id")) };
+        let mut query = sqlx::query_as::<_, Playlist>(sqlx::AssertSqlSafe(format!(
             r#"
             SELECT
                 id, profil_id, library_id, name, description, color, icon, cover,
-                CASE WHEN is_smart = 1 THEN track_count
-                     ELSE (SELECT COUNT(*) FROM playlist_items pi WHERE pi.playlist_id = playlists.id)
-                END AS track_count,
-                duration, position, is_smart, is_mix, pinned, created_at, updated_at
+                {COUNT_ITEMS} AS track_count,
+                duration, position, is_smart, is_mix, pinned, server_id, source_id, created_at, updated_at
             FROM playlists
-            WHERE profil_id = ?
+            WHERE profil_id = ? {filter}
             ORDER BY position ASC, id DESC
-            "#,
-        )
-        .bind(profil_id)
-        .fetch_all(exec)
-        .await?;
+            "#
+        )))
+        .bind(profil_id);
+        if let Some(s) = source {
+            query = query.bind(s);
+        }
+        query.fetch_all(exec).await
+    }
 
-        Ok(playlists)
+    /// Source d'une playlist (0 si elle n'existe pas : celle de l'ordinateur).
+    pub async fn source_of<'e, E>(exec: E, id: i64) -> Result<i64, Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
+    {
+        Ok(sqlx::query_scalar("SELECT source_id FROM playlists WHERE id = ?").bind(id).fetch_optional(exec).await?.unwrap_or(0))
     }
 
     /// Les règles d'une playlist intelligente, si c'en est une.

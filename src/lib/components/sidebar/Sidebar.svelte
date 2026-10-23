@@ -31,6 +31,8 @@ import SidebarNav from "./SidebarNav.svelte";
 import SidebarFooter from "./SidebarFooter.svelte";
 import SidebarTitle from "./SidebarTitle.svelte";
 import SidebarThumbnail from "./SidebarThumbnail.svelte";
+import SourceSwitcher from "./SourceSwitcher.svelte";
+import { currentSource } from "#lib/stores/source/source.store";
 import { sidebarOrganize } from "#lib/stores/ui/sidebarOrganize.store";
 import { radioStore } from "#lib/stores/radio/radio.store";
 import RadioLogo from "#lib/components/radio/RadioLogo.svelte";
@@ -46,7 +48,9 @@ const montrerLikes = $derived(favorisActifs && $settingsStore.show_liked_in_play
 const montrerRecents = $derived($settingsStore.show_recent_in_playlists !== 'false');
 // Toute la section (Apparence → Barre latérale) : playlists épinglées, likés, récents.
 const montrerPlaylists = $derived($settingsStore.show_sidebar_playlists !== 'false');
-const montrerBoutonsOuvrir = $derived($settingsStore.show_open_buttons === 'true');
+// Source serveur : rien à importer ni à créer depuis l'ordinateur.
+const sourceServeur = $derived(typeof $currentSource === 'number' && $currentSource > 0);
+const montrerBoutonsOuvrir = $derived($settingsStore.show_open_buttons === 'true' && !sourceServeur);
 const podcastsActifs = $derived($settingsStore.podcasts === 'true');
 const radiosActives = $derived($settingsStore.radios === 'true');
 const profilId = $derived($profilSelector.profilSelected?.id ?? null);
@@ -311,6 +315,7 @@ onMount(() => {
 >
   <!-- ─── Haut : ouvrir, navigation, bibliothèque. Le logo est dans la barre de titre. ─── -->
   <div class="shrink-0 flex flex-col gap-3 {replie ? 'items-center' : ''}">
+    <SourceSwitcher {replie} />
     <!-- Affiché par défaut ; se masque depuis son « … » ou Réglages → Apparence. -->
     {#if montrerBoutonsOuvrir && !replie}
       <div class="flex items-center gap-2">
@@ -360,7 +365,7 @@ onMount(() => {
       <div class="flex gap-2">
         <LibrarySelector {replie} />
         <!-- Ses réglages vivent dans le « … » de Fichier / Dossier ; masquée, il reprend le relais. -->
-        {#if !replie && !montrerBoutonsOuvrir}
+        {#if !replie && !montrerBoutonsOuvrir && !sourceServeur}
           <button
             type="button"
             class="w-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer transition-colors

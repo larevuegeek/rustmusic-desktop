@@ -56,11 +56,20 @@ fn bind_args<'q>(
     q
 }
 
-/// Rend les morceaux qui satisfont les règles.
+/// Restriction aux bibliothèques d'une source ; son paramètre suit ceux des règles.
+fn source_filter(source: Option<i64>) -> String {
+    match source {
+        Some(_) => format!(" AND lt.library_id IN ({})", crate::core::remote::LIBRARIES_OF_SOURCE),
+        None => String::new(),
+    }
+}
+
+/// Rend les morceaux qui satisfont les règles ; `source` : celle de la playlist (`None` : toutes).
 pub async fn evaluate(
     pool: &SqlitePool,
     playlist_id: i64,
     rules: &SmartRules,
+    source: Option<i64>,
 ) -> Result<Vec<PlaylistTrackView>, String> {
     let filtre = build_where(rules)?;
     let (ordre, ordre_binds) = build_order(&rules.limit)?;
@@ -72,12 +81,15 @@ pub async fn evaluate(
         format!(" LIMIT {PLAFOND}")
     };
 
-    let sql = format!("{SELECT}\n{TRACK_FROM}\nWHERE {}{ordre}{plafond}", filtre.sql);
+    let sql = format!("{SELECT}\n{TRACK_FROM}\nWHERE ({}){}{ordre}{plafond}", filtre.sql, source_filter(source));
 
     // L'ordre des liaisons suit celui des `?` dans le texte : l'identifiant de
     // playlist du SELECT, puis les valeurs du WHERE, puis celles de l'ORDER BY.
     let mut q = sqlx::query_as::<_, PlaylistTrackView>(sqlx::AssertSqlSafe(sql)).bind(playlist_id);
     q = bind_args(q, &filtre.binds);
+    if let Some(s) = source {
+        q = q.bind(s);
+    }
     q = bind_args(q, &ordre_binds);
 
     q.fetch_all(pool)
@@ -89,12 +101,12 @@ pub async fn evaluate(
 ///
 /// Sert l'aperçu pendant qu'on compose les règles : montrer le nombre à chaque
 /// frappe coûterait cher si l'on rapatriait les lignes.
-pub async fn count(pool: &SqlitePool, rules: &SmartRules) -> Result<i64, String> {
+pub async fn count(pool: &SqlitePool, rules: &SmartRules, source: Option<i64>) -> Result<i64, String> {
     let filtre = build_where(rules)?;
 
     // La coupe ne s'applique pas au comptage : on veut savoir combien de
     // morceaux répondent aux règles, pas combien seront affichés.
-    let sql = format!("SELECT COUNT(*)\n{TRACK_FROM}\nWHERE {}", filtre.sql);
+    let sql = format!("SELECT COUNT(*)\n{TRACK_FROM}\nWHERE ({}){}", filtre.sql, source_filter(source));
 
     let mut q = sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(sql));
     for b in &filtre.binds {
@@ -102,6 +114,9 @@ pub async fn count(pool: &SqlitePool, rules: &SmartRules) -> Result<i64, String>
             Bind::Text(s) => q.bind(s.clone()),
             Bind::Number(n) => q.bind(*n),
         };
+    }
+    if let Some(s) = source {
+        q = q.bind(s);
     }
 
     q.fetch_one(pool)
@@ -238,9 +253,9 @@ mod tests {
             vec![r("rating", Op::Gte, Some(Value::Number(4.0)))],
             None,
         );
-        assert_eq!(count(&pool, &rg).await.expect("comptage"), 1);
+        assert_eq!(count(&pool, &rg, None).await.expect("comptage"), 1);
 
-        let pistes = evaluate(&pool, 7, &rg).await.expect("évaluation");
+        let pistes = evaluate(&pool, 7, &rg, None).await.expect("évaluation");
         assert_eq!(pistes.len(), 1);
         assert_eq!(pistes[0].library_track_id, "t1");
         // La playlist doit se reconnaître dans ce qu'elle rend.
@@ -262,7 +277,7 @@ mod tests {
                 vec![r("rating", op, Some(Value::Number(3.0)))],
                 None,
             );
-            assert_eq!(count(&pool, &rg).await.expect("comptage"), 0);
+            assert_eq!(count(&pool, &rg, None).await.expect("comptage"), 0);
         }
     }
 
@@ -281,7 +296,7 @@ mod tests {
             ],
             None,
         );
-        assert_eq!(count(&pool, &rg).await.expect("comptage"), 2);
+        assert_eq!(count(&pool, &rg, None).await.expect("comptage"), 2);
     }
 
     #[tokio::test]
@@ -308,7 +323,7 @@ mod tests {
             )],
             None,
         );
-        let pistes = evaluate(&pool, 1, &rg).await.expect("évaluation");
+        let pistes = evaluate(&pool, 1, &rg, None).await.expect("évaluation");
         assert_eq!(pistes.len(), 1);
         assert_eq!(pistes[0].library_track_id, "t1");
     }
@@ -324,7 +339,7 @@ mod tests {
             vec![r("tag:composer", Op::Contains, Some(Value::Text("moz".into())))],
             None,
         );
-        assert_eq!(count(&pool, &rg).await.expect("comptage"), 1);
+        assert_eq!(count(&pool, &rg, None).await.expect("comptage"), 1);
     }
 
     #[tokio::test]
@@ -345,7 +360,7 @@ mod tests {
             )],
             None,
         );
-        assert_eq!(count(&pool, &rg).await.expect("comptage"), 1);
+        assert_eq!(count(&pool, &rg, None).await.expect("comptage"), 1);
     }
 
     #[tokio::test]
@@ -364,14 +379,34 @@ mod tests {
                 desc: true,
             }),
         );
-        let pistes = evaluate(&pool, 1, &rg).await.expect("évaluation");
+        let pistes = evaluate(&pool, 1, &rg, None).await.expect("évaluation");
         assert_eq!(pistes.len(), 2);
         assert_eq!(pistes[0].library_track_id, "t2");
         assert_eq!(pistes[1].library_track_id, "t3");
 
         // Le comptage ignore la coupe : il dit combien de morceaux répondent aux
         // règles, pas combien seront affichés.
-        assert_eq!(count(&pool, &rg).await.expect("comptage"), 3);
+        assert_eq!(count(&pool, &rg, None).await.expect("comptage"), 3);
+    }
+
+    #[tokio::test]
+    async fn a_source_keeps_only_its_libraries() {
+        let pool = base().await;
+        for (id, note) in [("t1", 1.0), ("t2", 5.0), ("t3", 3.0)] {
+            insert_track(&pool, id, id, "A", "G", Some(note), 0, None).await;
+        }
+        // t2 passe dans une bibliothèque du serveur 4.
+        sqlx::query("INSERT INTO media_servers (id, profil_id, name, url, username) VALUES (4, 1, 'NAS', 'http://nas', '')").execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO library (id, profil_id, name, server_id) VALUES (2, 1, 'NAS', 4)").execute(&pool).await.unwrap();
+        sqlx::query("UPDATE library_tracks SET library_id = 2 WHERE id = 't2'").execute(&pool).await.unwrap();
+
+        // Une coupe triée : le paramètre de source se glisse entre ceux des règles et de l'ordre.
+        let rg = make_rules(Match::All, vec![r("rating", Op::IsNotEmpty, None)], Some(Limit { count: Some(5), sort: Some("rating".into()), desc: true }));
+        let ids = |p: Vec<PlaylistTrackView>| p.into_iter().map(|t| t.library_track_id).collect::<Vec<_>>();
+        assert_eq!(ids(evaluate(&pool, 1, &rg, Some(0)).await.unwrap()), vec!["t3", "t1"]);
+        assert_eq!(ids(evaluate(&pool, 1, &rg, Some(4)).await.unwrap()), vec!["t2"]);
+        assert_eq!(ids(evaluate(&pool, 1, &rg, None).await.unwrap()), vec!["t2", "t3", "t1"]);
+        assert_eq!((count(&pool, &rg, Some(0)).await.unwrap(), count(&pool, &rg, Some(4)).await.unwrap()), (2, 1));
     }
 
     #[tokio::test]
@@ -392,7 +427,7 @@ mod tests {
                     desc,
                 }),
             );
-            let pistes = evaluate(&pool, 1, &rg).await.expect("évaluation");
+            let pistes = evaluate(&pool, 1, &rg, None).await.expect("évaluation");
             assert_eq!(pistes[0].library_track_id, premier, "sens desc={desc}");
         }
     }
@@ -412,7 +447,7 @@ mod tests {
             )],
             None,
         );
-        let err = evaluate(&pool, 1, &rg).await.unwrap_err();
+        let err = evaluate(&pool, 1, &rg, None).await.unwrap_err();
         assert!(err.contains("Champ inconnu"), "message : {err}");
     }
 
@@ -423,7 +458,7 @@ mod tests {
         insert_track(&pool, "t2", "Deux", "B", "G", None, 0, None).await;
 
         let rg = make_rules(Match::All, vec![], None);
-        assert_eq!(count(&pool, &rg).await.expect("comptage"), 2);
+        assert_eq!(count(&pool, &rg, None).await.expect("comptage"), 2);
     }
 
     #[tokio::test]
@@ -438,7 +473,7 @@ mod tests {
             vec![r("title", Op::Contains, Some(Value::Text("100%".into())))],
             None,
         );
-        assert_eq!(count(&pool, &rg).await.expect("comptage"), 1);
+        assert_eq!(count(&pool, &rg, None).await.expect("comptage"), 1);
     }
 
     #[tokio::test]
@@ -460,7 +495,7 @@ mod tests {
             vec![r("genre", Op::InTopPlayed, Some(Value::Number(1.0)))],
             None,
         );
-        let pistes = evaluate(&pool, 1, &rg).await.expect("évaluation");
+        let pistes = evaluate(&pool, 1, &rg, None).await.expect("évaluation");
         assert_eq!(pistes.len(), 3, "le genre le plus écouté doit être le Rock");
         for p in &pistes {
             assert!(p.library_track_id.starts_with('r'), "piste inattendue : {}", p.library_track_id);
@@ -481,7 +516,7 @@ mod tests {
                 None,
             );
             assert_eq!(
-                count(&pool, &rg).await.expect("comptage"),
+                count(&pool, &rg, None).await.expect("comptage"),
                 attendu,
                 "pour les {n} premiers"
             );
@@ -502,7 +537,7 @@ mod tests {
             vec![r("genre", Op::InTopPlayed, Some(Value::Number(1.0)))],
             None,
         );
-        let pistes = evaluate(&pool, 1, &rg).await.expect("évaluation");
+        let pistes = evaluate(&pool, 1, &rg, None).await.expect("évaluation");
         assert_eq!(pistes.len(), 1);
         assert_eq!(pistes[0].library_track_id, "a1");
     }
@@ -521,7 +556,7 @@ mod tests {
             vec![r("tag:custom:Label", Op::InTopPlayed, Some(Value::Number(1.0)))],
             None,
         );
-        let pistes = evaluate(&pool, 1, &rg).await.expect("évaluation");
+        let pistes = evaluate(&pool, 1, &rg, None).await.expect("évaluation");
         assert_eq!(pistes.len(), 1);
         assert_eq!(pistes[0].library_track_id, "a1");
     }
@@ -534,7 +569,7 @@ mod tests {
             vec![r("genre", Op::InTopPlayed, Some(Value::Number(0.0)))],
             None,
         );
-        let err = evaluate(&pool, 1, &rg).await.unwrap_err();
+        let err = evaluate(&pool, 1, &rg, None).await.unwrap_err();
         assert!(err.contains("au moins un rang"), "message : {err}");
     }
 
@@ -555,7 +590,7 @@ mod tests {
             ],
             None,
         );
-        let pistes = evaluate(&pool, 1, &rg).await.expect("évaluation");
+        let pistes = evaluate(&pool, 1, &rg, None).await.expect("évaluation");
         assert_eq!(pistes.len(), 1);
         assert_eq!(pistes[0].library_track_id, "a1");
     }
@@ -591,7 +626,7 @@ mod tests {
             vec![r("rating", Op::IsNotEmpty, None)],
             None,
         );
-        let pistes = evaluate(&pool, 1, &rg).await.expect("évaluation");
+        let pistes = evaluate(&pool, 1, &rg, None).await.expect("évaluation");
 
         let mut vus = std::collections::HashSet::new();
         for p in &pistes {
@@ -649,7 +684,7 @@ mod tests {
 
         let relu: SmartRules =
             serde_json::from_str(&relu.expect("règles présentes")).expect("relecture");
-        assert_eq!(evaluate(&pool, id, &relu).await.expect("évaluation").len(), 1);
+        assert_eq!(evaluate(&pool, id, &relu, None).await.expect("évaluation").len(), 1);
 
         // ── Modification ──
         let modifie = SmartRules {
@@ -686,7 +721,7 @@ mod tests {
                 .await
                 .expect("relecture 2");
         let apres: SmartRules = serde_json::from_str(&apres).expect("relecture 2");
-        let pistes = evaluate(&pool, id, &apres).await.expect("évaluation 2");
+        let pistes = evaluate(&pool, id, &apres, None).await.expect("évaluation 2");
         assert_eq!(pistes.len(), 1);
         assert_eq!(pistes[0].library_track_id, "t1");
 

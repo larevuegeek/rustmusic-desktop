@@ -1,6 +1,9 @@
 use serde::Deserialize;
 use tauri::State;
 
+use crate::service::external_server::feedback_service::{self, Feedback};
+use crate::service::external_server::playlist_service;
+
 use crate::{
     entity::playlist::{playlist::Playlist, track_liked::TrackLiked},
     mapper::playlist::{liked::track_liked_view::TrackLikedView, playlist::playlist_track_view::PlaylistTrackView},
@@ -26,6 +29,12 @@ pub struct CreatePlaylistPayload {
     pub description: Option<String>,
     pub color: String,
     pub icon: String,
+    /// Créée sur ce serveur (synchronisée avec lui), sinon locale.
+    #[serde(default)]
+    pub server_id: Option<i64>,
+    /// Source de la playlist (0 : « Cet ordinateur ») ; celle du serveur s'il y en a un.
+    #[serde(default)]
+    pub source_id: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -35,6 +44,23 @@ pub struct UpdatePlaylistPayload {
     pub description: Option<String>,
     pub color: String,
     pub icon: String,
+}
+
+/// Playlist d'un serveur : le changement lui est renvoyé en arrière-plan.
+async fn send_playlist(state: &AppState, playlist_id: i64, feedback: Feedback) {
+    if let Some((server_id, remote_id)) = playlist_service::remote_of(&state.pool, playlist_id).await {
+        let pool = state.pool.clone();
+        tauri::async_runtime::spawn(async move { feedback_service::send_to(&pool, server_id, &remote_id, feedback).await });
+    }
+}
+
+/// Morceau d'un serveur : l'action lui est renvoyée en arrière-plan.
+pub(crate) fn send_feedback(state: &AppState, path: String, feedback: Feedback) {
+    if !crate::service::external_server::track_service::is_remote(&path) {
+        return;
+    }
+    let pool = state.pool.clone();
+    tauri::async_runtime::spawn(async move { feedback_service::send(&pool, &path, feedback).await });
 }
 
 #[tauri::command]
@@ -52,6 +78,7 @@ pub async fn add_track_liked(
         Ok(library) => library,
         Err(e) => return Err(format!("Failed to insert track liked : {}", e))
     };
+    send_feedback(&state, path, Feedback::Star(true));
 
     Ok(track_liked)
 }
@@ -59,10 +86,11 @@ pub async fn add_track_liked(
 #[tauri::command]
 pub async fn get_tracks_liked(
     state: State<'_, AppState>, 
-    profil_id: i64
+    profil_id: i64,
+    source_id: Option<i64>,
 ) -> Result<Vec<TrackLikedView>, String> {
 
-    let tracks: Vec<TrackLikedView> = match TrackLikedRepository::find_all_by_profile(&state.pool, profil_id).await {
+    let tracks: Vec<TrackLikedView> = match TrackLikedRepository::find_all_by_profile(&state.pool, profil_id, source_id).await {
         Ok(tracks) => tracks,
         Err(e) => return Err(format!("Failed to get track liked : {}", e))
     };
@@ -80,6 +108,7 @@ pub async fn remove_track_liked(
     if let Err(e) = TrackLikedRepository::remove_track_liked(&state.pool, &path, profil_id).await {
         log::warn!("remove_track_liked failed: {}", e);
     }
+    send_feedback(&state, path, Feedback::Star(false));
 
     Ok(())
 }
@@ -88,9 +117,10 @@ pub async fn remove_track_liked(
 pub async fn get_playlists(
     state: State<'_, AppState>,
     profil_id: i64,
+    source_id: Option<i64>,
 ) -> Result<Vec<Playlist>, String> {
 
-    let mut playlists: Vec<Playlist> = match PlaylistRepository::find_all_by_profile_id(&state.pool, profil_id).await {
+    let mut playlists: Vec<Playlist> = match PlaylistRepository::find_all_by_profile_id(&state.pool, profil_id, source_id).await {
         Ok(playlists) => playlists,
         Err(e) => return Err(format!("Failed to get playlists : {}", e))
     };
@@ -119,7 +149,7 @@ pub async fn get_playlists(
         let Ok(regles) = serde_json::from_str(&json) else {
             continue;
         };
-        if let Ok(n) = crate::core::smart_playlist::engine::count(&state.pool, &regles).await {
+        if let Ok(n) = crate::core::smart_playlist::engine::count(&state.pool, &regles, Some(p.source_id)).await {
             p.track_count = n;
         }
     }
@@ -148,7 +178,14 @@ pub async fn create_playlist(
     payload: CreatePlaylistPayload,
 ) -> Result<Playlist, String> {
 
-    let playlist: Playlist = match PlaylistRepository::insert_playlist(
+    // Sur un serveur : créée là-bas d'abord (il doit répondre), rattachée ensuite.
+    let remote = match payload.server_id {
+        Some(server_id) => Some((server_id, playlist_service::create_on_server(&state.pool, server_id, payload.name.trim()).await?)),
+        None => None,
+    };
+    let has_description = payload.description.as_deref().is_some_and(|d| !d.trim().is_empty());
+
+    let mut playlist: Playlist = match PlaylistRepository::insert_playlist(
         &state.pool,
         payload.profil_id,
         None,
@@ -158,10 +195,19 @@ pub async fn create_playlist(
         payload.icon,
         None,
         0,
+        payload.server_id.or(payload.source_id).unwrap_or(0),
     ).await {
         Ok(playlist) => playlist,
         Err(e) => return Err(format!("Failed to create playlist : {}", e))
     };
+
+    if let Some((server_id, remote_id)) = remote {
+        playlist_service::attach(&state.pool, playlist.id, server_id, &remote_id).await.map_err(|e| e.to_string())?;
+        playlist.server_id = Some(server_id);
+        if has_description {
+            send_playlist(&state, playlist.id, Feedback::PlaylistInfo(playlist.id)).await;
+        }
+    }
 
     Ok(playlist)
 }
@@ -193,6 +239,9 @@ pub async fn update_playlist(
         Ok(None) => return Err(format!("Playlist not found")),
         Err(e) => return Err(format!("Failed to update playlist : {}", e))
     };
+    if playlist.name != existing.name || playlist.description != existing.description {
+        send_playlist(&state, playlist.id, Feedback::PlaylistInfo(playlist.id)).await;
+    }
 
     Ok(playlist)
 }
@@ -238,8 +287,13 @@ pub async fn delete_playlist(
     playlist_id: i64,
 ) -> Result<(), String> {
 
+    let remote = playlist_service::remote_of(&state.pool, playlist_id).await;
     if let Err(e) = PlaylistRepository::delete_playlist(&state.pool, playlist_id).await {
         log::warn!("delete_playlist failed: {}", e);
+    }
+    if let Some((server_id, remote_id)) = remote {
+        let pool = state.pool.clone();
+        tauri::async_runtime::spawn(async move { feedback_service::send_to(&pool, server_id, &remote_id, Feedback::PlaylistDelete).await });
     }
 
     Ok(())
@@ -268,7 +322,8 @@ pub async fn get_playlist_tracks(
     if let Some(json) = regles {
         let rules: crate::core::smart_playlist::rules::SmartRules =
             serde_json::from_str(&json).map_err(|e| format!("Règles illisibles : {e}"))?;
-        return crate::core::smart_playlist::engine::evaluate(&state.pool, playlist_id, &rules)
+        let source = PlaylistRepository::source_of(&state.pool, playlist_id).await.map_err(|e| e.to_string())?;
+        return crate::core::smart_playlist::engine::evaluate(&state.pool, playlist_id, &rules, Some(source))
             .await;
     }
 
@@ -308,6 +363,17 @@ pub async fn add_track_to_playlist(
         return Err("Il faut fournir library_track_id ou path".to_string());
     };
 
+    // Une playlist ne prend que les morceaux de sa source (celle de leur bibliothèque).
+    let track_source: Option<i64> = sqlx::query_scalar("SELECT COALESCE(l.server_id, 0) FROM library_tracks lt JOIN library l ON l.id = lt.library_id WHERE lt.id = ?")
+        .bind(&track_id)
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    let source = PlaylistRepository::source_of(&state.pool, playlist_id).await.map_err(|e| e.to_string())?;
+    if track_source != Some(source) {
+        return Err("server_playlist_foreign_track".into());
+    }
+
     let sort_index = PlaylistItemRepository::get_next_sort_index(&state.pool, playlist_id)
         .await
         .map_err(|e| format!("Failed to get next sort index : {}", e))?;
@@ -320,6 +386,7 @@ pub async fn add_track_to_playlist(
     PlaylistRepository::recalculate_stats(&state.pool, playlist_id)
         .await
         .map_err(|e| format!("Failed to update playlist stats : {}", e))?;
+    send_playlist(&state, playlist_id, Feedback::PlaylistSongs(playlist_id)).await;
 
     Ok(())
 }
@@ -344,6 +411,7 @@ pub async fn remove_track_from_playlist(
         if let Err(e) = PlaylistRepository::recalculate_stats(&state.pool, item.playlist_id).await {
             log::warn!("recalculate_stats failed: {}", e);
         }
+        send_playlist(&state, item.playlist_id, Feedback::PlaylistSongs(item.playlist_id)).await;
     }
 
     Ok(())

@@ -3,6 +3,9 @@ import { goto } from "$app/navigation";
 import Title from "#lib/components/ui/text/Title.svelte";
 import Icon from "@iconify/svelte";
 import { libraryStore } from "#lib/stores/library/library.store";
+import { libraryIcon } from "#lib/types/db/library/Library";
+import { serverStore } from "#lib/stores/mediaServer/mediaServer.store";
+import StatusDot from "#lib/components/ui/status/StatusDot.svelte";
 import { popinStore } from "#lib/stores/ui/popin.store";
 import AddLibraryPopin from "#lib/components/library/common/popin/AddLibraryPopin.svelte";
 import { t, currentLocale } from "#lib/i18n";
@@ -76,11 +79,9 @@ import { t, currentLocale } from "#lib/i18n";
           <!-- HEADER ROW -->
           <div class="flex items-center justify-between mb-3">
 
-            <div class="w-10 h-10 rounded-lg
-                        bg-linear-to-br from-cyan-500/15 to-blue-600/25
-                        flex items-center justify-center
-                        text-blue-400">
-              <Icon icon="lucide:library" width={18} />
+            <div class="relative w-10 h-10 rounded-lg flex items-center justify-center
+                        {library.server_id ? 'bg-sky-500/15 text-sky-600 dark:text-sky-300' : 'bg-(--rg-gbg) text-(--rg-g)'}">
+              <Icon icon={libraryIcon(library)} width={20} />
             </div>
 
             <Icon icon="lucide:chevron-right" 
@@ -95,6 +96,7 @@ import { t, currentLocale } from "#lib/i18n";
 
         <!-- META -->
         <span class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+        {#if library.server_id}<StatusDot online={$serverStore.online[library.server_id]} class="mr-1.5 -mt-px" />{/if}
         {library.total_tracks.toLocaleString($currentLocale)}
         {library.total_tracks > 1 ? $t("library_head.tracks_n") : $t("library_head.tracks_one")}
         </span>

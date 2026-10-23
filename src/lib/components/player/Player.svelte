@@ -34,6 +34,10 @@ import { describeOutput } from "#lib/helper/audio/deviceLabel";
 import { TEINTE, CHAINE, fallbackMessage, readableRate } from "#lib/helper/audio/audioChain";
 import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
 import RadioPlayerBar from "./RadioPlayerBar.svelte";
+import StatusDot from "#lib/components/ui/status/StatusDot.svelte";
+import { serverStore } from "#lib/stores/mediaServer/mediaServer.store";
+import { libraryStore } from "#lib/stores/library/library.store";
+import { remoteServerId } from "#lib/types/db/library/Library";
 
 const audioFile = $derived($player?.audioFile);
 const audioTags = $derived(audioFile?.tags);
@@ -96,6 +100,15 @@ const debitTaille = $derived(
    audioFile?.file_size ? $t("player.size_mb").replace("{n}", String(Math.round(audioFile.file_size / 1024 / 1024))) : null]
     .filter(Boolean).join(" · "),
 );
+
+// Morceau d'un serveur : son nom et son état à la place du chemin.
+const serveurDistant = $derived.by(() => {
+  const id = remoteServerId($player?.pathFile);
+  if (id == null) return null;
+  const name = $serverStore.servers.find((s) => s.id === id)?.name
+    ?? $libraryStore.libraries.find((l) => l.server_id === id)?.server_name ?? "";
+  return { id, name };
+});
 
 const cheminDecoupe = $derived.by(() => {
   const p = $player?.pathFile ?? "";
@@ -324,6 +337,13 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
         <span class="w-px h-3.5 shrink-0 bg-(--lc-trait) max-md:hidden"></span>
 
         <div class="group/chemin flex-1 min-w-0 overflow-hidden flex items-center gap-1 font-mono text-[10.5px] max-md:hidden">
+          {#if serveurDistant}
+          <span class="min-w-0 flex items-center gap-1.5 font-sans font-medium" title={$t("servers.streamed_from").replace("{name}", serveurDistant.name)}>
+            <Icon icon="material-symbols:cloud-outline-rounded" width="15" class="shrink-0 text-sky-600 dark:text-sky-400" />
+            <span class="truncate text-(--lc-tx2)">{serveurDistant.name}</span>
+            <StatusDot online={$serverStore.online[serveurDistant.id]} />
+          </span>
+          {:else}
           <button type="button" class="min-w-0 flex items-center gap-1.5 cursor-pointer" title={$t("player.open_folder")} onclick={() => $player?.pathFile && handleOpenPath($player.pathFile)}>
             <Icon icon="material-symbols-light:folder-open-outline-rounded" width="15" class="shrink-0 group-hover/chemin:text-(--lc-tx2)" />
             <span class="lecteur-dossier min-w-0 shrink-[999] truncate group-hover/chemin:text-(--lc-tx2)">{MARQUE + cheminDecoupe.dossier + MARQUE}</span>
@@ -334,6 +354,7 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
                   title={copie ? $t("player.path_copied") : $t("player.copy_path")} aria-label={$t("player.copy_path")} onclick={copyPath}>
             <Icon icon={copie ? "material-symbols-light:check-rounded" : "material-symbols-light:content-copy-outline-rounded"} width="14" />
           </button>
+          {/if}
           {#if !isPlaying && $player?.trackId}
             <button type="button" class="shrink-0 w-5.5 h-5.5 flex items-center justify-center rounded-md cursor-pointer hover:text-red-500 hover:bg-(--lc-survol)"
                     title={$t("player.close_track")} aria-label={$t("player.close_track")} onclick={() => player.clearTrack($player.trackId as string)}>

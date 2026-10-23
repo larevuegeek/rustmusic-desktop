@@ -7,8 +7,10 @@
   import { playlistsRangees } from "#lib/stores/playlist/covers.store";
   import { invoke } from "@tauri-apps/api/core";
   import { t, currentLocale } from "#lib/i18n";
+  import { libraryStore } from "#lib/stores/library/library.store";
   import { open } from "@tauri-apps/plugin-dialog";
-  import type { Playlist } from "#lib/types/db/playlist/Playlist";
+  import { playlistAcceptsLibrary, type Playlist } from "#lib/types/db/playlist/Playlist";
+  import { offlineStore } from "#lib/stores/mediaServer/offline.store";
   import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
   import DeezerCoverSearchPopin from "#lib/components/library/common/popin/DeezerCoverSearchPopin.svelte";
   import { pinsStore, isPinned } from "#lib/stores/library/pins.store";
@@ -36,6 +38,7 @@
   };
 
   let { title, type, loadTracks, x, y, onclose, oncover, albumId = null, artistName = null, libraryId = null, onedittags }: Props = $props();
+  const distante = $derived(libraryId != null && !!$libraryStore.libraries.find((l) => l.id === libraryId)?.server_id);
 
   const epingle = $derived(isPinned($pinsStore, "album", albumId));
 
@@ -99,7 +102,8 @@
     }
   }
 
-  let playlists = $derived($playlistsRangees);
+  const libraryServer = $derived(libraryId != null ? $libraryStore.libraries.find((l) => l.id === libraryId)?.server_id ?? null : null);
+  let playlists = $derived($playlistsRangees.filter((pl) => playlistAcceptsLibrary(pl, libraryServer)));
 
   let menuStyle = $derived.by(() => {
     const menuWidth = 220;
@@ -170,6 +174,18 @@
     } finally {
       loading = false;
       onclose();
+    }
+  }
+
+  async function keepOffline() {
+    onclose();
+    try {
+      const paths = (await loadTracks()).map((t) => t.path).filter((p): p is string => !!p);
+      const added = await offlineStore.add(paths);
+      toasts.push({ type: "success", title: $t("servers.offline_keep"),
+                    message: count(added, "servers.offline_added_one", "servers.offline_added_n") });
+    } catch (e) {
+      toasts.push({ type: "error", title: $t("notify.error"), message: String(e) });
     }
   }
 
@@ -263,7 +279,19 @@
     {$t("menu.enqueue_all")}
   </button>
 
-  {#if onedittags}
+  {#if distante}
+    <div class="h-px mx-3 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
+    <button
+      class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
+             text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+      onclick={keepOffline}
+    >
+      <Icon icon="material-symbols:download-for-offline-outline-rounded" width="15" class="opacity-60" />
+      {$t("servers.offline_keep")}
+    </button>
+  {/if}
+
+  {#if onedittags && !distante}
     <div class="h-px mx-3 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
     <button
       class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer

@@ -1,14 +1,70 @@
 # Changelog
 
-## [0.3.2] - à venir
+## [0.4.0] - à venir
 
-Les podcasts et les radios arrivent dans RustMusic. Podcasts : recherche
-dans l'annuaire Apple ou par adresse de flux RSS, classement des émissions
-les plus écoutées par pays, écoute pendant le téléchargement, reprise là où
-on s'était arrêté. Radios : des milliers de stations en direct, une pause
-qui ne fait rien perdre (différé jusqu'à 30 minutes) et le titre en cours.
-La barre latérale s'organise à la main, et un mégaphone présente les
-nouveautés de chaque version.
+Votre musique hébergée chez vous, les podcasts et les radios arrivent dans
+RustMusic. Serveurs : Navidrome (et tout serveur Subsonic), Jellyfin et les
+serveurs DLNA des NAS deviennent des sources, chacune avec ses
+bibliothèques, ses playlists, ses titres aimés et son historique ; la
+lecture démarre tout de suite et les albums choisis restent disponibles
+hors ligne. Podcasts : recherche dans l'annuaire Apple ou par adresse de
+flux RSS, classement des émissions les plus écoutées par pays, écoute
+pendant le téléchargement, reprise là où on s'était arrêté. Radios : des
+milliers de stations en direct, une pause qui ne fait rien perdre (différé
+jusqu'à 30 minutes) et le titre en cours. La barre latérale s'organise à la
+main, et un mégaphone présente les nouveautés de chaque version.
+
+### Serveurs de musique (bêta)
+- **Ajouter un serveur** (Réglages → Stockage → Serveurs) : Navidrome et
+  tout serveur compatible Subsonic (Gonic, Airsonic…), Jellyfin (mot de
+  passe ou clé d'API), ou serveur DLNA du réseau (MiniDLNA, NAS…), trouvé
+  tout seul ou par son adresse. Les dossiers choisis deviennent des
+  bibliothèques ; d'autres s'ajoutent plus tard par « Dossiers… ». Le mot de
+  passe n'est jamais enregistré : seulement une empreinte, un jeton de
+  session ou la clé d'API.
+- **Synchronisation** du catalogue (titres, albums, artistes, pochettes),
+  comme un scan : seul ce qui a changé est réécrit.
+- **Lecture immédiate** : le morceau joue pendant qu'il arrive, les sauts
+  restent rapides, le suivant se prépare d'avance. Qualité par serveur :
+  fichier d'origine (bit-perfect possible, DSD compris) ou MP3 320, 192 ou
+  128 kbit/s transcodé par le serveur. Un cache de 2 Go garde les derniers
+  morceaux écoutés.
+- **Hors ligne** : « Garder hors ligne » sur un morceau, un album, un
+  artiste, un genre ou une playlist du serveur ; ils restent jouables
+  serveur éteint.
+- **Retour au serveur** : J'aime, notes, écoutes et « en cours de lecture »
+  lui sont renvoyés (Subsonic ; favoris, écoutes et en cours pour
+  Jellyfin) ; serveur injoignable, ils partent plus tard.
+- **Playlists du serveur** (Subsonic et Jellyfin) : importées, modifiables
+  dans les deux sens, créées sur le serveur depuis RustMusic. Elles ne
+  s'épinglent dans la barre latérale que si on le demande, serveur par
+  serveur (Navidrome importe aussi les `.m3u` des albums).
+- **Paroles du serveur** quand il en a, avant la recherche en ligne.
+- **Serveur injoignable ou désactivé** : ses morceaux sont sautés à
+  l'enchaînement ; un serveur DLNA qui a changé d'adresse est retrouvé tout
+  seul sur le réseau.
+- **Retirer un serveur** (en tapant SUPPRIMER) efface son catalogue, ses
+  traces et son cache, arrête sa lecture en cours ; rien n'est touché sur le
+  serveur.
+
+### Sources
+- **Bouton « Source »** en haut de la barre latérale : « Cet ordinateur »,
+  chaque serveur, ou « Toutes les sources ». Chaque source a ses
+  bibliothèques, ses playlists, ses titres aimés, son historique, sa
+  recherche et son accueil ; changer de source ne coupe pas la lecture. Le
+  bouton n'apparaît qu'avec un serveur : sans serveur, rien ne change.
+- **Une playlist appartient à une source** et n'accepte que ses morceaux.
+  Dans une source serveur, on choisit de la créer sur le serveur ou dans
+  RustMusic seulement ; la page Playlists les range en deux groupes.
+- **« Toutes les sources »** : un album ou un morceau présent en local et
+  sur un serveur n'est qu'un résultat de recherche, avec un disque et un
+  nuage pour lire ou ouvrir l'une ou l'autre version (la version préférée
+  se règle).
+
+### Recherche
+- **Page de résultats refaite** : meilleur résultat, morceaux (qualité et
+  durée), albums et artistes, filtres par type, « Tout lire ».
+- La recherche ne fouille plus que les bibliothèques du profil actif.
 
 ### Podcasts
 - **Nouvelle section « Écoute en ligne »** dans les réglages : les podcasts
@@ -49,6 +105,11 @@ nouveautés de chaque version.
   sous « Podcasts », et en tête de « Mes podcasts ».
 - Les nouveaux épisodes sont cherchés en arrière-plan ; « Tout vérifier »
   relit tous les flux à la demande.
+- **File d'attente des épisodes**, à part de la musique : l'épisode suivant
+  de la même émission prend la suite.
+- **Téléchargement automatique**, émission par émission, des nouveaux
+  épisodes ; les épisodes écoutés s'effacent après 24 h (réglable).
+- **OPML** : importer ou exporter ses abonnements depuis une autre appli.
 
 ### Radios
 - **Activables dans Réglages → Écoute en ligne** (désactivées par défaut),
@@ -78,7 +139,12 @@ nouveautés de chaque version.
 - **Une seule source à la fois** : lancer une radio arrête la musique, dont
   la file reste intacte ; relancer un morceau coupe la radio. L'ordinateur
   ne se met pas en veille pendant qu'une radio joue.
-- Pas encore sur un lecteur réseau UPnP : un message l'indique.
+- **Qualité du flux** : quand une station en propose plusieurs, le menu
+  « … » permet de choisir (AAC, MP3, débit). Les flux HLS (Radio France…)
+  sont lus.
+- **Titres passés** : l'historique des titres entendus sur une station, à
+  vider quand on veut.
+- **Sur un lecteur réseau** UPnP ou Sonos, la radio part comme un morceau.
 
 ### Nouveautés
 - **Mégaphone dans la barre du haut**, à droite de la minuterie : les
@@ -87,6 +153,10 @@ nouveautés de chaque version.
   mise à jour, jusqu'à ce qu'on coche « Ne plus afficher au démarrage » ;
   une pastille signale celles qu'on n'a pas encore vues. La carte de
   soutien attend 30 s après leur fermeture.
+
+### Barre du haut
+- **Mégaphone et bouton de thème masquables**, comme le minuteur de veille
+  (Réglages → Général → Intégration système).
 
 ### Barre latérale
 - **Organiser la barre latérale** (menu « … » des Playlists) : les
@@ -98,6 +168,8 @@ nouveautés de chaque version.
   épinglés.
 
 ### Lecture
+- **Historique par profil** : « Récemment joués » et les positions de
+  reprise sont propres à chaque profil (ils étaient partagés).
 - **Fin de la file** : la lecture s'arrêtait sur un morceau resté « en
   lecture ». Elle s'arrête maintenant et la barre de progression revient au
   début.

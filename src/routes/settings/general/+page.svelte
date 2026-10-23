@@ -46,6 +46,8 @@
           { cle: "system_media_controls", titre: txt("system_media_controls"), desc: txt("system_media_controls_desc"), motsCles: "smtc mpris" },
           { cle: "show_notifications", titre: txt("notifications"), desc: txt("notifications_desc") },
           { cle: "show_sleep_timer", titre: txt("show_sleep_timer"), desc: txt("show_sleep_timer_desc") },
+          { cle: "show_whats_new_button", titre: txt("show_whats_new_button"), desc: txt("show_whats_new_button_desc"), motsCles: "nouveautés mégaphone annonces" },
+          { cle: "show_theme_toggle", titre: txt("show_theme_toggle"), desc: txt("show_theme_toggle_desc"), motsCles: "thème clair sombre" },
         ],
       },
     ];
