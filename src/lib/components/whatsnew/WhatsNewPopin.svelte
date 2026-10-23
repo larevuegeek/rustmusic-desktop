@@ -28,12 +28,12 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div class="relative flex flex-col" role="region" aria-roledescription="carousel" aria-label={$t("whats_new.title")}>
-  <span class="absolute left-4 top-4 z-10 h-7 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-bold text-white bg-black/25 backdrop-blur-sm">
+  <span class="absolute left-4 top-4 z-10 h-7 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-bold text-white bg-black/35">
     <Icon icon="material-symbols:campaign-rounded" width="16" />{$t("whats_new.kicker").replace("{version}", whatsNew.version)}
   </span>
   <button type="button" onclick={() => popinStore.close()} aria-label={$t("common.close")} title={$t("common.close")}
           class="absolute right-3 top-3 z-10 w-8.5 h-8.5 rounded-full flex items-center justify-center cursor-pointer transition-colors
-                 bg-black/25 text-white hover:bg-black/45 backdrop-blur-sm">
+                 bg-black/35 text-white hover:bg-black/50">
     <Icon icon="material-symbols:close-rounded" width="20" />
   </button>
 
@@ -44,7 +44,7 @@
       {#each slides as s, i (s.id)}
         <section class="w-full shrink-0 flex flex-col" aria-hidden={i !== index} inert={i !== index}
                  aria-label="{i + 1} / {slides.length}">
-          <div class="h-64 max-sm:h-48"><WhatsNewArt slide={s} /></div>
+          <div class="h-64 max-sm:h-48"><WhatsNewArt slide={s} active={i === index} /></div>
           <div class="px-7 pt-6 pb-2 max-sm:px-5">
             <p class="text-[12px] font-bold uppercase tracking-widest" style="color: {s.colors[1]}">{i + 1} / {slides.length}</p>
             <h2 class="mt-1.5 text-[23px] font-extrabold leading-tight tracking-[-0.01em] text-(--rg-tx)">{$t(`whats_new.slides.${s.id}.title`)}</h2>

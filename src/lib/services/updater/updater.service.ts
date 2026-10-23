@@ -39,7 +39,7 @@ export async function checkForUpdate(silent = true): Promise<void> {
 
   updaterState.set({ kind: "checking" });
   try {
-    const update = await check();
+    const update = await check({ timeout: 20_000 });
     derniereVerification.set(update ? "maj" : "a-jour");
     if (update) {
       pendingUpdate = update;
@@ -130,7 +130,11 @@ export function dismissUpdate(): void {
  * le cold start. Vérifie silencieusement et met le store à jour si update dispo.
  */
 export function initUpdaterAutoCheck(delayMs = 5000): void {
-  setTimeout(() => {
-    checkForUpdate(true).catch((e) => console.warn("[updater] auto-check failed:", e));
-  }, delayMs);
+  // Échec passager (serveur en plein déploiement, réseau qui revient) : on retente plus tard.
+  const retryDelaysMs = [60_000, 10 * 60_000];
+  const attempt = (n: number, wait: number) => setTimeout(async () => {
+    await checkForUpdate(true).catch((e) => console.warn("[updater] auto-check failed:", e));
+    if (get(derniereVerification) === "echec" && n < retryDelaysMs.length) attempt(n + 1, retryDelaysMs[n]);
+  }, wait);
+  attempt(0, delayMs);
 }
