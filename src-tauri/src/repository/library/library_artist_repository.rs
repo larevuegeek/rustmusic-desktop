@@ -46,28 +46,6 @@ impl LibraryArtistRepository {
         Ok(artist)
     }
 
-    pub async fn find_by_artist_id<'e, E>(
-        exec: E,
-        library_id: i64,
-        artist_id: Option<&str>,
-    ) -> Result<Option<LibraryArtist>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        sqlx::query_as::<_, LibraryArtist>(
-            r#"
-            SELECT * FROM library_artists
-            WHERE library_id = ?
-            AND artist_id IS ?
-            LIMIT 1
-            "#
-        )
-        .bind(library_id)
-        .bind(artist_id)
-        .fetch_optional(exec)
-        .await
-    }
-
     pub async fn find_all_artists_by_library_id<'e, E>(
         exec: E,
         library_id: i64,

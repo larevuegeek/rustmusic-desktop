@@ -17,7 +17,7 @@ use crate::repository::library::library_artist_repository::LibraryArtistReposito
 use crate::service::library::album_folder::album_root;
 
 /// Le nom donné à un album dont les pistes n'ont pas d'artiste commun.
-const ARTISTES_DIVERS: &str = "Various Artists";
+pub(crate) const ARTISTES_DIVERS: &str = "Various Artists";
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AlbumMergeReport {
@@ -158,38 +158,7 @@ pub async fn consolidate(pool: &SqlitePool) -> Result<AlbumMergeReport, String> 
 
         if groupe.len() > 1 {
             for perdue in &groupe[1..] {
-                sqlx::query("UPDATE library_tracks SET library_album_id = ? WHERE library_album_id = ?")
-                    .bind(&garde)
-                    .bind(&perdue.id)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| format!("Rattachement des pistes : {e}"))?;
-
-                // Sans ça la cascade les emporterait avec la fiche.
-                sqlx::query(
-                    "INSERT OR IGNORE INTO library_album_artists (library_id, library_album_id, artist_id, role)
-                     SELECT library_id, ?1, artist_id, role
-                     FROM library_album_artists WHERE library_album_id = ?2",
-                )
-                .bind(&garde)
-                .bind(&perdue.id)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| format!("Report des artistes d'album : {e}"))?;
-
-                // Même raison ; si `garde` est déjà épinglée, la cascade retire le doublon.
-                sqlx::query("UPDATE OR IGNORE library_pins SET library_album_id = ? WHERE library_album_id = ?")
-                    .bind(&garde)
-                    .bind(&perdue.id)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| format!("Report des épingles : {e}"))?;
-
-                sqlx::query("DELETE FROM library_albums WHERE id = ?")
-                    .bind(&perdue.id)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| format!("Suppression de la fiche en double : {e}"))?;
+                merge_into(&mut tx, &garde, &perdue.id).await?;
                 rapport.albums_removed += 1;
             }
             rapport.groups_merged += 1;
@@ -231,17 +200,7 @@ pub async fn consolidate(pool: &SqlitePool) -> Result<AlbumMergeReport, String> 
                 .await
                 .map_err(|e| format!("Propriétaire de l'album : {e}"))?;
 
-            // Les déclencheurs comptent les pistes insérées, pas déplacées.
-            sqlx::query(
-                "UPDATE library_albums SET
-                   total_tracks = (SELECT COUNT(*) FROM library_tracks WHERE library_album_id = ?1),
-                   total_duration = (SELECT COALESCE(SUM(duration), 0) FROM library_tracks WHERE library_album_id = ?1)
-                 WHERE id = ?1",
-            )
-            .bind(&garde)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| format!("Comptes de l'album : {e}"))?;
+            recount_album(&mut tx, &garde).await?;
         }
 
         // Posé en dernier : c'est lui qui rend la fiche invisible au prochain tour.
@@ -258,46 +217,7 @@ pub async fn consolidate(pool: &SqlitePool) -> Result<AlbumMergeReport, String> 
     // Un décompte groupé, pas une sous-requête par artiste : corrélée, celle-ci
     // relisait toute la bibliothèque pour chacun de ses 941 artistes — 10,9 s.
     for library_id in &bibliotheques {
-        sqlx::query(
-            "UPDATE library_artists SET total_albums = COALESCE((
-                SELECT c.n FROM (
-                    SELECT library_id, artist_id, COUNT(*) AS n
-                    FROM library_albums GROUP BY library_id, artist_id
-                ) c
-                WHERE c.library_id = library_artists.library_id
-                  AND c.artist_id = library_artists.artist_id), 0)
-             WHERE library_id = ?",
-        )
-        .bind(library_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| format!("Compteur d'albums par artiste : {e}"))?;
-
-        sqlx::query(
-            "UPDATE library_artists SET total_tracks = COALESCE((
-                SELECT c.n FROM (
-                    SELECT library_id, artist_id, COUNT(*) AS n
-                    FROM library_tracks WHERE artist_id IS NOT NULL
-                    GROUP BY library_id, artist_id
-                ) c
-                WHERE c.library_id = library_artists.library_id
-                  AND c.artist_id = library_artists.artist_id), 0)
-             WHERE library_id = ?",
-        )
-        .bind(library_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| format!("Compteur de pistes par artiste : {e}"))?;
-
-        sqlx::query(
-            "UPDATE library SET total_albums =
-               (SELECT COUNT(*) FROM library_albums b WHERE b.library_id = library.id)
-             WHERE id = ?",
-        )
-        .bind(library_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| format!("Compteur d'albums : {e}"))?;
+        recount_library(&mut tx, *library_id).await?;
     }
 
     tx.commit()
@@ -317,8 +237,106 @@ pub async fn consolidate(pool: &SqlitePool) -> Result<AlbumMergeReport, String> 
     Ok(rapport)
 }
 
+/// Rattache les pistes, artistes d'album et épingles de la fiche `perdue` à `garde`, puis la supprime.
+pub(crate) async fn merge_into(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, garde: &str, perdue: &str) -> Result<(), String> {
+    sqlx::query("UPDATE library_tracks SET library_album_id = ? WHERE library_album_id = ?")
+        .bind(garde)
+        .bind(perdue)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| format!("Rattachement des pistes : {e}"))?;
+
+    // Sans ça la cascade les emporterait avec la fiche.
+    sqlx::query(
+        "INSERT OR IGNORE INTO library_album_artists (library_id, library_album_id, artist_id, role)
+         SELECT library_id, ?1, artist_id, role
+         FROM library_album_artists WHERE library_album_id = ?2",
+    )
+    .bind(garde)
+    .bind(perdue)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| format!("Report des artistes d'album : {e}"))?;
+
+    // Même raison ; si `garde` est déjà épinglée, la cascade retire le doublon.
+    sqlx::query("UPDATE OR IGNORE library_pins SET library_album_id = ? WHERE library_album_id = ?")
+        .bind(garde)
+        .bind(perdue)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| format!("Report des épingles : {e}"))?;
+
+    sqlx::query("DELETE FROM library_albums WHERE id = ?")
+        .bind(perdue)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| format!("Suppression de la fiche en double : {e}"))?;
+    Ok(())
+}
+
+/// Les déclencheurs comptent les pistes insérées, pas déplacées.
+pub(crate) async fn recount_album(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, album_id: &str) -> Result<(), String> {
+    sqlx::query(
+        "UPDATE library_albums SET
+           total_tracks = (SELECT COUNT(*) FROM library_tracks WHERE library_album_id = ?1),
+           total_duration = (SELECT COALESCE(SUM(duration), 0) FROM library_tracks WHERE library_album_id = ?1)
+         WHERE id = ?1",
+    )
+    .bind(album_id)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| format!("Comptes de l'album : {e}"))?;
+    Ok(())
+}
+
+/// Compteurs d'albums et de pistes d'une bibliothèque, après suppressions et changements d'artiste
+/// (aucun déclencheur ne couvre le second cas).
+pub(crate) async fn recount_library(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, library_id: i64) -> Result<(), String> {
+    sqlx::query(
+        "UPDATE library_artists SET total_albums = COALESCE((
+            SELECT c.n FROM (
+                SELECT library_id, artist_id, COUNT(*) AS n
+                FROM library_albums GROUP BY library_id, artist_id
+            ) c
+            WHERE c.library_id = library_artists.library_id
+              AND c.artist_id = library_artists.artist_id), 0)
+         WHERE library_id = ?",
+    )
+    .bind(library_id)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| format!("Compteur d'albums par artiste : {e}"))?;
+
+    sqlx::query(
+        "UPDATE library_artists SET total_tracks = COALESCE((
+            SELECT c.n FROM (
+                SELECT library_id, artist_id, COUNT(*) AS n
+                FROM library_tracks WHERE artist_id IS NOT NULL
+                GROUP BY library_id, artist_id
+            ) c
+            WHERE c.library_id = library_artists.library_id
+              AND c.artist_id = library_artists.artist_id), 0)
+         WHERE library_id = ?",
+    )
+    .bind(library_id)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| format!("Compteur de pistes par artiste : {e}"))?;
+
+    sqlx::query(
+        "UPDATE library SET total_albums =
+           (SELECT COUNT(*) FROM library_albums b WHERE b.library_id = library.id)
+         WHERE id = ?",
+    )
+    .bind(library_id)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| format!("Compteur d'albums : {e}"))?;
+    Ok(())
+}
+
 /// L'artiste portant ce nom, créé et rattaché à la bibliothèque s'il manque.
-async fn resolve_artist(
+pub(crate) async fn resolve_artist(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     connus: &mut HashMap<String, String>,
     nom: &str,

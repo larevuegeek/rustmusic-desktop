@@ -133,6 +133,14 @@ impl RadioRepository {
         sqlx::query("DELETE FROM radio_titles WHERE profil_id = ?").bind(profil_id).execute(pool).await.map(|_| ())
     }
 
+    /// L'historique du profil : dernières radios écoutées et titres passés.
+    pub async fn clear_history(pool: &SqlitePool, profil_id: i64) -> Result<(), sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        sqlx::query("DELETE FROM radio_recent WHERE profil_id = ?").bind(profil_id).execute(&mut *tx).await?;
+        sqlx::query("DELETE FROM radio_titles WHERE profil_id = ?").bind(profil_id).execute(&mut *tx).await?;
+        tx.commit().await
+    }
+
     pub async fn record_recent(pool: &SqlitePool, profil_id: i64, r: &RadioResult, logo_path: Option<&str>) -> Result<(), sqlx::Error> {
         const KEEP: i64 = 30;
         sqlx::query(

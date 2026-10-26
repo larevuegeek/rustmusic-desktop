@@ -19,7 +19,7 @@ impl AirplayOutput {
     where
         C: Consumer<Item = f32> + Send + 'static,
     {
-        let render = super::cpal_symphonia::render_fn(consumer, atomics.clone(), shared.clone(), super::samples::MARGE_PARTAGEE);
+        let render = super::cpal_symphonia::render_fn(consumer, atomics.clone(), shared.clone(), super::samples::MARGE_PARTAGEE, crate::core::network_player::airplay::sender::SAMPLE_RATE);
         Self { device, pending: Some(Track { render: Box::new(render), atomics, shared }), track: None }
     }
 }

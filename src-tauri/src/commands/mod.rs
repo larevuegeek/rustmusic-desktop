@@ -29,4 +29,5 @@ pub mod playback;
 pub mod platform_command;
 pub mod podcast_command;
 pub mod radio_command;
+pub mod scrobble_command;
 pub mod server_command;

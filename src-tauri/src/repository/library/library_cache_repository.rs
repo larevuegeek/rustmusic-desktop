@@ -142,22 +142,4 @@ impl LibraryCacheRepository {
         .await
     }
 
-    /// Supprimer un cache
-    pub async fn delete_by_path<'e, E>(
-        exec: E,
-        path: &str,
-    ) -> Result<(), sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-
-        sqlx::query(
-            "DELETE FROM library_cache WHERE path = ?"
-        )
-        .bind(path)
-        .execute(exec)
-        .await?;
-
-        Ok(())
-    }
 }

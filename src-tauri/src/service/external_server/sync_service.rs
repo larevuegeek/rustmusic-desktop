@@ -194,6 +194,12 @@ async fn run(pool: &SqlitePool, covers_dir: &Path, library_id: i64, token: &Task
 
     // Disparus du serveur (synchronisation complète seulement) : retirés, avec les albums vidés.
     let removed = if cancelled { 0 } else { remove_missing(pool, library_id, &seen).await.unwrap_or(0) };
+    // Compilations éclatées par le serveur : réunies comme en local.
+    if !cancelled {
+        if let Err(e) = super::album_regroup::regroup(pool, library_id).await {
+            log::warn!("💿 Albums distants non réunis : {e}");
+        }
+    }
     if !cancelled {
         match feedback_service::apply_server_state(pool, server_id, &songs, server.has_ratings()).await {
             Ok((likes, ratings)) if likes + ratings > 0 => log::info!("☁️  Depuis le serveur : {likes} favori(s), {ratings} note(s)"),

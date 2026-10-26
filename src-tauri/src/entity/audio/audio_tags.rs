@@ -73,9 +73,6 @@ pub struct AttachedImage {
     pub image_type: Option<ImageType>,
     pub mime_type: String, // MIME type of the image, e.g., "image/jpeg"
     pub description: Option<String>, // Optional description of the image
-    // Jamais serialise : ~4 caracteres de JSON par octet, pour une donnee que
-    // l'interface ne lit pas. Elle passe par `image_src` (base64) ou par la
-    // vignette sur disque.
     #[serde(skip_serializing, default)]
     pub image_data: Vec<u8>,
     pub image_src: String,

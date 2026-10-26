@@ -64,33 +64,6 @@ impl PlaylistItemRepository {
         Ok(item)
     }
 
-    pub async fn find_all_by_playlist_id<'e, E>(
-        exec: E,
-        playlist_id: i64,
-    ) -> Result<Vec<PlaylistItem>, Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        let items = sqlx::query_as::<_, PlaylistItem>(
-            r#"
-            SELECT
-                id,
-                playlist_id,
-                library_track_id,
-                sort_index,
-                created_at
-            FROM playlist_items
-            WHERE playlist_id = ?
-            ORDER BY sort_index ASC, id ASC
-            "#,
-        )
-        .bind(playlist_id)
-        .fetch_all(exec)
-        .await?;
-
-        Ok(items)
-    }
-
     pub async fn find_all_tracks_by_playlist_id<'e, E>(
         exec: E,
         playlist_id: i64,
@@ -144,78 +117,6 @@ impl PlaylistItemRepository {
 
 
 
-    pub async fn update_sort_index<'e, E>(
-        exec: E,
-        id: i64,
-        sort_index: i64,
-    ) -> Result<Option<PlaylistItem>, Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        let item = sqlx::query_as::<_, PlaylistItem>(
-            r#"
-            UPDATE playlist_items
-            SET sort_index = ?
-            WHERE id = ?
-            RETURNING
-                id,
-                playlist_id,
-                library_track_id,
-                sort_index,
-                created_at
-            "#,
-        )
-        .bind(sort_index)
-        .bind(id)
-        .fetch_optional(exec)
-        .await?;
-
-        Ok(item)
-    }
-
-    pub async fn exists_by_playlist_id_and_track_id<'e, E>(
-        exec: E,
-        playlist_id: i64,
-        library_track_id: &str,
-    ) -> Result<bool, Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        let exists: Option<i64> = sqlx::query_scalar(
-            r#"
-            SELECT 1
-            FROM playlist_items
-            WHERE playlist_id = ?
-              AND library_track_id = ?
-            LIMIT 1
-            "#,
-        )
-        .bind(playlist_id)
-        .bind(library_track_id)
-        .fetch_optional(exec)
-        .await?;
-
-        Ok(exists.is_some())
-    }
-
-    pub async fn count_by_playlist_id<'e, E>(exec: E, playlist_id: i64) -> Result<i64, Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        let count: i64 = sqlx::query_scalar(
-            r#"
-            SELECT COUNT(*)
-            FROM playlist_items
-            WHERE playlist_id = ?
-            "#,
-        )
-        .bind(playlist_id)
-        .fetch_one(exec)
-        .await?;
-
-        Ok(count)
-    }
-
     pub async fn get_next_sort_index<'e, E>(exec: E, playlist_id: i64) -> Result<i64, Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
@@ -251,20 +152,4 @@ impl PlaylistItemRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn delete_all_by_playlist_id<'e, E>(exec: E, playlist_id: i64) -> Result<u64, Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        let result = sqlx::query(
-            r#"
-            DELETE FROM playlist_items
-            WHERE playlist_id = ?
-            "#,
-        )
-        .bind(playlist_id)
-        .execute(exec)
-        .await?;
-
-        Ok(result.rows_affected())
-    }
 }

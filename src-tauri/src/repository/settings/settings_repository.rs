@@ -44,15 +44,4 @@ impl SettingsRepository {
         Ok(rows)
     }
 
-    pub async fn delete<'e, E>(exec: E, key: &str) -> Result<(), sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        sqlx::query("DELETE FROM settings WHERE key = ?")
-            .bind(key)
-            .execute(exec)
-            .await?;
-
-        Ok(())
-    }
 }

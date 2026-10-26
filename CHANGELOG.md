@@ -1,5 +1,75 @@
 # Changelog
 
+## [0.4.1] - à venir
+
+Les podcasts se lisent plus vite sans voix déformée et se parcourent par
+chapitres, les écoutes partent vers ListenBrainz, les playlists s'échangent
+en .m3u avec les autres lecteurs, et les compilations d'un serveur ne sont
+plus éclatées en dizaines d'albums. L'appli parle la langue du système dès
+le premier lancement, chaque profil a son image, et les paramètres se
+replient.
+
+### Interface
+- **Plus de menu du navigateur au clic droit** (Recharger, Inspecter…) là
+  où l'appli n'a pas son propre menu ; copier et coller restent dans les
+  champs de saisie.
+- **Langue du système au premier lancement** (français, anglais, allemand,
+  espagnol ou italien, sinon anglais), au lieu du français pour tous
+  (suggestion de FabiRich).
+- **Image de profil** : une photo ou une image de son choix, recadrée en
+  carré, à la place de l'initiale (suggestion de FabiRich).
+- **Paramètres repliables** : un clic sur le titre d'un groupe le replie ou
+  le déplie, et l'appli s'en souvient ; une recherche rouvre tout.
+
+### Suivi d'écoute
+- **ListenBrainz** (Réglages → Écoute en ligne) : chaque profil relie son
+  compte par son jeton personnel ; les morceaux écoutés à moitié (ou 4 min)
+  y sont envoyés, avec le morceau en cours si on le souhaite. Hors
+  connexion, les écoutes attendent et partent plus tard.
+
+### Serveurs de musique
+- **Compilations réunies** : sans tag « artiste de l'album », Navidrome ou
+  Jellyfin éclatent une compilation en un album par artiste (« NRJ Hit Music
+  Only » en 50 albums). RustMusic les réunit en un seul album « Various
+  Artists », comme pour les dossiers locaux. Deux albums différents au même
+  titre (« Greatest Hits ») restent séparés. J'aime, playlists et récents ne
+  bougent pas.
+
+### Playlists
+- **Import et export .m3u / .m3u8** (foobar2000, VLC, Winamp…) : chaque liste
+  devient une playlist, ses morceaux retrouvés même si elle a été écrite sur
+  un autre ordinateur ; « Exporter en .m3u » dans le menu d'une playlist.
+
+### Podcasts
+- **Vitesse de lecture** (0,75× à 2×) depuis le lecteur, sans voix de
+  « chipmunk » : la hauteur est gardée. Chaque émission retient sa vitesse ;
+  une vitesse par défaut se règle dans Réglages → Écoute en ligne. Pendant
+  un épisode, la sortie exclusive cède la place à la sortie partagée.
+- **Chapitres** : quand l'émission en fournit (dans le flux ou dans le
+  fichier MP3), ils apparaissent en repères sur la barre de progression, le
+  chapitre en cours s'affiche sous le titre, et une liste permet d'y sauter
+  (précédent / suivant, lien du chapitre s'il y en a un).
+- **Vérification des nouveaux épisodes réglable** : jamais, toutes les
+  heures, toutes les 6 heures ou une fois par jour.
+- **Effacer l'historique d'écoute** (Réglages → Écoute en ligne) : tous les
+  épisodes redeviennent non écoutés, sans position de reprise.
+- **Vider « À écouter »** (menu « … » de la section) : chaque émission
+  revient avec son prochain épisode.
+- **Menu « … » sur les cartes de « À écouter »** : retirer l'émission de la
+  liste (elle revient au prochain épisode ou à la reprise d'un épisode),
+  marquer l'épisode écouté, ouvrir l'émission.
+
+### Radios
+- **Effacer l'historique** : dernières radios écoutées et titres passés ;
+  les favorites restent.
+
+### Sous le capot
+- **Compteurs d'albums par artiste** des bibliothèques de serveur
+  recalculés à chaque synchronisation : certains étaient faux.
+- **Ménage** : environ 1 000 lignes de code qui ne servaient plus retirées,
+  un index de base de données en double supprimé, anciennes sauvegardes
+  d'interface (fichiers « avant-refonte ») effacées.
+
 ## [0.4.0] - à venir
 
 Votre musique hébergée chez vous, les podcasts et les radios arrivent dans

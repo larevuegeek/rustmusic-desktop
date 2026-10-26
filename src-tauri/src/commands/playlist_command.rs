@@ -304,6 +304,32 @@ pub async fn get_playlist_tracks(
     state: State<'_, AppState>,
     playlist_id: i64,
 ) -> Result<Vec<PlaylistTrackView>, String> {
+    tracks_of(&state.pool, playlist_id).await
+}
+
+/// Importe des listes .m3u / .m3u8 : une playlist de « Cet ordinateur » par fichier.
+#[tauri::command]
+pub async fn playlist_import_m3u(
+    state: State<'_, AppState>,
+    profil_id: i64,
+    paths: Vec<String>,
+) -> Result<Vec<crate::service::playlist::m3u_service::M3uImport>, String> {
+    let mut out = Vec::new();
+    for p in paths {
+        out.push(crate::service::playlist::m3u_service::import(&state.pool, profil_id, std::path::Path::new(&p)).await?);
+    }
+    Ok(out)
+}
+
+/// Exporte la playlist en .m3u ; rend (écrits, laissés de côté car sur un serveur).
+#[tauri::command]
+pub async fn playlist_export_m3u(state: State<'_, AppState>, playlist_id: i64, dest: String) -> Result<(usize, usize), String> {
+    let tracks = tracks_of(&state.pool, playlist_id).await?;
+    crate::service::playlist::m3u_service::export(&tracks, std::path::Path::new(&dest))
+}
+
+/// Les morceaux d'une playlist, rangés ou calculés (intelligente).
+pub(crate) async fn tracks_of(pool: &sqlx::SqlitePool, playlist_id: i64) -> Result<Vec<PlaylistTrackView>, String> {
 
     // ─── Une playlist intelligente se calcule au lieu de se lire ───
     //
@@ -314,7 +340,7 @@ pub async fn get_playlist_tracks(
     let regles: Option<String> =
         sqlx::query_scalar("SELECT rules FROM playlists WHERE id = ? AND is_smart = 1")
             .bind(playlist_id)
-            .fetch_optional(&state.pool)
+            .fetch_optional(pool)
             .await
             .map_err(|e| format!("Failed to read playlist : {e}"))?
             .flatten();
@@ -322,12 +348,12 @@ pub async fn get_playlist_tracks(
     if let Some(json) = regles {
         let rules: crate::core::smart_playlist::rules::SmartRules =
             serde_json::from_str(&json).map_err(|e| format!("Règles illisibles : {e}"))?;
-        let source = PlaylistRepository::source_of(&state.pool, playlist_id).await.map_err(|e| e.to_string())?;
-        return crate::core::smart_playlist::engine::evaluate(&state.pool, playlist_id, &rules, Some(source))
+        let source = PlaylistRepository::source_of(pool, playlist_id).await.map_err(|e| e.to_string())?;
+        return crate::core::smart_playlist::engine::evaluate(pool, playlist_id, &rules, Some(source))
             .await;
     }
 
-    let tracks: Vec<PlaylistTrackView> = match PlaylistItemRepository::find_all_tracks_by_playlist_id(&state.pool, playlist_id).await {
+    let tracks: Vec<PlaylistTrackView> = match PlaylistItemRepository::find_all_tracks_by_playlist_id(pool, playlist_id).await {
         Ok(tracks) => tracks,
         Err(e) => return Err(format!("Failed to get playlist tracks : {}", e))
     };

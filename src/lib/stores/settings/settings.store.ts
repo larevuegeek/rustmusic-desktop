@@ -74,6 +74,8 @@ export type AppSettings = {
   amp_remote_mini: string;          // 'true' | 'false' — télécommande réduite à l'afficheur et au volume
   podcasts: string;                 // 'true' | 'false' — podcasts, désactivés par défaut
   podcast_play_mode: string;
+  podcast_speed: string;            // vitesse des émissions sans vitesse propre : '0.75' … '2'
+  podcast_refresh: string;          // vérification des nouveaux épisodes : 'never' | '1h' | '6h' | '24h'
   podcast_cleanup: string;          // épisodes écoutés effacés : 'never' | 'now' | '24h' | '7d' | '30d'        // 'stream' (pendant le téléchargement) | 'download' (après)
   podcast_country: string;          // pays de l'annuaire (« FR »…) ; vide = celui de l'ordinateur
   radios: string;                   // 'true' | 'false' — radios, désactivées par défaut
@@ -143,6 +145,8 @@ export const settingsDefaults: AppSettings = {
   amp_remote_mini: 'false',
   podcasts: 'false',
   podcast_play_mode: 'stream',
+  podcast_speed: '1',
+  podcast_refresh: '6h',
   podcast_cleanup: '24h',
   podcast_country: '',
   radios: 'false',
@@ -323,6 +327,13 @@ async function applyVisualEffects(value: string) {
 
 const settingsWriter = writable<AppSettings>({ ...settingsDefaults });
 
+const LANGUAGES = ['fr', 'en', 'de', 'es', 'it'];
+/** Première langue du système que l'appli parle (« de-AT » → de), sinon l'anglais. */
+function systemLanguage(): string {
+  const prefs = typeof navigator === 'undefined' ? [] : [...(navigator.languages ?? []), navigator.language];
+  return prefs.map((l) => l?.slice(0, 2).toLowerCase()).find((l) => LANGUAGES.includes(l)) ?? 'en';
+}
+
 export const settingsStore = {
   subscribe: settingsWriter.subscribe,
 
@@ -346,6 +357,9 @@ export const settingsStore = {
       // attendait donc derrière elle, et l'interface restait dans la couleur du
       // démarrage tout ce temps — jusqu'à une dizaine de secondes sur certaines
       // machines. L'ordre seul règle ça ; rien d'autre ne change.
+      // Langue jamais choisie : celle du système si l'appli la parle, sinon l'anglais (retenue ensuite).
+      if (!('language' in all)) void settingsStore.set('language', systemLanguage());
+
       const finalTheme = get(settingsWriter).theme;
       applyThemeMode((finalTheme as ThemeMode) ?? 'auto');
       applyContrastMode((get(settingsWriter).contrast as ContrastMode) ?? 'normal');

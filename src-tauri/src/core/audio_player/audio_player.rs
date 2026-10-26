@@ -597,7 +597,7 @@ impl AudioPlayer {
         let ring_buffer_capacity: usize = ((output_sample_rate as f32 * ring_secs_sym) as usize)
             * output_channels as usize;
         let ring_buffer: ringbuf::SharedRb<ringbuf::storage::Heap<f32>> = ringbuf::HeapRb::<f32>::new(ring_buffer_capacity);
-        let (producer, mut consumer) = ring_buffer.split();
+        let (producer, consumer) = ring_buffer.split();
 
         log::debug!(
             "🔁 RingBuffer créé avec une capacité de {} samples (~{:.1}s @ {}Hz {}ch, profile {:?})",

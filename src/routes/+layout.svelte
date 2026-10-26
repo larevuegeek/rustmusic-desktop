@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { t } from "#lib/i18n";
+  import { preventNativeContextMenu } from "#lib/helper/tools/nativeContextMenu";
+import { t } from "#lib/i18n";
 import "../app.css";
 import "#lib/icons/preload";
 import Sidebar from "#lib/components/sidebar/Sidebar.svelte";
@@ -98,6 +99,7 @@ onMount(openExternalLinks);
 onMount(() => void loadVolume());
 
 onMount(preventShiftSelection);
+onMount(preventNativeContextMenu);
 
 // Pas de veille automatique tant que la musique joue (réglage) ; l'écran peut s'éteindre.
 $effect(() => {

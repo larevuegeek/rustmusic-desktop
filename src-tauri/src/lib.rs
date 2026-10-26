@@ -20,8 +20,9 @@ use crate::commands::export_command::{export_settings_and_playlists, import_sett
 use crate::commands::pin_command::{get_library_pins, pin_album, pin_artist, unpin_album, unpin_artist};
 use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, resolve_blurred_cover, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, cancel_task, clean_image_cache, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_library_tag_keys, get_track, mark_track_played, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_under_path, get_tracks_by_genre, get_tracks_by_years, get_mix_tracks, get_mix_genres, get_track_letter_offsets, list_directory, remove_library, rename_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, relocate_library_root, repair_artist_links, get_track_artists, get_track_locations, save_thumbnail, save_thumbnail_from_file, read_cover_as_base64};
 use crate::commands::player_command::{AUDIO_PLAYER, get_progress, open_file, open_files, pause_play, play_file, seek_to, set_sleep_blocked, stop_play};
-use crate::commands::playlist_command::{add_track_liked, get_tracks_liked, remove_track_liked, get_playlists, get_playlist, create_playlist, update_playlist, set_playlist_pinned, reorder_playlists, delete_playlist, get_playlist_tracks, add_track_to_playlist, remove_track_from_playlist};
-use crate::commands::profil_command::{get_profile, get_all_profiles, create_profile, update_profile, delete_profile};
+use crate::commands::playlist_command::{add_track_liked, get_tracks_liked, remove_track_liked, get_playlists, get_playlist, create_playlist, update_playlist, set_playlist_pinned, reorder_playlists, delete_playlist, get_playlist_tracks, playlist_import_m3u, playlist_export_m3u, add_track_to_playlist, remove_track_from_playlist};
+use crate::commands::scrobble_command::{listenbrainz_connect, listenbrainz_disconnect, listenbrainz_status, listenbrainz_set_now_playing, scrobble_listen, scrobble_now_playing};
+use crate::commands::profil_command::{get_profile, get_all_profiles, create_profile, update_profile, profile_avatar_import, delete_profile};
 use crate::commands::queue_command::{add_queue_track, clear_queue, get_queue, remove_queue_track, replace_queue_tracks, update_queue_state_index, update_queue_state_repeat_mode, update_queue_state_shuffled};
 use crate::commands::recent_command::{clear_recent_files, get_recent_files, insert_recent_file, remove_recent_file, save_playback_position};
 use crate::commands::volume_command::{get_devices, get_volume, set_volume, set_device, mute};
@@ -34,10 +35,10 @@ use crate::commands::server_command::{
     get_servers, servers_check, server_sync, server_add, server_add_libraries, server_browse, server_discover, server_folders, server_probe, server_remove, server_rename, server_set_enabled, server_set_pin_playlists, server_set_transcode, offline_list, offline_add, offline_remove,
 };
 use crate::commands::radio_command::{
-    get_radios, radio_add, radio_logo, radio_remove, radio_rename, radio_resolve, radio_search, radio_top, reorder_radios, set_radios_enabled, get_radio_recent, radio_play, radio_stop, radio_go_live, radio_status, get_radio_titles, clear_radio_titles, radio_variants, radio_set_stream,
+    get_radios, radio_add, radio_logo, radio_remove, radio_rename, radio_resolve, radio_search, radio_top, reorder_radios, set_radios_enabled, get_radio_recent, radio_play, radio_stop, radio_go_live, radio_status, get_radio_titles, clear_radio_titles, clear_radio_history, radio_variants, radio_set_stream,
 };
 use crate::commands::podcast_command::{
-    get_podcast, get_podcast_episode, get_podcast_episodes, get_podcasts, podcast_refresh, podcast_search, podcast_set_all_played,
+    get_podcast, get_podcast_episode, get_podcast_episodes, get_podcasts, podcast_refresh, podcast_search, podcast_set_all_played, podcast_clear_history, podcast_hide_from_listen, podcast_empty_listen, podcast_set_speed, playback_speed, podcast_chapters,
     podcast_resume_position, podcast_preview, set_podcast_pinned, set_podcast_auto_download, podcast_import_opml, podcast_export_opml, podcast_top, get_podcast_latest, podcast_download, podcast_delete_download, podcast_delete_downloads, get_podcast_downloads, podcast_set_played, podcast_set_position, podcast_subscribe, podcast_unsubscribe, set_podcasts_enabled,
 };
 use crate::commands::amp_remote_command::{amp_remote_cover, amp_remote_discover, amp_remote_select, amp_remote_send, amp_remote_status, set_amp_remote_enabled};
@@ -754,6 +755,20 @@ pub async fn run() {
                 crate::commands::podcast_command::init(&podcast_state, podcast_app).await;
             });
 
+            // ─── SUIVI D'ÉCOUTE ──────────────────────────────
+            // Écoutes restées en attente (hors connexion) : envoyées au lancement.
+            let scrobble_state = app.state::<AppState>().inner().clone();
+            tauri::async_runtime::spawn(async move {
+                crate::commands::scrobble_command::init(&scrobble_state).await;
+            });
+
+            // ─── ALBUMS DISTANTS ─────────────────────────────
+            // Compilations éclatées par un serveur avant leur regroupement : réunies une fois.
+            let regroup_pool = app.state::<AppState>().pool.clone();
+            tauri::async_runtime::spawn(async move {
+                crate::service::external_server::album_regroup::regroup_once(&regroup_pool).await;
+            });
+
             // ─── RADIOS ──────────────────────────────────────
             let radio_state = app.state::<AppState>().inner().clone();
             tauri::async_runtime::spawn(async move {
@@ -841,7 +856,8 @@ pub async fn run() {
             get_profile,
             get_all_profiles,
             create_profile,
-            update_profile,
+            update_profile, profile_avatar_import,
+            listenbrainz_connect, listenbrainz_disconnect, listenbrainz_status, listenbrainz_set_now_playing, scrobble_listen, scrobble_now_playing,
             delete_profile,
             get_recent_files,
             save_playback_position,
@@ -874,7 +890,7 @@ pub async fn run() {
             set_playlist_pinned,
             reorder_playlists,
             delete_playlist,
-            get_playlist_tracks,
+            get_playlist_tracks, playlist_import_m3u, playlist_export_m3u,
             add_track_to_playlist,
             remove_track_from_playlist,
             get_track,
@@ -944,7 +960,7 @@ pub async fn run() {
             podcast_refresh,
             podcast_set_position,
             podcast_set_played,
-            podcast_set_all_played,
+            podcast_set_all_played, podcast_clear_history, podcast_hide_from_listen, podcast_empty_listen, podcast_set_speed, playback_speed, podcast_chapters,
             podcast_resume_position,
             podcast_top,
             podcast_preview,
@@ -985,7 +1001,7 @@ pub async fn run() {
             radio_go_live,
             radio_status,
             get_radio_titles,
-            clear_radio_titles,
+            clear_radio_titles, clear_radio_history,
             radio_variants,
             radio_set_stream,
             get_podcast_latest,

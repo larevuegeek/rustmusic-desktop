@@ -218,6 +218,12 @@ pub async fn clear_radio_titles(state: State<'_, AppState>, profil_id: i64) -> R
     RadioRepository::clear_titles(&state.pool, profil_id).await.map_err(db)
 }
 
+/// Efface l'historique : dernières radios écoutées et titres passés (les favorites restent).
+#[tauri::command]
+pub async fn clear_radio_history(state: State<'_, AppState>, profil_id: i64) -> Result<(), String> {
+    RadioRepository::clear_history(&state.pool, profil_id).await.map_err(db)
+}
+
 /// Au lancement : lit le réglage.
 pub async fn init(state: &AppState) {
     let on = SettingsRepository::get(&state.pool, ENABLED_KEY).await.ok().flatten().as_deref() == Some("true");

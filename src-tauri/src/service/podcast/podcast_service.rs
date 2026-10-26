@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use sqlx::SqlitePool;
 use tauri::{AppHandle, Emitter};
 
+use crate::core::podcast::chapters::{self, Chapter};
 use crate::core::podcast::download;
 use crate::core::podcast::fetch::{self, Outcome};
 use crate::core::audio_analyser::audio_analyser::AudioAnalyser;
@@ -22,8 +23,21 @@ use crate::repository::podcast::podcast_repository::PodcastRepository;
 
 /// Réglage « Podcasts » : désactivé par défaut.
 pub const ENABLED_KEY: &str = "podcasts";
+/// Vitesse de lecture des émissions qui n'en ont pas encore de propre.
+pub const SPEED_KEY: &str = "podcast_speed";
 /// Délai entre deux vérifications de fond de tous les flux.
-const REFRESH_EVERY: Duration = Duration::from_secs(6 * 3600);
+/// Réglage de la vérification de fond : `never`, `1h`, `6h` (défaut), `24h`.
+const REFRESH_KEY: &str = "podcast_refresh";
+
+fn refresh_every(setting: Option<&str>) -> Option<Duration> {
+    let hours = match setting.unwrap_or("6h") {
+        "never" => return None,
+        "1h" => 1,
+        "24h" => 24,
+        _ => 6,
+    };
+    Some(Duration::from_secs(hours * 3600))
+}
 
 static ENABLED: AtomicBool = AtomicBool::new(false);
 /// Pour prévenir l'interface depuis les tâches de fond (téléchargement fini).
@@ -432,6 +446,67 @@ pub async fn resume_position(pool: &SqlitePool, path: &Path) -> Option<f64> {
     Some(if ep.played { 0.0 } else { ep.position })
 }
 
+/// Chapitres d'un épisode : déjà connus, sinon fichier JSON du flux, sinon trames ID3 du MP3 (retenus ensuite).
+pub async fn chapters(pool: &SqlitePool, path: &Path) -> Vec<Chapter> {
+    let Some(id) = episode_by_path(pool, path).await else { return Vec::new() };
+    let Ok(Some((known, url))) = PodcastRepository::chapters_of(pool, id).await else { return Vec::new() };
+    if let Some(json) = known {
+        return serde_json::from_str(&json).unwrap_or_default();
+    }
+    let mut found = match url {
+        Some(url) => json_chapters(&url).await,
+        None => None,
+    };
+    if found.as_ref().is_none_or(|c| c.is_empty()) {
+        found = id3_chapters(path).await.or(found);
+    }
+    let Some(list) = found else { return Vec::new() };
+    let _ = PodcastRepository::set_chapters(pool, id, &serde_json::to_string(&list).unwrap_or_else(|_| "[]".into())).await;
+    list
+}
+
+async fn json_chapters(url: &str) -> Option<Vec<Chapter>> {
+    let res = fetch::client().get(url).timeout(Duration::from_secs(15)).send().await.ok()?;
+    if !res.status().is_success() {
+        return None;
+    }
+    Some(chapters::parse_json(&res.text().await.ok()?))
+}
+
+/// Tag ID3 en tête du fichier, pendant le téléchargement (attend les octets manquants) ou une fois en place.
+async fn id3_chapters(path: &Path) -> Option<Vec<Chapter>> {
+    let path = path.to_path_buf();
+    tokio::task::spawn_blocking(move || match download::reader(&path) {
+        Some(reader) => chapters::from_reader(reader.ok()?),
+        None => chapters::from_reader(std::fs::File::open(&path).ok()?),
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+/// Vitesse d'un épisode : celle de son émission, sinon celle des réglages ; `None` hors podcast.
+pub async fn speed_for(pool: &SqlitePool, path: &Path) -> Option<f32> {
+    let id = episode_by_path(pool, path).await?;
+    let own = PodcastRepository::speed_of_episode(pool, id).await.ok().flatten().and_then(|(_, s)| s);
+    let speed = match own {
+        Some(s) => s as f32,
+        None => SettingsRepository::get(pool, SPEED_KEY).await.ok().flatten().and_then(|v| v.parse().ok()).unwrap_or(1.0),
+    };
+    Some(speed)
+}
+
+/// Nouvelle vitesse pour l'épisode en cours : appliquée tout de suite, retenue pour son émission.
+pub async fn set_speed(pool: &SqlitePool, path: &Path, speed: f32) -> Result<(), String> {
+    crate::core::audio_player::time_stretch::set_speed(speed);
+    let Some(id) = episode_by_path(pool, path).await else { return Ok(()) };
+    if let Some((podcast_id, _)) = PodcastRepository::speed_of_episode(pool, id).await.map_err(|e| e.to_string())? {
+        let speed = crate::core::audio_player::time_stretch::speed();
+        PodcastRepository::set_speed(pool, podcast_id, speed as f64).await.map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Fichiers d'un podcast quitté : à lister avant de l'effacer de la base, à supprimer après.
 pub async fn files_of(pool: &SqlitePool, podcast_id: i64) -> Vec<String> {
     PodcastRepository::files_of(pool, podcast_id).await.unwrap_or_default()
@@ -464,7 +539,7 @@ pub async fn refresh_all(pool: &SqlitePool) -> usize {
     added
 }
 
-/// Vérification de fond : peu après l'activation, puis toutes les 6 h.
+/// Vérification de fond : peu après l'activation, puis selon le réglage (toutes les 6 h par défaut, ou jamais).
 /// L'interface est prévenue par `podcasts-updated` quand des épisodes paraissent.
 pub fn start_background(app: AppHandle, pool: SqlitePool) {
     tauri::async_runtime::spawn(async move {
@@ -479,7 +554,9 @@ pub fn start_background(app: AppHandle, pool: SqlitePool) {
                 log::info!("🎙️  Ménage des épisodes écoutés : {} Mo libérés", freed / 1_000_000);
                 let _ = app.emit("podcast-downloaded", 0);
             }
-            if last.is_some_and(|t| t.elapsed() < REFRESH_EVERY) {
+            let setting = SettingsRepository::get(&pool, REFRESH_KEY).await.ok().flatten();
+            let Some(every) = refresh_every(setting.as_deref()) else { continue };
+            if last.is_some_and(|t| t.elapsed() < every) {
                 continue;
             }
             last = Some(Instant::now());
@@ -496,6 +573,14 @@ pub fn start_background(app: AppHandle, pool: SqlitePool) {
 mod tests {
     use super::*;
     use sqlx::sqlite::SqlitePoolOptions;
+
+    #[test]
+    fn refresh_delays() {
+        assert_eq!(refresh_every(None), Some(Duration::from_secs(6 * 3600)));
+        assert_eq!(refresh_every(Some("never")), None);
+        assert_eq!(refresh_every(Some("1h")), Some(Duration::from_secs(3600)));
+        assert_eq!(refresh_every(Some("24h")), Some(Duration::from_secs(24 * 3600)));
+    }
 
     #[test]
     fn cleanup_delays() {

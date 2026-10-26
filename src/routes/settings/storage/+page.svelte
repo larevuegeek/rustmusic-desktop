@@ -247,7 +247,7 @@
 </script>
 
 <!-- ─── Bibliothèques ─── -->
-<OptionGroup title={$t("settings.storage_libraries_group")} hint={$t("settings.storage_libraries_group_hint")}>
+<OptionGroup foldKey="settings.storage_libraries_group" title={$t("settings.storage_libraries_group")} hint={$t("settings.storage_libraries_group_hint")}>
   <OptionItem title={$t("settings.rescan_library")} desc={$t("settings.rescan_library_desc")} keywords="scan">
     <GhostButton icon="material-symbols:sync-rounded" label={$t("settings.rescan_btn")} busy={rescanning} onclick={handleRescan} />
   </OptionItem>
@@ -278,7 +278,7 @@
 <!-- ─── Sauvegarde ─── -->
 <ServersSettings />
 
-<OptionGroup title={$t("settings.backup_group")} hint={$t("settings.backup_group_hint")}>
+<OptionGroup foldKey="settings.backup_group" title={$t("settings.backup_group")} hint={$t("settings.backup_group_hint")}>
   <OptionItem title={$t("settings.export_title")} desc={$t("settings.export_desc")} keywords="json sauvegarde">
     <GhostButton
       icon="material-symbols:download-rounded"
@@ -298,7 +298,7 @@
 </OptionGroup>
 
 <!-- ─── Données ─── -->
-<OptionGroup title={$t("settings.data_group")} hint={$t("settings.data_group_hint")}>
+<OptionGroup foldKey="settings.data_group" title={$t("settings.data_group")} hint={$t("settings.data_group_hint")}>
   <OptionItem title={$t("settings.open_data_folder")} desc={$t("settings.open_data_folder_desc")} value={dataDir} keywords="dossier base covers">
     <GhostButton icon="material-symbols:folder-open-outline-rounded" label={$t("settings.open_btn")} onclick={handleOpenDataFolder} />
   </OptionItem>

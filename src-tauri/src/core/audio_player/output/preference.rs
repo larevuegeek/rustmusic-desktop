@@ -12,6 +12,13 @@ use super::types::AudioBackend;
 
 static WASAPI_EXCLUSIVE: AtomicBool = AtomicBool::new(false);
 
+/// Épisode de podcast en cours : sortie partagée, la seule où la vitesse de lecture s'applique.
+static SHARED_ONLY: AtomicBool = AtomicBool::new(false);
+
+pub fn set_shared_only(on: bool) {
+    SHARED_ONLY.store(on, Ordering::Relaxed);
+}
+
 /// Préférence « DSD natif (DoP) ». Quand activée ET que WASAPI exclusive est
 /// actif ET que le DAC accepte le format porteur, les fichiers DSD sont
 /// envoyés en DoP (DSD over PCM) au lieu d'être convertis en PCM.
@@ -47,7 +54,7 @@ pub fn set_dop_enabled(enabled: bool) {
 /// `wasapi_exclusive`, conservée pour ne pas perdre le choix des utilisateurs
 /// Windows existants) ; c'est la plateforme qui décide du backend concret.
 pub fn current_preference() -> AudioBackend {
-    if WASAPI_EXCLUSIVE.load(Ordering::Relaxed) {
+    if WASAPI_EXCLUSIVE.load(Ordering::Relaxed) && !SHARED_ONLY.load(Ordering::Relaxed) {
         if let Some(exclusive) = AudioBackend::platform_exclusive() {
             return exclusive;
         }

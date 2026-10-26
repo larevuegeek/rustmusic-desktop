@@ -159,7 +159,7 @@
 {/snippet}
 
 <!-- ─── Sortie ─── -->
-<OptionGroup title={$t("settings.output_group")} hint={$t("settings.output_group_hint")}>
+<OptionGroup foldKey="settings.output_group" title={$t("settings.output_group")} hint={$t("settings.output_group_hint")}>
   {#snippet action()}
     <GhostButton
       icon="material-symbols:sync-rounded"
@@ -175,7 +175,7 @@
 </OptionGroup>
 
 <!-- ─── Mode de sortie ─── -->
-<OptionGroup title={$t("settings.output_mode")} hint={$t("settings.output_mode_hint")}>
+<OptionGroup foldKey="settings.output_mode" title={$t("settings.output_mode")} hint={$t("settings.output_mode_hint")}>
   {#snippet action()}{#if $platformFeatures.exclusive}<Badge tone="amber">{$t("settings.beta_badge")}</Badge>{/if}{/snippet}
   {#if !$platformFeatures.exclusive}
     <!-- Flatpak sans accès à la carte son : lecture partagée seulement, on dit pourquoi. -->
@@ -237,7 +237,7 @@
 </OptionGroup>
 
 <!-- ─── Qualité de décodage ─── -->
-<OptionGroup title={$t("settings.audio_quality")} hint={$t("settings.audio_quality_hint")}>
+<OptionGroup foldKey="settings.audio_quality" title={$t("settings.audio_quality")} hint={$t("settings.audio_quality_hint")}>
   <OptionBlock keywords="{$t('settings.audio_quality')} {qualites.map((q) => q.label).join(' ')} dsd cpu">
     <div class="px-4 pt-4">
       <SegmentedPanel
@@ -253,7 +253,7 @@
 </OptionGroup>
 
 <!-- ─── Replay Gain ─── -->
-<OptionGroup title={$t("settings.replay_gain")} hint={$t("settings.replay_gain_hint")}>
+<OptionGroup foldKey="settings.replay_gain" title={$t("settings.replay_gain")} hint={$t("settings.replay_gain_hint")}>
   <OptionBlock keywords="{$t('settings.replay_gain')} {modesReplayGain.map((m) => m.label).join(' ')} volume">
     <div class="px-4 pt-4">
       <SegmentedPanel

@@ -8,6 +8,10 @@
   import { liked } from "#lib/stores/playlist/like.store";
   import { Modal, Avatar, Badge } from "@karbonjs/ui-svelte";
   import { t } from "#lib/i18n";
+  import { invoke } from "@tauri-apps/api/core";
+  import Icon from "@iconify/svelte";
+  import { open } from "@tauri-apps/plugin-dialog";
+  import { avatarSrc } from "#lib/helper/tools/avatarSrc";
 
   const PALETTE = [
     '#22c55e',
@@ -31,6 +35,24 @@
   let name = $state("");
   let editId: number | null = $state(null);
   let editIndex: number = $state(0);
+  // Image du profil en cours de création ou d'édition (chemin dans le dossier de l'appli).
+  let avatar = $state<string | null>(null);
+  let importing = $state(false);
+
+  async function chooseAvatar() {
+    const source = await open({ multiple: false, directory: false, title: $t("profil.avatar_choose"),
+      filters: [{ name: "Images", extensions: ["jpg", "jpeg", "png", "webp", "gif", "bmp"] }] });
+    if (typeof source !== "string") return;
+    importing = true;
+    try {
+      avatar = await invoke<string>("profile_avatar_import", { source });
+    } catch (e) {
+      errorName = "profil.avatar_error";
+      console.error("[profil] image :", e);
+    } finally {
+      importing = false;
+    }
+  }
   let isSubmitting = $state(false);
   let errorName: string | null = $state(null);
   let selectedColorIndex = $state(0);
@@ -51,12 +73,14 @@
     mode = 'create';
     name = "";
     editId = null;
+    avatar = null;
     errorName = null;
   }
 
-  function switchToEdit(profil: { id: number; name: string; color: string }) {
+  function switchToEdit(profil: { id: number; name: string; color: string; avatar?: string | null }) {
     mode = 'edit';
     name = profil.name;
+    avatar = profil.avatar ?? null;
     editId = profil.id;
     editIndex = findPaletteIndex(profil.color);
     if (editIndex < 0) editIndex = 0;
@@ -99,11 +123,11 @@
     isSubmitting = true;
     try {
       if (mode === 'create') {
-        await profilSelector.createProfile(name, PALETTE[selectedColorIndex]);
+        await profilSelector.createProfile(name, PALETTE[selectedColorIndex], avatar);
         await profilSelector.refresh();
         back();
       } else if (mode === 'edit' && editId) {
-        await profilSelector.updateProfile(editId, name, PALETTE[editIndex]);
+        await profilSelector.updateProfile(editId, name, PALETTE[editIndex], avatar);
         back();
       }
     } catch (error) {
@@ -184,7 +208,7 @@
               onclick={() => selectProfile(profil)}
             >
               <Avatar
-                src={profil.avatar ?? undefined}
+                src={avatarSrc(profil.avatar)}
                 name={profil.name}
                 size="xl"
                 color={profil.color}
@@ -280,12 +304,28 @@
             ></div>
             <div class="relative transition-all duration-300">
               <Avatar
+                src={avatarSrc(avatar)}
                 name={name || '?'}
                 size="xl"
                 color={selectedHex}
                 classes={{ root: '!w-28 !h-28 !rounded-2xl !text-5xl !font-black ring-2 ring-white/15 shadow-2xl' }}
               />
             </div>
+          </div>
+          <!-- Image : choisie sur l'ordinateur, recadrée en carré -->
+          <div class="flex items-center gap-2">
+            <button type="button" onclick={chooseAvatar} disabled={isSubmitting || importing}
+                    class="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg border text-[13px] font-semibold cursor-pointer transition-colors
+                           border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) disabled:opacity-60">
+              <Icon icon={importing ? "material-symbols:progress-activity" : "material-symbols:add-photo-alternate-outline-rounded"} width="17" class={importing ? "animate-spin" : ""} />
+              {avatar ? $t("profil.avatar_change") : $t("profil.avatar_choose")}
+            </button>
+            {#if avatar}
+              <button type="button" onclick={() => (avatar = null)} disabled={isSubmitting}
+                      class="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-[13px] font-semibold cursor-pointer text-(--rg-mu) hover:text-(--rg-tx)">
+                <Icon icon="material-symbols:close-rounded" width="17" />{$t("profil.avatar_remove")}
+              </button>
+            {/if}
           </div>
 
           <div class="text-center space-y-1">

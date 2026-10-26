@@ -112,7 +112,7 @@
   }
 </script>
 
-<OptionGroup title={$t("servers.group")} hint={$t("servers.group_hint")}>
+<OptionGroup foldKey="servers.group" title={$t("servers.group")} hint={$t("servers.group_hint")}>
   {#snippet action()}<Badge tone="amber">{$t("settings.beta_badge")}</Badge>{/snippet}
 
   {#each servers as s (s.id)}

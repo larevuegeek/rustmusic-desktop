@@ -32,6 +32,7 @@ pub struct Resampler {
 impl Resampler {
     /// Construct a resampler with the High (audiophile) quality preset.
     /// Convenience wrapper around [`Self::maybe_new_with_profile`].
+    #[cfg(test)]
     pub fn maybe_new(
         input_rate: u32,
         output_rate: u32,

@@ -1,5 +1,8 @@
 <script lang="ts">
 // Toutes les playlists du profil : la barre latérale n'en montre que les épinglées.
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { toasts } from "#lib/stores/ui/toast.store";
+import { currentSource } from "#lib/stores/source/source.store";
 import { couverturesPlaylists } from "#lib/stores/playlist/covers.store";
 import { sourceFilter } from "#lib/stores/source/sourceFilter.store";
 import { profilSelector } from "#lib/stores/profil/profil.store";
@@ -86,6 +89,32 @@ let menu = $state<{ x: number; y: number; playlist: Playlist } | null>(null);
 function createPlaylist() {
   popinStore.open($t("nav.playlists"), AddPlaylistPopin, {});
 }
+// Listes .m3u / .m3u8 d'un autre lecteur : une playlist de « Cet ordinateur » chacune.
+const sourceServeur = $derived(typeof $currentSource === "number" && $currentSource > 0);
+let importing = $state(false);
+async function importM3u() {
+  const profilId = $profilSelector.profilSelected?.id;
+  if (profilId == null) return;
+  const choisis = await openDialog({ multiple: true, directory: false, title: $t("playlists_view.import_m3u"),
+    filters: [{ name: "M3U", extensions: ["m3u", "m3u8"] }] });
+  const paths = (Array.isArray(choisis) ? choisis : choisis ? [choisis] : []).map(String);
+  if (!paths.length) return;
+  importing = true;
+  try {
+    const res = await invoke<{ name: string; added: number; missing: number }[]>("playlist_import_m3u", { profilId, paths });
+    await playlistStore.refresh();
+    for (const r of res) {
+      const message = $t("playlists_view.import_m3u_done").replace("{n}", formatNumber(r.added))
+        + (r.missing ? " · " + $t("playlists_view.import_m3u_missing").replace("{n}", formatNumber(r.missing)) : "");
+      toasts.push({ type: r.added ? "success" : "error", title: r.name, message });
+    }
+  } catch (e) {
+    toasts.push({ type: "error", title: $t("playlists_view.import_m3u"), message: String(e) });
+  } finally {
+    importing = false;
+  }
+}
+
 function createSmartPlaylist() {
   popinStore.open($t("playlist.new_smart"), SmartPlaylistPopin, {}, { size: "xl", icon: "lucide:sparkles", flush: true });
 }
@@ -119,6 +148,13 @@ const selectRecent = () =>
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-2.5">
+      {#if !sourceServeur}
+        <button type="button" onclick={importM3u} disabled={importing} title={$t("playlists_view.import_m3u_hint")}
+                class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border cursor-pointer text-sm font-semibold transition-colors disabled:opacity-60
+                       border-(--rg-bd2) text-(--rg-tx) hover:border-(--rg-gbd) hover:text-(--rg-gtx)">
+          <Icon icon={importing ? "material-symbols:progress-activity" : "material-symbols:upload-file-outline-rounded"} width="18" class={importing ? "animate-spin" : ""} />{$t("playlists_view.import_m3u_short")}
+        </button>
+      {/if}
       <button type="button" onclick={createSmartPlaylist}
               class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border cursor-pointer text-sm font-semibold transition-colors
                      border-(--rg-bd2) text-(--rg-tx) hover:border-(--rg-gbd) hover:text-(--rg-gtx)">

@@ -149,31 +149,6 @@ impl LibraryFilesRepository {
         .await
     }
 
-    pub async fn find_by_id<'e, E>(
-        exec: E,
-        id: &str,
-    ) -> Result<Option<LibraryFile>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        sqlx::query_as::<_, LibraryFile>(
-            r#"
-            SELECT
-                id, library_id, library_dir_id, cache_id,
-                path, filename, extension, size,
-                file_hash, CAST(modified_at AS TEXT) AS modified_at,
-                status, is_available, error_message,
-                created_at, updated_at, last_verified_at
-            FROM library_files
-            WHERE id = ?
-            LIMIT 1
-            "#
-        )
-        .bind(id)
-        .fetch_optional(exec)
-        .await
-    }
-
     // Marquer un fichier comme indexé avec sa date de modification
     pub async fn mark_as_indexed<'e, E>(
         exec: E,
@@ -193,24 +168,4 @@ impl LibraryFilesRepository {
         Ok(())
     }
 
-    fn map_row(row: sqlx::sqlite::SqliteRow) -> LibraryFile {
-        LibraryFile {
-            id: row.get("id"),
-            library_id: row.get("library_id"),
-            library_dir_id: row.get("library_dir_id"),
-            cache_id: row.get("cache_id"),
-            path: row.get("path"),
-            filename: row.get("filename"),
-            extension: row.get("extension"),
-            size: row.get("size"),
-            file_hash: row.get("file_hash"),
-            modified_at: row.get("modified_at"),
-            status: row.get("status"),
-            is_available: row.get("is_available"),
-            error_message: row.get("error_message"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-            last_verified_at: row.get("last_verified_at"),
-        }
-    }
 }

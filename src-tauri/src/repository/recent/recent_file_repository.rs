@@ -107,6 +107,7 @@ impl RecentFileRepository {
     }
 
 
+    #[cfg(test)]
     pub async fn count_recent_files<'e, E>(
         exec: E,
         profil_id: i64,

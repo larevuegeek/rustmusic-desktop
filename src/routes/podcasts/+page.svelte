@@ -22,6 +22,10 @@
   import PodcastCard from "#lib/components/podcast/PodcastCard.svelte";
   import PodcastDirectoryCard from "#lib/components/podcast/PodcastDirectoryCard.svelte";
   import PodcastEpisodeCard from "#lib/components/podcast/PodcastEpisodeCard.svelte";
+  import Menu from "#lib/components/ui/menu/Menu.svelte";
+  import MenuAction from "#lib/components/ui/menu/MenuAction.svelte";
+  import Dialog from "#lib/components/ui/dialog/Dialog.svelte";
+  import { popinStore } from "#lib/stores/ui/popin.store";
   import PageState from "#lib/components/ui/layout/PageState.svelte";
   import HeaderGlow from "#lib/components/ui/deco/HeaderGlow.svelte";
   import type { DirectoryResult, EpisodeView, LatestEpisode, PodcastView } from "#lib/types/ui/podcast/Podcast";
@@ -48,12 +52,31 @@
   let aEcouter = $state<LatestEpisode[]>([]);
   // Le statut seul : le lecteur publie sa position plusieurs fois par seconde.
   const playerStatus = $derived($player.status);
+  const reloadLatest = () => podcastStore.latest(20).then((l) => (aEcouter = l)).catch(() => {});
   $effect(() => {
     if (!actif || profilId == null) return;
     void $podcastStore.podcasts;
     void playerStatus;
-    podcastStore.latest(20).then((l) => (aEcouter = l)).catch(() => {});
+    void reloadLatest();
   });
+
+  // « … » de la section : vider la liste (après confirmation) ; les émissions reviennent avec leur prochain épisode.
+  let menuListe = $state(false);
+  function emptyList() {
+    menuListe = false;
+    if (profilId == null) return;
+    const id = profilId;
+    popinStore.open($t("podcasts.empty_listen"), Dialog, {
+      message: $t("podcasts.empty_listen_confirm"),
+      confirmText: $t("podcasts.empty_listen_short"),
+      cancelText: $t("common.cancel"),
+      variant: "danger",
+      onConfirm: async () => {
+        await invoke("podcast_empty_listen", { profilId: id });
+        await reloadLatest();
+      },
+    });
+  }
 
   // La suite : les épisodes non écoutés qui viennent après dans la liste de l'émission.
   async function playLatest(e: LatestEpisode) {
@@ -243,14 +266,26 @@
       <!-- ─── À écouter ─── -->
       {#if aEcouter.length > 0}
         <section class="mt-2">
-          <div class="flex flex-col gap-1 mb-4">
-            <h2 class="text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{$t("podcasts.to_listen")}</h2>
-            <span class="text-[13px] text-(--rg-mu)">{$t("podcasts.to_listen_hint")}</span>
+          <div class="flex items-end gap-4 mb-4">
+            <div class="flex-1 min-w-0 flex flex-col gap-1">
+              <h2 class="text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{$t("podcasts.to_listen")}</h2>
+              <span class="text-[13px] text-(--rg-mu)">{$t("podcasts.to_listen_hint")}</span>
+            </div>
+            <div class="relative">
+              <button type="button" onclick={() => (menuListe = !menuListe)} title={$t("common.menu")} aria-label={$t("common.menu")} aria-expanded={menuListe}
+                      class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)
+                             {menuListe ? 'bg-(--rg-s2) text-(--rg-tx)' : ''}">
+                <Icon icon="material-symbols:more-horiz" width="22" />
+              </button>
+              <Menu bind:open={menuListe} class="w-80">
+                <MenuAction icon="material-symbols:playlist-remove-rounded" title={$t("podcasts.empty_listen")} description={$t("podcasts.empty_listen_desc")} onclick={emptyList} />
+              </Menu>
+            </div>
           </div>
           <Carousel class="gap-4.5 pb-1">
             {#each aEcouter as e (e.id)}
               <div class="snap-start shrink-0 w-[clamp(160px,17%,210px)]">
-                <PodcastEpisodeCard episode={e} enLecture={$player.pathFile === e.path && $player.status === "playing"} onplay={() => playLatest(e)} />
+                <PodcastEpisodeCard episode={e} enLecture={$player.pathFile === e.path && $player.status === "playing"} onplay={() => playLatest(e)} onchange={reloadLatest} />
               </div>
             {/each}
           </Carousel>

@@ -122,7 +122,7 @@ where
     Ok(Box::new(sortie))
 }
 
-pub use preference::{current_preference, dop_enabled, set_dop_enabled, set_wasapi_exclusive};
+pub use preference::{current_preference, dop_enabled, set_dop_enabled, set_shared_only, set_wasapi_exclusive};
 pub use traits::{AudioOutput, AudioOutputError};
 pub use types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
 

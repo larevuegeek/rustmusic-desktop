@@ -287,7 +287,7 @@ pub fn probe_device_capabilities(device_id: String) -> Result<WasapiCapabilities
             }
         }
         let device = device.ok_or_else(|| format!("Device ID not found: {device_id}"))?;
-        let mut audio_client = device
+        let audio_client = device
             .get_iaudioclient()
             .map_err(|e| format!("get_iaudioclient: {:?}", e))?;
 
@@ -455,7 +455,7 @@ pub fn try_negotiate_exclusive_format(
         let enumerator = DeviceEnumerator::new()
             .map_err(|e| format!("DeviceEnumerator: {e:?}"))?;
         let device = resolve_wasapi_device(&enumerator, preferred_device_name.as_deref())?;
-        let mut audio_client = device
+        let audio_client = device
             .get_iaudioclient()
             .map_err(|e| format!("get_iaudioclient: {e:?}"))?;
 
@@ -1067,7 +1067,7 @@ pub fn dop_format_supported(carrier_rate: u32, channels: u16, device_name: Optio
         let enumerator = DeviceEnumerator::new()
             .map_err(|e| format!("DeviceEnumerator: {e:?}"))?;
         let device = resolve_wasapi_device(&enumerator, device_name.as_deref())?;
-        let mut audio_client = device
+        let audio_client = device
             .get_iaudioclient()
             .map_err(|e| format!("get_iaudioclient: {e:?}"))?;
         let fmt = WaveFormat::new(32, 24, &SampleType::Int, carrier_rate as usize, channels as usize, None);

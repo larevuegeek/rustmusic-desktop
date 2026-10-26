@@ -6,6 +6,7 @@ pub mod audio_player {
     pub mod preload;
     pub mod replay_gain;
     pub mod startup_timer;
+    pub mod time_stretch;
     // WASAPI exclusive mode — Windows only. Sur les autres OS le module est
     // entièrement skipped grâce au `#![cfg(target_os = "windows")]` interne.
     #[cfg(target_os = "windows")]
@@ -19,10 +20,6 @@ pub mod remount;
 
 pub mod audio_analyser {
     pub mod audio_analyser;
-}
-
-pub mod audio_manager {
-    pub mod audio_manager;
 }
 
 pub mod settings_manager {
@@ -174,6 +171,7 @@ pub mod podcast {
     pub mod directory;
     pub mod download;
     pub mod feed;
+    pub mod chapters;
     pub mod opml;
     pub mod fetch;
 }
@@ -201,5 +199,10 @@ pub mod subsonic {
     pub mod client;
     pub mod lyrics;
     pub mod stream;
+}
+pub mod playlist_file;
+/// Suivi d'écoute en ligne (ListenBrainz).
+pub mod scrobble {
+    pub mod listenbrainz;
 }
 pub mod smart_playlist;

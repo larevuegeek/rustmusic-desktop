@@ -698,6 +698,86 @@ fn id_to_string(id: &[u8; 4]) -> String {
     id.iter().map(|&b| b as char).collect()
 }
 
+/// Chapitres (trames CHAP) : (début en ms, titre), dans l'ordre du temps. Titre vide sans TIT2.
+pub fn chapters(tag: &Id3v2Tag) -> Vec<(u32, String)> {
+    let mut out: Vec<(u32, String)> = tag
+        .frames
+        .iter()
+        .filter(|f| &f.id == b"CHAP")
+        .filter_map(|f| match &f.kind {
+            Id3v2FrameKind::Unknown(body) => decode_chap(body, tag.version),
+            _ => None,
+        })
+        .collect();
+    out.sort_by_key(|c| c.0);
+    out
+}
+
+/// CHAP : identifiant (terminé par 0), début, fin, 2 décalages (u32), puis sous-trames (dont TIT2).
+fn decode_chap(body: &[u8], version: u8) -> Option<(u32, String)> {
+    let id_end = body.iter().position(|&b| b == 0)?;
+    let mut pos = id_end + 1;
+    let start = u32::from_be_bytes(body.get(pos..pos + 4)?.try_into().ok()?);
+    pos += 16;
+    let mut title = String::new();
+    while pos + 10 <= body.len() && body[pos] != 0 {
+        let id: [u8; 4] = body[pos..pos + 4].try_into().ok()?;
+        let size = if version == 4 {
+            read_synchsafe(&body[pos + 4..pos + 8]) as usize
+        } else {
+            u32::from_be_bytes(body[pos + 4..pos + 8].try_into().ok()?) as usize
+        };
+        pos += 10;
+        let sub = body.get(pos..pos + size)?;
+        pos += size;
+        if &id == b"TIT2" {
+            if let Id3v2FrameKind::Text(v) = decode_text(sub) {
+                title = v.trim().to_string();
+            }
+        }
+    }
+    Some((start, title))
+}
+
+#[cfg(test)]
+mod tests_chap {
+    use super::*;
+
+    fn chap(id: &str, start_ms: u32, title: &str) -> Vec<u8> {
+        let mut tit2 = vec![3u8];
+        tit2.extend_from_slice(title.as_bytes());
+        let mut body = id.as_bytes().to_vec();
+        body.push(0);
+        for v in [start_ms, start_ms + 1000, u32::MAX, u32::MAX] {
+            body.extend_from_slice(&v.to_be_bytes());
+        }
+        body.extend_from_slice(b"TIT2");
+        body.extend_from_slice(&(tit2.len() as u32).to_be_bytes());
+        body.extend_from_slice(&[0, 0]);
+        body.extend_from_slice(&tit2);
+        body
+    }
+
+    #[test]
+    fn chap_frames_become_ordered_chapters() {
+        // ID3v2.3 : tailles en u32 ordinaire.
+        let mut frames = Vec::new();
+        for (id, start, title) in [("ch1", 95_500, "Le sujet"), ("ch0", 0, "Intro")] {
+            let body = chap(id, start, title);
+            frames.extend_from_slice(b"CHAP");
+            frames.extend_from_slice(&(body.len() as u32).to_be_bytes());
+            frames.extend_from_slice(&[0, 0]);
+            frames.extend_from_slice(&body);
+        }
+        let size = frames.len() as u32;
+        let mut blob = b"ID3\x03\x00\x00".to_vec();
+        blob.extend_from_slice(&[(size >> 21) as u8 & 0x7F, (size >> 14) as u8 & 0x7F, (size >> 7) as u8 & 0x7F, size as u8 & 0x7F]);
+        blob.extend_from_slice(&frames);
+        let tag = parse(&blob).unwrap();
+        assert_eq!(chapters(&tag), vec![(0, "Intro".to_string()), (95_500, "Le sujet".to_string())]);
+    }
+}
+
 #[cfg(test)]
 mod tests_popm {
     use super::popm_to_stars;

@@ -34,6 +34,9 @@ import { describeOutput } from "#lib/helper/audio/deviceLabel";
 import { TEINTE, CHAINE, fallbackMessage, readableRate } from "#lib/helper/audio/audioChain";
 import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
 import RadioPlayerBar from "./RadioPlayerBar.svelte";
+import PlaybackSpeedButton from "./PlaybackSpeedButton.svelte";
+import ChaptersButton from "./ChaptersButton.svelte";
+import { chapters, chapterAt } from "#lib/stores/podcast/chapters.store";
 import StatusDot from "#lib/components/ui/status/StatusDot.svelte";
 import { serverStore } from "#lib/stores/mediaServer/mediaServer.store";
 import { libraryStore } from "#lib/stores/library/library.store";
@@ -43,6 +46,8 @@ const audioFile = $derived($player?.audioFile);
 const audioTags = $derived(audioFile?.tags);
 // Épisode de podcast : pas de cœur, il ne rejoint pas les titres aimés.
 const episode = $derived(audioTags?.media_type === "podcast");
+// Chapitres de l'épisode : repères sur la barre, chapitre en cours sous le titre.
+const listeChapitres = $derived(episode ? $chapters.list : []);
 const hasTrack = $derived(!!$player?.pathFile);
 const isPlaying = $derived($player?.status === "playing");
 // Le son n'a pas encore démarré (ouverture du DAC, décodage).
@@ -219,6 +224,16 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
                 {@render info(audioTags.album, "text-(--lc-mu)", albumLink(lieu))}
               {/if}
             </span>
+            {#if listeChapitres.length}
+              {@const i = chapterAt(listeChapitres, jsPosition)}
+              {#if i >= 0}
+                <button type="button" class="self-start flex items-center gap-1 max-w-full min-w-0 text-xs font-medium text-(--lc-mu) cursor-pointer hover:text-(--lc-tx2)"
+                        title={$t("podcasts.chapters")} onclick={() => chapters.setOpen(true)}>
+                  <Icon icon="material-symbols-light:toc-rounded" width="15" class="shrink-0" />
+                  <span class="truncate">{listeChapitres[i].title || $t("podcasts.chapter_untitled").replace("{n}", String(i + 1))}</span>
+                </button>
+              {/if}
+            {/if}
             {#if annee}
               {@const cible = yearLink(lieu, annee)}
               {#if cible}
@@ -280,12 +295,18 @@ const gros = "w-11 h-11 shrink-0 flex items-center justify-center rounded-full c
         </div>
         <div class="flex items-center gap-3 w-full font-mono text-[11px] tabular-nums text-(--lc-mu)">
           <span class="min-w-9 text-right">{minutesSeconds(jsPosition)}</span>
-          <div class="flex-1 min-w-0"><PlayerProgressBar position={jsPositionPercent} onseek={handleSeek} /></div>
+          <div class="flex-1 min-w-0"><PlayerProgressBar position={jsPositionPercent} marks={duration ? listeChapitres.map((c) => (c.start / duration) * 100) : []} onseek={handleSeek} /></div>
           <span class="min-w-9">{minutesSeconds(audioFile?.duration ?? 0)}</span>
         </div>
       </div>
 
       <div class="flex items-center justify-end gap-0.5 max-lg:col-start-2 max-lg:row-start-1">
+        {#if listeChapitres.length}
+          <ChaptersButton />
+        {/if}
+        {#if episode && $networkPlayerStore.selected?.kind !== "upnp"}
+          <PlaybackSpeedButton />
+        {/if}
         {#if hasTrack && $player?.pathFile && !episode}
           {@const aime = $liked.paths.has($player.pathFile)}
           <button type="button" class="favori {ib} {aime ? 'text-[#e2566a]! dark:text-[#ff7a88]!' : ''}" title={$t("player.like")} aria-label={$t("player.like")} aria-pressed={aime}

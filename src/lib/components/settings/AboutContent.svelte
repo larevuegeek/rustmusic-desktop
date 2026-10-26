@@ -87,7 +87,7 @@
 </OptionGroup>
 
 <!-- ─── Soutenir ─── -->
-<OptionGroup title={$t("support.about_title")} hint={$t("support.about_hint")}>
+<OptionGroup foldKey="support.about_title" title={$t("support.about_title")} hint={$t("support.about_hint")}>
   <OptionBlock
     keywords="{$t('support.about_title')} patreon ko-fi paypal github don"
     class="relative overflow-hidden p-5"
@@ -114,7 +114,7 @@
 </OptionGroup>
 
 <!-- ─── Technologies ─── -->
-<OptionGroup title={$t("about.stack")} hint={$t("about.stack_hint")}>
+<OptionGroup foldKey="about.stack" title={$t("about.stack")} hint={$t("about.stack_hint")}>
   {#each technologies as groupe (groupe.categorie)}
     <OptionBlock
       keywords="{groupe.categorie} {groupe.libs.map((l) => l.name).join(' ')}"
@@ -142,7 +142,7 @@
 </OptionGroup>
 
 <!-- ─── Licence ─── -->
-<OptionGroup title={$t("about.license")} hint={$t("about.license_hint")}>
+<OptionGroup foldKey="about.license" title={$t("about.license")} hint={$t("about.license_hint")}>
   <OptionItem title={$t("about.license_title")} desc={$t("about.license_summary")} keywords="licence copyright">
     <GhostButton
       icon={licenceOuverte ? "material-symbols:expand-less-rounded" : "material-symbols:description-outline-rounded"}
@@ -163,7 +163,7 @@
 </OptionGroup>
 
 <!-- ─── Crédits ─── -->
-<OptionGroup title={$t("about.credits")}>
+<OptionGroup foldKey="about.credits" title={$t("about.credits")}>
   <OptionItem title={$t("about.made_with")} desc={$t("about.credits_text")} />
   <OptionItem title={$t("about.icons")} desc={$t("about.icons_credits")} />
 </OptionGroup>

@@ -13,6 +13,7 @@
   import { toasts } from "#lib/stores/ui/toast.store";
   import { offlineStore } from "#lib/stores/mediaServer/offline.store";
   import { portal } from "#lib/helper/portal";
+  import { save } from "@tauri-apps/plugin-dialog";
   import EditPlaylistPopin from "#lib/components/playlist/popin/EditPlaylistPopin.svelte";
   import SmartPlaylistPopin from "#lib/components/playlist/smart/SmartPlaylistPopin.svelte";
 
@@ -26,7 +27,7 @@
 
   let menuStyle = $derived.by(() => {
     const largeur = 220;
-    const hauteur = 190;
+    const hauteur = 230;
 
     const posX = x + largeur > window.innerWidth ? window.innerWidth - largeur - 8 : x;
 
@@ -39,6 +40,21 @@
 
     return `left: ${posX}px; top: ${posY}px;`;
   });
+
+  // Export .m3u : les morceaux sur le disque (ceux d'un serveur sont laissés de côté).
+  async function exportM3u() {
+    onclose();
+    const dest = await save({ title: $t("playlist.export_m3u"), defaultPath: `${playlist.name.replace(/[\\/:*?"<>|]/g, "_")}.m3u8`,
+      filters: [{ name: "M3U", extensions: ["m3u8", "m3u"] }] });
+    if (!dest) return;
+    try {
+      const [written, skipped] = await invoke<[number, number]>("playlist_export_m3u", { playlistId: playlist.id, dest });
+      toasts.push({ type: "success", title: playlist.name,
+        message: $t("playlist.export_m3u_done").replace("{n}", String(written)) + (skipped ? " · " + $t("playlist.export_m3u_skipped").replace("{n}", String(skipped)) : "") });
+    } catch (e) {
+      toasts.push({ type: "error", title: $t("playlist.export_m3u"), message: String(e) });
+    }
+  }
 
   async function play() {
     onclose();
@@ -149,6 +165,13 @@
     <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={keepOffline}>
       <Icon icon="material-symbols:download-for-offline-outline-rounded" width="15" class="opacity-60" />
       {$t("servers.offline_keep")}
+    </button>
+  {/if}
+
+  {#if !playlist.source_id}
+    <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={exportM3u}>
+      <Icon icon="material-symbols:download-rounded" width="15" class="opacity-60" />
+      {$t("playlist.export_m3u")}
     </button>
   {/if}
 

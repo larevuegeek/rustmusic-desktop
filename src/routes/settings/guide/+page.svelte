@@ -66,7 +66,7 @@
 <div class="contents" style="--lc-survol: var(--rg-s2); --lc-trait: var(--rg-bd2); --lc-tx2: var(--rg-tx2)">
 
 <!-- ─── Le trajet du son ─── -->
-<OptionGroup title={$t("guide.path_title")} hint={$t("guide.path_hint")}>
+<OptionGroup foldKey="guide.path_title" title={$t("guide.path_title")} hint={$t("guide.path_hint")}>
   <OptionBlock keywords="{$t('guide.path_title')} {ETAPES.map((e) => $t(`guide.step_${e.cle}_title`)).join(' ')}">
     <div class="flex items-start justify-between gap-5 max-md:flex-col px-6 pt-5">
       <p class="max-w-[52ch] text-sm leading-normal text-(--rg-tx2) text-pretty">{$t("guide.path_intro")}</p>
@@ -145,7 +145,7 @@
 </OptionGroup>
 
 <!-- ─── Partagé ou exclusif ─── -->
-<OptionGroup title={$t("guide.modes_title")} hint={$t("guide.modes_hint")}>
+<OptionGroup foldKey="guide.modes_title" title={$t("guide.modes_title")} hint={$t("guide.modes_hint")}>
   <OptionBlock keywords="{$t('guide.modes_title')} {$t('glossary.shared.name')} {$t('glossary.exclusive.name')}" class="flex flex-col gap-4 p-4">
     <div class="grid grid-cols-2 max-md:grid-cols-1 gap-3">
       {#each MODES as m (m.id)}
@@ -179,7 +179,7 @@
 </OptionGroup>
 
 <!-- ─── La pastille du lecteur ─── -->
-<OptionGroup title={$t("guide.badges_title")} hint={$t("guide.badges_hint")}>
+<OptionGroup foldKey="guide.badges_title" title={$t("guide.badges_title")} hint={$t("guide.badges_hint")}>
   <OptionBlock keywords="{$t('guide.badges_title')} {PASTILLES.map((p) => $t(CHAINE[p].cle)).join(' ')}" class="flex flex-col gap-4 p-4">
     <p class="px-1 text-sm leading-normal text-(--rg-tx2) text-pretty">{$t("guide.badges_intro")}</p>
     <div class="grid grid-cols-2 max-md:grid-cols-1 gap-2.5">
@@ -194,7 +194,7 @@
 </OptionGroup>
 
 <!-- ─── Glossaire ─── -->
-<OptionGroup title={$t("guide.glossary_title")} hint={$t("guide.glossary_hint")}>
+<OptionGroup foldKey="guide.glossary_title" title={$t("guide.glossary_title")} hint={$t("guide.glossary_hint")}>
   <div class="flex flex-wrap gap-1.5 px-5 py-4 border-b border-(--rg-line)">
     {#each TERMES as id (id)}
       <button

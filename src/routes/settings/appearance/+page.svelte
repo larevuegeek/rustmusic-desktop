@@ -202,7 +202,7 @@
 </script>
 
 <!-- ─── Thème ─── -->
-<OptionGroup title={$t("settings.theme")} hint={$t("settings.theme_desc")}>
+<OptionGroup foldKey="settings.theme" title={$t("settings.theme")} hint={$t("settings.theme_desc")}>
   <OptionBlock keywords="{$t('settings.theme')} {themes.map((th) => $t(th.labelKey)).join(' ')} theme" class="p-4">
     <div class="grid grid-cols-3 gap-3" role="radiogroup" aria-label={$t("settings.theme")}>
       {#each themes as th (th.valeur)}
@@ -248,7 +248,7 @@
 </OptionGroup>
 
 <!-- ─── Barre latérale, avec son aperçu ─── -->
-<OptionGroup title={$t("settings.sidebar_group")} hint={$t("settings.sidebar_group_hint")}>
+<OptionGroup foldKey="settings.sidebar_group" title={$t("settings.sidebar_group")} hint={$t("settings.sidebar_group_hint")}>
   <div class="grid grid-cols-[minmax(0,1fr)_200px] max-md:grid-cols-1">
     <div class="rg-lignes border-r border-(--rg-line) max-md:border-r-0">
       {#each [
@@ -269,7 +269,7 @@
 </OptionGroup>
 
 <!-- ─── Listes et favoris ─── -->
-<OptionGroup title={$t("settings.lists_group")} hint={$t("settings.lists_group_hint")}>
+<OptionGroup foldKey="settings.lists_group" title={$t("settings.lists_group")} hint={$t("settings.lists_group_hint")}>
   {#each listes as liste (liste.icone)}
     {@const masquee = liste.emplacements.every((e) => !visible(e.cle))}
     <OptionItem
@@ -305,7 +305,7 @@
 </OptionGroup>
 
 <!-- ─── Navigation de la bibliothèque ─── -->
-<OptionGroup title={$t("settings.library_nav")} hint={$t("settings.library_nav_hint")}>
+<OptionGroup foldKey="settings.library_nav" title={$t("settings.library_nav")} hint={$t("settings.library_nav_hint")}>
   <OptionBlock keywords="{$t('settings.library_nav')} {$t('settings.library_nav_hint')} {placements.map((p) => $t(p.labelKey)).join(' ')}" class="p-4">
     <div class="grid grid-cols-3 gap-3" role="radiogroup" aria-label={$t("settings.library_nav")}>
       {#each placements as p (p.valeur)}
@@ -342,7 +342,7 @@
 </OptionGroup>
 
 <!-- ─── Fenêtre ─── -->
-<OptionGroup title={$t("settings.window_group")} hint={$t("settings.window_group_hint")}>
+<OptionGroup foldKey="settings.window_group" title={$t("settings.window_group")} hint={$t("settings.window_group_hint")}>
   <OptionBlock keywords="{$t('settings.window_controls_style')} {$t('settings.window_group_hint')} macos windows linux" class="p-4">
     <div class="grid grid-cols-4 max-sm:grid-cols-2 gap-3" role="radiogroup" aria-label={$t("settings.window_controls_style")}>
       {#each stylesFenetre as st (st.valeur)}
@@ -371,7 +371,7 @@
 </OptionGroup>
 
 <!-- ─── Mini-lecteur ─── -->
-<OptionGroup title={$t("settings.mini_group")} hint={$t("settings.mini_group_hint")}>
+<OptionGroup foldKey="settings.mini_group" title={$t("settings.mini_group")} hint={$t("settings.mini_group_hint")}>
   <OptionItem title={$t("settings.mini_volume_layout")} desc={$t("settings.mini_volume_layout_desc")} keywords="mini volume">
     <SegmentedControl
       value={$settingsStore.mini_volume_layout === "horizontal" ? "horizontal" : "vertical"}
@@ -386,7 +386,7 @@
 </OptionGroup>
 
 <!-- ─── Options expert : affichage, à n'ajuster qu'en cas de lenteur ou de défaut ─── -->
-<OptionGroup title={$t("settings.expert_group")} hint={$t("settings.expert_group_hint")}>
+<OptionGroup foldKey="settings.expert_group" title={$t("settings.expert_group")} hint={$t("settings.expert_group_hint")}>
   {#if renderMode}
     <OptionItem title={$t("settings.render_mode")} desc={descRendu} keywords="gpu webkit">
       <SegmentedControl

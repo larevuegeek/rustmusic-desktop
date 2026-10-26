@@ -246,7 +246,7 @@ fn new_comment() -> Comment {
 fn decode_comment(data: &[u8]) -> Option<Comment> {
     let mut pos = 0usize;
 
-    let mut take_u32 = |pos: &mut usize| -> Option<u32> {
+    let take_u32 = |pos: &mut usize| -> Option<u32> {
         if *pos + 4 > data.len() {
             return None;
         }

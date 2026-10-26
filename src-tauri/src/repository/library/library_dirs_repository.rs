@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use sqlx::Row;
 use uuid::Uuid;
 
 use crate::entity::library::library_dirs::{LibraryDir, LibraryDirCreate};
@@ -254,29 +253,4 @@ impl LibraryDirRepository {
     // =========================================
     // MAPPING CENTRALISÉ
     // =========================================
-    fn map_row(row: sqlx::sqlite::SqliteRow) -> LibraryDir {
-        LibraryDir {
-            id: row.get("id"),
-            library_id: row.get("library_id"),
-
-            path: row.get("path"),
-            name: row.get("name"),
-
-            is_recursive: row.get("is_recursive"),
-            is_active: row.get("is_active"),
-            watch_enabled: row.get("watch_enabled"),
-
-            include_patterns: row.get("include_patterns"),
-            exclude_patterns: row.get("exclude_patterns"),
-
-            total_files: row.get("total_files"),
-            total_size: row.get("total_size"),
-            last_scan_at: row.get("last_scan_at"),
-            scan_status: row.get("scan_status"),
-            scan_error: row.get("scan_error"),
-
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }
-    }
 }

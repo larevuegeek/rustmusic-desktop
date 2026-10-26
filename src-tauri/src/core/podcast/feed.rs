@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 use chrono::{DateTime, Utc};
 
+use crate::core::podcast::chapters::{self, Chapter};
 use crate::helper::xml;
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -35,6 +36,10 @@ pub struct FeedEpisode {
     pub image_url: Option<String>,
     pub season: Option<i64>,
     pub episode: Option<i64>,
+    /// Fichier JSON des chapitres (`<podcast:chapters>`).
+    pub chapters_url: Option<String>,
+    /// Chapitres écrits dans le flux (`<psc:chapters>`).
+    pub chapters: Vec<Chapter>,
 }
 
 /// Longueur du résumé des listes, en caractères.
@@ -103,7 +108,28 @@ fn parse_item(item: &str) -> Option<FeedEpisode> {
         image_url: itunes_image(item),
         season: field(item, Some("itunes"), "season").and_then(|s| s.parse().ok()),
         episode: field(item, Some("itunes"), "episode").and_then(|s| s.parse().ok()),
+        chapters_url: chapters::web_url(
+            xml::tagged(item, "chapters").into_iter().filter(|(tag, _)| prefix_of(tag) == Some("podcast")).find_map(|(tag, _)| xml::attr(tag, "url")),
+        ),
+        chapters: psc_chapters(item),
     })
+}
+
+/// `<psc:chapter start="00:01:30.000" title="…" href="…"/>` (Podlove).
+fn psc_chapters(item: &str) -> Vec<Chapter> {
+    chapters::tidy(
+        xml::tagged(item, "chapter")
+            .into_iter()
+            .filter(|(tag, _)| prefix_of(tag) == Some("psc"))
+            .filter_map(|(tag, _)| {
+                Some(Chapter {
+                    start: chapters::parse_time(&xml::attr(tag, "start")?)?,
+                    title: xml::attr(tag, "title").unwrap_or_default().trim().to_string(),
+                    url: chapters::web_url(xml::attr(tag, "href")),
+                })
+            })
+            .collect(),
+    )
 }
 
 /// Le fichier de l'épisode : `<enclosure>`, à défaut `<media:content>` audio.
@@ -269,6 +295,21 @@ fn truncate(s: &str, max: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chapters_from_the_feed() {
+        let item = r#"<item><title>É</title><enclosure url="https://ex.com/e.mp3" type="audio/mpeg"/>
+            <podcast:chapters url="https://ex.com/e.json" type="application/json+chapters"/>
+            <psc:chapters version="1.2">
+              <psc:chapter start="00:00:00.000" title="Intro"/>
+              <psc:chapter start="00:12:30.5" title="Le &amp; sujet" href="https://ex.com/s"/>
+            </psc:chapters></item>"#;
+        let e = parse_item(item).unwrap();
+        assert_eq!(e.chapters_url.as_deref(), Some("https://ex.com/e.json"));
+        assert_eq!(e.chapters.len(), 2);
+        assert_eq!((e.chapters[1].start, e.chapters[1].title.as_str()), (750.5, "Le & sujet"));
+        assert_eq!(e.chapters[1].url.as_deref(), Some("https://ex.com/s"));
+    }
 
     const FEED: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom">

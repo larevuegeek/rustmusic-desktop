@@ -204,79 +204,6 @@ impl LibraryTrackRepository {
         Ok(())
     }
 
-    pub async fn find_by_normalized_title<'e, E>(
-        exec: E,
-        title_normalized: &str,
-        library_id: i64,
-        artist_id: Option<&str>,
-    ) -> Result<Option<LibraryTrack>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-
-        sqlx::query_as::<_, LibraryTrack>(
-            r#"
-            SELECT * FROM library_tracks
-            WHERE title_normalized = ?
-            AND library_id = ?
-            AND artist_id IS ?
-            LIMIT 1
-            "#
-        )
-        .bind(title_normalized)
-        .bind(library_id)
-        .bind(artist_id)
-        .fetch_optional(exec)
-        .await
-    }
-
-    pub async fn find_by_album<'e, E>(
-        exec: E,
-        library_album_id: &str,
-        library_id: i64,
-    ) -> Result<Vec<LibraryTrack>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-
-        sqlx::query_as::<_, LibraryTrack>(
-            r#"
-            SELECT * FROM library_tracks
-            WHERE library_album_id = ?
-            AND library_id = ?
-            ORDER BY disc_number, track_number
-            "#
-        )
-        .bind(library_album_id)
-        .bind(library_id)
-        .fetch_all(exec)
-        .await
-    }
-
-    pub async fn find_by_artist<'e, E>(
-        exec: E,
-        artist_id: &str,
-        library_id: i64,
-    ) -> Result<Vec<LibraryTrack>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-
-        sqlx::query_as::<_, LibraryTrack>(
-            r#"
-            SELECT DISTINCT lt.* FROM library_tracks lt
-            LEFT JOIN library_track_artists lta ON lta.library_track_id = lt.id
-            WHERE (lta.artist_id = ?1 OR lt.artist_id = ?1)
-            AND lt.library_id = ?2
-            ORDER BY lt.title
-            "#
-        )
-        .bind(artist_id)
-        .bind(library_id)
-        .fetch_all(exec)
-        .await
-    }
-
     pub async fn find_by_file_id<'e, E>(
         exec: E,
         file_id: &str,
@@ -291,30 +218,6 @@ impl LibraryTrackRepository {
         .bind(file_id)
         .fetch_optional(exec)
         .await
-    }
-
-    pub async fn increment_play_count<'e, E>(
-        exec: E,
-        track_id: &str,
-    ) -> Result<(), sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-
-        sqlx::query(
-            r#"
-            UPDATE library_tracks
-            SET play_count = play_count + 1,
-                last_played_at = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            "#
-        )
-        .bind(track_id)
-        .execute(exec)
-        .await?;
-
-        Ok(())
     }
 
     pub async fn find_all_tracks_by_library_id<'e, E>(

@@ -223,8 +223,8 @@ impl PodcastRepository {
             r#"
             INSERT INTO podcast_episodes
                 (podcast_id, guid, title, description, summary, published_at, duration, audio_url, audio_type,
-                 audio_size, image_url, season, episode, is_new)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 audio_size, image_url, season, episode, is_new, chapters_url, chapters)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (podcast_id, guid) DO UPDATE SET
                 title = excluded.title,
                 description = excluded.description,
@@ -236,7 +236,13 @@ impl PodcastRepository {
                 audio_size = excluded.audio_size,
                 image_url = excluded.image_url,
                 season = excluded.season,
-                episode = excluded.episode
+                episode = excluded.episode,
+                chapters_url = excluded.chapters_url,
+                -- Liste du flux, sinon celle déjà trouvée (JSON, ID3) reste ; un lien changé la fait relire.
+                chapters = CASE
+                    WHEN excluded.chapters IS NOT NULL THEN excluded.chapters
+                    WHEN excluded.chapters_url IS NOT podcast_episodes.chapters_url THEN NULL
+                    ELSE podcast_episodes.chapters END
             "#,
         )
         .bind(podcast_id)
@@ -253,6 +259,8 @@ impl PodcastRepository {
         .bind(e.season)
         .bind(e.episode)
         .bind(is_new)
+        .bind(&e.chapters_url)
+        .bind((!e.chapters.is_empty()).then(|| serde_json::to_string(&e.chapters).unwrap_or_default()))
         .execute(&mut **tx)
         .await
         .map(|_| ())
@@ -328,6 +336,27 @@ impl PodcastRepository {
             .await
     }
 
+    /// Chapitres connus (JSON) et lien du fichier de chapitres.
+    pub async fn chapters_of(pool: &SqlitePool, episode_id: i64) -> Result<Option<(Option<String>, Option<String>)>, sqlx::Error> {
+        sqlx::query_as("SELECT chapters, chapters_url FROM podcast_episodes WHERE id = ?").bind(episode_id).fetch_optional(pool).await
+    }
+
+    pub async fn set_chapters(pool: &SqlitePool, episode_id: i64, json: &str) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE podcast_episodes SET chapters = ? WHERE id = ?").bind(json).bind(episode_id).execute(pool).await.map(|_| ())
+    }
+
+    /// Émission d'un épisode et sa vitesse propre.
+    pub async fn speed_of_episode(pool: &SqlitePool, episode_id: i64) -> Result<Option<(i64, Option<f64>)>, sqlx::Error> {
+        sqlx::query_as("SELECT p.id, p.playback_speed FROM podcast_episodes e JOIN podcasts p ON p.id = e.podcast_id WHERE e.id = ?")
+            .bind(episode_id)
+            .fetch_optional(pool)
+            .await
+    }
+
+    pub async fn set_speed(pool: &SqlitePool, podcast_id: i64, speed: f64) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE podcasts SET playback_speed = ? WHERE id = ?").bind(speed).bind(podcast_id).execute(pool).await.map(|_| ())
+    }
+
     /// Fichiers d'un podcast (téléchargés ou prévus), à effacer quand on le quitte.
     pub async fn files_of(pool: &SqlitePool, podcast_id: i64) -> Result<Vec<String>, sqlx::Error> {
         sqlx::query_scalar("SELECT COALESCE(file_path, local_path) FROM podcast_episodes WHERE podcast_id = ? AND COALESCE(file_path, local_path) IS NOT NULL")
@@ -337,7 +366,8 @@ impl PodcastRepository {
     }
 
     /// À écouter : un épisode par émission — celui qu'on a commencé, sinon le plus récent
-    /// pas encore écouté. Les émissions en cours d'écoute d'abord.
+    /// pas encore écouté. Les émissions en cours d'écoute d'abord ; une émission retirée
+    /// ne revient qu'avec un épisode paru après.
     pub async fn latest(pool: &SqlitePool, profil_id: i64, limit: i64) -> Result<Vec<LatestEpisode>, sqlx::Error> {
         sqlx::query_as::<_, LatestEpisode>(
             "SELECT * FROM (
@@ -351,6 +381,7 @@ impl PodcastRepository {
                        ) AS row_num
                 FROM podcast_episodes e JOIN podcasts p ON p.id = e.podcast_id
                 WHERE p.profil_id = ? AND e.played = 0
+                  AND (p.listen_hidden_at IS NULL OR datetime(e.published_at) > datetime(p.listen_hidden_at))
              )
              WHERE row_num = 1
              ORDER BY position > 0 DESC, published_at DESC, id DESC
@@ -404,8 +435,23 @@ impl PodcastRepository {
             .bind(position.max(0.0))
             .bind(id)
             .execute(pool)
+            .await?;
+        // Un épisode repris : son émission revient dans « À écouter ».
+        sqlx::query("UPDATE podcasts SET listen_hidden_at = NULL WHERE id = (SELECT podcast_id FROM podcast_episodes WHERE id = ?) AND listen_hidden_at IS NOT NULL")
+            .bind(id)
+            .execute(pool)
             .await
             .map(|_| ())
+    }
+
+    /// Vide « À écouter » : toutes les émissions du profil retirées jusqu'à leur prochain épisode.
+    pub async fn hide_all_from_listen(pool: &SqlitePool, profil_id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE podcasts SET listen_hidden_at = CURRENT_TIMESTAMP WHERE profil_id = ?").bind(profil_id).execute(pool).await.map(|_| ())
+    }
+
+    /// Retire l'émission de « À écouter » jusqu'au prochain épisode.
+    pub async fn hide_from_listen(pool: &SqlitePool, podcast_id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE podcasts SET listen_hidden_at = CURRENT_TIMESTAMP WHERE id = ?").bind(podcast_id).execute(pool).await.map(|_| ())
     }
 
     /// Écouté (repart du début si on le relance) ou remis à écouter.
@@ -419,6 +465,20 @@ impl PodcastRepository {
         .execute(pool)
         .await
         .map(|_| ())
+    }
+
+    /// L'historique du profil effacé : épisodes non écoutés, sans position de reprise.
+    pub async fn clear_history(pool: &SqlitePool, profil_id: i64) -> Result<(), sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        sqlx::query(
+            "UPDATE podcast_episodes SET played = 0, played_at = NULL, position = 0
+             WHERE podcast_id IN (SELECT id FROM podcasts WHERE profil_id = ?) AND (played = 1 OR position > 0)",
+        )
+        .bind(profil_id)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("UPDATE podcasts SET listen_hidden_at = NULL WHERE profil_id = ?").bind(profil_id).execute(&mut *tx).await?;
+        tx.commit().await
     }
 
     /// Tous les épisodes d'un podcast marqués écoutés.
@@ -478,6 +538,35 @@ mod tests {
         let eps = PodcastRepository::episodes(&pool, id).await.unwrap();
         assert_eq!(eps.iter().map(|e| e.title.as_str()).collect::<Vec<_>>(), ["Épisode b", "Épisode a"]);
         assert!(eps[0].description.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_hidden_show_comes_back_with_a_new_episode_or_a_resume() {
+        let pool = base().await;
+        let id = PodcastRepository::insert(&pool, 1, "https://ex.com/rss", &feed(vec![episode("a", 1)]), None, None).await.unwrap();
+        let shown = || async { PodcastRepository::latest(&pool, 1, 20).await.unwrap().len() };
+        assert_eq!(shown().await, 1);
+        PodcastRepository::hide_from_listen(&pool, id).await.unwrap();
+        assert_eq!(shown().await, 0);
+        // Reprise d'un épisode : l'émission revient.
+        let a = PodcastRepository::episodes(&pool, id).await.unwrap()[0].id;
+        PodcastRepository::set_position(&pool, a, 60.0).await.unwrap();
+        assert_eq!(shown().await, 1);
+        // Retirée de nouveau, puis un épisode paraît après : elle revient.
+        PodcastRepository::hide_from_listen(&pool, id).await.unwrap();
+        sqlx::query("UPDATE podcast_episodes SET published_at = datetime('now', '+1 hour')").execute(&pool).await.unwrap();
+        assert_eq!(shown().await, 1);
+    }
+
+    #[tokio::test]
+    async fn each_show_keeps_its_own_speed() {
+        let pool = base().await;
+        let id = PodcastRepository::insert(&pool, 1, "https://ex.com/rss", &feed(vec![episode("a", 1)]), None, None).await.unwrap();
+        let a = PodcastRepository::episodes(&pool, id).await.unwrap()[0].id;
+        assert_eq!(PodcastRepository::speed_of_episode(&pool, a).await.unwrap(), Some((id, None)));
+        PodcastRepository::set_speed(&pool, id, 1.5).await.unwrap();
+        assert_eq!(PodcastRepository::speed_of_episode(&pool, a).await.unwrap(), Some((id, Some(1.5))));
+        assert_eq!(PodcastRepository::speed_of_episode(&pool, a + 99).await.unwrap(), None);
     }
 
     #[tokio::test]

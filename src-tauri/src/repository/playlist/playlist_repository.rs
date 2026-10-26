@@ -92,34 +92,6 @@ impl PlaylistRepository {
         Ok(playlist)
     }
 
-    pub async fn update_playlist_stats<'e, E>(
-        exec: E,
-        id: i64,
-        track_count: i64,
-        duration: i64,
-    ) -> Result<Option<Playlist>, Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        let playlist = sqlx::query_as::<_, Playlist>(
-            r#"
-            UPDATE playlists
-            SET track_count = ?, duration = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            RETURNING
-                id, profil_id, library_id, name, description, color, icon, cover,
-                track_count, duration, position, is_smart, is_mix, pinned, server_id, created_at, updated_at
-            "#,
-        )
-        .bind(track_count)
-        .bind(duration)
-        .bind(id)
-        .fetch_optional(exec)
-        .await?;
-
-        Ok(playlist)
-    }
-
     // Recalcule track_count et duration depuis les playlist_items
     pub async fn recalculate_stats<'e, E>(
         exec: E,

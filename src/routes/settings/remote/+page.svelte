@@ -34,7 +34,7 @@
   }
 </script>
 
-<OptionGroup title={$t("amp_remote.group")} hint={$t("amp_remote.group_hint")}>
+<OptionGroup foldKey="amp_remote.group" title={$t("amp_remote.group")} hint={$t("amp_remote.group_hint")}>
   {#snippet action()}<Badge tone="amber">{$t("settings.beta_badge")}</Badge>{/snippet}
   <OptionItem
     title={$t("amp_remote.toggle")}
@@ -47,7 +47,7 @@
 </OptionGroup>
 
 {#if actif}
-  <OptionGroup title={$t("amp_remote.amps")} hint={$t("amp_remote.amps_hint")}>
+  <OptionGroup foldKey="amp_remote.amps" title={$t("amp_remote.amps")} hint={$t("amp_remote.amps_hint")}>
     {#snippet action()}
       <GhostButton
         icon="material-symbols:refresh-rounded"

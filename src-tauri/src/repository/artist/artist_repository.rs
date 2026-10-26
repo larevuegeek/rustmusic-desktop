@@ -65,26 +65,6 @@ impl ArtistRepository {
             .await
     }
 
-    pub async fn find_one_by_normalized_name<'e, E>(
-        exec: E,
-        name_normalized: &str
-    ) -> Result<Option<Artist>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-
-        sqlx::query_as::<_, Artist>(
-            r#"
-            SELECT * FROM artists
-            WHERE name_normalized = ?
-            LIMIT 1
-            "#
-        )
-        .bind(name_normalized)
-        .fetch_optional(exec)
-        .await
-    }
-
     pub async fn search<'e, E>(
         exec: E,
         search_term: &str,

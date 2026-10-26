@@ -4,13 +4,24 @@
   import { t, currentLocale } from "#lib/i18n";
   import { episodeDate, episodeDuration } from "#lib/helper/tools/podcastFormat";
   import PodcastCover from "./PodcastCover.svelte";
+  import ListenEpisodeMenu from "#lib/components/ui/contextmenu/ListenEpisodeMenu.svelte";
   import type { LatestEpisode } from "#lib/types/ui/podcast/Podcast";
 
-  let { episode, enLecture = false, onplay }: {
+  let { episode, enLecture = false, onplay, onchange }: {
     episode: LatestEpisode;
     enLecture?: boolean;
     onplay: () => void;
+    /** Retirée, marquée écoutée… : la liste est à recharger ; sans elle, pas de menu. */
+    onchange?: () => void;
   } = $props();
+
+  let menu = $state<{ x: number; y: number; top: number } | null>(null);
+  function openMenu(e: MouseEvent) {
+    if (!onchange) return;
+    e.preventDefault();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    menu = e.type === "contextmenu" ? { x: e.clientX, y: e.clientY, top: e.clientY } : { x: r.right - 250, y: r.bottom + 4, top: r.top - 4 };
+  }
 
   const commence = $derived(episode.position > 0 && episode.position < (episode.duration ?? 0));
   const avancement = $derived(commence ? Math.min(100, (episode.position / (episode.duration ?? 1)) * 100) : 0);
@@ -21,7 +32,7 @@
   );
 </script>
 
-<div class="group min-w-0 flex flex-col gap-2.5">
+<div class="group relative min-w-0 flex flex-col gap-2.5" role="presentation" oncontextmenu={openMenu}>
   <button type="button" onclick={onplay} title={$t("podcasts.play")} aria-label="{$t('podcasts.play')} : {episode.title}"
           class="relative block aspect-square w-full overflow-hidden rounded-2xl cursor-pointer
                  shadow-[0_10px_26px_rgba(0,0,0,0.16)] dark:shadow-[0_10px_26px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-0.5">
@@ -42,9 +53,20 @@
       </span>
     {/if}
   </button>
-  <span class="min-w-0 px-0.5">
+  <span class="min-w-0 px-0.5 {onchange ? 'pr-8' : ''}">
     <a href="/podcasts/{episode.podcast_id}" class="block truncate text-[12px] font-semibold uppercase tracking-wide text-(--rg-mu) hover:text-(--rg-tx) hover:underline underline-offset-2">{episode.podcast_title}</a>
     <span class="mt-0.5 text-[14.5px] font-bold leading-snug line-clamp-2 {enLecture ? 'text-(--rg-gtx)' : 'text-(--rg-tx)'}" title={episode.title}>{episode.title}</span>
     <span class="mt-0.5 block truncate text-[12.5px] text-(--rg-mu)">{[episodeDate(episode.published_at, $currentLocale), detail].filter(Boolean).join(" · ")}</span>
   </span>
+  {#if onchange}
+    <button type="button" onclick={openMenu} title={$t("common.menu")} aria-label={$t("common.menu")} aria-expanded={menu !== null}
+            class="absolute right-0 top-[calc(100%-4.6rem)] w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)
+                   {menu ? 'bg-(--rg-s2) text-(--rg-tx)' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}">
+      <Icon icon="material-symbols:more-horiz" width="20" />
+    </button>
+  {/if}
 </div>
+
+{#if menu && onchange}
+  <ListenEpisodeMenu x={menu.x} y={menu.y} top={menu.top} {episode} onclose={() => (menu = null)} {onchange} />
+{/if}

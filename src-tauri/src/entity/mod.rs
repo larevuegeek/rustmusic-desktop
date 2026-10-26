@@ -5,7 +5,6 @@ pub mod audio_lyrics;
 pub mod playlist;
 pub mod profil;
 pub mod queue;
-pub mod recent;
 pub mod search;
 pub mod podcast;
 pub mod radio;

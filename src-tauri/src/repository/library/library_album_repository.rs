@@ -148,67 +148,6 @@ impl LibraryAlbumRepository {
         .await
     }
 
-    pub async fn find_by_normalized_title<'e, E>(
-        exec: E,
-        title_normalized: &str,
-        library_id: i64,
-        artist_id: Option<&str>,
-        year: Option<i32>,
-    ) -> Result<Option<LibraryAlbum>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        sqlx::query_as::<_, LibraryAlbum>(
-            r#"
-            SELECT * FROM library_albums
-            WHERE title_normalized = ? AND library_id = ?
-            AND artist_id IS ?
-            AND year IS ?
-            LIMIT 1
-            "#
-        )
-        .bind(title_normalized)
-        .bind(library_id)
-        .bind(artist_id)
-        .bind(year)
-        .fetch_optional(exec)
-        .await
-    }
-
-    pub async fn find_all_by_normalized_title<'e, E>(
-        exec: E,
-        title_normalized: &str,
-        library_id: i64,
-    ) -> Result<Vec<LibraryAlbum>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        sqlx::query_as::<_, LibraryAlbum>(
-            "SELECT * FROM library_albums WHERE title_normalized = ? AND library_id = ?"
-        )
-        .bind(title_normalized)
-        .bind(library_id)
-        .fetch_all(exec)
-        .await
-    }
-
-    pub async fn find_by_artist<'e, E>(
-        exec: E,
-        artist_id: &str,
-        library_id: i64,
-    ) -> Result<Vec<LibraryAlbum>, sqlx::Error>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        sqlx::query_as::<_, LibraryAlbum>(
-            "SELECT * FROM library_albums WHERE artist_id = ? AND library_id = ? ORDER BY year DESC, title"
-        )
-        .bind(artist_id)
-        .bind(library_id)
-        .fetch_all(exec)
-        .await
-    }
-
     pub async fn find_all_albums_by_library_id<'e, E>(
         exec: E,
         library_id: i64,

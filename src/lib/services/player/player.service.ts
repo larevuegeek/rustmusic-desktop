@@ -17,6 +17,8 @@ import { t } from "#lib/i18n";
 import { toasts } from "#lib/stores/ui/toast.store";
 import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
 import { podcastQueue } from "#lib/stores/podcast/podcastQueue.store";
+import { playbackSpeed } from "#lib/stores/player/playbackSpeed.store";
+import { chapters } from "#lib/stores/podcast/chapters.store";
 
 /** Morceau d'un serveur injoignable ou désactivé : sauté à l'enchaînement. */
 const skipUnavailable = (track: QueueTrack) => serverStore.unavailable(track.path);
@@ -43,12 +45,17 @@ let outputLostUnlisten: UnlistenFn | null = null;
 let outputStale = false;
 let sleepUnsubscribe: (() => void) | null = null;
 let playStartedAt = 0; // timestamp (Date.now()) au moment où CPAL démarre vraiment
+let speed = 1; // vitesse de lecture : la position avance d'autant par seconde
 
 // ─── Compteur d'écoutes ───
 //
 // Chemin du morceau déjà compté, pour ne l'être qu'une fois. Remis à zéro à
 // chaque nouvelle lecture.
 let playCountedPath: string | null = null;
+// Suivi d'écoute (ListenBrainz) : un morceau compte à la moitié ou à 4 min, s'il dure plus de 30 s.
+let scrobbledPath: string | null = null;
+let listenStartedAt = 0; // secondes Unix, début de l'écoute
+const scrobbleThreshold = (duree: number) => Math.min(240, duree / 2);
 
 /**
  * Durée d'écoute au-delà de laquelle un morceau compte pour une écoute.
@@ -379,6 +386,9 @@ class PlayerService {
             // jamais compté, et l'enchaînement — le mode d'écoute le plus
             // courant — échapperait entièrement au compteur.
             playCountedPath = null;
+            scrobbledPath = null;
+            listenStartedAt = Math.floor(Date.now() / 1000);
+            chapters.clear();
 
             try {
                 const audioFile = await invoke("open_file", { path: track.path }) as AudioFile;
@@ -408,7 +418,10 @@ class PlayerService {
 
                 // Historique et notification, comme pour une lecture normale.
                 const profilId = currentProfilId();
-                if (profilId != null) await invoke<void>("insert_recent_file", { profilId, path: track.path });
+                if (profilId != null) {
+                    await invoke<void>("insert_recent_file", { profilId, path: track.path });
+                    invoke("scrobble_now_playing", { profilId, path: track.path }).catch(() => {});
+                }
                 recent.refreshRecent();
                 this.sendTrackNotification(track, audioFile);
             } catch (err) {
@@ -495,17 +508,27 @@ class PlayerService {
             });
 
             playCountedPath = null;
+            scrobbledPath = null;
+            listenStartedAt = Math.floor(Date.now() / 1000);
             positionEnregistree = 0;
 
             await invoke("play_file", { path: track.path });
 
             playStartedAt = Date.now();
+            // Vitesse choisie par le moteur (celle de l'émission pour un épisode).
+            this.applySpeed(await invoke<number>("playback_speed").catch(() => 1));
+            // Chapitres : seulement pour un épisode.
+            if (audioFile.tags?.media_type === "podcast") void chapters.load(track.path);
+            else chapters.clear();
 
             this.runPosition();
 
             // Gestion récents (l'entrée du cache se retrouve côté moteur)
             const profilId = currentProfilId();
-            if (profilId != null) await invoke<void>("insert_recent_file", { profilId, path: track.path });
+            if (profilId != null) {
+                await invoke<void>("insert_recent_file", { profilId, path: track.path });
+                invoke("scrobble_now_playing", { profilId, path: track.path }).catch(() => {});
+            }
 
             recent.refreshRecent();
 
@@ -521,6 +544,22 @@ class PlayerService {
         } catch (err) {
             console.error("Erreur lecture:", err);
         }
+    }
+
+    /** Vitesse de l'épisode en cours, retenue pour son émission. */
+    async setSpeed(value: number) {
+        const path = get(player).pathFile;
+        if (!path) return;
+        this.applySpeed(value);
+        await invoke("podcast_set_speed", { path, speed: value }).catch(() => {});
+    }
+
+    /** L'animation repart du point atteint, au nouveau rythme. */
+    private applySpeed(value: number) {
+        if (baseTime > 0) basePos += (Date.now() - baseTime) / 1000 * speed;
+        baseTime = Date.now();
+        speed = value;
+        playbackSpeed.set(value);
     }
 
     // ==========================================
@@ -786,7 +825,7 @@ class PlayerService {
                 // Rust a rejoint la cible quand il est entre elle et ce qui a pu
                 // être joué depuis ; au bout de 5 s, on le croit quoi qu'il dise.
                 const ecoule = (Date.now() - seekAt) / 1000;
-                if ((current >= seekTarget - 0.5 && current <= seekTarget + ecoule + 1.5) || ecoule > 5) {
+                if ((current >= seekTarget - 0.5 && current <= seekTarget + ecoule * speed + 1.5) || ecoule > 5) {
                     seekPending = false;
                 } else {
                     // Position stale, on skip cette mise à jour
@@ -834,6 +873,15 @@ class PlayerService {
                 invoke('mark_track_played', { path: p.pathFile }).catch(e =>
                     console.error('Compteur d\'écoutes :', e)
                 );
+            }
+            // Suivi d'écoute : un seuil à part, celui de ListenBrainz et Last.fm.
+            if (p.pathFile && p.pathFile !== scrobbledPath && total > 30 && current >= scrobbleThreshold(total)) {
+                scrobbledPath = p.pathFile;
+                const profilId = currentProfilId();
+                if (profilId != null) {
+                    invoke('scrobble_listen', { profilId, path: p.pathFile, listenedAt: listenStartedAt || Math.floor(Date.now() / 1000 - current) })
+                        .catch(e => console.error('Suivi d\'écoute :', e));
+                }
             }
 
             // Filet : si la position avance alors que l'animation dort, c'est
@@ -892,14 +940,14 @@ class PlayerService {
             // Se recaler sur la position Rust si drift trop important
             // (seulement quand pas en seek — sinon le guard dans runPosition gère)
             if (p.rustPosition > 0 && !seekPending) {
-                const drift = Math.abs((basePos + (Date.now() - baseTime) / 1000) - p.rustPosition);
+                const drift = Math.abs((basePos + (Date.now() - baseTime) / 1000 * speed) - p.rustPosition);
                 if (drift > 2) {
                     basePos = p.rustPosition;
                     baseTime = Date.now();
                 }
             }
 
-            const elapsed = (Date.now() - baseTime) / 1000;
+            const elapsed = (Date.now() - baseTime) / 1000 * speed;
             const pos = basePos + elapsed;
 
             // ─── Ne réveiller l'interface que quand ça se voit ───

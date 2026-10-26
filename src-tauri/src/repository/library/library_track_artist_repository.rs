@@ -41,49 +41,7 @@ impl LibraryTrackArtistRepository {
     }
 
     // ✅ Trouver tous les artistes d'un track
-    pub async fn find_by_track_id<'e, E>(
-        exec: E,
-        library_track_id: &str,
-    ) -> Result<Vec<LibraryTrackArtist>>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        let records = sqlx::query_as::<_, LibraryTrackArtist>(
-            r#"
-            SELECT *
-            FROM library_track_artists
-            WHERE library_track_id = ?
-            "#
-        )
-        .bind(library_track_id)
-        .fetch_all(exec)
-        .await?;
-
-        Ok(records)
-    }
-
     // ✅ Trouver tous les tracks d'un artiste
-    pub async fn find_by_artist_id<'e, E>(
-        exec: E,
-        artist_id: &str,
-    ) -> Result<Vec<LibraryTrackArtist>>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        let records = sqlx::query_as::<_, LibraryTrackArtist>(
-            r#"
-            SELECT *
-            FROM library_track_artists
-            WHERE artist_id = ?
-            "#
-        )
-        .bind(artist_id)
-        .fetch_all(exec)
-        .await?;
-
-        Ok(records)
-    }
-
     /// Les artistes d'une piste, dans l'ordre du tag. `rowid` = ordre
     /// d'insertion ; `created_at` ne descend pas sous la seconde.
     pub async fn find_artists_of_track<'e, E>(
@@ -113,49 +71,7 @@ impl LibraryTrackArtistRepository {
     }
 
     // ✅ Delete par track
-    pub async fn delete_by_track_id<'e, E>(
-        exec: E,
-        library_track_id: &str,
-    ) -> Result<()>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        sqlx::query(
-            r#"
-            DELETE FROM library_track_artists
-            WHERE library_track_id = ?
-            "#
-        )
-        .bind(library_track_id)
-        .execute(exec)
-        .await?;
-
-        Ok(())
-    }
-
     // ✅ Delete relation spécifique
-    pub async fn delete_relation<'e, E>(
-        exec: E,
-        library_track_id: &str,
-        artist_id: &str,
-    ) -> Result<()>
-    where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
-    {
-        sqlx::query(
-            r#"
-            DELETE FROM library_track_artists
-            WHERE library_track_id = ?
-            AND artist_id = ?
-            "#
-        )
-        .bind(library_track_id)
-        .bind(artist_id)
-        .execute(exec)
-        .await?;
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]

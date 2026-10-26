@@ -128,6 +128,42 @@ pub async fn podcast_set_played(state: State<'_, AppState>, episode_id: i64, pla
     PodcastRepository::set_played(&state.pool, episode_id, played).await.map_err(db)
 }
 
+/// Vitesse de l'épisode en cours (retenue pour son émission).
+#[tauri::command]
+pub async fn podcast_set_speed(state: State<'_, AppState>, path: String, speed: f32) -> Result<(), String> {
+    podcast_service::set_speed(&state.pool, std::path::Path::new(&path), speed).await
+}
+
+/// Chapitres de l'épisode `path` (vide s'il n'en a pas).
+#[tauri::command]
+pub async fn podcast_chapters(state: State<'_, AppState>, path: String) -> Result<Vec<crate::core::podcast::chapters::Chapter>, String> {
+    Ok(podcast_service::chapters(&state.pool, std::path::Path::new(&path)).await)
+}
+
+/// Vitesse de lecture en vigueur.
+#[tauri::command]
+pub fn playback_speed() -> f32 {
+    crate::core::audio_player::time_stretch::speed()
+}
+
+/// Retire une émission de « À écouter » jusqu'à son prochain épisode.
+#[tauri::command]
+pub async fn podcast_hide_from_listen(state: State<'_, AppState>, podcast_id: i64) -> Result<(), String> {
+    PodcastRepository::hide_from_listen(&state.pool, podcast_id).await.map_err(db)
+}
+
+/// Vide « À écouter » (les émissions reviennent avec leur prochain épisode).
+#[tauri::command]
+pub async fn podcast_empty_listen(state: State<'_, AppState>, profil_id: i64) -> Result<(), String> {
+    PodcastRepository::hide_all_from_listen(&state.pool, profil_id).await.map_err(db)
+}
+
+/// Efface l'historique d'écoute des podcasts du profil.
+#[tauri::command]
+pub async fn podcast_clear_history(state: State<'_, AppState>, profil_id: i64) -> Result<(), String> {
+    PodcastRepository::clear_history(&state.pool, profil_id).await.map_err(db)
+}
+
 #[tauri::command]
 pub async fn podcast_set_all_played(state: State<'_, AppState>, podcast_id: i64) -> Result<(), String> {
     PodcastRepository::set_all_played(&state.pool, podcast_id).await.map_err(db)

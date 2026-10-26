@@ -120,6 +120,10 @@ pub async fn play_file(app_handle: AppHandle, path: String) {
     // Morceau d'un serveur : il apprend ce qui joue (« en cours » de ses autres clients).
     let state = app_handle.state::<AppState>();
     crate::commands::playlist_command::send_feedback(&state, path_file.to_string_lossy().into_owned(), crate::service::external_server::feedback_service::Feedback::NowPlaying);
+    // Vitesse : celle de l'émission pour un épisode (en sortie partagée), normale sinon ou vers un lecteur réseau.
+    let speed = if whole { None } else { podcast_service::speed_for(&pool, &path_file).await };
+    crate::core::audio_player::output::set_shared_only(speed.is_some());
+    crate::core::audio_player::time_stretch::set_speed(speed.unwrap_or(1.0));
     playback::play(app_handle, path_file).await;
 }
 

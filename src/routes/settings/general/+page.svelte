@@ -65,8 +65,8 @@
   </OptionItem>
 </OptionGroup>
 
-{#each groupes as groupe (groupe.titre)}
-  <OptionGroup title={groupe.titre} hint={groupe.hint}>
+{#each groupes as groupe, i (groupe.titre)}
+  <OptionGroup foldKey="general-{i}" title={groupe.titre} hint={groupe.hint}>
     {#each groupe.items as item (item.cle)}
       <OptionItem title={item.titre} desc={item.desc} keywords={item.motsCles} onclick={() => settingsStore.toggle(item.cle)}>
         <ToggleSwitch

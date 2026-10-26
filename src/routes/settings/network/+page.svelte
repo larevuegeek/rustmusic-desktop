@@ -98,7 +98,7 @@
 </script>
 
 <!-- ─── Lecteurs réseau : désactivés par défaut, rien ne part sur le réseau sans eux ─── -->
-<OptionGroup title={$t("network_player.group")} hint={$t("network_player.group_hint")}>
+<OptionGroup foldKey="network_player.group" title={$t("network_player.group")} hint={$t("network_player.group_hint")}>
   {#snippet action()}<Badge tone="amber">{$t("settings.beta_badge")}</Badge>{/snippet}
   <OptionItem
     title={$t("network_player.toggle")}
@@ -127,7 +127,7 @@
 </OptionGroup>
 
 <!-- ─── Serveur DLNA ─── -->
-<OptionGroup title={$t("settings.dlna_group")} hint={$t("settings.dlna_group_hint")}>
+<OptionGroup foldKey="settings.dlna_group" title={$t("settings.dlna_group")} hint={$t("settings.dlna_group_hint")}>
   <OptionItem
     title={$t("settings.dlna_share")}
     desc={$t("settings.dlna_enabled_desc")}
@@ -181,7 +181,7 @@
 </OptionGroup>
 
 <!-- ─── Services en ligne : seul Deezer est interrogé sans demande explicite ─── -->
-<OptionGroup title={$t("settings.online_group")} hint={$t("settings.online_group_hint")}>
+<OptionGroup foldKey="settings.online_group" title={$t("settings.online_group")} hint={$t("settings.online_group_hint")}>
   <OptionItem
     title={$t("settings.auto_download_artist_images")}
     desc={$t("settings.auto_download_artist_images_desc")}

@@ -54,7 +54,7 @@ impl CpalSymphoniaOutput {
     {
         let sample_rate = config.sample_rate;
         let channels = config.channels;
-        let render = render_fn(consumer, atomics, shared, marge);
+        let render = render_fn(consumer, atomics, shared, marge, sample_rate);
 
         if persistent {
             return Ok(Self {
@@ -137,13 +137,105 @@ impl Drop for CpalSymphoniaOutput {
     }
 }
 
-/// Rendu d'une piste (lecture, seek, enchaînement, gain), commun aux sorties qui
+/// Lecture de la source (ring buffer ou tampon complet, enchaînement compris) et position, en temps du morceau.
+struct SourceReader<C> {
+    consumer: C,
+    current_position_frames: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    full_buffer_data: std::sync::Arc<std::sync::RwLock<Vec<f32>>>,
+    full_buffer_cursor: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    is_full_buffer_ready: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    current_source: std::sync::Arc<std::sync::atomic::AtomicU8>,
+    seek_flush: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    promotion_armed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    output_channels: u16,
+}
+
+impl<C: Consumer<Item = f32>> SourceReader<C> {
+    /// Remplit `output` depuis la source ; rend le nombre d'échantillons lus (le reste est mis à zéro).
+    fn read(&mut self, output: &mut [f32]) -> usize {
+        let source: u8 = self.current_source.load(Ordering::Acquire);
+        let mut samples_read: usize = 0;
+
+        if source == 0 {
+            // Mode LiveDecode (RingBuffer)
+            samples_read = self.consumer.pop_slice(output);
+            if samples_read < output.len() {
+                output[samples_read..].fill(0.0);
+            }
+        } else {
+            // Mode FullBuffer
+            if self.is_full_buffer_ready.load(Ordering::Relaxed) {
+                if let Ok(fb) = self.full_buffer_data.read() {
+                    let cursor: usize = self.full_buffer_cursor.load(Ordering::Relaxed);
+                    let available: usize = fb.len().saturating_sub(cursor);
+                    samples_read = available.min(output.len());
+
+                    if samples_read > 0 {
+                        output[..samples_read]
+                            .copy_from_slice(&fb[cursor..cursor + samples_read]);
+                        self.full_buffer_cursor
+                            .fetch_add(samples_read, Ordering::Relaxed);
+                    }
+                    if samples_read < output.len() {
+                        output[samples_read..].fill(0.0);
+                    }
+                } else {
+                    output.fill(0.0);
+                }
+
+                // Enchaînement sans blanc : la piste finit au milieu de ce
+                // tampon, on prend la suivante ici même pour le compléter,
+                // au lieu de laisser des zéros jusqu'au fil de contrôle.
+                if samples_read < output.len()
+                    && self.promotion_armed.load(Ordering::Acquire)
+                    && crate::core::audio_player::preload::gapless_enabled()
+                {
+                    if let Ok(mut fb) = self.full_buffer_data.try_write() {
+                        let cursor: usize = self.full_buffer_cursor.load(Ordering::Relaxed);
+                        if cursor >= fb.len()
+                            && crate::core::audio_player::preload::promote_from_callback(
+                                &mut fb,
+                            )
+                        {
+                            let n = fb.len().min(output.len() - samples_read);
+                            output[samples_read..samples_read + n]
+                                .copy_from_slice(&fb[..n]);
+                            self.full_buffer_cursor.store(n, Ordering::Release);
+                            samples_read += n;
+                        }
+                    }
+                }
+            } else {
+                output.fill(0.0);
+            }
+        }
+
+        // --- Mise à jour position ---
+        if samples_read > 0 && !self.seek_flush.load(Ordering::Relaxed) {
+            let source_mode = self.current_source.load(Ordering::Relaxed);
+            if source_mode == 1 {
+                // FullBuffer : dériver depuis le curseur (source de vérité)
+                let cursor = self.full_buffer_cursor.load(Ordering::Relaxed);
+                self.current_position_frames
+                    .store(cursor / self.output_channels as usize, Ordering::Relaxed);
+            } else {
+                // LiveDecode : incrémenter les frames jouées
+                let frames = samples_read / self.output_channels as usize;
+                self.current_position_frames.fetch_add(frames, Ordering::Relaxed);
+            }
+        }
+        samples_read
+    }
+}
+
+/// Rendu d'une piste (lecture, seek, enchaînement, vitesse, gain), commun aux sorties qui
 /// tirent le son à leur rythme : carte son partagée, AirPlay.
 pub(super) fn render_fn<C>(
-    mut consumer: C,
+    consumer: C,
     atomics: PlaybackAtomics,
     shared: SymphoniaSharedState,
     marge: f32,
+    sample_rate: u32,
 ) -> impl FnMut(&mut [f32]) + Send + 'static
 where
     C: Consumer<Item = f32> + Send + 'static,
@@ -154,16 +246,26 @@ where
     let is_stopped = atomics.is_stopped.clone();
     let volume = atomics.volume.clone();
     let current_position_frames = atomics.current_position_frames.clone();
-    let full_buffer_data = shared.full_buffer_data.clone();
     let full_buffer_cursor = shared.full_buffer_cursor.clone();
-    let is_full_buffer_ready = shared.is_full_buffer_ready.clone();
-    let current_source = shared.current_source.clone();
     let seek_flush = shared.seek_flush.clone();
     let pending_seek_frames = shared.pending_seek_frames.clone();
-    let promotion_armed = shared.promotion_armed.clone();
+    let mut reader = SourceReader {
+        consumer,
+        current_position_frames: current_position_frames.clone(),
+        full_buffer_data: shared.full_buffer_data.clone(),
+        full_buffer_cursor: full_buffer_cursor.clone(),
+        is_full_buffer_ready: shared.is_full_buffer_ready.clone(),
+        current_source: shared.current_source.clone(),
+        seek_flush: seek_flush.clone(),
+        promotion_armed: shared.promotion_armed.clone(),
+        output_channels,
+    };
 
     // Compteur fade-in post-seek, mut local à la closure.
     let mut fade_in_samples: usize = 0;
+    // Vitesse (podcasts) : étireur préparé d'avance, rien n'est alloué dans le rappel.
+    let mut stretcher = crate::core::audio_player::time_stretch::TimeStretcher::new(sample_rate, output_channels as usize);
+    let mut stretching = false;
 
     move |output: &mut [f32]| {
         // --- Pause & Stop ---
@@ -175,8 +277,8 @@ where
         // --- Seek flush : repositionner après un seek ---
         if seek_flush.load(Ordering::Acquire) {
             // Drain ring buffer (LiveDecode)
-            let to_skip = consumer.occupied_len();
-            consumer.skip(to_skip);
+            let to_skip = reader.consumer.occupied_len();
+            reader.consumer.skip(to_skip);
 
             // Repositionner le curseur FullBuffer depuis
             // pending_seek_frames (single-writer Phase 6 →
@@ -194,82 +296,25 @@ where
             full_buffer_cursor.store(new_cursor, Ordering::Relaxed);
 
             seek_flush.store(false, Ordering::Release);
+            stretcher.reset();
             fade_in_samples = 2048; // ~42 ms à 48 kHz
             output.fill(0.0);
             return;
         }
 
-        // --- Lecture audio selon le mode source ---
-        let source: u8 = current_source.load(Ordering::Acquire);
-        let mut samples_read: usize = 0;
-
-        if source == 0 {
-            // Mode LiveDecode (RingBuffer)
-            samples_read = consumer.pop_slice(output);
-            if samples_read < output.len() {
-                output[samples_read..].fill(0.0);
+        // --- Lecture audio, à la vitesse demandée ---
+        let speed = crate::core::audio_player::time_stretch::speed();
+        if crate::core::audio_player::time_stretch::is_normal(speed) {
+            if stretching {
+                // Retour à 1× : le son en réserve dans l'étireur est lâché, raccord adouci.
+                stretching = false;
+                stretcher.reset();
+                fade_in_samples = fade_in_samples.max(1024);
             }
+            reader.read(output);
         } else {
-            // Mode FullBuffer
-            if is_full_buffer_ready.load(Ordering::Relaxed) {
-                if let Ok(fb) = full_buffer_data.read() {
-                    let cursor: usize = full_buffer_cursor.load(Ordering::Relaxed);
-                    let available: usize = fb.len().saturating_sub(cursor);
-                    samples_read = available.min(output.len());
-
-                    if samples_read > 0 {
-                        output[..samples_read]
-                            .copy_from_slice(&fb[cursor..cursor + samples_read]);
-                        full_buffer_cursor
-                            .fetch_add(samples_read, Ordering::Relaxed);
-                    }
-                    if samples_read < output.len() {
-                        output[samples_read..].fill(0.0);
-                    }
-                } else {
-                    output.fill(0.0);
-                }
-
-                // Enchaînement sans blanc : la piste finit au milieu de ce
-                // tampon, on prend la suivante ici même pour le compléter,
-                // au lieu de laisser des zéros jusqu'au fil de contrôle.
-                if samples_read < output.len()
-                    && promotion_armed.load(Ordering::Acquire)
-                    && crate::core::audio_player::preload::gapless_enabled()
-                {
-                    if let Ok(mut fb) = full_buffer_data.try_write() {
-                        let cursor: usize = full_buffer_cursor.load(Ordering::Relaxed);
-                        if cursor >= fb.len()
-                            && crate::core::audio_player::preload::promote_from_callback(
-                                &mut fb,
-                            )
-                        {
-                            let n = fb.len().min(output.len() - samples_read);
-                            output[samples_read..samples_read + n]
-                                .copy_from_slice(&fb[..n]);
-                            full_buffer_cursor.store(n, Ordering::Release);
-                            samples_read += n;
-                        }
-                    }
-                }
-            } else {
-                output.fill(0.0);
-            }
-        }
-
-        // --- Mise à jour position ---
-        if samples_read > 0 && !seek_flush.load(Ordering::Relaxed) {
-            let source_mode = current_source.load(Ordering::Relaxed);
-            if source_mode == 1 {
-                // FullBuffer : dériver depuis le curseur (source de vérité)
-                let cursor = full_buffer_cursor.load(Ordering::Relaxed);
-                current_position_frames
-                    .store(cursor / output_channels as usize, Ordering::Relaxed);
-            } else {
-                // LiveDecode : incrémenter les frames jouées
-                let frames = samples_read / output_channels as usize;
-                current_position_frames.fetch_add(frames, Ordering::Relaxed);
-            }
+            stretching = true;
+            stretcher.process(output, speed, |buf| reader.read(buf));
         }
 
         // --- Volume + Replay Gain + clipping + fade-in post-seek ---

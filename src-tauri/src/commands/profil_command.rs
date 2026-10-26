@@ -58,11 +58,27 @@ pub struct UpdateProfilPayload {
     pub color: String,
 }
 
+/// Importe une image de profil (recadrée, réduite) ; rend son chemin, à donner à la création ou à la mise à jour.
+#[tauri::command]
+pub async fn profile_avatar_import(source: String) -> Result<String, String> {
+    let dir = crate::helper::profil::avatar_helper::avatars_dir();
+    let path = tauri::async_runtime::spawn_blocking(move || crate::helper::profil::avatar_helper::import_into(std::path::Path::new(&source), &dir))
+        .await
+        .map_err(|e| e.to_string())??;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 pub async fn update_profile(
     state: State<'_, AppState>,
     payload: UpdateProfilPayload,
 ) -> Result<Profil, String> {
+    // Image remplacée ou retirée : l'ancienne n'a plus d'usage.
+    if let Ok(old) = ProfilRepository::find_profile_by_id(&state.pool, payload.id).await {
+        if old.avatar != payload.avatar {
+            crate::helper::profil::avatar_helper::remove_if_ours(old.avatar.as_deref());
+        }
+    }
 
     match ProfilRepository::update(&state.pool, &state.pool, payload.id, &payload.name, payload.avatar.as_deref(), &payload.color).await {
         Ok(profil) => Ok(profil),
@@ -80,8 +96,12 @@ pub async fn delete_profile(
         return Err("Impossible de supprimer le profil administrateur".into());
     }
 
+    let avatar = ProfilRepository::find_profile_by_id(&state.pool, profil_id).await.ok().and_then(|p| p.avatar);
     match ProfilRepository::delete(&state.pool, profil_id).await {
-        Ok(_) => Ok(()),
+        Ok(_) => {
+            crate::helper::profil::avatar_helper::remove_if_ours(avatar.as_deref());
+            Ok(())
+        }
         Err(e) => Err(format!("Failed to delete profil : {}", e))
     }
 }

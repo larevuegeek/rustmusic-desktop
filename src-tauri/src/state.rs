@@ -144,9 +144,6 @@ impl AppState {
 
             // library_cache : WHERE genre → page genres
             "CREATE INDEX IF NOT EXISTS idx_lc_genre ON library_cache(genre)",
-
-            // recent_files : ORDER BY last_played_at → récents
-            "CREATE INDEX IF NOT EXISTS idx_rf_last_played ON recent_files(last_played_at DESC)",
         ];
 
         for idx in &indexes {

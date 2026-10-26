@@ -1,4 +1,5 @@
 <script lang="ts">
+import { avatarSrc } from "#lib/helper/tools/avatarSrc";
 import Icon from "@iconify/svelte";
 import { invoke } from "@tauri-apps/api/core";
 import { goto } from "$app/navigation";
@@ -108,7 +109,7 @@ const titreRescan = $derived(enScan ? `${statut} ${compte}`.trim() : `${$t("side
     style="--profil: {couleur}; color: {texteAvatar};"
   >
     {#if profil?.avatar}
-      <img src={profil.avatar} alt="" class="w-full h-full object-cover" draggable="false" />
+      <img src={avatarSrc(profil.avatar)} alt="" class="w-full h-full object-cover" draggable="false" />
     {:else}
       {profil?.name?.charAt(0)?.toUpperCase() ?? "?"}
     {/if}
@@ -188,7 +189,7 @@ const titreRescan = $derived(enScan ? `${statut} ${compte}`.trim() : `${$t("side
         <span class="sb-avatar w-6 h-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-[11px] font-extrabold"
               style="--profil: {couleur}; color: {texteAvatar};">
           {#if profil?.avatar}
-            <img src={profil.avatar} alt="" class="w-full h-full object-cover" draggable="false" />
+            <img src={avatarSrc(profil.avatar)} alt="" class="w-full h-full object-cover" draggable="false" />
           {:else}
             {profil?.name?.charAt(0)?.toUpperCase() ?? "?"}
           {/if}

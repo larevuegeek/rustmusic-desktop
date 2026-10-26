@@ -123,7 +123,7 @@
 {/snippet}
 
 {#each groups as g (g.group)}
-  <OptionGroup title={$t(g.titleKey)} hint={$t(g.hintKey)}>
+  <OptionGroup foldKey={g.titleKey} title={$t(g.titleKey)} hint={$t(g.hintKey)}>
     {#each SHORTCUT_ACTIONS.filter((a) => a.group === g.group) as item (item.action)}
       {@const isEditing = editing === item.action}
       <OptionItem
@@ -171,7 +171,7 @@
   </OptionGroup>
 {/each}
 
-<OptionGroup title={$t("settings.shortcuts_custom")} hint={$t("settings.shortcuts_custom_hint")}>
+<OptionGroup foldKey="settings.shortcuts_custom" title={$t("settings.shortcuts_custom")} hint={$t("settings.shortcuts_custom_hint")}>
   <OptionItem title={$t("settings.shortcuts_reset_all")} desc={$t("settings.shortcuts_reset_all_desc")} disabled={!customized}>
     <button
       type="button"
@@ -185,7 +185,7 @@
   </OptionItem>
 </OptionGroup>
 
-<OptionGroup title={$t("settings.shortcuts_media")} hint={$t("settings.shortcuts_media_hint")}>
+<OptionGroup foldKey="settings.shortcuts_media" title={$t("settings.shortcuts_media")} hint={$t("settings.shortcuts_media_hint")}>
   {#if !mediaEnabled}
     <OptionItem title={$t("settings.shortcuts_media_off")} desc={$t("settings.shortcuts_media_off_desc")}>
       <button

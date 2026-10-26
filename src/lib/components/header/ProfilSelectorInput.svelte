@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { avatarSrc } from "#lib/helper/tools/avatarSrc";
   import { profilSelector } from "#lib/stores/profil/profil.store";
   import { profilPopinStore } from "#lib/stores/profil/profilPopin.store";
   import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -79,7 +80,7 @@
     <span class="relative grid place-items-center w-7.5 h-7.5 rounded-full overflow-hidden text-[11px] font-bold text-white"
           style="background: {profilColor};">
       {#if profil?.avatar}
-        <img src={profil.avatar} alt={$t("profil.avatar_alt")} class="w-full h-full object-cover" draggable="false" />
+        <img src={avatarSrc(profil.avatar)} alt={$t("profil.avatar_alt")} class="w-full h-full object-cover" draggable="false" />
       {:else}
         {profil?.name?.charAt(0)?.toUpperCase() ?? "?"}
       {/if}
