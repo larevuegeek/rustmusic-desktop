@@ -29,6 +29,10 @@
       <li xml:lang="fr">Fichiers Hi-Res, enchaînement sans blanc et Replay Gain</li>
       <li>DSD files (DSF and DFF) played through high-quality conversion</li>
       <li xml:lang="fr">Fichiers DSD (DSF et DFF) lus par une conversion de haute qualité</li>
+      <li>Your music servers as sources: Navidrome and other Subsonic servers, Jellyfin and NAS DLNA servers, with albums kept for offline listening</li>
+      <li xml:lang="fr">Vos serveurs de musique comme sources : Navidrome et les autres serveurs Subsonic, Jellyfin et les serveurs DLNA des NAS, avec des albums gardés hors ligne</li>
+      <li>Podcasts and thousands of live radio stations</li>
+      <li xml:lang="fr">Podcasts et des milliers de radios en direct</li>
       <li>Fast library with albums, artists, genres, decades and folders</li>
       <li xml:lang="fr">Bibliothèque rapide : albums, artistes, genres, décennies et dossiers</li>
       <li>Tag workshop: edit in a table, fill in from MusicBrainz or Deezer</li>
@@ -82,25 +86,46 @@
   <!-- Captures servies par GitHub au tag de la version : elles doivent être poussées avant la soumission. -->
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.3.1/packaging/flatpak/screenshots/1-accueil.png</image>
+      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.4.1/packaging/flatpak/screenshots/1-accueil.png</image>
       <caption>Pick up where you left off</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.3.1/packaging/flatpak/screenshots/2-bibliotheque.png</image>
+      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.4.1/packaging/flatpak/screenshots/2-bibliotheque.png</image>
       <caption>Your library, album by album</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.3.1/packaging/flatpak/screenshots/3-album.png</image>
+      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.4.1/packaging/flatpak/screenshots/3-album.png</image>
       <caption>Album page with Hi-Res details</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.3.1/packaging/flatpak/screenshots/4-ampli.png</image>
+      <image>https://raw.githubusercontent.com/larevuegeek/rustmusic-desktop/v0.4.1/packaging/flatpak/screenshots/4-ampli.png</image>
       <caption>Remote control for your amplifier</caption>
     </screenshot>
   </screenshots>
 
   <!-- Une entrée par version, la plus récente en tête ; la date à corriger le jour de la sortie. -->
   <releases>
+    <release version="0.4.1" date="2026-10-27">
+      <description>
+        <ul>
+          <li>Faster podcast playback without distorted voices, and chapters</li>
+          <li>Scrobbling to ListenBrainz</li>
+          <li>Playlists import and export as .m3u</li>
+          <li>Compilations from a music server are no longer split into many albums</li>
+          <li>The system language is used from the first launch</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.4.0" date="2026-10-23">
+      <description>
+        <ul>
+          <li>Music servers as sources (beta): Navidrome and other Subsonic servers, Jellyfin and NAS DLNA servers, with offline albums</li>
+          <li>Podcasts: search, top charts by country, listen while downloading, resume where you left off</li>
+          <li>Live radio with pause and up to 30 minutes of time shift</li>
+          <li>Rearrange the sidebar, and see what is new in each version</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.1" date="2026-10-17">
       <description>
         <ul>
