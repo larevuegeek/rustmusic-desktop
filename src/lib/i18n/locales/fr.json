@@ -1364,7 +1364,7 @@
     }
   },
   "playlist": {
-    "export_m3u": "Exporter en .m3u",
+    "export_m3u": "Exporter en .m3u8",
     "export_m3u_done": "{n} titres exportés",
     "export_m3u_skipped": "{n} sur un serveur, laissés de côté",
     "new": "Nouvelle playlist",
@@ -2710,6 +2710,11 @@
     "up_to_date": "Toutes les écoutes sont envoyées",
     "see_profile": "Voir mon profil",
     "disconnect": "Déconnecter",
+    "disconnect_pending": "{n} écoute(s) en attente ne seront jamais envoyées. Cliquez à nouveau pour confirmer.",
+    "disconnect_kept": "Les écoutes déjà envoyées restent sur ListenBrainz. Cliquez à nouveau pour confirmer.",
+    "error_unreachable": "ListenBrainz est injoignable. Vérifiez la connexion et réessayez.",
+    "error_token_refused": "Jeton refusé par ListenBrainz. Recopiez-le depuis votre compte.",
+    "error_no_account": "ListenBrainz n'a pas renvoyé de compte pour ce jeton.",
     "now_playing": "Annoncer le morceau en cours",
     "now_playing_desc": "Le morceau qui démarre apparaît sur votre profil ListenBrainz.",
     "privacy_title": "Ce qui est envoyé",

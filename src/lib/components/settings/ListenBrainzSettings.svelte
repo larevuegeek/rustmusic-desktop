@@ -20,6 +20,8 @@
   let token = $state("");
   let busy = $state(false);
   let erreur = $state<string | null>(null);
+  let confirmer = $state(false);
+  const CODES = ["unreachable", "token_refused", "no_account"];
 
   async function load() {
     if (profilId == null) return;
@@ -40,14 +42,21 @@
       await load();
       toasts.push({ type: "success", title: "ListenBrainz", message: $t("scrobble.connected_as").replace("{user}", user) });
     } catch (e) {
-      erreur = errorMessage(e);
+      const code = errorMessage(e);
+      erreur = CODES.includes(code) ? $t(`scrobble.error_${code}`) : code;
     } finally {
       busy = false;
     }
   }
 
+  // Deux temps : le premier clic prévient (les écoutes en attente partent avec le compte).
   async function disconnect() {
     if (profilId == null) return;
+    if (!confirmer) {
+      confirmer = true;
+      return;
+    }
+    confirmer = false;
     await invoke("listenbrainz_disconnect", { profilId });
     status = null;
   }
@@ -70,15 +79,26 @@
         <p class="text-[15px] font-semibold truncate text-(--rg-tx)">
           {$t("scrobble.connected_as").replace("{user}", status.user_name)}
         </p>
-        <p class="mt-0.5 text-[12.5px] text-(--rg-mu)">
-          {status.pending
-            ? $t("scrobble.pending").replace("{n}", status.pending.toLocaleString($currentLocale))
-            : $t("scrobble.up_to_date")}
-          · <a href="https://listenbrainz.org/user/{encodeURIComponent(status.user_name)}/" target="_blank" rel="noreferrer"
-               class="font-semibold text-(--rg-gtx) hover:underline underline-offset-2">{$t("scrobble.see_profile")}</a>
-        </p>
+        {#if confirmer}
+          <p class="mt-0.5 text-[12.5px] font-medium text-red-600 dark:text-red-400 text-pretty">
+            {status.pending
+              ? $t("scrobble.disconnect_pending").replace("{n}", status.pending.toLocaleString($currentLocale))
+              : $t("scrobble.disconnect_kept")}
+          </p>
+        {:else}
+          <p class="mt-0.5 text-[12.5px] text-(--rg-mu)">
+            {status.pending
+              ? $t("scrobble.pending").replace("{n}", status.pending.toLocaleString($currentLocale))
+              : $t("scrobble.up_to_date")}
+            · <a href="https://listenbrainz.org/user/{encodeURIComponent(status.user_name)}/" target="_blank" rel="noreferrer"
+                 class="font-semibold text-(--rg-gtx) hover:underline underline-offset-2">{$t("scrobble.see_profile")}</a>
+          </p>
+        {/if}
       </div>
-      <GhostButton icon="material-symbols:link-off-rounded" label={$t("scrobble.disconnect")} onclick={disconnect} />
+      {#if confirmer}
+        <GhostButton label={$t("common.cancel")} onclick={() => (confirmer = false)} />
+      {/if}
+      <GhostButton icon="material-symbols:link-off-rounded" label={$t("scrobble.disconnect")} danger={confirmer} onclick={disconnect} />
     </OptionBlock>
     <OptionItem title={$t("scrobble.now_playing")} desc={$t("scrobble.now_playing_desc")} keywords="listenbrainz en cours" onclick={toggleNowPlaying}>
       <ToggleSwitch checked={status.now_playing} label={$t("scrobble.now_playing")} onclick={toggleNowPlaying} />

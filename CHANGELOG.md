@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.1] - à venir
+## [0.4.1] - 2026-10-27
 
 Les podcasts se lisent plus vite sans voix déformée et se parcourent par
 chapitres, les écoutes partent vers ListenBrainz, les playlists s'échangent
@@ -15,7 +15,7 @@ replient.
   champs de saisie.
 - **Langue du système au premier lancement** (français, anglais, allemand,
   espagnol ou italien, sinon anglais), au lieu du français pour tous
-  (suggestion de FabiRich).
+  (suggestion de FabiRich). Une installation existante garde sa langue.
 - **Image de profil** : une photo ou une image de son choix, recadrée en
   carré, à la place de l'initiale (suggestion de FabiRich).
 - **Paramètres repliables** : un clic sur le titre d'un groupe le replie ou
@@ -25,7 +25,8 @@ replient.
 - **ListenBrainz** (Réglages → Écoute en ligne) : chaque profil relie son
   compte par son jeton personnel ; les morceaux écoutés à moitié (ou 4 min)
   y sont envoyés, avec le morceau en cours si on le souhaite. Hors
-  connexion, les écoutes attendent et partent plus tard.
+  connexion, les écoutes attendent et partent plus tard. La déconnexion
+  demande confirmation, en indiquant les écoutes encore en attente.
 
 ### Serveurs de musique
 - **Compilations réunies** : sans tag « artiste de l'album », Navidrome ou
@@ -38,10 +39,11 @@ replient.
 ### Playlists
 - **Import et export .m3u / .m3u8** (foobar2000, VLC, Winamp…) : chaque liste
   devient une playlist, ses morceaux retrouvés même si elle a été écrite sur
-  un autre ordinateur ; « Exporter en .m3u » dans le menu d'une playlist.
+  un autre ordinateur ; « Exporter en .m3u8 » dans le menu d'une playlist.
 
 ### Podcasts
-- **Vitesse de lecture** (0,75× à 2×) depuis le lecteur, sans voix de
+- **Vitesse de lecture** de 0,5× à 3× depuis le lecteur (préréglages de
+  0,75× à 2×), sans voix de
   « chipmunk » : la hauteur est gardée. Chaque émission retient sa vitesse ;
   une vitesse par défaut se règle dans Réglages → Écoute en ligne. Pendant
   un épisode, la sortie exclusive cède la place à la sortie partagée.
@@ -53,7 +55,7 @@ replient.
   heures, toutes les 6 heures ou une fois par jour.
 - **Effacer l'historique d'écoute** (Réglages → Écoute en ligne) : tous les
   épisodes redeviennent non écoutés, sans position de reprise.
-- **Vider « À écouter »** (menu « … » de la section) : chaque émission
+- **« Vider la liste »** (menu « … » de « À écouter ») : chaque émission
   revient avec son prochain épisode.
 - **Menu « … » sur les cartes de « À écouter »** : retirer l'émission de la
   liste (elle revient au prochain épisode ou à la reprise d'un épisode),
@@ -70,7 +72,7 @@ replient.
   un index de base de données en double supprimé, anciennes sauvegardes
   d'interface (fichiers « avant-refonte ») effacées.
 
-## [0.4.0] - à venir
+## [0.4.0] - 2026-10-23
 
 Votre musique hébergée chez vous, les podcasts et les radios arrivent dans
 RustMusic. Serveurs : Navidrome (et tout serveur Subsonic), Jellyfin et les
@@ -245,7 +247,7 @@ main, et un mégaphone présente les nouveautés de chaque version.
   début.
 - Un seul morceau dans la file en répétition « Tout » est bien rejoué.
 
-## [0.3.1] - à venir
+## [0.3.1] - 2026-10-18
 
 La télécommande s'ouvre aux amplis Denon, Marantz et Yamaha, et retrouve un
 ampli qui a changé d'adresse. Les réglages de sortie s'appliquent tout de

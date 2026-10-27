@@ -357,8 +357,11 @@ export const settingsStore = {
       // attendait donc derrière elle, et l'interface restait dans la couleur du
       // démarrage tout ce temps — jusqu'à une dizaine de secondes sur certaines
       // machines. L'ordre seul règle ça ; rien d'autre ne change.
-      // Langue jamais choisie : celle du système si l'appli la parle, sinon l'anglais (retenue ensuite).
-      if (!('language' in all)) void settingsStore.set('language', systemLanguage());
+      // Installation neuve (aucun réglage d'interface) : langue du système. Mise à jour sans choix : le français déjà affiché.
+      if (!('language' in all)) {
+        const neuve = !Object.keys(all).some((key) => key in settingsDefaults);
+        void settingsStore.set('language', neuve ? systemLanguage() : 'fr');
+      }
 
       const finalTheme = get(settingsWriter).theme;
       applyThemeMode((finalTheme as ThemeMode) ?? 'auto');

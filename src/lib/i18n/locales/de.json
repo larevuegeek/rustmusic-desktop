@@ -1364,7 +1364,7 @@
     }
   },
   "playlist": {
-    "export_m3u": "Als .m3u exportieren",
+    "export_m3u": "Als .m3u8 exportieren",
     "export_m3u_done": "{n} Titel exportiert",
     "export_m3u_skipped": "{n} auf einem Server, ausgelassen",
     "new": "Neue Playlist",
@@ -2710,6 +2710,11 @@
     "up_to_date": "Alle Wiedergaben sind gesendet",
     "see_profile": "Mein Profil ansehen",
     "disconnect": "Trennen",
+    "disconnect_pending": "{n} ausstehende Hörvorgänge werden nie gesendet. Zum Bestätigen erneut klicken.",
+    "disconnect_kept": "Bereits gesendete Hörvorgänge bleiben auf ListenBrainz. Zum Bestätigen erneut klicken.",
+    "error_unreachable": "ListenBrainz ist nicht erreichbar. Verbindung prüfen und erneut versuchen.",
+    "error_token_refused": "ListenBrainz hat das Token abgelehnt. Bitte erneut aus dem Konto kopieren.",
+    "error_no_account": "ListenBrainz hat für dieses Token kein Konto zurückgegeben.",
     "now_playing": "Aktuellen Titel melden",
     "now_playing_desc": "Der startende Titel erscheint in Ihrem ListenBrainz-Profil.",
     "privacy_title": "Was gesendet wird",

@@ -55,20 +55,25 @@ pub fn payload(kind: &str, listens: &[Listen]) -> Value {
     json!({ "listen_type": kind, "payload": items })
 }
 
-/// Vérifie le jeton ; rend le nom d'utilisateur.
+/// Vérifie le jeton ; rend le nom d'utilisateur. Erreur : un code traduit par l'interface
+/// (`unreachable`, `token_refused`, `no_account`).
 pub async fn validate(token: &str) -> Result<String, String> {
+    let unreachable = |e: reqwest::Error| {
+        log::warn!("🎧 ListenBrainz injoignable : {e}");
+        "unreachable".to_string()
+    };
     let resp = client()
         .get(format!("{API}/validate-token"))
         .header("Authorization", format!("Token {}", token.trim()))
         .timeout(Duration::from_secs(15))
         .send()
         .await
-        .map_err(|e| format!("ListenBrainz injoignable : {e}"))?;
-    let v: Value = resp.json().await.map_err(|e| format!("ListenBrainz : {e}"))?;
+        .map_err(unreachable)?;
+    let v: Value = resp.json().await.map_err(unreachable)?;
     if v.get("valid").and_then(Value::as_bool) != Some(true) {
-        return Err("jeton refusé par ListenBrainz".into());
+        return Err("token_refused".into());
     }
-    v.get("user_name").and_then(Value::as_str).map(str::to_string).ok_or_else(|| "ListenBrainz n'a pas rendu le compte".into())
+    v.get("user_name").and_then(Value::as_str).map(str::to_string).ok_or_else(|| "no_account".into())
 }
 
 pub async fn submit(token: &str, body: &Value) -> Result<(), SendError> {
