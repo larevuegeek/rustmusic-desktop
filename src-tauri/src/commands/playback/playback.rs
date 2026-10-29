@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use tauri::{AppHandle, Emitter};
 
-use crate::commands::player_command::AUDIO_PLAYER;
+use crate::commands::playback::player_command::AUDIO_PLAYER;
 use crate::core::audio_player::audio_player::AudioPlayer;
 use crate::core::network_player::airplay::sender as airplay;
 use crate::core::network_player::session;

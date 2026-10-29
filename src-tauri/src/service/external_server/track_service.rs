@@ -13,6 +13,7 @@ use crate::entity::audio::audio_file::AudioFile;
 use crate::entity::audio::audio_tags::{AttachedImage, AudioTags};
 use crate::helper::library::thumbnail_helper::cover_data_url;
 use crate::repository::library::library_cache_repository::LibraryCacheRepository;
+use crate::repository::library::library_files_repository::LibraryFilesRepository;
 use crate::service::external_server::sync_service::audio_format;
 
 /// Début de flux attendu avant de lancer le décodeur.
@@ -60,19 +61,8 @@ pub(crate) async fn stream_request(pool: &SqlitePool, logical: &str) -> Result<S
     if !view.enabled {
         return Err("serveur désactivé".into());
     }
-    let extension: Option<String> = sqlx::query_scalar("SELECT extension FROM library_files WHERE path = ? LIMIT 1")
-        .bind(logical)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| e.to_string())?
-        .flatten();
-    let (duration, source_kbps): (Option<f64>, Option<i64>) = sqlx::query_as("SELECT duration, bitrate FROM library_cache WHERE path = ?")
-        .bind(logical)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
-        .unwrap_or((None, None));
+    let extension = LibraryFilesRepository::find_extension_by_path(pool, logical).await.map_err(|e| e.to_string())?;
+    let (duration, source_kbps) = LibraryCacheRepository::duration_and_bitrate(pool, logical).await.ok().flatten().unwrap_or((None, None));
     let stem = crate::core::tag_pattern::sanitize::component(song_id);
     // DLNA : jamais de transcodage, le fichier tel quel.
     let mut view = view;
@@ -175,13 +165,7 @@ pub async fn audio_file(pool: &SqlitePool, path: &str) -> Option<AudioFile> {
         return None;
     }
     let cache = LibraryCacheRepository::find_by_path(pool, path).await.ok()??;
-    let extension: Option<String> = sqlx::query_scalar("SELECT extension FROM library_files WHERE path = ? LIMIT 1")
-        .bind(path)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
-        .flatten();
+    let extension = LibraryFilesRepository::find_extension_by_path(pool, path).await.ok().flatten();
 
     let mut tags = AudioTags::new();
     tags.title = cache.title;

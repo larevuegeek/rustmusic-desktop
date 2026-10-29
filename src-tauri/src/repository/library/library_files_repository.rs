@@ -168,4 +168,48 @@ impl LibraryFilesRepository {
         Ok(())
     }
 
+
+    /// Fichiers d'une bibliothèque venus d'un serveur : (id, chemin).
+    pub async fn find_remote_by_library<'e, E>(exec: E, library_id: i64) -> Result<Vec<(String, String)>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as("SELECT id, path FROM library_files WHERE library_id = ? AND path LIKE ? || '%'")
+            .bind(library_id)
+            .bind(crate::core::remote::SCHEME)
+            .fetch_all(exec)
+            .await
+    }
+
+    pub async fn delete_by_id<'e, E>(exec: E, id: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("DELETE FROM library_files WHERE id = ?").bind(id).execute(exec).await.map(|_| ())
+    }
+    /// Extension enregistrée pour ce chemin (`None` : inconnue ou fichier absent).
+    pub async fn find_extension_by_path<'e, E>(exec: E, path: &str) -> Result<Option<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar::<_, Option<String>>("SELECT extension FROM library_files WHERE path = ? LIMIT 1")
+            .bind(path)
+            .fetch_optional(exec)
+            .await
+            .map(Option::flatten)
+    }
+
+    /// Chemins des fichiers de la bibliothèque si elle est reliée à un serveur (sinon aucun).
+    pub async fn find_remote_paths_by_library<'e, E>(exec: E, library_id: i64) -> Result<Vec<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar(
+            "SELECT f.path FROM library_files f JOIN library l ON l.id = f.library_id WHERE f.library_id = ? AND l.server_id IS NOT NULL",
+        )
+        .bind(library_id)
+        .fetch_all(exec)
+        .await
+    }
+
 }

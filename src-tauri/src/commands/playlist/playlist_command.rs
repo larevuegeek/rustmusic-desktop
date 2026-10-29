@@ -251,11 +251,7 @@ pub async fn update_playlist(
 pub async fn reorder_playlists(state: State<'_, AppState>, profil_id: i64, ids: Vec<i64>) -> Result<(), String> {
     let mut tx = state.pool.begin().await.map_err(|e| e.to_string())?;
     for (position, id) in ids.iter().enumerate() {
-        sqlx::query("UPDATE playlists SET position = ? WHERE id = ? AND profil_id = ?")
-            .bind(position as i64)
-            .bind(id)
-            .bind(profil_id)
-            .execute(&mut *tx)
+        PlaylistRepository::set_position(&mut *tx, *id, profil_id, position as i64)
             .await
             .map_err(|e| format!("reorder_playlists: {e}"))?;
     }
@@ -269,13 +265,10 @@ pub async fn set_playlist_pinned(
     playlist_id: i64,
     pinned: bool,
 ) -> Result<(), String> {
-    let r = sqlx::query("UPDATE playlists SET pinned = ? WHERE id = ? AND is_mix = 0")
-        .bind(pinned)
-        .bind(playlist_id)
-        .execute(&state.pool)
+    let touchees = PlaylistRepository::set_pinned(&state.pool, playlist_id, pinned)
         .await
         .map_err(|e| format!("set_playlist_pinned: {e}"))?;
-    if r.rows_affected() == 0 {
+    if touchees == 0 {
         return Err(format!("set_playlist_pinned: playlist {playlist_id} introuvable"));
     }
     Ok(())
@@ -337,13 +330,9 @@ pub(crate) async fn tracks_of(pool: &sqlx::SqlitePool, playlist_id: i64) -> Resu
     // mise en file et l'export interrogent tous cette commande. Elle rend la
     // même forme dans les deux cas, si bien que rien en aval n'a à connaître la
     // différence.
-    let regles: Option<String> =
-        sqlx::query_scalar("SELECT rules FROM playlists WHERE id = ? AND is_smart = 1")
-            .bind(playlist_id)
-            .fetch_optional(pool)
-            .await
-            .map_err(|e| format!("Failed to read playlist : {e}"))?
-            .flatten();
+    let regles = PlaylistRepository::find_rules(pool, playlist_id)
+        .await
+        .map_err(|e| format!("Failed to read playlist : {e}"))?;
 
     if let Some(json) = regles {
         let rules: crate::core::smart_playlist::rules::SmartRules =
@@ -390,11 +379,7 @@ pub async fn add_track_to_playlist(
     };
 
     // Une playlist ne prend que les morceaux de sa source (celle de leur bibliothèque).
-    let track_source: Option<i64> = sqlx::query_scalar("SELECT COALESCE(l.server_id, 0) FROM library_tracks lt JOIN library l ON l.id = lt.library_id WHERE lt.id = ?")
-        .bind(&track_id)
-        .fetch_optional(&state.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let track_source = LibraryTrackRepository::source_of(&state.pool, &track_id).await.map_err(|e| e.to_string())?;
     let source = PlaylistRepository::source_of(&state.pool, playlist_id).await.map_err(|e| e.to_string())?;
     if track_source != Some(source) {
         return Err("server_playlist_foreign_track".into());

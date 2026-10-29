@@ -1,6 +1,6 @@
 /**
  * Récupération de métadonnées depuis une source en ligne (Deezer ou MusicBrainz).
- * Miroir de `src-tauri/src/commands/metadata_command.rs`.
+ * Miroir de `src-tauri/src/commands/tags/metadata_command.rs`.
  *
  * Ces appels **n'écrivent rien**. Ils proposent : l'appariement rend un score
  * et un niveau de confiance par piste, et c'est l'interface qui décide, champ

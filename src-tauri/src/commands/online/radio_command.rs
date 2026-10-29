@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
-use crate::commands::playback::{self, Target};
+use crate::commands::playback::playback::{self, Target};
 use crate::core::radio::live;
 
 use crate::core::radio::directory::{self, RadioResult, StreamVariant};

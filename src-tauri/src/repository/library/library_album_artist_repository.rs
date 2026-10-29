@@ -63,4 +63,21 @@ impl LibraryAlbumArtistRepository {
     // DELETE ALL BY ALBUM
     // ----------------------------------------------------
 
+    /// Recopie les artistes d'un album sur un autre (ceux déjà présents sont gardés).
+    pub async fn copy_to_album<'e, E>(exec: E, from_album: &str, to_album: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "INSERT OR IGNORE INTO library_album_artists (library_id, library_album_id, artist_id, role)
+             SELECT library_id, ?1, artist_id, role
+             FROM library_album_artists WHERE library_album_id = ?2",
+        )
+        .bind(to_album)
+        .bind(from_album)
+        .execute(exec)
+        .await
+        .map(|_| ())
+    }
+
 }

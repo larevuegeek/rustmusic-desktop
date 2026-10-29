@@ -178,4 +178,12 @@ impl ArtistRepository {
 
         Ok(row.and_then(|r| r.0))
     }
+    /// Tous les artistes : (nom normalisé, id).
+    pub async fn find_ids_by_normalized_name<'e, E>(exec: E) -> Result<Vec<(String, String)>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as("SELECT name_normalized, id FROM artists").fetch_all(exec).await
+    }
+
 }

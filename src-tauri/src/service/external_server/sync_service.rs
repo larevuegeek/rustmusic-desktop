@@ -13,6 +13,7 @@ use crate::entity::audio::audio_file::{AudioFile, AudioFormat};
 use crate::entity::audio::audio_tags::AudioTags;
 use crate::helper::library::thumbnail_helper::thumbnail_saver;
 use crate::helper::task::TaskToken;
+use crate::repository::library::library_album_repository::LibraryAlbumRepository;
 use crate::repository::library::library_files_repository::LibraryFilesRepository;
 use crate::repository::library::library_repository::LibraryRepository;
 use crate::repository::server::server_repository::ServerRepository;
@@ -135,7 +136,7 @@ pub async fn sync_library(app: tauri::AppHandle, pool: &SqlitePool, library_id: 
 async fn run(pool: &SqlitePool, covers_dir: &Path, library_id: i64, token: &TaskToken, mut report: impl FnMut(Step)) -> Result<(usize, bool), String> {
     let start = Instant::now();
     let library = LibraryRepository::find_library_by_id(pool, library_id).await.map_err(|e| e.to_string())?;
-    let (Some(server_id), Some(folder_id)) = (library.server_id, remote_folder(pool, library_id).await) else {
+    let (Some(server_id), Some(folder_id)) = (library.server_id, LibraryRepository::remote_folder_id(pool, library_id).await.ok().flatten()) else {
         return Err("bibliothèque locale".into());
     };
     let server = ServerRepository::server(pool, server_id).await?;
@@ -216,10 +217,6 @@ async fn run(pool: &SqlitePool, covers_dir: &Path, library_id: i64, token: &Task
     Ok((total, cancelled))
 }
 
-async fn remote_folder(pool: &SqlitePool, library_id: i64) -> Option<String> {
-    sqlx::query_scalar("SELECT remote_folder_id FROM library WHERE id = ?").bind(library_id).fetch_optional(pool).await.ok().flatten().flatten()
-}
-
 async fn fetch_cover(server: &crate::core::remote::Backend, id: &str, covers_dir: &Path) -> Option<String> {
     let bytes = server.cover_art(id, 600).await?;
     let dir = covers_dir.to_path_buf();
@@ -227,26 +224,16 @@ async fn fetch_cover(server: &crate::core::remote::Backend, id: &str, covers_dir
 }
 
 async fn remove_missing(pool: &SqlitePool, library_id: i64, seen: &HashSet<String>) -> Result<u64, sqlx::Error> {
-    let known: Vec<(String, String)> = sqlx::query_as("SELECT id, path FROM library_files WHERE library_id = ? AND path LIKE ? || '%'")
-        .bind(library_id)
-        .bind(crate::core::remote::SCHEME)
-        .fetch_all(pool)
-        .await?;
+    let known = LibraryFilesRepository::find_remote_by_library(pool, library_id).await?;
     let gone: Vec<(String, String)> = known.into_iter().filter(|(_, p)| !seen.contains(p)).collect();
     let mut tx = pool.begin().await?;
     for (id, _) in &gone {
-        sqlx::query("DELETE FROM library_files WHERE id = ?").bind(id).execute(&mut *tx).await?;
+        LibraryFilesRepository::delete_by_id(&mut *tx, id).await?;
     }
     let paths: Vec<String> = gone.iter().map(|(_, p)| p.clone()).collect();
-    crate::repository::server::server_repository::purge_paths(&mut tx, &paths).await?;
+    ServerRepository::purge_paths(&mut tx, &paths).await?;
     if !gone.is_empty() {
-        sqlx::query(
-            "DELETE FROM library_albums WHERE library_id = ?1
-               AND id NOT IN (SELECT library_album_id FROM library_tracks WHERE library_id = ?1 AND library_album_id IS NOT NULL)",
-        )
-        .bind(library_id)
-        .execute(&mut *tx)
-        .await?;
+        LibraryAlbumRepository::delete_empty(&mut *tx, library_id).await?;
     }
     tx.commit().await?;
     Ok(gone.len() as u64)

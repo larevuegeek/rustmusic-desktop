@@ -3,6 +3,7 @@
 use uuid::Uuid;
 
 use crate::entity::library::library_album::LibraryAlbum;
+use crate::entity::library::library_album::{AlbumMergeRow, RemoteAlbumRow};
 use crate::entity::library::library_album::LibraryAlbumCreate;
 use crate::mapper::library::album::album_detail_view::AlbumDetailView;
 use crate::mapper::library::album::album_list_view::AlbumListView;
@@ -366,6 +367,157 @@ impl LibraryAlbumRepository {
 
 
 
+
+
+    /// Albums de la bibliothèque qui n'ont plus aucune piste.
+    pub async fn delete_empty<'e, E>(exec: E, library_id: i64) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "DELETE FROM library_albums WHERE library_id = ?1
+               AND id NOT IN (SELECT library_album_id FROM library_tracks WHERE library_id = ?1 AND library_album_id IS NOT NULL)",
+        )
+        .bind(library_id)
+        .execute(exec)
+        .await
+        .map(|_| ())
+    }
+    /// Albums sans `album_dir`, une ligne par piste (album vide : une ligne sans piste).
+    pub async fn find_without_dir<'e, E>(exec: E) -> Result<Vec<AlbumMergeRow>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as(
+            r#"
+            SELECT b.id               AS album_id,
+                   b.library_id       AS library_id,
+                   b.title_normalized AS title_normalized,
+                   b.artist_id        AS artist_id,
+                   b.cover_url        AS cover_url,
+                   f.path             AS path,
+                   t.artist_id        AS track_artist,
+                   lc.album_artist    AS tag_album
+            FROM library_albums b
+            LEFT JOIN library_tracks t ON t.library_album_id = b.id
+            LEFT JOIN library_files f ON f.id = t.file_id
+            LEFT JOIN library_cache lc ON lc.id = t.cache_id
+            WHERE b.album_dir IS NULL
+            "#,
+        )
+        .fetch_all(exec)
+        .await
+    }
+
+    /// Albums distants de la bibliothèque, une ligne par piste.
+    pub async fn find_remote_with_tracks<'e, E>(exec: E, library_id: i64) -> Result<Vec<RemoteAlbumRow>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as(
+            "SELECT b.id AS album_id, b.title_normalized, b.year, b.cover_url,
+                    t.disc_number AS disc, t.track_number AS track, lc.album_artist AS tag_album
+             FROM library_albums b
+             JOIN library_tracks t ON t.library_album_id = b.id
+             LEFT JOIN library_cache lc ON lc.id = t.cache_id
+             WHERE b.library_id = ? AND b.album_dir LIKE ? || '%'",
+        )
+        .bind(library_id)
+        .bind(crate::core::remote::SCHEME)
+        .fetch_all(exec)
+        .await
+    }
+
+    pub async fn set_artist<'e, E>(exec: E, album_id: &str, artist_id: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("UPDATE library_albums SET artist_id = ? WHERE id = ?")
+            .bind(artist_id)
+            .bind(album_id)
+            .execute(exec)
+            .await
+            .map(|_| ())
+    }
+
+    /// `album` ou `compilation`.
+    pub async fn set_album_type<'e, E>(exec: E, album_id: &str, album_type: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("UPDATE library_albums SET album_type = ? WHERE id = ?")
+            .bind(album_type)
+            .bind(album_id)
+            .execute(exec)
+            .await
+            .map(|_| ())
+    }
+
+    pub async fn set_album_dir<'e, E>(exec: E, album_id: &str, album_dir: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("UPDATE library_albums SET album_dir = ? WHERE id = ?")
+            .bind(album_dir)
+            .bind(album_id)
+            .execute(exec)
+            .await
+            .map(|_| ())
+    }
+
+    pub async fn delete_by_id<'e, E>(exec: E, album_id: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("DELETE FROM library_albums WHERE id = ?").bind(album_id).execute(exec).await.map(|_| ())
+    }
+
+    /// Pistes et durée de l'album, recomptées (les déclencheurs ne suivent pas les pistes déplacées).
+    pub async fn recount<'e, E>(exec: E, album_id: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "UPDATE library_albums SET
+               total_tracks = (SELECT COUNT(*) FROM library_tracks WHERE library_album_id = ?1),
+               total_duration = (SELECT COALESCE(SUM(duration), 0) FROM library_tracks WHERE library_album_id = ?1)
+             WHERE id = ?1",
+        )
+        .bind(album_id)
+        .execute(exec)
+        .await
+        .map(|_| ())
+    }
+
+    /// Albums distants de la bibliothèque restés sans piste.
+    pub async fn delete_empty_remote<'e, E>(exec: E, library_id: i64) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "DELETE FROM library_albums WHERE library_id = ? AND album_dir LIKE ? || '%'
+               AND NOT EXISTS (SELECT 1 FROM library_tracks t WHERE t.library_album_id = library_albums.id)",
+        )
+        .bind(library_id)
+        .bind(crate::core::remote::SCHEME)
+        .execute(exec)
+        .await
+        .map(|_| ())
+    }
+
+    /// Artiste propriétaire et type (`album` ou `compilation`), en une seule écriture.
+    pub async fn set_owner<'e, E>(exec: E, album_id: &str, artist_id: &str, album_type: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("UPDATE library_albums SET artist_id = ?, album_type = ? WHERE id = ?")
+            .bind(artist_id)
+            .bind(album_type)
+            .bind(album_id)
+            .execute(exec)
+            .await
+            .map(|_| ())
+    }
 
 }
 

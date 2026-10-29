@@ -144,7 +144,7 @@ pub async fn network_player_select(state: State<'_, AppState>, id: Option<String
     }
 
     // Une seule sortie joue : ce qui joue s'arrête avant le changement.
-    crate::commands::playback::stop_all().await;
+    crate::commands::playback::playback::stop_all().await;
     apply(device.clone()).await;
 
     let (id, location) = match &device {
@@ -195,7 +195,7 @@ pub async fn set_airplay_enabled(enabled: bool) -> Result<(), String> {
 async fn drop_disallowed() {
     found().retain(Device::allowed);
     if current().is_some_and(|d| !d.allowed()) {
-        crate::commands::playback::stop_all().await;
+        crate::commands::playback::playback::stop_all().await;
         apply(None).await;
         log::info!("📡 Famille de lecteurs désactivée : retour au lecteur local");
     }

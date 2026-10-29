@@ -14,58 +14,58 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::Manager;
 use simplelog::{CombinedLogger, ColorChoice, TermLogger, TerminalMode, WriteLogger, LevelFilter, ConfigBuilder};
 
-use crate::commands::smart_playlist_command::{count_smart_playlist, create_smart_playlist, get_rule_vocabulary, get_smart_playlist_rules, preview_smart_playlist, update_smart_playlist};
-use crate::commands::playlist_view_command::{get_playlist_tracks_view, get_tracks_view_by_paths};
-use crate::commands::export_command::{export_settings_and_playlists, import_settings_and_playlists, preview_import};
-use crate::commands::pin_command::{get_library_pins, pin_album, pin_artist, unpin_album, unpin_artist};
-use crate::commands::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, resolve_blurred_cover, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, cancel_task, clean_image_cache, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_library_tag_keys, get_track, mark_track_played, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_under_path, get_tracks_by_genre, get_tracks_by_years, get_mix_tracks, get_mix_genres, get_track_letter_offsets, list_directory, remove_library, rename_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, relocate_library_root, repair_artist_links, get_track_artists, get_track_locations, save_thumbnail, save_thumbnail_from_file, read_cover_as_base64};
-use crate::commands::player_command::{AUDIO_PLAYER, get_progress, open_file, open_files, pause_play, play_file, seek_to, set_sleep_blocked, stop_play};
-use crate::commands::playlist_command::{add_track_liked, get_tracks_liked, remove_track_liked, get_playlists, get_playlist, create_playlist, update_playlist, set_playlist_pinned, reorder_playlists, delete_playlist, get_playlist_tracks, playlist_import_m3u, playlist_export_m3u, add_track_to_playlist, remove_track_from_playlist};
-use crate::commands::scrobble_command::{listenbrainz_connect, listenbrainz_disconnect, listenbrainz_status, listenbrainz_set_now_playing, scrobble_listen, scrobble_now_playing};
-use crate::commands::profil_command::{get_profile, get_all_profiles, create_profile, update_profile, profile_avatar_import, delete_profile};
-use crate::commands::queue_command::{add_queue_track, clear_queue, get_queue, remove_queue_track, replace_queue_tracks, update_queue_state_index, update_queue_state_repeat_mode, update_queue_state_shuffled};
-use crate::commands::recent_command::{clear_recent_files, get_recent_files, insert_recent_file, remove_recent_file, save_playback_position};
-use crate::commands::volume_command::{get_devices, get_volume, set_volume, set_device, mute};
-use crate::commands::settings_command::{get_setting, set_setting, get_all_settings, reset_application};
-use crate::commands::search_command::search;
-use crate::commands::lyrics_command::{get_lyrics, refresh_lyrics};
-use crate::commands::dlna_command::{dlna_get_settings, dlna_status, dlna_start, dlna_stop, dlna_update_settings};
-use crate::commands::platform_command::{get_platform_features, set_autostart_portal};
-use crate::commands::server_command::{
+use crate::commands::playlist::smart_playlist_command::{count_smart_playlist, create_smart_playlist, get_rule_vocabulary, get_smart_playlist_rules, preview_smart_playlist, update_smart_playlist};
+use crate::commands::playlist::playlist_view_command::{get_playlist_tracks_view, get_tracks_view_by_paths};
+use crate::commands::playlist::export_command::{export_settings_and_playlists, import_settings_and_playlists, preview_import};
+use crate::commands::library::pin_command::{get_library_pins, pin_album, pin_artist, unpin_album, unpin_artist};
+use crate::commands::library::library_command::{add_directory, add_files, create_library, create_library_cache, resolve_cover_thumbnail, resolve_blurred_cover, fetch_all_artist_images, fetch_artist_image, fetch_album_cover, fetch_all_album_covers, cancel_task, clean_image_cache, set_album_cover, search_deezer_covers, apply_deezer_cover, get_album, get_albums, get_albums_by_artist, get_artist, get_artists, get_similar_artists, get_file_tags, get_genres, get_libraries, get_library, get_library_cache_id_by_path, get_library_dirs, get_library_stats, get_library_tag_keys, get_track, mark_track_played, set_track_rating, get_tracks, get_tracks_paginated, get_tracks_by_album, get_tracks_by_artist, get_tracks_by_artist_paginated, get_tracks_by_dir, get_tracks_under_path, get_tracks_by_genre, get_tracks_by_years, get_mix_tracks, get_mix_genres, get_track_letter_offsets, list_directory, remove_library, rename_library, set_default_library, remove_library_dir, rescan_library, rescan_library_dir, relocate_library_root, repair_artist_links, get_track_artists, get_track_locations, save_thumbnail, save_thumbnail_from_file, read_cover_as_base64};
+use crate::commands::playback::player_command::{AUDIO_PLAYER, get_progress, open_file, open_files, pause_play, play_file, seek_to, set_sleep_blocked, stop_play};
+use crate::commands::playlist::playlist_command::{add_track_liked, get_tracks_liked, remove_track_liked, get_playlists, get_playlist, create_playlist, update_playlist, set_playlist_pinned, reorder_playlists, delete_playlist, get_playlist_tracks, playlist_import_m3u, playlist_export_m3u, add_track_to_playlist, remove_track_from_playlist};
+use crate::commands::online::scrobble_command::{listenbrainz_connect, listenbrainz_disconnect, listenbrainz_status, listenbrainz_set_now_playing, scrobble_listen, scrobble_now_playing};
+use crate::commands::app::profil_command::{get_profile, get_all_profiles, create_profile, update_profile, profile_avatar_import, delete_profile};
+use crate::commands::playback::queue_command::{add_queue_track, clear_queue, get_queue, remove_queue_track, replace_queue_tracks, update_queue_state_index, update_queue_state_repeat_mode, update_queue_state_shuffled};
+use crate::commands::playback::recent_command::{clear_recent_files, get_recent_files, insert_recent_file, remove_recent_file, save_playback_position};
+use crate::commands::playback::volume_command::{get_devices, get_volume, set_volume, set_device, mute};
+use crate::commands::app::settings_command::{get_setting, set_setting, get_all_settings, reset_application};
+use crate::commands::library::search_command::search;
+use crate::commands::tags::lyrics_command::{get_lyrics, refresh_lyrics};
+use crate::commands::network::dlna_command::{dlna_get_settings, dlna_status, dlna_start, dlna_stop, dlna_update_settings};
+use crate::commands::app::platform_command::{get_platform_features, set_autostart_portal};
+use crate::commands::network::server_command::{
     get_servers, servers_check, server_sync, server_add, server_add_libraries, server_browse, server_discover, server_folders, server_probe, server_remove, server_rename, server_set_enabled, server_set_pin_playlists, server_set_transcode, offline_list, offline_add, offline_remove,
 };
-use crate::commands::radio_command::{
+use crate::commands::online::radio_command::{
     get_radios, radio_add, radio_logo, radio_remove, radio_rename, radio_resolve, radio_search, radio_top, reorder_radios, set_radios_enabled, get_radio_recent, radio_play, radio_stop, radio_go_live, radio_status, get_radio_titles, clear_radio_titles, clear_radio_history, radio_variants, radio_set_stream,
 };
-use crate::commands::podcast_command::{
+use crate::commands::online::podcast_command::{
     get_podcast, get_podcast_episode, get_podcast_episodes, get_podcasts, podcast_refresh, podcast_search, podcast_set_all_played, podcast_clear_history, podcast_hide_from_listen, podcast_empty_listen, podcast_set_speed, playback_speed, podcast_chapters,
     podcast_resume_position, podcast_preview, set_podcast_pinned, set_podcast_auto_download, podcast_import_opml, podcast_export_opml, podcast_top, get_podcast_latest, podcast_download, podcast_delete_download, podcast_delete_downloads, get_podcast_downloads, podcast_set_played, podcast_set_position, podcast_subscribe, podcast_unsubscribe, set_podcasts_enabled,
 };
-use crate::commands::amp_remote_command::{amp_remote_cover, amp_remote_discover, amp_remote_select, amp_remote_send, amp_remote_status, set_amp_remote_enabled};
-use crate::commands::network_player_command::{network_player_select, network_player_selected, network_players_discover, set_airplay_enabled, set_network_players_enabled};
-use crate::commands::audio_command::{
+use crate::commands::network::amp_remote_command::{amp_remote_cover, amp_remote_discover, amp_remote_select, amp_remote_send, amp_remote_status, set_amp_remote_enabled};
+use crate::commands::network::network_player_command::{network_player_select, network_player_selected, network_players_discover, set_airplay_enabled, set_network_players_enabled};
+use crate::commands::audio::audio_command::{
     get_audio_quality_status, get_replay_gain_settings, set_audio_quality_setting, set_gapless, log_player_event,
     set_next_track, set_replay_gain_settings,
 };
-use crate::commands::system_command::{get_light_effects_auto, get_render_mode, notify_ui_ready, set_compact_mode, set_compact_window_size, set_dmabuf_mode, set_render_mode};
-use crate::commands::audit_command::audit_library;
-use crate::commands::rename_command::{
+use crate::commands::app::system_command::{get_light_effects_auto, get_render_mode, notify_ui_ready, set_compact_mode, set_compact_window_size, set_dmabuf_mode, set_render_mode};
+use crate::commands::library::audit_command::audit_library;
+use crate::commands::tags::rename_command::{
     apply_rename, check_pattern, clean_tags, list_batch_journal, order_moves, preview_rename,
     undo_batch,
 };
-use crate::commands::batch_command::cancel_batch;
-use crate::commands::metadata_command::{
+use crate::commands::tags::batch_command::cancel_batch;
+use crate::commands::tags::metadata_command::{
     metadata_match_album, metadata_search_albums, metadata_search_tracks, metadata_track_values,
 };
-use crate::commands::tag_command::{
+use crate::commands::tags::tag_command::{
     can_write_tags, prepare_image, prepare_image_from_url, read_track_images, read_track_tags, read_workshop_tracks, write_tags_batch, write_tags_each,
     write_track_tags,
 };
-use crate::commands::media_controls_command::{
+use crate::commands::playback::media_controls_command::{
     disable_media_controls, enable_media_controls, is_media_controls_active,
     update_media_metadata, update_media_playback,
 };
-use crate::commands::wasapi_command::{
+use crate::commands::audio::wasapi_command::{
     set_dop_preference, set_wasapi_exclusive_preference, wasapi_default_device_name,
     wasapi_list_output_devices, wasapi_probe_device_capabilities, wasapi_test_format_negotiation,
 };
@@ -531,7 +531,7 @@ pub async fn run() {
     // Initialise le profil de qualité audio depuis les settings (auto par défaut).
     // Doit être appelé avant le premier play, sinon le 1er morceau utilise
     // les valeurs par défaut (High) au lieu du choix utilisateur.
-    crate::commands::audio_command::init_from_settings(&app_state).await;
+    crate::commands::audio::audio_command::init_from_settings(&app_state).await;
 
     // Le démarrage automatique du serveur DLNA **n'est pas ici** : il attend
     // le `setup`, après que le plugin d'instance unique a tranché.
@@ -725,7 +725,7 @@ pub async fn run() {
             // d'empêcher l'écoute.
             let dlna_state = app.state::<AppState>().inner().clone();
             tauri::async_runtime::spawn(async move {
-                crate::commands::dlna_command::auto_start_if_enabled(&dlna_state).await;
+                crate::commands::network::dlna_command::auto_start_if_enabled(&dlna_state).await;
             });
 
             // ─── LECTEUR RÉSEAU ────────────────────────────────
@@ -733,7 +733,7 @@ pub async fn run() {
             let np_state = app.state::<AppState>().inner().clone();
             crate::core::network_player::airplay::sender::set_app(app.handle().clone());
             tauri::async_runtime::spawn(async move {
-                crate::commands::network_player_command::init(&np_state).await;
+                crate::commands::network::network_player_command::init(&np_state).await;
             });
 
             // Sortie audio perdue en pleine lecture : l'interface est prévenue.
@@ -744,7 +744,7 @@ pub async fn run() {
             let remote_state = app.state::<AppState>().inner().clone();
             crate::core::amp_remote::session::set_app(app.handle().clone());
             tauri::async_runtime::spawn(async move {
-                crate::commands::amp_remote_command::init(&remote_state).await;
+                crate::commands::network::amp_remote_command::init(&remote_state).await;
             });
 
             // ─── PODCASTS ──────────────────────────────────────
@@ -752,14 +752,14 @@ pub async fn run() {
             let podcast_state = app.state::<AppState>().inner().clone();
             let podcast_app = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                crate::commands::podcast_command::init(&podcast_state, podcast_app).await;
+                crate::commands::online::podcast_command::init(&podcast_state, podcast_app).await;
             });
 
             // ─── SUIVI D'ÉCOUTE ──────────────────────────────
             // Écoutes restées en attente (hors connexion) : envoyées au lancement.
             let scrobble_state = app.state::<AppState>().inner().clone();
             tauri::async_runtime::spawn(async move {
-                crate::commands::scrobble_command::init(&scrobble_state).await;
+                crate::commands::online::scrobble_command::init(&scrobble_state).await;
             });
 
             // ─── ALBUMS DISTANTS ─────────────────────────────
@@ -772,7 +772,7 @@ pub async fn run() {
             // ─── RADIOS ──────────────────────────────────────
             let radio_state = app.state::<AppState>().inner().clone();
             tauri::async_runtime::spawn(async move {
-                crate::commands::radio_command::init(&radio_state).await;
+                crate::commands::online::radio_command::init(&radio_state).await;
             });
 
             Ok(())
@@ -817,7 +817,7 @@ pub async fn run() {
             get_volume,
             set_volume,
             get_devices,
-            crate::commands::device_command::get_output_devices,
+            crate::commands::audio::device_command::get_output_devices,
             set_device,
             save_thumbnail,
             save_thumbnail_from_file,
@@ -917,9 +917,9 @@ pub async fn run() {
             get_artists,
             get_genres,
             get_library_stats,
-            crate::commands::library_command::get_library_last_scan,
+            crate::commands::library::library_command::get_library_last_scan,
             get_library_pins,
-            crate::commands::sidebar_command::get_sidebar_covers,
+            crate::commands::library::sidebar_command::get_sidebar_covers,
             pin_album,
             unpin_album,
             pin_artist,

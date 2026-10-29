@@ -251,19 +251,6 @@ impl BatchJournalRepository {
     }
 
     /// Écarte les lots au-delà des `keep` plus récents.
-    ///
-    /// Les éléments sont supprimés **explicitement**, sans compter sur la
-    /// cascade.
-    ///
-    /// Une note antérieure affirmait ici que `PRAGMA foreign_keys` n'était pas
-    /// activé et que les `ON DELETE CASCADE` ne s'exécutaient jamais. C'est
-    /// faux : sqlx pose `foreign_keys = ON` sur chaque connexion par défaut
-    /// (`SqliteConnectOptions`), et le projet ne le désactive nulle part. Les
-    /// cascades du schéma sont donc bien actives.
-    ///
-    /// La suppression explicite reste : elle est redondante mais exacte, et ne
-    /// dépend pas d'un réglage de connexion qu'un changement de configuration
-    /// pourrait retirer sans bruit.
     pub async fn purge(pool: &SqlitePool, keep: i64) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"

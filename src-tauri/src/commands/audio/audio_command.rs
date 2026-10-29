@@ -93,12 +93,12 @@ pub async fn set_next_track(state: tauri::State<'_, AppState>, path: Option<Stri
     // Un lecteur réseau, lui, le reçoit entier.
     if let Some(p) = &path {
         use crate::service::external_server::track_service::{prepare, Wait};
-        let upnp = crate::commands::playback::target() == crate::commands::playback::Target::Upnp;
+        let upnp = crate::commands::playback::playback::target() == crate::commands::playback::playback::Target::Upnp;
         if let Err(e) = prepare(&state.pool, p, if upnp { Wait::Whole } else { Wait::Nothing }).await {
             log::warn!("☁️  Morceau suivant indisponible : {e}");
         }
     }
-    crate::commands::playback::set_next(path);
+    crate::commands::playback::playback::set_next(path);
     Ok(())
 }
 

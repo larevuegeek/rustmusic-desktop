@@ -3,16 +3,7 @@
 
 use sqlx::SqlitePool;
 
-/// Toutes les colonnes qui gardent un chemin absolu.
-const COLONNES: [(&str, &str); 7] = [
-    ("library_dirs", "path"),
-    ("library_files", "path"),
-    ("library_cache", "path"),
-    ("library_albums", "album_dir"),
-    ("queue_tracks", "path"),
-    ("recent_files", "path"),
-    ("track_liked", "path"),
-];
+use crate::repository::library::track_path_repository::TrackPathRepository;
 
 /// Remplace `ancien` par `nouveau` en tête des chemins (le dossier lui-même et tout
 /// ce qu'il contient), en une transaction. Rend le nombre de fichiers déplacés.
@@ -20,27 +11,7 @@ pub async fn relocate_prefix(pool: &SqlitePool, ancien: &str, nouveau: &str) -> 
     let ancien = ancien.trim_end_matches('/');
     let nouveau = nouveau.trim_end_matches('/');
     let mut tx = pool.begin_with("BEGIN IMMEDIATE").await.map_err(|e| format!("transaction : {e}"))?;
-    let mut fichiers = 0;
-    for (table, colonne) in COLONNES {
-        // File, récents et likes : un doublon déjà présent sous le nouveau chemin
-        // l'emporte, l'ancienne ligne reste sans conséquence.
-        let ignorer = matches!(table, "queue_tracks" | "recent_files" | "track_liked");
-        let sql = format!(
-            "UPDATE {} {table} SET {colonne} = ?2 || substr({colonne}, length(?1) + 1) \
-             WHERE {colonne} = ?1 OR substr({colonne}, 1, length(?1) + 1) = ?1 || '/'",
-            if ignorer { "OR IGNORE" } else { "" },
-        );
-        // Tables et colonnes viennent de la liste fixe ci-dessus ; les chemins sont liés.
-        let fait = sqlx::query(sqlx::AssertSqlSafe(sql))
-            .bind(ancien)
-            .bind(nouveau)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| format!("{table}.{colonne} : {e}"))?;
-        if table == "library_files" {
-            fichiers = fait.rows_affected();
-        }
-    }
+    let fichiers = TrackPathRepository::replace_prefix(&mut tx, ancien, nouveau).await?;
     tx.commit().await.map_err(|e| format!("validation : {e}"))?;
     Ok(fichiers)
 }

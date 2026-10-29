@@ -1,5 +1,7 @@
 use sqlx::Error;
 
+use crate::entity::playlist::playlist::TrackRefRow;
+use crate::mapper::library::track::track_list_item_view::{TrackListView, TRACK_VIEW_FROM, TRACK_VIEW_SELECT};
 use crate::{entity::playlist::playlist_item::PlaylistItem, mapper::playlist::playlist::playlist_track_view::PlaylistTrackView};
 
 pub struct PlaylistItemRepository;
@@ -150,6 +152,90 @@ impl PlaylistItemRepository {
         .await?;
 
         Ok(result.rows_affected())
+    }
+
+    /// Morceaux de la playlist, dans l'ordre.
+    pub async fn track_ids<'e, E>(exec: E, playlist_id: i64) -> Result<Vec<String>, Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar("SELECT library_track_id FROM playlist_items WHERE playlist_id = ? ORDER BY sort_index, id")
+            .bind(playlist_id)
+            .fetch_all(exec)
+            .await
+    }
+
+    /// Chemins des morceaux de la playlist, dans l'ordre.
+    pub async fn track_paths<'e, E>(exec: E, playlist_id: i64) -> Result<Vec<String>, Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar(
+            "SELECT lf.path FROM playlist_items pi JOIN library_tracks lt ON lt.id = pi.library_track_id
+               JOIN library_files lf ON lf.id = lt.file_id
+              WHERE pi.playlist_id = ? ORDER BY pi.sort_index, pi.id",
+        )
+        .bind(playlist_id)
+        .fetch_all(exec)
+        .await
+    }
+
+    pub async fn delete_all<'e, E>(exec: E, playlist_id: i64) -> Result<(), Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("DELETE FROM playlist_items WHERE playlist_id = ?").bind(playlist_id).execute(exec).await.map(|_| ())
+    }
+
+    /// Pistes de la playlist pour un export, dans l'ordre (`sort_index` fait partie des données).
+    pub async fn track_refs<'e, E>(exec: E, playlist_id: i64) -> Result<Vec<TrackRefRow>, Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as(
+            "SELECT lf.path, lt.title, a.name, la.title,
+                    COALESCE(lt.duration, lc.duration)
+               FROM playlist_items pi
+               JOIN library_tracks lt ON lt.id = pi.library_track_id
+               JOIN library_files  lf ON lf.id = lt.file_id
+          LEFT JOIN library_cache  lc ON lc.id = lt.cache_id
+          LEFT JOIN library_albums la ON la.id = lt.library_album_id
+          LEFT JOIN artists         a ON  a.id = lt.artist_id
+              WHERE pi.playlist_id = ?
+           ORDER BY pi.sort_index, pi.id",
+        )
+        .bind(playlist_id)
+        .fetch_all(exec)
+        .await
+    }
+
+    /// Ajout sans erreur si le morceau y est déjà (contrainte d'unicité).
+    pub async fn insert_if_absent<'e, E>(exec: E, playlist_id: i64, library_track_id: &str, sort_index: i64) -> Result<(), Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("INSERT OR IGNORE INTO playlist_items (playlist_id, library_track_id, sort_index) VALUES (?, ?, ?)")
+            .bind(playlist_id)
+            .bind(library_track_id)
+            .bind(sort_index)
+            .execute(exec)
+            .await
+            .map(|_| ())
+    }
+
+    /// Pistes de la playlist au format de la vue tableau, dans l'ordre.
+    pub async fn find_track_views<'e, E>(exec: E, playlist_id: i64) -> Result<Vec<TrackListView>, Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        let sql = format!(
+            "{TRACK_VIEW_SELECT}
+             {TRACK_VIEW_FROM}
+             INNER JOIN playlist_items pi ON pi.library_track_id = lt.id
+             WHERE pi.playlist_id = ?
+             ORDER BY pi.sort_index ASC, pi.id ASC"
+        );
+        sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql)).bind(playlist_id).fetch_all(exec).await
     }
 
 }

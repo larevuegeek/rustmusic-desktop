@@ -72,6 +72,17 @@ impl LibraryTrackArtistRepository {
 
     // ✅ Delete par track
     // ✅ Delete relation spécifique
+    pub async fn exists<'e, E>(exec: E, track_id: &str, artist_id: &str) -> Result<bool, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM library_track_artists WHERE library_track_id = ? AND artist_id = ?)")
+            .bind(track_id)
+            .bind(artist_id)
+            .fetch_one(exec)
+            .await
+    }
+
 }
 
 #[cfg(test)]

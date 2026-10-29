@@ -1,5 +1,5 @@
 /**
- * Wrapper for the Tauri DLNA commands. Mirror of `commands/dlna_command.rs`.
+ * Wrapper for the Tauri DLNA commands. Mirror of `commands/network/dlna_command.rs`.
  */
 
 import { invoke } from "@tauri-apps/api/core";

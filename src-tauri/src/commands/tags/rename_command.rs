@@ -282,7 +282,7 @@ pub async fn undo_batch(
     let mut failed = Vec::new();
 
     for (id, path, blob) in items {
-        match crate::commands::tag_command::restore_tags(&app, &state.pool, &path, &blob).await {
+        match crate::commands::tags::tag_command::restore_tags(&app, &state.pool, &path, &blob).await {
             Ok(()) => restored.push(id),
             Err(message) => failed.push(move_service::MoveFailure { path, message }),
         }

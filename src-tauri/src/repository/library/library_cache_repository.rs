@@ -142,4 +142,15 @@ impl LibraryCacheRepository {
         .await
     }
 
+    /// Durée (s) et débit (kb/s) connus d'un morceau.
+    pub async fn duration_and_bitrate<'e, E>(exec: E, path: &str) -> Result<Option<(Option<f64>, Option<i64>)>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as("SELECT duration, bitrate FROM library_cache WHERE path = ?")
+            .bind(path)
+            .fetch_optional(exec)
+            .await
+    }
+
 }

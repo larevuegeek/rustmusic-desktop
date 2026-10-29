@@ -166,6 +166,19 @@ impl LibraryPinRepository {
 
         Ok(())
     }
+    /// Reporte les épingles d'un album sur un autre (si l'autre l'est déjà, celle-ci reste en place).
+    pub async fn move_album<'e, E>(exec: E, from_album: &str, to_album: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("UPDATE OR IGNORE library_pins SET library_album_id = ? WHERE library_album_id = ?")
+            .bind(to_album)
+            .bind(from_album)
+            .execute(exec)
+            .await
+            .map(|_| ())
+    }
+
 }
 
 #[cfg(test)]

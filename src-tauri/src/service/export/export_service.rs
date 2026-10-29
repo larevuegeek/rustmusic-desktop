@@ -23,6 +23,13 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::collections::BTreeMap;
 
+use crate::entity::playlist::playlist::TrackRefRow;
+use crate::repository::playlist::playlist_item_repository::PlaylistItemRepository;
+use crate::repository::playlist::playlist_repository::PlaylistRepository;
+use crate::repository::playlist::track_liked_repository::TrackLikedRepository;
+use crate::repository::profil::profil_repository::ProfilRepository;
+use crate::repository::settings::settings_repository::SettingsRepository;
+
 /// Le fichier d'export, tel qu'il est écrit sur le disque.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExportBundle {
@@ -91,6 +98,12 @@ pub struct ExportTrackRef {
     pub duration: Option<f64>,
 }
 
+impl From<TrackRefRow> for ExportTrackRef {
+    fn from((path, title, artist, album, duration): TrackRefRow) -> Self {
+        ExportTrackRef { path, title, artist, album, duration }
+    }
+}
+
 /// Nature du fichier. Vérifiée à la relecture.
 pub const FORMAT: &str = "rustmusic-export";
 /// Version du format d'export.
@@ -98,17 +111,8 @@ pub const VERSION: u32 = 1;
 
 /// Rassemble tout ce qui doit partir dans le fichier.
 pub async fn collect(pool: &SqlitePool, app_version: &str, now: &str) -> Result<ExportBundle, sqlx::Error> {
-    let settings: Vec<(String, String)> =
-        sqlx::query_as("SELECT key, value FROM settings ORDER BY key")
-            .fetch_all(pool)
-            .await?;
-
-    let profils_bruts: Vec<(i64, String, String, Option<String>, Option<String>, String)> =
-        sqlx::query_as(
-            "SELECT id, name, color, avatar, bio, role FROM profil ORDER BY id",
-        )
-        .fetch_all(pool)
-        .await?;
+    let settings = SettingsRepository::get_all(pool).await?;
+    let profils_bruts = ProfilRepository::find_all_for_export(pool).await?;
 
     let mut profils = Vec::with_capacity(profils_bruts.len());
 
@@ -138,59 +142,25 @@ async fn collect_playlists(
     pool: &SqlitePool,
     profil_id: i64,
 ) -> Result<Vec<ExportPlaylist>, sqlx::Error> {
-    #[allow(clippy::type_complexity)]
-    let listes: Vec<(i64, String, Option<String>, String, String, i64, Option<String>, bool, bool)> = sqlx::query_as(
-        "SELECT id, name, description, color, icon, position,
-                CASE WHEN is_smart = 1 THEN rules END, is_mix, pinned
-           FROM playlists
-          WHERE profil_id = ?
-       ORDER BY position, id",
-    )
-    .bind(profil_id)
-    .fetch_all(pool)
-    .await?;
+    let listes = PlaylistRepository::find_for_export(pool, profil_id).await?;
 
     let mut sortie = Vec::with_capacity(listes.len());
 
-    for (id, name, description, color, icon, position, rules, is_mix, pinned) in listes {
+    for l in listes {
         // L'ordre des pistes dans une playlist est une donnée à part entière :
         // `sort_index` le porte, et le perdre reviendrait à exporter un sac.
-        let pistes: Vec<(String, Option<String>, Option<String>, Option<String>, Option<f64>)> =
-            sqlx::query_as(
-                "SELECT lf.path, lt.title, a.name, la.title,
-                        COALESCE(lt.duration, lc.duration)
-                   FROM playlist_items pi
-                   JOIN library_tracks lt ON lt.id = pi.library_track_id
-                   JOIN library_files  lf ON lf.id = lt.file_id
-              LEFT JOIN library_cache  lc ON lc.id = lt.cache_id
-              LEFT JOIN library_albums la ON la.id = lt.library_album_id
-              LEFT JOIN artists         a ON  a.id = lt.artist_id
-                  WHERE pi.playlist_id = ?
-               ORDER BY pi.sort_index, pi.id",
-            )
-            .bind(id)
-            .fetch_all(pool)
-            .await?;
+        let pistes = PlaylistItemRepository::track_refs(pool, l.id).await?;
 
         sortie.push(ExportPlaylist {
-            name,
-            description,
-            color,
-            icon,
-            position,
-            rules,
-            is_mix,
-            pinned,
-            tracks: pistes
-                .into_iter()
-                .map(|(path, title, artist, album, duration)| ExportTrackRef {
-                    path,
-                    title,
-                    artist,
-                    album,
-                    duration,
-                })
-                .collect(),
+            name: l.name,
+            description: l.description,
+            color: l.color,
+            icon: l.icon,
+            position: l.position,
+            rules: l.rules,
+            is_mix: l.is_mix,
+            pinned: l.pinned,
+            tracks: pistes.into_iter().map(ExportTrackRef::from).collect(),
         });
     }
 
@@ -205,28 +175,8 @@ async fn collect_liked(
     // exister sans correspondre à une piste de la bibliothèque — un fichier
     // aimé puis retiré du dossier scanné. La jointure est volontairement
     // ouverte : on exporte le chemin dans tous les cas, enrichi quand on peut.
-    let pistes: Vec<(String, Option<String>, Option<String>, Option<String>, Option<f64>)> =
-        sqlx::query_as(
-            "SELECT tl.path, lc.title, lc.artist, lc.album, lc.duration
-               FROM track_liked tl
-          LEFT JOIN library_cache lc ON lc.id = tl.library_cache_id
-              WHERE tl.profil_id = ?
-           ORDER BY tl.created_at, tl.id",
-        )
-        .bind(profil_id)
-        .fetch_all(pool)
-        .await?;
-
-    Ok(pistes
-        .into_iter()
-        .map(|(path, title, artist, album, duration)| ExportTrackRef {
-            path,
-            title,
-            artist,
-            album,
-            duration,
-        })
-        .collect())
+    let pistes = TrackLikedRepository::track_refs(pool, profil_id).await?;
+    Ok(pistes.into_iter().map(ExportTrackRef::from).collect())
 }
 
 #[cfg(test)]

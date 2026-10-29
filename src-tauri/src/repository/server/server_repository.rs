@@ -132,7 +132,7 @@ impl ServerRepository {
         for table in ["track_liked", "recent_files", "playlists"] {
             sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE source_id = ?"))).bind(id).execute(&mut *tx).await?;
         }
-        purge_prefix(&mut tx, &format!("{}{id}/", crate::core::remote::SCHEME)).await?;
+        Self::purge_prefix(&mut tx, &format!("{}{id}/", crate::core::remote::SCHEME)).await?;
         sqlx::query("DELETE FROM media_servers WHERE id = ?").bind(id).execute(&mut *tx).await?;
         tx.commit().await
     }
@@ -148,32 +148,42 @@ impl ServerRepository {
             .map(|_| ())
     }
 
+    /// Profil propriétaire du serveur.
+    pub async fn profile_of(pool: &SqlitePool, id: i64) -> Result<Option<i64>, sqlx::Error> {
+        sqlx::query_scalar("SELECT profil_id FROM media_servers WHERE id = ?").bind(id).fetch_optional(pool).await
+    }
+
+    /// Profil propriétaire et compte utilisé sur le serveur.
+    pub async fn profile_and_username(pool: &SqlitePool, id: i64) -> Result<(i64, String), sqlx::Error> {
+        sqlx::query_as("SELECT profil_id, username FROM media_servers WHERE id = ?").bind(id).fetch_one(pool).await
+    }
+
     /// Noms de bibliothèques déjà pris par le profil (sans la casse).
     pub async fn library_names(pool: &SqlitePool, profil_id: i64) -> Result<Vec<String>, sqlx::Error> {
         sqlx::query_scalar("SELECT lower(name) FROM library WHERE profil_id = ?").bind(profil_id).fetch_all(pool).await
     }
-}
 
-/// Traces d'un serveur liées par chemin seulement : cache des tags, file, hors ligne.
-async fn purge_prefix(conn: &mut sqlx::SqliteConnection, prefix: &str) -> Result<(), sqlx::Error> {
-    let like = format!("{}%", prefix.replace('%', "").replace('_', "\\_"));
-    for table in ["queue_tracks", "offline_tracks", "library_cache"] {
-        sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE path LIKE ? ESCAPE '\\'")))
-            .bind(&like)
-            .execute(&mut *conn)
-            .await?;
-    }
-    Ok(())
-}
-
-/// Les mêmes traces pour des morceaux précis (disparus du serveur, bibliothèque retirée).
-pub async fn purge_paths(conn: &mut sqlx::SqliteConnection, paths: &[String]) -> Result<(), sqlx::Error> {
-    for path in paths {
-        for table in ["queue_tracks", "track_liked", "offline_tracks", "library_cache"] {
-            sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE path = ?"))).bind(path).execute(&mut *conn).await?;
+    /// Traces d'un serveur liées par chemin seulement : cache des tags, file, hors ligne.
+    async fn purge_prefix(conn: &mut sqlx::SqliteConnection, prefix: &str) -> Result<(), sqlx::Error> {
+        let like = format!("{}%", prefix.replace('%', "").replace('_', "\\_"));
+        for table in ["queue_tracks", "offline_tracks", "library_cache"] {
+            sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE path LIKE ? ESCAPE '\\'")))
+                .bind(&like)
+                .execute(&mut *conn)
+                .await?;
         }
+        Ok(())
     }
-    Ok(())
+
+    /// Les mêmes traces pour des morceaux précis (disparus du serveur, bibliothèque retirée).
+    pub async fn purge_paths(conn: &mut sqlx::SqliteConnection, paths: &[String]) -> Result<(), sqlx::Error> {
+        for path in paths {
+            for table in ["queue_tracks", "track_liked", "offline_tracks", "library_cache"] {
+                sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE path = ?"))).bind(path).execute(&mut *conn).await?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

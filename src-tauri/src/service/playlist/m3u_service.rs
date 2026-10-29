@@ -8,6 +8,8 @@ use sqlx::SqlitePool;
 
 use crate::core::playlist_file::{self, M3uEntry};
 use crate::mapper::playlist::playlist::playlist_track_view::PlaylistTrackView;
+use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::repository::playlist::playlist_item_repository::PlaylistItemRepository;
 use crate::repository::playlist::playlist_repository::PlaylistRepository;
 
 #[derive(Debug, Serialize)]
@@ -28,15 +30,7 @@ fn read_text(path: &Path) -> Result<String, String> {
 
 /// Les morceaux locaux du profil : par chemin exact (sans la casse) et par dossier/fichier.
 async fn local_index(pool: &SqlitePool, profil_id: i64) -> Result<(HashMap<String, String>, HashMap<String, Option<String>>), sqlx::Error> {
-    let rows: Vec<(String, String)> = sqlx::query_as(
-        "SELECT lf.path, lt.id FROM library_files lf
-         JOIN library_tracks lt ON lt.file_id = lf.id
-         JOIN library l ON l.id = lf.library_id
-         WHERE l.profil_id = ? AND l.server_id IS NULL",
-    )
-    .bind(profil_id)
-    .fetch_all(pool)
-    .await?;
+    let rows = LibraryTrackRepository::find_local_paths_by_profile(pool, profil_id).await?;
     let mut exact = HashMap::new();
     // Une fin de chemin partagée par deux morceaux est ambiguë : écartée.
     let mut tails: HashMap<String, Option<String>> = HashMap::new();
@@ -49,7 +43,7 @@ async fn local_index(pool: &SqlitePool, profil_id: i64) -> Result<(HashMap<Strin
 
 /// Nom libre parmi les playlists du profil : « Nom », sinon « Nom (2) »…
 async fn free_name(pool: &SqlitePool, profil_id: i64, wanted: &str) -> Result<String, sqlx::Error> {
-    let taken: Vec<String> = sqlx::query_scalar("SELECT lower(name) FROM playlists WHERE profil_id = ?").bind(profil_id).fetch_all(pool).await?;
+    let taken = PlaylistRepository::names_lowercase(pool, profil_id).await?;
     let mut name = wanted.to_string();
     let mut n = 1;
     while taken.contains(&name.to_lowercase()) {
@@ -85,13 +79,7 @@ pub async fn import(pool: &SqlitePool, profil_id: i64, file: &Path) -> Result<M3
         .map_err(|e| e.to_string())?;
     let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     for (i, id) in ids.iter().enumerate() {
-        sqlx::query("INSERT INTO playlist_items (playlist_id, library_track_id, sort_index) VALUES (?, ?, ?)")
-            .bind(playlist.id)
-            .bind(id)
-            .bind(i as i64)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| e.to_string())?;
+        PlaylistItemRepository::insert_playlist_item(&mut *tx, playlist.id, id.clone(), i as i64).await.map_err(|e| e.to_string())?;
     }
     PlaylistRepository::recalculate_stats(&mut *tx, playlist.id).await.map_err(|e| e.to_string())?;
     tx.commit().await.map_err(|e| e.to_string())?;

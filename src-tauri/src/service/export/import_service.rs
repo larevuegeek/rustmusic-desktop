@@ -20,6 +20,13 @@ use sqlx::SqlitePool;
 use std::collections::HashMap;
 
 use super::export_service::{ExportBundle, ExportTrackRef, FORMAT, VERSION};
+use crate::repository::library::library_cache_repository::LibraryCacheRepository;
+use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::repository::playlist::playlist_item_repository::PlaylistItemRepository;
+use crate::repository::playlist::playlist_repository::PlaylistRepository;
+use crate::repository::playlist::track_liked_repository::TrackLikedRepository;
+use crate::repository::profil::profil_repository::ProfilRepository;
+use crate::repository::settings::settings_repository::SettingsRepository;
 
 /// Réglages qu'on n'écrit jamais, quoi que dise le fichier.
 ///
@@ -129,16 +136,7 @@ fn tags_key(titre: Option<&str>, artiste: Option<&str>, album: Option<&str>) -> 
 }
 
 async fn build_index(pool: &SqlitePool) -> Result<Index, sqlx::Error> {
-    let lignes: Vec<(String, String, Option<String>, Option<String>, Option<String>)> =
-        sqlx::query_as(
-            "SELECT lt.id, lf.path, lt.title, a.name, la.title
-               FROM library_tracks lt
-               JOIN library_files lf ON lf.id = lt.file_id
-          LEFT JOIN library_albums la ON la.id = lt.library_album_id
-          LEFT JOIN artists a ON a.id = lt.artist_id",
-        )
-        .fetch_all(pool)
-        .await?;
+    let lignes = LibraryTrackRepository::find_all_refs(pool).await?;
 
     let mut par_chemin = HashMap::with_capacity(lignes.len());
     let mut par_tags = HashMap::with_capacity(lignes.len());
@@ -209,14 +207,7 @@ pub async fn apply(
                 continue;
             }
             if !dry_run {
-                sqlx::query(
-                    "INSERT INTO settings (key, value) VALUES (?, ?)
-                     ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                )
-                .bind(cle)
-                .bind(valeur)
-                .execute(pool)
-                .await?;
+                SettingsRepository::set(pool, cle, valeur).await?;
             }
             rapport.settings += 1;
         }
@@ -275,75 +266,41 @@ pub async fn apply(
 
                 let playlist_id = match existante {
                     Some(id) => {
-                        sqlx::query("DELETE FROM playlist_items WHERE playlist_id = ?")
-                            .bind(id)
-                            .execute(pool)
-                            .await?;
+                        PlaylistItemRepository::delete_all(pool, id).await?;
                         id
                     }
                     None => {
-                        let (id,): (i64,) = sqlx::query_as(
-                            "INSERT INTO playlists
-                                 (profil_id, name, description, color, icon, position)
-                             VALUES (?, ?, ?, ?, ?, ?)
-                             RETURNING id",
+                        PlaylistRepository::insert_playlist(
+                            pool,
+                            pid,
+                            None,
+                            liste.name.clone(),
+                            liste.description.clone(),
+                            liste.color.clone(),
+                            liste.icon.clone(),
+                            None,
+                            liste.position,
+                            0,
                         )
-                        .bind(pid)
-                        .bind(&liste.name)
-                        .bind(&liste.description)
-                        .bind(&liste.color)
-                        .bind(&liste.icon)
-                        .bind(liste.position)
-                        .fetch_one(pool)
-                        .await?;
-                        id
+                        .await?
+                        .id
                     }
                 };
 
-                sqlx::query("UPDATE playlists SET is_smart = ?, rules = ?, is_mix = ?, pinned = ? WHERE id = ?")
-                    .bind(liste.rules.is_some())
-                    .bind(&liste.rules)
-                    .bind(liste.is_mix)
-                    .bind(liste.pinned)
-                    .bind(playlist_id)
-                    .execute(pool)
-                    .await?;
+                PlaylistRepository::set_rules_and_flags(pool, playlist_id, liste.rules.as_deref(), liste.is_mix, liste.pinned).await?;
 
                 for (rang, track_id) in appariees.iter().enumerate() {
                     // `OR IGNORE` : une playlist exportée peut contenir deux
                     // fois le même morceau — par deux chemins différents qui
                     // s'apparient au même fichier — et la contrainte d'unicité
                     // ferait échouer tout l'import pour ça.
-                    sqlx::query(
-                        "INSERT OR IGNORE INTO playlist_items
-                             (playlist_id, library_track_id, sort_index)
-                         VALUES (?, ?, ?)",
-                    )
-                    .bind(playlist_id)
-                    .bind(track_id)
-                    .bind(rang as i64)
-                    .execute(pool)
-                    .await?;
+                    PlaylistItemRepository::insert_if_absent(pool, playlist_id, track_id, rang as i64).await?;
                 }
 
                 // Les compteurs affichés dans la barre latérale se recalculent
                 // ici. Les laisser à zéro donnerait une playlist qui paraît
                 // vide alors qu'elle ne l'est pas.
-                sqlx::query(
-                    "UPDATE playlists SET
-                         track_count = (SELECT COUNT(*) FROM playlist_items WHERE playlist_id = ?),
-                         duration = CAST(COALESCE((
-                             SELECT SUM(lt.duration) FROM playlist_items pi
-                             JOIN library_tracks lt ON lt.id = pi.library_track_id
-                             WHERE pi.playlist_id = ?), 0) AS INTEGER),
-                         updated_at = CURRENT_TIMESTAMP
-                     WHERE id = ?",
-                )
-                .bind(playlist_id)
-                .bind(playlist_id)
-                .bind(playlist_id)
-                .execute(pool)
-                .await?;
+                PlaylistRepository::recalculate_stats(pool, playlist_id).await?;
             }
         }
 
@@ -359,21 +316,8 @@ pub async fn apply(
                 // Les titres aimés sont désignés par chemin dès l'origine : on
                 // conserve le chemin du fichier même s'il ne correspond à aucune
                 // piste connue, exactement comme le fait l'application.
-                let cache_id: Option<i64> =
-                    sqlx::query_scalar("SELECT id FROM library_cache WHERE path = ?")
-                        .bind(&piste.path)
-                        .fetch_optional(pool)
-                        .await?;
-
-                sqlx::query(
-                    "INSERT OR IGNORE INTO track_liked (profil_id, path, library_cache_id)
-                     VALUES (?, ?, ?)",
-                )
-                .bind(pid)
-                .bind(&piste.path)
-                .bind(cache_id)
-                .execute(pool)
-                .await?;
+                let cache_id = LibraryCacheRepository::get_library_cache_id_by_path(pool, &piste.path).await?;
+                TrackLikedRepository::insert_if_absent(pool, &piste.path, pid, cache_id).await?;
             }
         }
     }
@@ -392,12 +336,7 @@ async fn resolve_profile(
     dry_run: bool,
     rapport: &mut ImportReport,
 ) -> Result<Option<i64>, sqlx::Error> {
-    let existant: Option<i64> = sqlx::query_scalar("SELECT id FROM profil WHERE name = ?")
-        .bind(nom)
-        .fetch_optional(pool)
-        .await?;
-
-    if let Some(id) = existant {
+    if let Some(id) = ProfilRepository::find_id_by_name(pool, nom).await? {
         return Ok(Some(id));
     }
 
@@ -407,17 +346,7 @@ async fn resolve_profile(
         return Ok(None);
     }
 
-    let (id,): (i64,) = sqlx::query_as(
-        "INSERT INTO profil (name, color, avatar, bio, role) VALUES (?, ?, ?, ?, ?)
-         RETURNING id",
-    )
-    .bind(nom)
-    .bind(&profil.color)
-    .bind(&profil.avatar)
-    .bind(&profil.bio)
-    .bind(&profil.role)
-    .fetch_one(pool)
-    .await?;
+    let id = ProfilRepository::insert_from_export(pool, nom, &profil.color, profil.avatar.as_deref(), profil.bio.as_deref(), &profil.role).await?;
 
     Ok(Some(id))
 }
@@ -427,11 +356,7 @@ async fn existing_playlist(
     profil_id: i64,
     nom: &str,
 ) -> Result<Option<i64>, sqlx::Error> {
-    sqlx::query_scalar("SELECT id FROM playlists WHERE profil_id = ? AND name = ?")
-        .bind(profil_id)
-        .bind(nom)
-        .fetch_optional(pool)
-        .await
+    PlaylistRepository::find_id_by_name(pool, profil_id, nom).await
 }
 
 #[cfg(test)]

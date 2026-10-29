@@ -74,4 +74,19 @@ impl LibraryGenreRepository {
         .await
         .unwrap_or_default()
     }
+    /// Genres assez fournis pour un mix : (genre, titres, artistes), les plus fournis d'abord.
+    pub async fn find_mix_genres(pool: &SqlitePool, library_id: i64, min_tracks: i64, min_artists: i64) -> Result<Vec<(String, i64, i64)>, sqlx::Error> {
+        sqlx::query_as(
+            "SELECT lc.genre, COUNT(*) n, COUNT(DISTINCT lt.artist_id) FROM library_tracks lt
+             JOIN library_cache lc ON lc.id = lt.cache_id
+             WHERE lt.library_id = ? AND lc.genre IS NOT NULL AND lc.genre != ''
+             GROUP BY lc.genre HAVING n >= ? AND COUNT(DISTINCT lt.artist_id) >= ? ORDER BY n DESC",
+        )
+        .bind(library_id)
+        .bind(min_tracks)
+        .bind(min_artists)
+        .fetch_all(pool)
+        .await
+    }
+
 }

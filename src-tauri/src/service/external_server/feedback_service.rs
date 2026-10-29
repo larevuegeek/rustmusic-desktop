@@ -6,6 +6,11 @@ use sqlx::SqlitePool;
 use crate::core::subsonic::catalog::RemoteSong;
 use crate::core::remote::Backend;
 use crate::core::subsonic::client::{is_unreachable, Server};
+use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::repository::playlist::playlist_item_repository::PlaylistItemRepository;
+use crate::repository::playlist::playlist_repository::PlaylistRepository;
+use crate::repository::playlist::track_liked_repository::TrackLikedRepository;
+use crate::repository::server::server_outbox_repository::ServerOutboxRepository;
 use crate::repository::server::server_repository::ServerRepository;
 use crate::service::external_server::sync_service::song_path;
 use crate::service::external_server::track_service::parse;
@@ -99,21 +104,9 @@ pub fn server_rating(rating: Option<f64>) -> u8 {
 /// Morceaux de la playlist locale, dans l'ordre, en identifiants du serveur ; ceux du serveur
 /// absents de RustMusic suivent. `None` : la playlist n'existe plus.
 pub(crate) async fn playlist_song_ids(pool: &SqlitePool, playlist_id: i64) -> Result<Option<Vec<String>>, String> {
-    let row: Option<(Option<i64>, Option<String>)> = sqlx::query_as("SELECT server_id, remote_extra FROM playlists WHERE id = ?")
-        .bind(playlist_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let row = PlaylistRepository::server_and_extra(pool, playlist_id).await.map_err(|e| e.to_string())?;
     let Some((Some(server_id), extra)) = row else { return Ok(None) };
-    let paths: Vec<String> = sqlx::query_scalar(
-        "SELECT lf.path FROM playlist_items pi JOIN library_tracks lt ON lt.id = pi.library_track_id
-           JOIN library_files lf ON lf.id = lt.file_id
-          WHERE pi.playlist_id = ? ORDER BY pi.sort_index, pi.id",
-    )
-    .bind(playlist_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let paths = PlaylistItemRepository::track_paths(pool, playlist_id).await.map_err(|e| e.to_string())?;
     let mut ids: Vec<String> = paths
         .iter()
         .filter_map(|p| parse(p).filter(|(s, _)| *s == server_id).map(|(_, id)| id.to_string()))
@@ -136,13 +129,8 @@ async fn deliver(pool: &SqlitePool, server: &Backend, target: &str, feedback: &F
                 j.update_playlist(target, None, Some(&ids)).await
             }
             Feedback::PlaylistInfo(local) => {
-                let name: Option<String> = sqlx::query_scalar("SELECT name FROM playlists WHERE id = ?")
-                    .bind(local)
-                    .fetch_optional(pool)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                match name {
-                    Some(n) => j.update_playlist(target, Some(&n), None).await,
+                match PlaylistRepository::find_by_id(pool, *local).await.map_err(|e| e.to_string())? {
+                    Some(p) => j.update_playlist(target, Some(&p.name), None).await,
                     None => Ok(()),
                 }
             }
@@ -164,13 +152,8 @@ async fn deliver_subsonic(pool: &SqlitePool, server: &Server, target: &str, feed
             call(server, "createPlaylist", params).await
         }
         Feedback::PlaylistInfo(local) => {
-            let row: Option<(String, Option<String>)> = sqlx::query_as("SELECT name, description FROM playlists WHERE id = ?")
-                .bind(local)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| e.to_string())?;
-            let Some((name, description)) = row else { return Ok(()) };
-            let params = vec![("playlistId", target.to_string()), ("name", name), ("comment", description.unwrap_or_default())];
+            let Some(p) = PlaylistRepository::find_by_id(pool, *local).await.map_err(|e| e.to_string())? else { return Ok(()) };
+            let params = vec![("playlistId", target.to_string()), ("name", p.name), ("comment", p.description.unwrap_or_default())];
             call(server, "updatePlaylist", params).await
         }
         _ => {
@@ -186,13 +169,7 @@ async fn call(server: &Server, endpoint: &str, params: Vec<(&str, String)>) -> R
 }
 
 async fn queue(pool: &SqlitePool, server_id: i64, song_id: &str, feedback: &Feedback) {
-    let _ = sqlx::query("INSERT INTO server_outbox (server_id, action, song_id, value) VALUES (?, ?, ?, ?)")
-        .bind(server_id)
-        .bind(feedback.action())
-        .bind(song_id)
-        .bind(feedback.value())
-        .execute(pool)
-        .await;
+    let _ = ServerOutboxRepository::insert(pool, server_id, feedback.action(), song_id, feedback.value()).await;
 }
 
 /// Renvoie l'action au serveur du morceau `path` ; rien pour un morceau local.
@@ -205,12 +182,7 @@ pub async fn send(pool: &SqlitePool, path: &str, feedback: Feedback) {
 pub async fn send_to(pool: &SqlitePool, server_id: i64, song_id: &str, feedback: Feedback) {
     // La plus récente fait foi : une action en attente sur le même morceau n'a plus d'objet.
     for action in feedback.supersedes() {
-        let _ = sqlx::query("DELETE FROM server_outbox WHERE server_id = ? AND song_id = ? AND action = ?")
-            .bind(server_id)
-            .bind(song_id)
-            .bind(action)
-            .execute(pool)
-            .await;
+        let _ = ServerOutboxRepository::delete_action(pool, server_id, song_id, action).await;
     }
     let enabled = ServerRepository::find_one(pool, server_id).await.ok().flatten().map(|s| s.enabled);
     let result = match enabled {
@@ -233,12 +205,7 @@ pub async fn send_to(pool: &SqlitePool, server_id: i64, song_id: &str, feedback:
 
 /// Vide la boîte d'envoi du serveur, dans l'ordre ; s'arrête au premier échec de connexion.
 pub async fn flush(pool: &SqlitePool, server_id: i64, server: &Backend) -> Result<usize, String> {
-    let rows: Vec<(i64, String, String, Option<i64>)> =
-        sqlx::query_as("SELECT id, action, song_id, value FROM server_outbox WHERE server_id = ? ORDER BY id")
-            .bind(server_id)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| e.to_string())?;
+    let rows = ServerOutboxRepository::find_by_server(pool, server_id).await.map_err(|e| e.to_string())?;
     let mut sent = 0;
     for (id, action, song_id, value) in rows {
         if let Some(feedback) = Feedback::from_row(&action, value) {
@@ -248,7 +215,7 @@ pub async fn flush(pool: &SqlitePool, server_id: i64, server: &Backend) -> Resul
                 Err(e) => log::warn!("☁️  {action} en attente refusé ({song_id}) : {e}"),
             }
         }
-        let _ = sqlx::query("DELETE FROM server_outbox WHERE id = ?").bind(id).execute(pool).await;
+        let _ = ServerOutboxRepository::delete(pool, id).await;
     }
     if sent > 0 {
         log::info!("☁️  {sent} action(s) en attente renvoyée(s) au serveur {server_id}");
@@ -260,48 +227,23 @@ pub async fn flush(pool: &SqlitePool, server_id: i64, server: &Backend) -> Resul
 /// Une note locale à la demi-étoile est gardée tant qu'elle s'arrondit à celle du serveur ;
 /// `ratings` faux (Jellyfin, sans notes) : les notes locales restent telles quelles.
 pub async fn apply_server_state(pool: &SqlitePool, server_id: i64, songs: &[RemoteSong], ratings_on_server: bool) -> Result<(u64, u64), sqlx::Error> {
-    let Some(profil_id): Option<i64> = sqlx::query_scalar("SELECT profil_id FROM media_servers WHERE id = ?")
-        .bind(server_id)
-        .fetch_optional(pool)
-        .await?
-    else {
+    let Some(profil_id) = ServerRepository::profile_of(pool, server_id).await? else {
         return Ok((0, 0));
     };
     let (mut likes, mut ratings) = (0, 0);
     let mut tx = pool.begin().await?;
     for song in songs {
         let path = song_path(server_id, song);
-        // La source est le serveur lui-même (un entier : sûr dans le texte de la requête).
-        let insert = format!(
-            "INSERT INTO track_liked (path, profil_id, library_cache_id, source_id) VALUES (?1, ?2, (SELECT id FROM library_cache WHERE path = ?1), {server_id})
-             ON CONFLICT(path, profil_id) DO NOTHING"
-        );
         likes += if song.starred {
-            sqlx::query(sqlx::AssertSqlSafe(insert))
+            TrackLikedRepository::like_from_server(&mut *tx, &path, profil_id, server_id).await?
         } else {
-            sqlx::query("DELETE FROM track_liked WHERE path = ?1 AND profil_id = ?2")
-        }
-        .bind(&path)
-        .bind(profil_id)
-        .execute(&mut *tx)
-        .await?
-        .rows_affected();
+            TrackLikedRepository::remove_track_liked(&mut *tx, &path, profil_id).await?
+        };
 
         if !ratings_on_server {
             continue;
         }
-        let remote = server_rating(song.user_rating) as i64;
-        ratings += sqlx::query(
-            "UPDATE library_tracks SET rating = ?1, updated_at = CURRENT_TIMESTAMP
-              WHERE file_id IN (SELECT id FROM library_files WHERE path = ?2)
-                AND COALESCE(CAST(ROUND(rating) AS INTEGER), 0) != ?3",
-        )
-        .bind((remote > 0).then_some(remote as f64))
-        .bind(&path)
-        .bind(remote)
-        .execute(&mut *tx)
-        .await?
-        .rows_affected();
+        ratings += LibraryTrackRepository::set_rating_from_server(&mut *tx, &path, server_rating(song.user_rating) as i64).await?;
     }
     tx.commit().await?;
     Ok((likes, ratings))

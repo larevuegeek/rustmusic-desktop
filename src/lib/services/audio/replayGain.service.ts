@@ -1,6 +1,6 @@
 /**
  * Wrapper for the Replay Gain Tauri commands.
- * Mirrors `src-tauri/src/commands/audio_command.rs`.
+ * Mirrors `src-tauri/src/commands/audio/audio_command.rs`.
  */
 
 import { invoke } from "@tauri-apps/api/core";

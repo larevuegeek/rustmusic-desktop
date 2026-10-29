@@ -7,6 +7,8 @@ use serde::Serialize;
 use sqlx::SqlitePool;
 
 use crate::core::scrobble::listenbrainz::{self, Listen, SendError};
+use crate::repository::library::library_cache_repository::LibraryCacheRepository;
+use crate::repository::scrobble::scrobble_repository::ScrobbleRepository;
 
 pub const LISTENBRAINZ: &str = "listenbrainz";
 /// Un seul envoi de la file à la fois (sinon des écoutes partiraient deux fois).
@@ -21,47 +23,26 @@ pub struct ScrobbleStatus {
 }
 
 async fn token(pool: &SqlitePool, profil_id: i64) -> Option<(String, bool)> {
-    sqlx::query_as::<_, (String, bool)>("SELECT token, now_playing FROM scrobble_accounts WHERE profil_id = ? AND service = ?")
-        .bind(profil_id)
-        .bind(LISTENBRAINZ)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
+    let account = ScrobbleRepository::find_account(pool, profil_id, LISTENBRAINZ).await.ok().flatten()?;
+    Some((account.token, account.now_playing))
 }
 
 /// Ce qu'on sait du morceau ; `None` sans artiste ou sans titre (ListenBrainz les exige).
 async fn track(pool: &SqlitePool, path: &str, listened_at: i64) -> Option<Listen> {
-    let (artist, album_artist, title, album, duration): (Option<String>, Option<String>, Option<String>, Option<String>, Option<f64>) =
-        sqlx::query_as("SELECT artist, album_artist, title, album, duration FROM library_cache WHERE path = ?")
-            .bind(path)
-            .fetch_optional(pool)
-            .await
-            .ok()
-            .flatten()?;
+    let tags = LibraryCacheRepository::find_by_path(pool, path).await.ok().flatten()?;
     let clean = |s: Option<String>| s.map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
     Some(Listen {
         listened_at,
-        artist: clean(artist).or(clean(album_artist))?,
-        title: clean(title)?,
-        album: clean(album),
-        duration_ms: duration.filter(|d| *d > 0.0).map(|d| (d * 1000.0) as i64),
+        artist: clean(tags.artist).or(clean(tags.album_artist))?,
+        title: clean(tags.title)?,
+        album: clean(tags.album),
+        duration_ms: tags.duration.filter(|d| *d > 0.0).map(|d| (d * 1000.0) as i64),
     })
 }
 
 pub async fn connect(pool: &SqlitePool, profil_id: i64, token: &str) -> Result<String, String> {
     let user = listenbrainz::validate(token).await?;
-    sqlx::query(
-        "INSERT INTO scrobble_accounts (profil_id, service, token, user_name) VALUES (?, ?, ?, ?)
-         ON CONFLICT(profil_id, service) DO UPDATE SET token = excluded.token, user_name = excluded.user_name",
-    )
-    .bind(profil_id)
-    .bind(LISTENBRAINZ)
-    .bind(token.trim())
-    .bind(&user)
-    .execute(pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    ScrobbleRepository::upsert_account(pool, profil_id, LISTENBRAINZ, token.trim(), &user).await.map_err(|e| e.to_string())?;
     spawn_flush(pool.clone(), profil_id);
     Ok(user)
 }
@@ -69,37 +50,21 @@ pub async fn connect(pool: &SqlitePool, profil_id: i64, token: &str) -> Result<S
 /// Compte retiré, écoutes en attente comprises.
 pub async fn disconnect(pool: &SqlitePool, profil_id: i64) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
-    sqlx::query("DELETE FROM scrobble_accounts WHERE profil_id = ? AND service = ?").bind(profil_id).bind(LISTENBRAINZ).execute(&mut *tx).await?;
-    sqlx::query("DELETE FROM scrobble_queue WHERE profil_id = ? AND service = ?").bind(profil_id).bind(LISTENBRAINZ).execute(&mut *tx).await?;
+    ScrobbleRepository::delete_account(&mut *tx, profil_id, LISTENBRAINZ).await?;
+    ScrobbleRepository::delete_all_pending(&mut *tx, profil_id, LISTENBRAINZ).await?;
     tx.commit().await
 }
 
 pub async fn status(pool: &SqlitePool, profil_id: i64) -> Result<Option<ScrobbleStatus>, sqlx::Error> {
-    let Some((user_name, now_playing)) =
-        sqlx::query_as::<_, (String, bool)>("SELECT user_name, now_playing FROM scrobble_accounts WHERE profil_id = ? AND service = ?")
-            .bind(profil_id)
-            .bind(LISTENBRAINZ)
-            .fetch_optional(pool)
-            .await?
-    else {
+    let Some(account) = ScrobbleRepository::find_account(pool, profil_id, LISTENBRAINZ).await? else {
         return Ok(None);
     };
-    let pending = sqlx::query_scalar("SELECT COUNT(*) FROM scrobble_queue WHERE profil_id = ? AND service = ?")
-        .bind(profil_id)
-        .bind(LISTENBRAINZ)
-        .fetch_one(pool)
-        .await?;
-    Ok(Some(ScrobbleStatus { user_name, now_playing, pending }))
+    let pending = ScrobbleRepository::count_pending(pool, profil_id, LISTENBRAINZ).await?;
+    Ok(Some(ScrobbleStatus { user_name: account.user_name, now_playing: account.now_playing, pending }))
 }
 
 pub async fn set_now_playing(pool: &SqlitePool, profil_id: i64, on: bool) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE scrobble_accounts SET now_playing = ? WHERE profil_id = ? AND service = ?")
-        .bind(on)
-        .bind(profil_id)
-        .bind(LISTENBRAINZ)
-        .execute(pool)
-        .await
-        .map(|_| ())
+    ScrobbleRepository::set_now_playing(pool, profil_id, LISTENBRAINZ, on).await
 }
 
 /// Une écoute de plus : mise en file, puis envoi.
@@ -111,17 +76,7 @@ pub async fn listen(pool: &SqlitePool, profil_id: i64, path: &str, listened_at: 
         log::info!("🎧 Écoute non envoyée (artiste ou titre manquant) : {path}");
         return;
     };
-    let added = sqlx::query("INSERT INTO scrobble_queue (profil_id, service, listened_at, artist, title, album, duration_ms) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .bind(profil_id)
-        .bind(LISTENBRAINZ)
-        .bind(l.listened_at)
-        .bind(&l.artist)
-        .bind(&l.title)
-        .bind(&l.album)
-        .bind(l.duration_ms)
-        .execute(pool)
-        .await;
-    if added.is_ok() {
+    if ScrobbleRepository::enqueue(pool, profil_id, LISTENBRAINZ, &l).await.is_ok() {
         spawn_flush(pool.clone(), profil_id);
     }
 }
@@ -153,24 +108,11 @@ async fn flush_inner(pool: &SqlitePool, profil_id: i64) -> usize {
     let Some((token, _)) = token(pool, profil_id).await else { return 0 };
     let mut sent = 0;
     loop {
-        let rows: Vec<(i64, i64, String, String, Option<String>, Option<i64>)> = sqlx::query_as(
-            "SELECT id, listened_at, artist, title, album, duration_ms FROM scrobble_queue
-             WHERE profil_id = ? AND service = ? ORDER BY listened_at LIMIT ?",
-        )
-        .bind(profil_id)
-        .bind(LISTENBRAINZ)
-        .bind(listenbrainz::BATCH as i64)
-        .fetch_all(pool)
-        .await
-        .unwrap_or_default();
+        let rows = ScrobbleRepository::find_pending(pool, profil_id, LISTENBRAINZ, listenbrainz::BATCH as i64).await.unwrap_or_default();
         if rows.is_empty() {
             return sent;
         }
-        let ids: Vec<i64> = rows.iter().map(|r| r.0).collect();
-        let listens: Vec<Listen> = rows
-            .into_iter()
-            .map(|(_, listened_at, artist, title, album, duration_ms)| Listen { listened_at, artist, title, album, duration_ms })
-            .collect();
+        let (ids, listens): (Vec<i64>, Vec<Listen>) = rows.into_iter().unzip();
         let kind = if listens.len() == 1 { "single" } else { "import" };
         match listenbrainz::submit(&token, &listenbrainz::payload(kind, &listens)).await {
             Ok(()) => sent += listens.len(),
@@ -181,14 +123,14 @@ async fn flush_inner(pool: &SqlitePool, profil_id: i64) -> usize {
             }
         }
         for id in ids {
-            let _ = sqlx::query("DELETE FROM scrobble_queue WHERE id = ?").bind(id).execute(pool).await;
+            let _ = ScrobbleRepository::delete_pending(pool, id).await;
         }
     }
 }
 
 /// Au lancement : les écoutes restées en attente partent.
 pub async fn flush_all(pool: &SqlitePool) {
-    let profiles: Vec<i64> = sqlx::query_scalar("SELECT DISTINCT profil_id FROM scrobble_queue").fetch_all(pool).await.unwrap_or_default();
+    let profiles = ScrobbleRepository::profiles_with_pending(pool).await.unwrap_or_default();
     for p in profiles {
         flush(pool, p).await;
     }

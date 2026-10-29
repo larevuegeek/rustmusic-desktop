@@ -1,3 +1,4 @@
+use crate::entity::playlist::playlist::TrackRefRow;
 use crate::{entity::playlist::track_liked::TrackLiked, mapper::playlist::liked::track_liked_view::TrackLikedView};
 
 pub struct TrackLikedRepository;
@@ -87,12 +88,12 @@ impl TrackLikedRepository {
         exec: E,
         path: &str,
         profil_id: i64
-    ) -> Result<(), sqlx::Error>
+    ) -> Result<u64, sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
 
-        sqlx::query(
+        let done = sqlx::query(
                     r#"
                     DELETE FROM track_liked
                     WHERE path = ?1
@@ -104,7 +105,56 @@ impl TrackLikedRepository {
                 .execute(exec)
                 .await?;
 
-        Ok(())
+        Ok(done.rows_affected())
+    }
+
+    /// J'aime venu du serveur (source : le serveur lui-même) ; rend 1 s'il est nouveau.
+    pub async fn like_from_server<'e, E>(exec: E, path: &str, profil_id: i64, server_id: i64) -> Result<u64, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "INSERT INTO track_liked (path, profil_id, library_cache_id, source_id) VALUES (?1, ?2, (SELECT id FROM library_cache WHERE path = ?1), ?3)
+             ON CONFLICT(path, profil_id) DO NOTHING",
+        )
+        .bind(path)
+        .bind(profil_id)
+        .bind(server_id)
+        .execute(exec)
+        .await
+        .map(|r| r.rows_affected())
+    }
+
+    /// Titres aimés du profil pour un export, chemin toujours présent (le fichier peut avoir disparu).
+    pub async fn track_refs<'e, E>(exec: E, profil_id: i64) -> Result<Vec<TrackRefRow>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as(
+            "SELECT tl.path, lc.title, lc.artist, lc.album, lc.duration
+               FROM track_liked tl
+          LEFT JOIN library_cache lc ON lc.id = tl.library_cache_id
+              WHERE tl.profil_id = ?
+           ORDER BY tl.created_at, tl.id",
+        )
+        .bind(profil_id)
+        .fetch_all(exec)
+        .await
+    }
+
+    /// Comme `insert_track_liked`, sans erreur si le titre est déjà aimé.
+    pub async fn insert_if_absent<'e, E>(exec: E, path: &str, profil_id: i64, library_cache_id: Option<i64>) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("INSERT OR IGNORE INTO track_liked (profil_id, path, library_cache_id, source_id) VALUES (?, ?, ?, ?)")
+            .bind(profil_id)
+            .bind(path)
+            .bind(library_cache_id)
+            .bind(crate::core::remote::source_of(path))
+            .execute(exec)
+            .await
+            .map(|_| ())
     }
 
 }

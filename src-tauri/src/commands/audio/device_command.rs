@@ -338,7 +338,7 @@ pub async fn get_output_devices() -> Result<Vec<AudioDeviceInfo>, String> {
 
     // La sortie du lecteur, sous le nom qu'elle porte aujourd'hui (un ancien
     // nom ALSA enregistré désigne la même carte sous un autre nom).
-    let enregistree = crate::commands::player_command::AUDIO_PLAYER
+    let enregistree = crate::commands::playback::player_command::AUDIO_PLAYER
         .get()
         .and_then(|p| p.lock().ok().and_then(|p| p.get_selected_device_name()));
     let choisie = enregistree

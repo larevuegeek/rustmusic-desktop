@@ -1,6 +1,6 @@
 /**
  * Inventaire de ce qu'il y a à corriger dans une bibliothèque.
- * Miroir de `src-tauri/src/commands/audit_command.rs`.
+ * Miroir de `src-tauri/src/commands/library/audit_command.rs`.
  *
  * C'est le point d'entrée du travail par lot : sans lui, l'atelier n'a de
  * sens que si l'on sait déjà quel album ouvrir.

@@ -13,9 +13,10 @@
 
 use tauri::State;
 
-use crate::mapper::library::track::track_list_item_view::{
-    TrackListView, TRACK_VIEW_FROM, TRACK_VIEW_SELECT,
-};
+use crate::mapper::library::track::track_list_item_view::TrackListView;
+use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::repository::playlist::playlist_item_repository::PlaylistItemRepository;
+use crate::repository::playlist::playlist_repository::PlaylistRepository;
 use crate::state::AppState;
 
 /// Les pistes d'une playlist, rangée ou intelligente.
@@ -28,12 +29,9 @@ pub async fn get_playlist_tracks_view(
     // identifiants, puis on les remplit. Deux requêtes plutôt qu'une, mais le
     // moteur de règles reste seul maître de la sélection — le dupliquer ici
     // ferait diverger les deux vues de la même playlist.
-    let regles: Option<(Option<String>, bool)> =
-        sqlx::query_as("SELECT rules, is_mix FROM playlists WHERE id = ? AND is_smart = 1")
-            .bind(playlist_id)
-            .fetch_optional(&state.pool)
-            .await
-            .map_err(|e| format!("Lecture de la playlist : {e}"))?;
+    let regles = PlaylistRepository::find_rules_and_mix(&state.pool, playlist_id)
+        .await
+        .map_err(|e| format!("Lecture de la playlist : {e}"))?;
 
     if let Some((Some(json), is_mix)) = regles {
         let mut rules: crate::core::smart_playlist::rules::SmartRules =
@@ -59,17 +57,7 @@ pub async fn get_playlist_tracks_view(
         });
     }
 
-    let sql = format!(
-        "{TRACK_VIEW_SELECT}
-         {TRACK_VIEW_FROM}
-         INNER JOIN playlist_items pi ON pi.library_track_id = lt.id
-         WHERE pi.playlist_id = ?
-         ORDER BY pi.sort_index ASC, pi.id ASC"
-    );
-
-    sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql))
-        .bind(playlist_id)
-        .fetch_all(&state.pool)
+    PlaylistItemRepository::find_track_views(&state.pool, playlist_id)
         .await
         .map_err(|e| format!("Pistes de la playlist : {e}"))
 }
@@ -89,20 +77,7 @@ pub async fn get_tracks_view_by_paths(
         return Ok(Vec::new());
     }
 
-    // Un `?` par chemin : les valeurs restent liées, et la longueur de la liste
-    // ne change rien à la sécurité de la requête.
-    let trous = std::iter::repeat_n("?", paths.len())
-        .collect::<Vec<_>>()
-        .join(",");
-    let sql = format!("{TRACK_VIEW_SELECT}\n{TRACK_VIEW_FROM}\nWHERE lf.path IN ({trous})");
-
-    let mut q = sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql));
-    for p in &paths {
-        q = q.bind(p);
-    }
-
-    let trouvees = q
-        .fetch_all(&state.pool)
+    let trouvees = LibraryTrackRepository::find_views_by_paths(&state.pool, &paths)
         .await
         .map_err(|e| format!("Pistes par chemin : {e}"))?;
 
@@ -118,18 +93,7 @@ async fn fill_in_order(
         return Ok(Vec::new());
     }
 
-    let trous = std::iter::repeat_n("?", ids.len())
-        .collect::<Vec<_>>()
-        .join(",");
-    let sql = format!("{TRACK_VIEW_SELECT}\n{TRACK_VIEW_FROM}\nWHERE lt.id IN ({trous})");
-
-    let mut q = sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql));
-    for id in ids {
-        q = q.bind(id);
-    }
-
-    let trouvees = q
-        .fetch_all(pool)
+    let trouvees = LibraryTrackRepository::find_views_by_ids(pool, ids)
         .await
         .map_err(|e| format!("Pistes de la playlist : {e}"))?;
 

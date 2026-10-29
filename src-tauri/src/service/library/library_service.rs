@@ -1019,13 +1019,13 @@ async fn switch_to_compilation(
         library_id, artist_id: divers.id.clone(),
     }).await;
 
-    let mut pose = set_compilation_owner(&mut *conn, &divers.id, &album.id).await;
+    let mut pose = LibraryAlbumRepository::set_owner(&mut *conn, &album.id, &divers.id, "compilation").await;
     // Une autre compilation porte déjà ce titre dans un autre dossier : seul
     // l'index de compatibilité 0.2.4 s'y oppose, il cède.
     if matches!(&pose, Err(sqlx::Error::Database(e)) if e.is_unique_violation()) {
         log::info!("Index de compatibilité 0.2.4 retiré : deux compilations « {} »", album.title);
         if LibraryAlbumRepository::drop_compat_index(&mut *conn).await.is_ok() {
-            pose = set_compilation_owner(&mut *conn, &divers.id, &album.id).await;
+            pose = LibraryAlbumRepository::set_owner(&mut *conn, &album.id, &divers.id, "compilation").await;
         }
     }
     // Un regroupement manqué ne vaut pas un fichier perdu : la piste reste indexée.
@@ -1035,17 +1035,6 @@ async fn switch_to_compilation(
     }
 
     Ok(LibraryAlbum { artist_id: divers.id, album_type: "compilation".to_string(), ..album })
-}
-
-async fn set_compilation_owner(
-    conn: &mut sqlx::SqliteConnection,
-    owner_id: &str,
-    album_id: &str,
-) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE library_albums SET artist_id = ?, album_type = 'compilation' WHERE id = ?")
-        .bind(owner_id).bind(album_id)
-        .execute(&mut *conn).await?;
-    Ok(())
 }
 
 #[cfg(test)]

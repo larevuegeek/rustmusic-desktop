@@ -320,4 +320,39 @@ impl LibraryRepository {
 
         Ok(())
     }
+
+    /// Dossier du serveur synchronisé dans cette bibliothèque (aucun pour une bibliothèque locale).
+    pub async fn remote_folder_id<'e, E>(exec: E, library_id: i64) -> Result<Option<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar::<_, Option<String>>("SELECT remote_folder_id FROM library WHERE id = ?")
+            .bind(library_id)
+            .fetch_optional(exec)
+            .await
+            .map(Option::flatten)
+    }
+    pub async fn recount_albums<'e, E>(exec: E, library_id: i64) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "UPDATE library SET total_albums =
+               (SELECT COUNT(*) FROM library_albums b WHERE b.library_id = library.id)
+             WHERE id = ?",
+        )
+        .bind(library_id)
+        .execute(exec)
+        .await
+        .map(|_| ())
+    }
+
+    /// Bibliothèques reliées à un serveur.
+    pub async fn find_remote_ids<'e, E>(exec: E) -> Result<Vec<i64>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar("SELECT id FROM library WHERE server_id IS NOT NULL").fetch_all(exec).await
+    }
+
 }

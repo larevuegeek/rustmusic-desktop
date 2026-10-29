@@ -117,4 +117,42 @@ impl ProfilRepository {
 
         Ok(())
     }
+    /// Tous les profils, actifs ou non, pour un export : (id, nom, couleur, avatar, bio, rôle).
+    #[allow(clippy::type_complexity)]
+    pub async fn find_all_for_export<'e, E>(exec: E) -> Result<Vec<(i64, String, String, Option<String>, Option<String>, String)>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as("SELECT id, name, color, avatar, bio, role FROM profil ORDER BY id").fetch_all(exec).await
+    }
+
+    pub async fn find_id_by_name<'e, E>(exec: E, name: &str) -> Result<Option<i64>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar("SELECT id FROM profil WHERE name = ?").bind(name).fetch_optional(exec).await
+    }
+
+    /// Profil recréé depuis un export ; rend son id.
+    pub async fn insert_from_export<'e, E>(
+        exec: E,
+        name: &str,
+        color: &str,
+        avatar: Option<&str>,
+        bio: Option<&str>,
+        role: &str,
+    ) -> Result<i64, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar("INSERT INTO profil (name, color, avatar, bio, role) VALUES (?, ?, ?, ?, ?) RETURNING id")
+            .bind(name)
+            .bind(color)
+            .bind(avatar)
+            .bind(bio)
+            .bind(role)
+            .fetch_one(exec)
+            .await
+    }
+
 }

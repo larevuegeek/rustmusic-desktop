@@ -53,3 +53,26 @@ pub struct LibraryTrackCreate {
     pub sample_rate: Option<i32>,
     pub rating: Option<f64>,
 }
+
+/// Une piste, son artiste principal et son tag « artiste » brut (reprise des liaisons).
+#[derive(Debug, sqlx::FromRow)]
+pub struct TrackArtistTagRow {
+    pub id: String,
+    pub library_id: i64,
+    pub artist_id: Option<String>,
+    pub artist: Option<String>,
+}
+
+/// Où trouver, en bibliothèque, le morceau joué depuis ce chemin.
+///
+/// Le lecteur ne connaît que le fichier : sans ce pont, son titre, son artiste
+/// et son album ne mènent nulle part. Un chemin absent de la bibliothèque —
+/// fichier ouvert à la volée — ne rend simplement rien.
+#[derive(Debug, Clone, serde::Serialize, sqlx::FromRow)]
+pub struct TrackLocation {
+    pub path: String,
+    pub library_id: i64,
+    pub library_track_id: String,
+    pub artist_id: Option<String>,
+    pub library_album_id: Option<String>,
+}

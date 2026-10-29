@@ -54,3 +54,13 @@ pub struct ServerAccess {
     pub api_key: Option<String>,
     pub user_id: Option<String>,
 }
+
+/// Un morceau gardé hors ligne.
+#[derive(Debug, Serialize, FromRow)]
+pub struct OfflineItem {
+    pub path: String,
+    pub server_id: i64,
+    /// Téléchargé (sinon en attente).
+    pub ready: bool,
+    pub size: Option<i64>,
+}

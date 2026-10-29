@@ -1,6 +1,6 @@
 /**
  * Édition des métadonnées d'un fichier audio.
- * Miroir de `src-tauri/src/commands/tag_command.rs`.
+ * Miroir de `src-tauri/src/commands/tags/tag_command.rs`.
  */
 
 import { dataCache } from "#lib/stores/cache/dataCache.store";

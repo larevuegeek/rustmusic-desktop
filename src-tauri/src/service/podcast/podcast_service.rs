@@ -132,12 +132,7 @@ pub async fn import_opml(pool: &SqlitePool, profil_id: i64, xml: &str) -> Result
 
 /// Les abonnements du profil en OPML.
 pub async fn export_opml(pool: &SqlitePool, profil_id: i64) -> Result<(String, usize), String> {
-    let items: Vec<(String, String, Option<String>)> =
-        sqlx::query_as("SELECT title, feed_url, link FROM podcasts WHERE profil_id = ? ORDER BY position, title")
-            .bind(profil_id)
-            .fetch_all(pool)
-            .await
-            .map_err(|e| e.to_string())?;
+    let items = PodcastRepository::opml_items(pool, profil_id).await.map_err(|e| e.to_string())?;
     Ok((crate::core::podcast::opml::build(&items), items.len()))
 }
 

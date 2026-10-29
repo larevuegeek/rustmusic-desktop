@@ -3,6 +3,7 @@ use tauri::State;
 
 use crate::core::smart_playlist::{engine, field, rules};
 use crate::mapper::playlist::playlist::playlist_track_view::PlaylistTrackView;
+use crate::repository::playlist::playlist_repository::PlaylistRepository;
 use crate::state::AppState;
 
 /// Un opérateur, tel que l'interface le propose.
@@ -129,21 +130,16 @@ pub async fn create_smart_playlist(
 
     let json = serde_json::to_string(&rules).map_err(|e| format!("Règles : {e}"))?;
 
-    let (id,): (i64,) = sqlx::query_as(
-        "INSERT INTO playlists (profil_id, name, color, icon, is_smart, rules, is_mix, pinned, source_id)
-         VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)
-         RETURNING id",
+    let id = PlaylistRepository::insert_smart(
+        &state.pool,
+        profil_id,
+        &name,
+        color.as_deref().unwrap_or("#8b5cf6"),
+        icon.as_deref().unwrap_or("lucide:sparkles"),
+        &json,
+        is_mix.unwrap_or(false),
+        source_id.unwrap_or(0),
     )
-    .bind(profil_id)
-    .bind(&name)
-    .bind(color.unwrap_or_else(|| "#8b5cf6".to_string()))
-    .bind(icon.unwrap_or_else(|| "lucide:sparkles".to_string()))
-    .bind(&json)
-    .bind(is_mix.unwrap_or(false))
-    // Un mix ne s'épingle pas : il vit sur la page Mix.
-    .bind(!is_mix.unwrap_or(false))
-    .bind(source_id.unwrap_or(0))
-    .fetch_one(&state.pool)
     .await
     .map_err(|e| format!("Création : {e}"))?;
 
@@ -167,22 +163,7 @@ pub async fn update_smart_playlist(
 
     let json = serde_json::to_string(&rules).map_err(|e| format!("Règles : {e}"))?;
 
-    sqlx::query(
-        "UPDATE playlists SET
-             name  = COALESCE(?, name),
-             color = COALESCE(?, color),
-             icon  = COALESCE(?, icon),
-             rules = ?,
-             is_smart = 1,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?",
-    )
-    .bind(&name)
-    .bind(&color)
-    .bind(&icon)
-    .bind(&json)
-    .bind(playlist_id)
-    .execute(&state.pool)
+    PlaylistRepository::update_smart(&state.pool, playlist_id, name.as_deref(), color.as_deref(), icon.as_deref(), &json)
     .await
     .map_err(|e| format!("Mise à jour : {e}"))?;
 
@@ -197,13 +178,9 @@ pub async fn get_smart_playlist_rules(
     state: State<'_, AppState>,
     playlist_id: i64,
 ) -> Result<Option<rules::SmartRules>, String> {
-    let json: Option<String> =
-        sqlx::query_scalar("SELECT rules FROM playlists WHERE id = ? AND is_smart = 1")
-            .bind(playlist_id)
-            .fetch_optional(&state.pool)
-            .await
-            .map_err(|e| format!("Lecture : {e}"))?
-            .flatten();
+    let json = PlaylistRepository::find_rules(&state.pool, playlist_id)
+        .await
+        .map_err(|e| format!("Lecture : {e}"))?;
 
     match json {
         Some(j) => serde_json::from_str(&j)
@@ -218,13 +195,9 @@ pub async fn get_smart_playlist_rules(
 /// Un échec n'interrompt rien : le compteur est un confort, et le perdre ne
 /// justifie pas de refuser la création d'une playlist par ailleurs valide.
 async fn refresh_count(pool: &sqlx::SqlitePool, id: i64, regles: &rules::SmartRules) {
-    let source = crate::repository::playlist::playlist_repository::PlaylistRepository::source_of(pool, id).await.unwrap_or(0);
+    let source = PlaylistRepository::source_of(pool, id).await.unwrap_or(0);
     let Ok(n) = engine::count(pool, regles, Some(source)).await else {
         return;
     };
-    let _ = sqlx::query("UPDATE playlists SET track_count = ? WHERE id = ?")
-        .bind(n)
-        .bind(id)
-        .execute(pool)
-        .await;
+    let _ = PlaylistRepository::set_track_count(pool, id, n).await;
 }

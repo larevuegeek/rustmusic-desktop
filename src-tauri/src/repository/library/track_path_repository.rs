@@ -20,6 +20,17 @@ fn file_name(path: &str) -> String {
     path.rsplit(['/', '\\']).next().unwrap_or(path).to_string()
 }
 
+/// Toutes les colonnes qui gardent un chemin absolu (fichiers et dossiers).
+const PATH_COLUMNS: [(&str, &str); 7] = [
+    ("library_dirs", "path"),
+    ("library_files", "path"),
+    ("library_cache", "path"),
+    ("library_albums", "album_dir"),
+    ("queue_tracks", "path"),
+    ("recent_files", "path"),
+    ("track_liked", "path"),
+];
+
 pub struct TrackPathRepository;
 
 impl TrackPathRepository {
@@ -103,4 +114,31 @@ impl TrackPathRepository {
         }
         Ok(known)
     }
+    /// Remplace `old` par `new` en tête des chemins (le dossier lui-même et son contenu), dans toutes
+    /// les colonnes qui en portent. Rend le nombre de fichiers déplacés.
+    pub async fn replace_prefix(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, old: &str, new: &str) -> Result<u64, String> {
+        let mut files = 0;
+        for (table, column) in PATH_COLUMNS {
+            // File, récents et likes : un doublon déjà présent sous le nouveau chemin
+            // l'emporte, l'ancienne ligne reste sans conséquence.
+            let ignore = matches!(table, "queue_tracks" | "recent_files" | "track_liked");
+            let sql = format!(
+                "UPDATE {} {table} SET {column} = ?2 || substr({column}, length(?1) + 1) \
+                 WHERE {column} = ?1 OR substr({column}, 1, length(?1) + 1) = ?1 || '/'",
+                if ignore { "OR IGNORE" } else { "" },
+            );
+            // Tables et colonnes viennent de la liste fixe ci-dessus ; les chemins sont liés.
+            let done = sqlx::query(sqlx::AssertSqlSafe(sql))
+                .bind(old)
+                .bind(new)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| format!("{table}.{column} : {e}"))?;
+            if table == "library_files" {
+                files = done.rows_affected();
+            }
+        }
+        Ok(files)
+    }
+
 }

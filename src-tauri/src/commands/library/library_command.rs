@@ -11,6 +11,7 @@ use crate::entity::library::library_stats::*;
 use crate::entity::library::dir_entry::DirEntry;
 use crate::entity::library::library::{Library, LibraryCreate};
 use crate::entity::library::library_cache::{LibraryCache, LibraryCacheCreate};
+use crate::entity::library::library_track::TrackLocation;
 use crate::helper::library::thumbnail_helper::{thumbnail_saver, save_artist_image, resolve_thumbnail};
 use crate::helper::library::image_fetch::{download, search_first, shrink_image, COVER_FETCH, PORTRAIT_FETCH};
 use crate::mapper::library::album::album_detail_view::AlbumDetailView;
@@ -23,6 +24,8 @@ use crate::repository::library::library_album_repository::LibraryAlbumRepository
 use crate::repository::library::library_artist_repository::LibraryArtistRepository;
 use crate::repository::library::library_cache_repository::LibraryCacheRepository;
 use crate::repository::library::library_dirs_repository::LibraryDirRepository;
+use crate::repository::library::library_files_repository::LibraryFilesRepository;
+use crate::repository::library::image_repository::ImageRepository;
 use crate::repository::library::library_genre_repository::LibraryGenreRepository;
 use crate::repository::library::library_repository::LibraryRepository;
 use crate::repository::library::library_stats_repository::LibraryStatsRepository;
@@ -90,20 +93,6 @@ pub async fn get_track_artists(
 }
 
 
-/// Où trouver, en bibliothèque, le morceau joué depuis ce chemin.
-///
-/// Le lecteur ne connaît que le fichier : sans ce pont, son titre, son artiste
-/// et son album ne mènent nulle part. Un chemin absent de la bibliothèque —
-/// fichier ouvert à la volée — ne rend simplement rien.
-#[derive(Debug, Clone, serde::Serialize, sqlx::FromRow)]
-pub struct TrackLocation {
-    pub path: String,
-    pub library_id: i64,
-    pub library_track_id: String,
-    pub artist_id: Option<String>,
-    pub library_album_id: Option<String>,
-}
-
 #[tauri::command]
 pub async fn get_track_locations(
     state: State<'_, AppState>,
@@ -113,26 +102,7 @@ pub async fn get_track_locations(
         return Ok(Vec::new());
     }
 
-    // Les `?` sont générés, jamais les valeurs : elles restent liées.
-    let trous = vec!["?"; paths.len()].join(",");
-    let sql = format!(
-        "SELECT f.path AS path,
-                t.library_id AS library_id,
-                t.id AS library_track_id,
-                t.artist_id AS artist_id,
-                t.library_album_id AS library_album_id
-         FROM library_tracks t
-         JOIN library_files f ON f.id = t.file_id
-         WHERE f.path IN ({trous})"
-    );
-
-    let mut requete = sqlx::query_as::<_, TrackLocation>(sqlx::AssertSqlSafe(sql));
-    for p in &paths {
-        requete = requete.bind(p);
-    }
-
-    requete
-        .fetch_all(&state.pool)
+    LibraryTrackRepository::find_locations(&state.pool, &paths)
         .await
         .map_err(|e| format!("Failed to locate tracks: {e}"))
 }
@@ -632,13 +602,7 @@ pub async fn remove_library(
         .ok();
 
     // Distante : ses chemins `remote://`, à effacer aussi du cache, de la file et des titres aimés.
-    let remote_paths: Vec<String> = sqlx::query_scalar(
-        "SELECT f.path FROM library_files f JOIN library l ON l.id = f.library_id WHERE f.library_id = ? AND l.server_id IS NOT NULL",
-    )
-    .bind(library_id)
-    .fetch_all(&state.pool)
-    .await
-    .unwrap_or_default();
+    let remote_paths = LibraryFilesRepository::find_remote_paths_by_library(&state.pool, library_id).await.unwrap_or_default();
 
     LibraryRepository::remove_library(&state.pool, library_id)
         .await
@@ -646,7 +610,7 @@ pub async fn remove_library(
 
     if !remote_paths.is_empty() {
         let mut conn = state.pool.acquire().await.map_err(|e| e.to_string())?;
-        let _ = crate::repository::server::server_repository::purge_paths(&mut conn, &remote_paths).await;
+        let _ = crate::repository::server::server_repository::ServerRepository::purge_paths(&mut conn, &remote_paths).await;
     }
 
     // Supprimer la bibliothèque par défaut laisserait le profil sans point
@@ -781,14 +745,9 @@ pub async fn set_track_rating(
         .await
         .map_err(|e| format!("Failed to update rating: {}", e))?;
     // Morceau d'un serveur : la note lui est renvoyée (entière, de 0 à 5).
-    let path: Option<String> = sqlx::query_scalar("SELECT lf.path FROM library_tracks lt JOIN library_files lf ON lf.id = lt.file_id WHERE lt.id = ?")
-        .bind(&track_id)
-        .fetch_optional(&state.pool)
-        .await
-        .ok()
-        .flatten();
+    let path = LibraryTrackRepository::find_path_by_id(&state.pool, &track_id).await.ok().flatten();
     if let Some(path) = path {
-        crate::commands::playlist_command::send_feedback(&state, path, Feedback::Rating(feedback_service::server_rating(normalized)));
+        crate::commands::playlist::playlist_command::send_feedback(&state, path, Feedback::Rating(feedback_service::server_rating(normalized)));
     }
     Ok(())
 }
@@ -823,18 +782,9 @@ pub async fn mark_track_played(
     state: State<'_, AppState>,
     path: String,
 ) -> Result<(), String> {
-    let touchees = sqlx::query(
-        "UPDATE library_tracks
-            SET play_count = play_count + 1,
-                last_played_at = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
-          WHERE file_id IN (SELECT id FROM library_files WHERE path = ?)",
-    )
-    .bind(&path)
-    .execute(&state.pool)
-    .await
-    .map_err(|e| format!("Compteur d'écoutes : {e}"))?
-    .rows_affected();
+    let touchees = LibraryTrackRepository::mark_played(&state.pool, &path)
+        .await
+        .map_err(|e| format!("Compteur d'écoutes : {e}"))?;
 
     // Tracé en information, et non en débogage.
     //
@@ -850,7 +800,7 @@ pub async fn mark_track_played(
     }
     // Morceau d'un serveur : l'écoute lui est aussi comptée (scrobble).
     let now = chrono::Utc::now().timestamp_millis();
-    crate::commands::playlist_command::send_feedback(&state, path, Feedback::Scrobble(now));
+    crate::commands::playlist::playlist_command::send_feedback(&state, path, Feedback::Scrobble(now));
 
     Ok(())
 }
@@ -1490,23 +1440,14 @@ pub struct BilanNettoyage {
 #[tauri::command]
 pub async fn clean_image_cache(state: State<'_, AppState>) -> Result<BilanNettoyage, String> {
     let mut cites: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for sql in [
-        "SELECT cover_url FROM library_albums",
-        "SELECT thumbnail_path FROM library_cache",
-        "SELECT image_url FROM artists",
-        "SELECT cover FROM queue_tracks",
-        "SELECT cover FROM playlists",
-    ] {
-        let lignes: Vec<Option<String>> = sqlx::query_scalar(sql)
-            .fetch_all(&state.pool)
-            .await
-            .map_err(|e| format!("DB error: {}", e))?;
-        for chemin in lignes.into_iter().flatten() {
-            // Par nom de fichier : hachage md5 ou id d'artiste, uniques — et insensible
-            // à un dossier de données déplacé.
-            if let Some(nom) = std::path::Path::new(&chemin.replace('\\', "/")).file_name() {
-                cites.insert(nom.to_string_lossy().to_lowercase());
-            }
+    let references = ImageRepository::referenced_paths(&state.pool)
+        .await
+        .map_err(|e| format!("DB error: {}", e))?;
+    for chemin in references {
+        // Par nom de fichier : hachage md5 ou id d'artiste, uniques — et insensible
+        // à un dossier de données déplacé.
+        if let Some(nom) = std::path::Path::new(&chemin.replace('\\', "/")).file_name() {
+            cites.insert(nom.to_string_lossy().to_lowercase());
         }
     }
     if cites.is_empty() {
@@ -1588,16 +1529,13 @@ pub async fn get_library_tag_keys(
     state: State<'_, AppState>,
     library_id: i64,
 ) -> Result<Vec<TagColumnCandidate>, String> {
-    let lignes: Vec<(Option<String>,)> =
-        sqlx::query_as("SELECT tags FROM library_tracks WHERE library_id = ?")
-            .bind(library_id)
-            .fetch_all(&state.pool)
-            .await
-            .map_err(|e| format!("Failed to read tags: {e}"))?;
+    let lignes = LibraryTrackRepository::find_tags_json(&state.pool, library_id)
+        .await
+        .map_err(|e| format!("Failed to read tags: {e}"))?;
 
     let mut effectifs: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
 
-    for (brut,) in lignes {
+    for brut in lignes {
         let Some(json) = brut else { continue };
         let Ok(valeur) = serde_json::from_str::<serde_json::Value>(&json) else {
             continue;
@@ -1709,18 +1647,9 @@ pub struct GenreMix {
 #[tauri::command]
 pub async fn get_mix_genres(state: State<'_, AppState>, library_id: i64) -> Result<Vec<GenreMix>, String> {
     use crate::core::mix_variety::{MIN_ARTISTES, MIN_TITRES};
-    let lignes = sqlx::query_as::<_, (String, i64, i64)>(
-        "SELECT lc.genre, COUNT(*) n, COUNT(DISTINCT lt.artist_id) FROM library_tracks lt
-         JOIN library_cache lc ON lc.id = lt.cache_id
-         WHERE lt.library_id = ? AND lc.genre IS NOT NULL AND lc.genre != ''
-         GROUP BY lc.genre HAVING n >= ? AND COUNT(DISTINCT lt.artist_id) >= ? ORDER BY n DESC",
-    )
-    .bind(library_id)
-    .bind(MIN_TITRES)
-    .bind(MIN_ARTISTES)
-    .fetch_all(&state.pool)
-    .await
-    .map_err(|e| format!("get_mix_genres: {e}"))?;
+    let lignes = LibraryGenreRepository::find_mix_genres(&state.pool, library_id, MIN_TITRES, MIN_ARTISTES)
+        .await
+        .map_err(|e| format!("get_mix_genres: {e}"))?;
     Ok(lignes.into_iter().map(|(nom, titres, artistes)| GenreMix { nom, titres, artistes }).collect())
 }
 

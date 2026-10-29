@@ -492,6 +492,14 @@ impl PodcastRepository {
         .await
         .map(|_| ())
     }
+    /// Abonnements du profil pour l'OPML : (titre, flux, site).
+    pub async fn opml_items(pool: &SqlitePool, profil_id: i64) -> Result<Vec<(String, String, Option<String>)>, sqlx::Error> {
+        sqlx::query_as("SELECT title, feed_url, link FROM podcasts WHERE profil_id = ? ORDER BY position, title")
+            .bind(profil_id)
+            .fetch_all(pool)
+            .await
+    }
+
 }
 
 #[cfg(test)]

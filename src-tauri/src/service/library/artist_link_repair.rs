@@ -15,6 +15,7 @@ use crate::helper::string::string::{normalize_name, normalize_sort_name, split_a
 use crate::repository::artist::artist_repository::ArtistRepository;
 use crate::repository::library::library_artist_repository::LibraryArtistRepository;
 use crate::repository::library::library_track_artist_repository::LibraryTrackArtistRepository;
+use crate::repository::library::library_track_repository::LibraryTrackRepository;
 
 /// Ce que la reprise a posé. `links_created` ne compte pas les existantes.
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -27,33 +28,15 @@ pub struct ArtistLinkReport {
     pub main_artist_fixed: i64,
 }
 
-#[derive(sqlx::FromRow)]
-struct PisteATraiter {
-    id: String,
-    library_id: i64,
-    artist_id: Option<String>,
-    artist: Option<String>,
-}
-
 /// Toutes les bibliothèques si `library_id` est `None`. Idempotent : upsert sur
 /// `(library_track_id, artist_id)`.
 pub async fn repair(
     pool: &SqlitePool,
     library_id: Option<i64>,
 ) -> Result<ArtistLinkReport, String> {
-    let pistes: Vec<PisteATraiter> = sqlx::query_as::<_, PisteATraiter>(
-        r#"
-        SELECT lt.id AS id, lt.library_id AS library_id,
-               lt.artist_id AS artist_id, lc.artist AS artist
-        FROM library_tracks lt
-        LEFT JOIN library_cache lc ON lc.id = lt.cache_id
-        WHERE (?1 IS NULL OR lt.library_id = ?1)
-        "#,
-    )
-    .bind(library_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| format!("Lecture des pistes : {e}"))?;
+    let pistes = LibraryTrackRepository::find_artist_tags(pool, library_id)
+        .await
+        .map_err(|e| format!("Lecture des pistes : {e}"))?;
 
     let mut rapport = ArtistLinkReport {
         tracks_seen: pistes.len() as i64,
@@ -62,10 +45,7 @@ pub async fn repair(
 
     // Cache par nom normalisé, la clé de l'index unique de `artists` : évite un
     // aller-retour par piste.
-    let mut connus: HashMap<String, String> = sqlx::query_as::<_, (String, String)>(
-        "SELECT name_normalized, id FROM artists",
-    )
-    .fetch_all(pool)
+    let mut connus: HashMap<String, String> = ArtistRepository::find_ids_by_normalized_name(pool)
     .await
     .map_err(|e| format!("Lecture des artistes : {e}"))?
     .into_iter()
@@ -131,13 +111,7 @@ pub async fn repair(
             .map_err(|e| format!("Rattachement de « {nom} » à la bibliothèque : {e}"))?;
 
             // `changes()` dirait « 1 » même sur un upsert qui n'ajoute rien.
-            let avant: i64 = sqlx::query_scalar(
-                "SELECT COUNT(*) FROM library_track_artists
-                 WHERE library_track_id = ? AND artist_id = ?",
-            )
-            .bind(&piste.id)
-            .bind(&artist_id)
-            .fetch_one(&mut *tx)
+            let deja_lie = LibraryTrackArtistRepository::exists(&mut *tx, &piste.id, &artist_id)
             .await
             .map_err(|e| format!("Vérification de la liaison : {e}"))?;
 
@@ -152,7 +126,7 @@ pub async fn repair(
             .await
             .map_err(|e| format!("Liaison piste ↔ artiste : {e}"))?;
 
-            if avant == 0 {
+            if !deja_lie {
                 rapport.links_created += 1;
             }
             if premier.is_none() {
@@ -165,10 +139,7 @@ pub async fn repair(
         // fait foi.
         if let Some(attendu) = premier {
             if piste.artist_id.as_deref() != Some(attendu.as_str()) {
-                sqlx::query("UPDATE library_tracks SET artist_id = ? WHERE id = ?")
-                    .bind(&attendu)
-                    .bind(&piste.id)
-                    .execute(&mut *tx)
+                LibraryTrackRepository::set_artist(&mut *tx, &piste.id, &attendu)
                     .await
                     .map_err(|e| format!("Correction de l'artiste : {e}"))?;
                 rapport.main_artist_fixed += 1;

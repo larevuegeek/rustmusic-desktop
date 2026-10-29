@@ -9,7 +9,10 @@ use crate::core::subsonic::catalog::parse_song;
 #[cfg(test)]
 use crate::core::subsonic::catalog::RemoteSong;
 use crate::core::subsonic::client::{id_of, Server};
+use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::repository::playlist::playlist_item_repository::PlaylistItemRepository;
 use crate::repository::playlist::playlist_repository::PlaylistRepository;
+use crate::repository::server::server_repository::ServerRepository;
 use crate::service::external_server::sync_service::song_path;
 
 /// Bleu ciel et nuage, comme les bibliothèques d'un serveur.
@@ -37,11 +40,7 @@ async fn fetch(server: &Server, username: &str) -> Result<Vec<RemotePlaylist>, S
 /// Importe les playlists du serveur et aligne les existantes ; celles disparues là-bas sont retirées.
 /// Un serveur DLNA n'a pas de playlists.
 pub async fn apply_server_playlists(pool: &SqlitePool, server_id: i64, server: &Backend) -> Result<usize, String> {
-    let (profil_id, username): (i64, String) = sqlx::query_as("SELECT profil_id, username FROM media_servers WHERE id = ?")
-        .bind(server_id)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let (profil_id, username) = ServerRepository::profile_and_username(pool, server_id).await.map_err(|e| e.to_string())?;
     let remote = match server {
         Backend::Subsonic(s) => fetch(s, &username).await?,
         Backend::Jellyfin(j) => j.playlists().await?,
@@ -51,9 +50,7 @@ pub async fn apply_server_playlists(pool: &SqlitePool, server_id: i64, server: &
         upsert_local(pool, profil_id, server_id, p).await.map_err(|e| e.to_string())?;
     }
     let kept: Vec<&str> = remote.iter().map(|p| p.id.as_str()).collect();
-    let gone: Vec<i64> = sqlx::query_as::<_, (i64, String)>("SELECT id, remote_id FROM playlists WHERE server_id = ?")
-        .bind(server_id)
-        .fetch_all(pool)
+    let gone: Vec<i64> = PlaylistRepository::find_remote_ids_by_server(pool, server_id)
         .await
         .map_err(|e| e.to_string())?
         .into_iter()
@@ -68,78 +65,37 @@ pub async fn apply_server_playlists(pool: &SqlitePool, server_id: i64, server: &
 
 async fn upsert_local(pool: &SqlitePool, profil_id: i64, server_id: i64, p: &RemotePlaylist) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
-    let existing: Option<i64> = sqlx::query_scalar("SELECT id FROM playlists WHERE server_id = ? AND remote_id = ?")
-        .bind(server_id)
-        .bind(&p.id)
-        .fetch_optional(&mut *tx)
-        .await?;
-    let id = match existing {
+    let id = match PlaylistRepository::find_id_by_remote(&mut *tx, server_id, &p.id).await? {
         Some(id) => {
-            sqlx::query("UPDATE playlists SET name = ?1, description = ?2 WHERE id = ?3 AND (name IS NOT ?1 OR description IS NOT ?2)")
-                .bind(&p.name)
-                .bind(&p.comment)
-                .bind(id)
-                .execute(&mut *tx)
-                .await?;
+            PlaylistRepository::update_info_if_changed(&mut *tx, id, &p.name, p.comment.as_deref()).await?;
             id
         }
-        None => {
-            sqlx::query_scalar(
-                "INSERT INTO playlists (profil_id, name, description, color, icon, server_id, source_id, remote_id, position, pinned)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7, (SELECT COALESCE(MAX(position), -1) + 1 FROM playlists WHERE profil_id = ?1),
-                         (SELECT pin_playlists FROM media_servers WHERE id = ?6))
-                 RETURNING id",
-            )
-            .bind(profil_id)
-            .bind(&p.name)
-            .bind(&p.comment)
-            .bind(COLOR)
-            .bind(ICON)
-            .bind(server_id)
-            .bind(&p.id)
-            .fetch_one(&mut *tx)
-            .await?
-        }
+        None => PlaylistRepository::insert_from_server(&mut *tx, profil_id, server_id, p, COLOR, ICON).await?,
     };
 
     // Morceaux connus de RustMusic, dans l'ordre ; les autres (et les doublons) mis de côté pour l'envoi.
     let (mut tracks, mut extra): (Vec<String>, Vec<String>) = (Vec::new(), Vec::new());
     for song in &p.songs {
-        let track: Option<String> = sqlx::query_scalar(
-            "SELECT lt.id FROM library_tracks lt JOIN library_files lf ON lf.id = lt.file_id WHERE lf.path = ? LIMIT 1",
-        )
-        .bind(song_path(server_id, song))
-        .fetch_optional(&mut *tx)
-        .await?;
-        match track {
+        match LibraryTrackRepository::find_id_by_path(&mut *tx, &song_path(server_id, song)).await? {
             Some(t) if !tracks.contains(&t) => tracks.push(t),
             _ => extra.push(song.id.clone()),
         }
     }
-    let current: Vec<String> = sqlx::query_scalar("SELECT library_track_id FROM playlist_items WHERE playlist_id = ? ORDER BY sort_index, id")
-        .bind(id)
-        .fetch_all(&mut *tx)
-        .await?;
-    if current != tracks {
-        sqlx::query("DELETE FROM playlist_items WHERE playlist_id = ?").bind(id).execute(&mut *tx).await?;
-        for (i, t) in tracks.iter().enumerate() {
-            sqlx::query("INSERT INTO playlist_items (playlist_id, library_track_id, sort_index) VALUES (?, ?, ?)")
-                .bind(id)
-                .bind(t)
-                .bind(i as i64)
-                .execute(&mut *tx)
-                .await?;
+    if PlaylistItemRepository::track_ids(&mut *tx, id).await? != tracks {
+        PlaylistItemRepository::delete_all(&mut *tx, id).await?;
+        for (i, t) in tracks.into_iter().enumerate() {
+            PlaylistItemRepository::insert_playlist_item(&mut *tx, id, t, i as i64).await?;
         }
     }
     let extra = (!extra.is_empty()).then(|| serde_json::to_string(&extra).unwrap_or_default());
-    sqlx::query("UPDATE playlists SET remote_extra = ? WHERE id = ?").bind(extra).bind(id).execute(&mut *tx).await?;
+    PlaylistRepository::set_remote_extra(&mut *tx, id, extra.as_deref()).await?;
     PlaylistRepository::recalculate_stats(&mut *tx, id).await?;
     tx.commit().await
 }
 
 /// Crée la playlist sur le serveur ; rend son identifiant là-bas.
 pub async fn create_on_server(pool: &SqlitePool, server_id: i64, name: &str) -> Result<String, String> {
-    match crate::repository::server::server_repository::ServerRepository::server(pool, server_id).await? {
+    match ServerRepository::server(pool, server_id).await? {
         Backend::Subsonic(server) => {
             let created = server.call("createPlaylist", &[("name", name)]).await?;
             created["playlist"].get("id").and_then(id_of).ok_or_else(|| "le serveur n'a pas rendu la playlist créée".to_string())
@@ -151,24 +107,12 @@ pub async fn create_on_server(pool: &SqlitePool, server_id: i64, name: &str) -> 
 
 /// Rattache la playlist locale à celle créée sur le serveur.
 pub async fn attach(pool: &SqlitePool, playlist_id: i64, server_id: i64, remote_id: &str) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE playlists SET server_id = ?, remote_id = ? WHERE id = ?")
-        .bind(server_id)
-        .bind(remote_id)
-        .bind(playlist_id)
-        .execute(pool)
-        .await
-        .map(|_| ())
+    PlaylistRepository::attach_remote(pool, playlist_id, server_id, remote_id).await
 }
 
 /// Playlist d'un serveur : (serveur, identifiant côté serveur).
 pub async fn remote_of(pool: &SqlitePool, playlist_id: i64) -> Option<(i64, String)> {
-    sqlx::query_as::<_, (Option<i64>, Option<String>)>("SELECT server_id, remote_id FROM playlists WHERE id = ?")
-        .bind(playlist_id)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
-        .and_then(|(s, r)| Some((s?, r?)))
+    PlaylistRepository::remote_of(pool, playlist_id).await.ok().flatten().and_then(|(s, r)| Some((s?, r?)))
 }
 
 #[cfg(test)]

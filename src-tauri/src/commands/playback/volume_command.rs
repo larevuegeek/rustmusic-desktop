@@ -1,6 +1,6 @@
 use cpal::traits::{DeviceTrait, HostTrait};
 
-use crate::commands::player_command::AUDIO_PLAYER;
+use crate::commands::playback::player_command::AUDIO_PLAYER;
 use crate::core::settings_manager::settings_manager::SettingsManager;
 
 #[cfg(target_os = "linux")]
@@ -24,12 +24,12 @@ fn is_alsa_virtual_device(_name: &str) -> bool {
 
 #[tauri::command]
 pub async fn set_volume(volume: u8) {
-    crate::commands::playback::set_volume(volume).await;
+    crate::commands::playback::playback::set_volume(volume).await;
 }
 
 #[tauri::command]
 pub async fn get_volume() -> u8 {
-    crate::commands::playback::volume().await
+    crate::commands::playback::playback::volume().await
 }
 
 #[tauri::command]

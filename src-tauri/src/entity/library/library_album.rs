@@ -41,3 +41,28 @@ pub struct LibraryAlbumCreate {
     pub cover_url: Option<String>,
     pub album_type: Option<String>,
 }
+
+/// Une piste d'un album pas encore rangé par dossier (`album_dir` vide), pour le rassemblement.
+#[derive(Debug, FromRow)]
+pub struct AlbumMergeRow {
+    pub album_id: String,
+    pub library_id: i64,
+    pub title_normalized: String,
+    pub artist_id: String,
+    pub cover_url: Option<String>,
+    pub path: Option<String>,
+    pub track_artist: Option<String>,
+    pub tag_album: Option<String>,
+}
+
+/// Une piste d'un album distant, pour réunir les compilations éclatées par le serveur.
+#[derive(Debug, FromRow)]
+pub struct RemoteAlbumRow {
+    pub album_id: String,
+    pub title_normalized: String,
+    pub year: Option<i64>,
+    pub cover_url: Option<String>,
+    pub disc: Option<i64>,
+    pub track: Option<i64>,
+    pub tag_album: Option<String>,
+}

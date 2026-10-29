@@ -2,7 +2,8 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::mapper::library::track::track_detail_view::TrackDetailView;
-use crate::{entity::library::library_track::{LibraryTrack, LibraryTrackCreate}, mapper::library::track::track_list_item_view::TrackListView};
+use crate::mapper::library::track::track_list_item_view::{TRACK_VIEW_FROM, TRACK_VIEW_SELECT};
+use crate::{entity::library::library_track::{LibraryTrack, LibraryTrackCreate, TrackArtistTagRow, TrackLocation}, mapper::library::track::track_list_item_view::TrackListView};
 
 
 /// Filtres de l'onglet Morceaux au-delà de la recherche texte.
@@ -1090,4 +1091,217 @@ impl LibraryTrackRepository {
         .fetch_all(exec)
         .await
     }
+    /// Rattache toutes les pistes d'un album à un autre.
+    pub async fn move_to_album<'e, E>(exec: E, from_album: &str, to_album: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("UPDATE library_tracks SET library_album_id = ? WHERE library_album_id = ?")
+            .bind(to_album)
+            .bind(from_album)
+            .execute(exec)
+            .await
+            .map(|_| ())
+    }
+
+    /// Piste du fichier à ce chemin.
+    pub async fn find_id_by_path<'e, E>(exec: E, path: &str) -> Result<Option<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar("SELECT lt.id FROM library_tracks lt JOIN library_files lf ON lf.id = lt.file_id WHERE lf.path = ? LIMIT 1")
+            .bind(path)
+            .fetch_optional(exec)
+            .await
+    }
+
+    /// Note entière du serveur (0 = aucune), posée si la note locale ne s'y arrondit pas. Rend 1 si elle change.
+    pub async fn set_rating_from_server<'e, E>(exec: E, path: &str, remote: i64) -> Result<u64, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "UPDATE library_tracks SET rating = ?1, updated_at = CURRENT_TIMESTAMP
+              WHERE file_id IN (SELECT id FROM library_files WHERE path = ?2)
+                AND COALESCE(CAST(ROUND(rating) AS INTEGER), 0) != ?3",
+        )
+        .bind((remote > 0).then_some(remote as f64))
+        .bind(path)
+        .bind(remote)
+        .execute(exec)
+        .await
+        .map(|r| r.rows_affected())
+    }
+
+    /// Toutes les pistes : (id, chemin, titre, artiste, album), pour apparier un import.
+    #[allow(clippy::type_complexity)]
+    pub async fn find_all_refs<'e, E>(exec: E) -> Result<Vec<(String, String, Option<String>, Option<String>, Option<String>)>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as(
+            "SELECT lt.id, lf.path, lt.title, a.name, la.title
+               FROM library_tracks lt
+               JOIN library_files lf ON lf.id = lt.file_id
+          LEFT JOIN library_albums la ON la.id = lt.library_album_id
+          LEFT JOIN artists a ON a.id = lt.artist_id",
+        )
+        .fetch_all(exec)
+        .await
+    }
+
+    /// Pistes et leur tag « artiste » ; toutes les bibliothèques si `library_id` est `None`.
+    pub async fn find_artist_tags<'e, E>(exec: E, library_id: Option<i64>) -> Result<Vec<TrackArtistTagRow>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as(
+            "SELECT lt.id AS id, lt.library_id AS library_id,
+                    lt.artist_id AS artist_id, lc.artist AS artist
+             FROM library_tracks lt
+             LEFT JOIN library_cache lc ON lc.id = lt.cache_id
+             WHERE (?1 IS NULL OR lt.library_id = ?1)",
+        )
+        .bind(library_id)
+        .fetch_all(exec)
+        .await
+    }
+
+    pub async fn set_artist<'e, E>(exec: E, track_id: &str, artist_id: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("UPDATE library_tracks SET artist_id = ? WHERE id = ?")
+            .bind(artist_id)
+            .bind(track_id)
+            .execute(exec)
+            .await
+            .map(|_| ())
+    }
+
+    /// Morceaux des bibliothèques locales du profil : (chemin, id de piste).
+    pub async fn find_local_paths_by_profile<'e, E>(exec: E, profil_id: i64) -> Result<Vec<(String, String)>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as(
+            "SELECT lf.path, lt.id FROM library_files lf
+             JOIN library_tracks lt ON lt.file_id = lf.id
+             JOIN library l ON l.id = lf.library_id
+             WHERE l.profil_id = ? AND l.server_id IS NULL",
+        )
+        .bind(profil_id)
+        .fetch_all(exec)
+        .await
+    }
+
+    /// Piste, bibliothèque, artiste et album de chaque chemin connu.
+    pub async fn find_locations<'e, E>(exec: E, paths: &[String]) -> Result<Vec<TrackLocation>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        if paths.is_empty() {
+            return Ok(Vec::new());
+        }
+        // Les `?` sont générés, jamais les valeurs : elles restent liées.
+        let holes = vec!["?"; paths.len()].join(",");
+        let sql = format!(
+            "SELECT f.path AS path,
+                    t.library_id AS library_id,
+                    t.id AS library_track_id,
+                    t.artist_id AS artist_id,
+                    t.library_album_id AS library_album_id
+             FROM library_tracks t
+             JOIN library_files f ON f.id = t.file_id
+             WHERE f.path IN ({holes})"
+        );
+        let mut query = sqlx::query_as::<_, TrackLocation>(sqlx::AssertSqlSafe(sql));
+        for p in paths {
+            query = query.bind(p);
+        }
+        query.fetch_all(exec).await
+    }
+
+    pub async fn find_path_by_id<'e, E>(exec: E, track_id: &str) -> Result<Option<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar("SELECT lf.path FROM library_tracks lt JOIN library_files lf ON lf.id = lt.file_id WHERE lt.id = ?")
+            .bind(track_id)
+            .fetch_optional(exec)
+            .await
+    }
+
+    /// Une écoute de plus pour le fichier à ce chemin ; rend le nombre de pistes touchées.
+    pub async fn mark_played<'e, E>(exec: E, path: &str) -> Result<u64, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "UPDATE library_tracks
+                SET play_count = play_count + 1,
+                    last_played_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+              WHERE file_id IN (SELECT id FROM library_files WHERE path = ?)",
+        )
+        .bind(path)
+        .execute(exec)
+        .await
+        .map(|r| r.rows_affected())
+    }
+
+    /// Tags supplémentaires (JSON) de chaque piste de la bibliothèque.
+    pub async fn find_tags_json<'e, E>(exec: E, library_id: i64) -> Result<Vec<Option<String>>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar("SELECT tags FROM library_tracks WHERE library_id = ?").bind(library_id).fetch_all(exec).await
+    }
+
+    /// Source de la piste (celle de sa bibliothèque, 0 = cet ordinateur).
+    pub async fn source_of<'e, E>(exec: E, track_id: &str) -> Result<Option<i64>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar("SELECT COALESCE(l.server_id, 0) FROM library_tracks lt JOIN library l ON l.id = lt.library_id WHERE lt.id = ?")
+            .bind(track_id)
+            .fetch_optional(exec)
+            .await
+    }
+
+    /// Vue tableau des pistes à ces chemins (ordre libre).
+    pub async fn find_views_by_paths<'e, E>(exec: E, paths: &[String]) -> Result<Vec<TrackListView>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        if paths.is_empty() {
+            return Ok(Vec::new());
+        }
+        // Un `?` par chemin : les valeurs restent liées.
+        let holes = vec!["?"; paths.len()].join(",");
+        let sql = format!("{TRACK_VIEW_SELECT}\n{TRACK_VIEW_FROM}\nWHERE lf.path IN ({holes})");
+        let mut query = sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql));
+        for p in paths {
+            query = query.bind(p);
+        }
+        query.fetch_all(exec).await
+    }
+
+    /// Vue tableau de ces pistes (ordre libre).
+    pub async fn find_views_by_ids<'e, E>(exec: E, ids: &[String]) -> Result<Vec<TrackListView>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let holes = vec!["?"; ids.len()].join(",");
+        let sql = format!("{TRACK_VIEW_SELECT}\n{TRACK_VIEW_FROM}\nWHERE lt.id IN ({holes})");
+        let mut query = sqlx::query_as::<_, TrackListView>(sqlx::AssertSqlSafe(sql));
+        for id in ids {
+            query = query.bind(id);
+        }
+        query.fetch_all(exec).await
+    }
+
 }

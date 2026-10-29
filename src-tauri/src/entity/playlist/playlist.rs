@@ -40,3 +40,20 @@ pub struct Playlist {
     pub created_at: String,
     pub updated_at: Option<String>,
 }
+
+/// Une playlist telle qu'elle part dans un export (`rules` : celles d'une playlist auto).
+#[derive(Debug, FromRow)]
+pub struct PlaylistExportRow {
+    pub id: i64,
+    pub name: String,
+    pub description: Option<String>,
+    pub color: String,
+    pub icon: String,
+    pub position: i64,
+    pub rules: Option<String>,
+    pub is_mix: bool,
+    pub pinned: bool,
+}
+
+/// Une piste désignée pour un export : (chemin, titre, artiste, album, durée).
+pub type TrackRefRow = (String, Option<String>, Option<String>, Option<String>, Option<f64>);

@@ -7,7 +7,8 @@ use crate::core::remote::{Backend, Kind, MusicFolder, ServerInfo};
 use crate::entity::library::library::LibraryCreate;
 use crate::entity::server::server::ServerEntry;
 use crate::service::library::library_service::IMPORT;
-use crate::service::external_server::offline_service::{self, OfflineItem};
+use crate::entity::server::server::OfflineItem;
+use crate::service::external_server::offline_service;
 use crate::service::external_server::sync_service;
 use crate::repository::library::library_repository::LibraryRepository;
 use crate::repository::server::server_repository::ServerRepository;
@@ -52,7 +53,7 @@ async fn entry(state: &AppState, server_id: i64) -> Result<ServerEntry, String> 
 }
 
 async fn profile_of(state: &AppState, server_id: i64) -> Result<Option<i64>, String> {
-    sqlx::query_scalar("SELECT profil_id FROM media_servers WHERE id = ?").bind(server_id).fetch_optional(&state.pool).await.map_err(db)
+    ServerRepository::profile_of(&state.pool, server_id).await.map_err(db)
 }
 
 /// Nom d'une nouvelle bibliothèque : celui du dossier, ou suffixé du serveur s'il est déjà pris.

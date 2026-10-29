@@ -217,4 +217,47 @@ impl LibraryArtistRepository {
         Ok(artist)
     }
 
+    /// Albums de chaque artiste de la bibliothèque, recomptés en un seul passage.
+    pub async fn recount_albums<'e, E>(exec: E, library_id: i64) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "UPDATE library_artists SET total_albums = COALESCE((
+                SELECT c.n FROM (
+                    SELECT library_id, artist_id, COUNT(*) AS n
+                    FROM library_albums GROUP BY library_id, artist_id
+                ) c
+                WHERE c.library_id = library_artists.library_id
+                  AND c.artist_id = library_artists.artist_id), 0)
+             WHERE library_id = ?",
+        )
+        .bind(library_id)
+        .execute(exec)
+        .await
+        .map(|_| ())
+    }
+
+    /// Pistes de chaque artiste de la bibliothèque, recomptées en un seul passage.
+    pub async fn recount_tracks<'e, E>(exec: E, library_id: i64) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query(
+            "UPDATE library_artists SET total_tracks = COALESCE((
+                SELECT c.n FROM (
+                    SELECT library_id, artist_id, COUNT(*) AS n
+                    FROM library_tracks WHERE artist_id IS NOT NULL
+                    GROUP BY library_id, artist_id
+                ) c
+                WHERE c.library_id = library_artists.library_id
+                  AND c.artist_id = library_artists.artist_id), 0)
+             WHERE library_id = ?",
+        )
+        .bind(library_id)
+        .execute(exec)
+        .await
+        .map(|_| ())
+    }
+
 }

@@ -1,6 +1,6 @@
 /**
  * Renommage des fichiers d'après un motif.
- * Miroir de `src-tauri/src/commands/rename_command.rs`.
+ * Miroir de `src-tauri/src/commands/tags/rename_command.rs`.
  *
  * Ces appels **n'écrivent rien** : ils calculent où chaque fichier irait, et
  * ce qui l'en empêche. Corriger cinq mille fichiers avec un motif erroné n'est

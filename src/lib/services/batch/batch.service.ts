@@ -2,7 +2,7 @@
  * Traitements par lot.
  *
  * Miroir de `src-tauri/src/core/batch/runner.rs` et de
- * `src-tauri/src/commands/batch_command.rs`.
+ * `src-tauri/src/commands/tags/batch_command.rs`.
  *
  * Générique par construction : l'écriture de tags est le premier usage, le
  * renommage et le déplacement suivront la même mécanique — on lance, on suit

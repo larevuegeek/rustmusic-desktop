@@ -8,19 +8,11 @@ use std::collections::{HashMap, HashSet};
 use sqlx::SqlitePool;
 
 use crate::helper::string::string::{normalize_name, split_artists};
+use crate::repository::artist::artist_repository::ArtistRepository;
+use crate::repository::library::library_album_repository::LibraryAlbumRepository;
+use crate::repository::library::library_repository::LibraryRepository;
 use crate::repository::settings::settings_repository::SettingsRepository;
 use crate::service::library::album_merge::{merge_into, recount_album, recount_library, resolve_artist, ARTISTES_DIVERS};
-
-#[derive(sqlx::FromRow)]
-struct Row {
-    album_id: String,
-    title_normalized: String,
-    year: Option<i64>,
-    cover_url: Option<String>,
-    disc: Option<i64>,
-    track: Option<i64>,
-    tag_album: Option<String>,
-}
 
 /// Une fiche d'album distante et ses pistes.
 #[derive(Debug, Clone, Default)]
@@ -88,19 +80,9 @@ fn owner(group: &[Piece]) -> Option<String> {
 /// Réunit les compilations éclatées de la bibliothèque distante `library_id` et retire les fiches vides.
 /// Rend le nombre d'albums réunis.
 pub async fn regroup(pool: &SqlitePool, library_id: i64) -> Result<usize, String> {
-    let rows: Vec<Row> = sqlx::query_as(
-        "SELECT b.id AS album_id, b.title_normalized, b.year, b.cover_url,
-                t.disc_number AS disc, t.track_number AS track, lc.album_artist AS tag_album
-         FROM library_albums b
-         JOIN library_tracks t ON t.library_album_id = b.id
-         LEFT JOIN library_cache lc ON lc.id = t.cache_id
-         WHERE b.library_id = ? AND b.album_dir LIKE ? || '%'",
-    )
-    .bind(library_id)
-    .bind(crate::core::remote::SCHEME)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| format!("Lecture des albums distants : {e}"))?;
+    let rows = LibraryAlbumRepository::find_remote_with_tracks(pool, library_id)
+        .await
+        .map_err(|e| format!("Lecture des albums distants : {e}"))?;
 
     let mut pieces: HashMap<String, Piece> = HashMap::new();
     for r in rows {
@@ -132,26 +114,12 @@ pub async fn regroup(pool: &SqlitePool, library_id: i64) -> Result<usize, String
             None => (ARTISTES_DIVERS.to_string(), "compilation"),
         };
         let artist_id = resolve_artist(&mut tx, &mut known, &artist, library_id).await?;
-        sqlx::query("UPDATE library_albums SET artist_id = ?, album_type = ? WHERE id = ?")
-            .bind(&artist_id)
-            .bind(kind)
-            .bind(&keep)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| format!("Propriétaire de l'album : {e}"))?;
+        LibraryAlbumRepository::set_owner(&mut *tx, &keep, &artist_id, kind).await.map_err(|e| format!("Propriétaire de l'album : {e}"))?;
         recount_album(&mut tx, &keep).await?;
     }
 
     // Une fiche distante sans piste (morceau réenregistré après une réunion) ne doit pas s'afficher.
-    sqlx::query(
-        "DELETE FROM library_albums WHERE library_id = ? AND album_dir LIKE ? || '%'
-           AND NOT EXISTS (SELECT 1 FROM library_tracks t WHERE t.library_album_id = library_albums.id)",
-    )
-    .bind(library_id)
-    .bind(crate::core::remote::SCHEME)
-    .execute(&mut *tx)
-    .await
-    .map_err(|e| format!("Fiches vides : {e}"))?;
+    LibraryAlbumRepository::delete_empty_remote(&mut *tx, library_id).await.map_err(|e| format!("Fiches vides : {e}"))?;
 
     // Toujours : les synchros changent des artistes sans que les déclencheurs suivent.
     recount_library(&mut tx, library_id).await?;
@@ -168,7 +136,7 @@ pub async fn regroup_once(pool: &SqlitePool) {
     if SettingsRepository::get(pool, DONE_KEY).await.ok().flatten().as_deref() == Some("1") {
         return;
     }
-    let ids: Vec<i64> = sqlx::query_scalar("SELECT id FROM library WHERE server_id IS NOT NULL").fetch_all(pool).await.unwrap_or_default();
+    let ids = LibraryRepository::find_remote_ids(pool).await.unwrap_or_default();
     let mut ok = true;
     for id in ids {
         if let Err(e) = regroup(pool, id).await {
@@ -183,8 +151,7 @@ pub async fn regroup_once(pool: &SqlitePool) {
 
 /// Artistes connus, par nom normalisé (pour `resolve_artist`).
 async fn known_by_norm(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>) -> Result<HashMap<String, String>, String> {
-    Ok(sqlx::query_as::<_, (String, String)>("SELECT name_normalized, id FROM artists")
-        .fetch_all(&mut **tx)
+    Ok(ArtistRepository::find_ids_by_normalized_name(&mut **tx)
         .await
         .map_err(|e| format!("Lecture des artistes : {e}"))?
         .into_iter()

@@ -6,41 +6,27 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use serde::Serialize;
 use sqlx::SqlitePool;
 use tauri::{AppHandle, Emitter};
 
 use crate::core::subsonic::client::is_unreachable;
 use crate::core::subsonic::stream;
+use crate::entity::server::server::OfflineItem;
+use crate::repository::server::offline_track_repository::OfflineTrackRepository;
 use crate::service::external_server::track_service::{parse, start_download, stream_request};
 
 /// Un téléchargement à la fois : le réseau reste libre pour l'écoute.
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
-pub struct OfflineItem {
-    pub path: String,
-    pub server_id: i64,
-    /// Téléchargé (sinon en attente).
-    pub ready: bool,
-    pub size: Option<i64>,
-}
-
 /// Le fichier hors ligne d'un morceau, s'il est prêt.
 pub async fn ready_file(pool: &SqlitePool, path: &str) -> Option<PathBuf> {
-    let file: String = sqlx::query_scalar("SELECT file FROM offline_tracks WHERE path = ? AND file IS NOT NULL")
-        .bind(path)
-        .fetch_optional(pool)
-        .await
-        .ok()??;
+    let file = OfflineTrackRepository::ready_file(pool, path).await.ok()??;
     let file = PathBuf::from(file);
     file.exists().then_some(file)
 }
 
 pub async fn list(pool: &SqlitePool) -> Result<Vec<OfflineItem>, sqlx::Error> {
-    sqlx::query_as("SELECT path, server_id, file IS NOT NULL AS ready, size FROM offline_tracks ORDER BY added_at")
-        .fetch_all(pool)
-        .await
+    OfflineTrackRepository::find_all(pool).await
 }
 
 /// Ajoute les morceaux distants (les autres sont ignorés) ; rend le nombre de nouveaux.
@@ -48,12 +34,7 @@ pub async fn add(pool: &SqlitePool, paths: &[String]) -> Result<u64, sqlx::Error
     let mut added = 0;
     for path in paths {
         let Some((server_id, _)) = parse(path) else { continue };
-        added += sqlx::query("INSERT OR IGNORE INTO offline_tracks (path, server_id) VALUES (?, ?)")
-            .bind(path)
-            .bind(server_id)
-            .execute(pool)
-            .await?
-            .rows_affected();
+        added += OfflineTrackRepository::insert(pool, path, server_id).await?;
     }
     Ok(added)
 }
@@ -61,11 +42,7 @@ pub async fn add(pool: &SqlitePool, paths: &[String]) -> Result<u64, sqlx::Error
 /// Retire les morceaux du hors-ligne, fichiers compris.
 pub async fn remove(pool: &SqlitePool, paths: &[String]) -> Result<(), sqlx::Error> {
     for path in paths {
-        let file: Option<Option<String>> = sqlx::query_scalar("DELETE FROM offline_tracks WHERE path = ? RETURNING file")
-            .bind(path)
-            .fetch_optional(pool)
-            .await?;
-        if let Some(file) = file.flatten() {
+        if let Some(file) = OfflineTrackRepository::delete(pool, path).await? {
             let _ = std::fs::remove_file(file);
         }
     }
@@ -90,21 +67,11 @@ async fn run(app: &AppHandle, pool: &SqlitePool) -> usize {
     let mut failed: HashSet<String> = HashSet::new();
     let mut done = 0;
     loop {
-        let next: Option<String> = sqlx::query_scalar("SELECT path FROM offline_tracks WHERE file IS NULL ORDER BY added_at")
-            .fetch_all(pool)
-            .await
-            .unwrap_or_default()
-            .into_iter()
-            .find(|p: &String| !failed.contains(p));
+        let next = OfflineTrackRepository::pending_paths(pool).await.unwrap_or_default().into_iter().find(|p| !failed.contains(p));
         let Some(path) = next else { break };
         match fetch(pool, &path).await {
             Ok((file, size)) => {
-                let _ = sqlx::query("UPDATE offline_tracks SET file = ?, size = ? WHERE path = ?")
-                    .bind(file.to_string_lossy())
-                    .bind(size as i64)
-                    .bind(&path)
-                    .execute(pool)
-                    .await;
+                let _ = OfflineTrackRepository::set_file(pool, &path, &file.to_string_lossy(), size as i64).await;
                 done += 1;
             }
             // Serveur injoignable : on reprendra plus tard (synchronisation, relance).
