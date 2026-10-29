@@ -65,7 +65,7 @@ modules:
       - cargo --offline build --release --features tauri/custom-protocol --manifest-path src-tauri/Cargo.toml
       - install -Dm755 src-tauri/target/release/rustmusic /app/bin/rustmusic
       - install -Dm644 packaging/flatpak/dev.rustmusic.RustMusic.desktop /app/share/applications/dev.rustmusic.RustMusic.desktop
-      - install -Dm644 packaging/flatpak/dev.rustmusic.RustMusic.metainfo.xml /app/share/metainfo/dev.rustmusic.RustMusic.metainfo.xml
+      - install -Dm644 dev.rustmusic.RustMusic.metainfo.xml /app/share/metainfo/dev.rustmusic.RustMusic.metainfo.xml
       - install -Dm644 src-tauri/icons/icon-source.svg /app/share/icons/hicolor/scalable/apps/dev.rustmusic.RustMusic.svg
       - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/dev.rustmusic.RustMusic.png
       - install -Dm644 src-tauri/icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/dev.rustmusic.RustMusic.png
@@ -75,7 +75,11 @@ modules:
       # remplace cette source par le dossier de travail.
       - type: git
         url: https://github.com/larevuegeek/rustmusic-desktop.git
-        tag: v0.3.1
-        commit: COMMIT_DU_TAG_V0.3.1
+        tag: v0.4.1
+        commit: 7042a173b66f28b1521be99f8e9e79f78d4a492c
+      # La fiche AppStream vient d'à côté du manifeste, pas du tag : les notes d'une
+      # version s'écrivent souvent après son tag.
+      - type: file
+        path: dev.rustmusic.RustMusic.metainfo.xml
       - node-sources.json
       - cargo-sources.json
