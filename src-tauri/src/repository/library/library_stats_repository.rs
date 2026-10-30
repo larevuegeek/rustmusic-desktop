@@ -1,5 +1,7 @@
 use sqlx::SqlitePool;
 
+use crate::repository::library::library_genre_repository::GENRE_NAMES;
+
 pub struct LibraryStatsRepository;
 
 impl LibraryStatsRepository {
@@ -62,7 +64,7 @@ impl LibraryStatsRepository {
 
     pub async fn count_genres(pool: &SqlitePool, library_id: i64) -> i64 {
         sqlx::query_scalar::<_, i64>(
-            r#"SELECT COUNT(DISTINCT lc.genre) FROM library_cache lc
+            r#"SELECT COUNT(DISTINCT LOWER(lc.genre)) FROM library_cache lc
                INNER JOIN library_tracks lt ON lt.cache_id = lc.id
                WHERE lt.library_id = ? AND lc.genre IS NOT NULL AND lc.genre != ''"#,
         )
@@ -116,13 +118,12 @@ impl LibraryStatsRepository {
     }
 
     pub async fn get_top_genres(pool: &SqlitePool, library_id: i64) -> Vec<(String, i64)> {
-        sqlx::query_as::<_, (String, i64)>(
-            r#"SELECT lc.genre AS name, COUNT(*) AS cnt
-               FROM library_cache lc
-               INNER JOIN library_tracks lt ON lt.cache_id = lc.id
-               WHERE lt.library_id = ? AND lc.genre IS NOT NULL AND lc.genre != ''
-               GROUP BY lc.genre ORDER BY cnt DESC LIMIT 10"#,
-        )
+        sqlx::query_as::<_, (String, i64)>(sqlx::AssertSqlSafe(format!(
+            "WITH {GENRE_NAMES}
+             SELECT n.name, COUNT(*) AS cnt FROM tagged g
+             JOIN names n ON n.k = g.k
+             GROUP BY g.k ORDER BY cnt DESC LIMIT 10"
+        )))
         .bind(library_id)
         .fetch_all(pool)
         .await

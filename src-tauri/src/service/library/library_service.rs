@@ -76,7 +76,7 @@ impl FolderCovers {
 }
 
 /// Date de modification d'un fichier, en secondes, telle qu'enregistrée en base.
-fn modified_secs(metadata: &std::fs::Metadata) -> Option<String> {
+pub(crate) fn modified_secs(metadata: &std::fs::Metadata) -> Option<String> {
     metadata.modified()
         .ok()
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
@@ -284,7 +284,7 @@ pub async fn save_dir_to_library(
     let library_dir = find_or_create_dir(pool_api, library_id, &directory).await?;
     let _ = app.emit("import-start", ImportStart { library_id, directory: directory.clone() });
 
-    let Some(files) = list_files(&app, library_id, &directory).await else {
+    let Some(Listing { files, unreadable }) = list_files(&app, library_id, &directory).await else {
         let _ = LibraryDirRepository::update_scan_result(
             pool_api, &library_dir.id, 0, 0, "cancelled", None,
         ).await;
@@ -294,7 +294,25 @@ pub async fn save_dir_to_library(
         return Ok(Vec::new());
     };
 
-    save_files_to_library(app, pool_api, library_id, directory, files, None, jeton).await
+    // Avant le scan : un fichier renommé ou déplacé garde sa piste au lieu d'en recréer une.
+    if let Err(e) = crate::service::library::missing_files::relink_renamed(pool_api, library_id, std::slice::from_ref(&directory), &files, &unreadable).await {
+        log::warn!("📁 Renommages de {directory} non suivis : {e}");
+    }
+    let listed = files.clone();
+    let tracks = save_files_to_library(app, pool_api, library_id, directory.clone(), files, None, jeton).await?;
+    // Listage complet et scan mené au bout : ce qui manque au disque quitte la bibliothèque.
+    if !jeton.is_cancelled() {
+        if let Err(e) = crate::service::library::missing_files::remove_missing_files(pool_api, library_id, &directory, &listed, &unreadable).await {
+            log::warn!("📁 Fichiers disparus de {directory} non retirés : {e}");
+        }
+    }
+    Ok(tracks)
+}
+
+/// Fichiers audio d'un dossier, et ses sous-dossiers illisibles (leurs fichiers manquent à `files`).
+pub struct Listing {
+    pub files: Vec<PathBuf>,
+    pub unreadable: Vec<PathBuf>,
 }
 
 /// Liste les fichiers audio hors du runtime async ; `None` si l'import est arrêté.
@@ -302,7 +320,7 @@ pub async fn list_files(
     app: &tauri::AppHandle,
     library_id: i64,
     directory: &str,
-) -> Option<Vec<PathBuf>> {
+) -> Option<Listing> {
     let app = app.clone();
     let directory = directory.to_string();
     tauri::async_runtime::spawn_blocking(move || {
@@ -312,8 +330,9 @@ pub async fn list_files(
             });
         };
         let mut files: Vec<PathBuf> = Vec::new();
+        let mut unreadable: Vec<PathBuf> = Vec::new();
         let mut derniere: Option<Instant> = None;
-        let complet = read_dir_deep_with_progress(&directory, &mut files, &mut |found| {
+        let complet = read_dir_deep_with_progress(&directory, &mut files, &mut unreadable, &mut |found| {
             if derniere.map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(100)) {
                 derniere = Some(Instant::now());
                 emettre(found);
@@ -321,7 +340,7 @@ pub async fn list_files(
             !IMPORT.is_cancel_requested()
         });
         emettre(files.len());
-        complet.then_some(files)
+        complet.then_some(Listing { files, unreadable })
     })
     .await
     .ok()

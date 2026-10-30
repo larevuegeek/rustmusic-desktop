@@ -23,6 +23,7 @@ use crate::core::audio_metadata::injector::dsf_container;
 use crate::core::audio_metadata::injector::edit::TagEdit;
 use crate::core::audio_metadata::injector::flac_container;
 use crate::core::audio_metadata::injector::mp3_container;
+use crate::core::audio_metadata::injector::mp4_container;
 
 /// Formats dont on sait réécrire les métadonnées.
 ///
@@ -37,6 +38,8 @@ pub enum WritableFormat {
     Dsf,
     Dff,
     Flac,
+    /// M4A, M4B (AAC, ALAC) : tags iTunes.
+    Mp4,
     /// Reconnu mais pas encore réinscriptible — le message dit lequel.
     Unsupported,
 }
@@ -100,6 +103,7 @@ pub fn apply(path: &Path, edit: &TagEdit) -> Result<(), InjectError> {
         WritableFormat::Dsf => dsf_container::apply(path, edit),
         WritableFormat::Dff => dff_container::apply(path, edit),
         WritableFormat::Flac => flac_container::apply(path, edit),
+        WritableFormat::Mp4 => mp4_container::apply(path, edit),
         // Refus explicite plutôt qu'échec silencieux : l'utilisateur doit
         // savoir que son édition n'a pas été enregistrée.
         WritableFormat::Unsupported => Err(InjectError::UnsupportedFormat(
@@ -127,6 +131,8 @@ pub fn detect_writable(path: &Path) -> WritableFormat {
         Some("dsf") if starts_with(path, b"DSD ") => WritableFormat::Dsf,
         Some("dff") if starts_with(path, b"FRM8") => WritableFormat::Dff,
         Some("flac") if starts_with(path, b"fLaC") => WritableFormat::Flac,
+        // `.aac` est de l'ADTS brut, sans conteneur MP4 : pas de tags iTunes.
+        Some("m4a" | "m4b" | "mp4") if is_mp4(path) => WritableFormat::Mp4,
         _ => WritableFormat::Unsupported,
     }
 }
@@ -138,6 +144,15 @@ fn starts_with(path: &Path, magic: &[u8; 4]) -> bool {
     };
     let mut head = [0u8; 4];
     file.read_exact(&mut head).is_ok() && &head == magic
+}
+
+/// Un MP4 s'ouvre sur son atome `ftyp`, après les 4 octets de taille.
+fn is_mp4(path: &Path) -> bool {
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return false;
+    };
+    let mut head = [0u8; 8];
+    file.read_exact(&mut head).is_ok() && &head[4..8] == b"ftyp"
 }
 
 /// Un MP3 commence soit par un tag ID3v2 (`ID3`), soit directement par une

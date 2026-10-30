@@ -147,7 +147,7 @@ impl AudioAnalyser {
 
         let path_str: &str = file_path.to_str().ok_or("Chemin non-UTF8")?;
 
-        let audio_format: AudioFormat = Self::map_codec_to_format(codec_params.codec);
+        let audio_format: AudioFormat = Self::map_codec_to_format(codec_params.codec, file_path);
 
         // Seuls MP3 et Ogg Vorbis portent un débit dans leur en-tête : pour les
         // autres, inutile de rouvrir le fichier (coûteux sur un disque réseau).
@@ -174,7 +174,8 @@ impl AudioAnalyser {
         let mut cover_found: bool = false;
 
         if let Some(metadata_rev) = format.metadata().current() {
-            tags = Self::tags_reader(tags, metadata_rev);
+            let itunes = matches!(Self::map_codec_to_format(codec_params.codec, file_path), AudioFormat::AAC | AudioFormat::ALAC);
+            tags = Self::tags_reader(tags, metadata_rev, itunes);
 
             // Récupérer la vignette (cover art) — media-level puis per-track
             let visuals = metadata_rev
@@ -218,24 +219,30 @@ impl AudioAnalyser {
         return Ok(audiofile);
     }
 
-    fn map_codec_to_format(codec: AudioCodecId) -> AudioFormat {
+    fn map_codec_to_format(codec: AudioCodecId, path: &Path) -> AudioFormat {
+        use crate::core::audio_player::pipeline_info::is_lossless_integer;
         if codec == codec_ids::CODEC_ID_MP3 {
             AudioFormat::MP3
         } else if codec == codec_ids::CODEC_ID_FLAC {
             AudioFormat::FLAC
+        } else if codec == codec_ids::CODEC_ID_ALAC {
+            AudioFormat::ALAC
+        } else if codec == codec_ids::CODEC_ID_AAC {
+            AudioFormat::AAC
         } else if codec == codec_ids::CODEC_ID_VORBIS || codec == codec_ids::CODEC_ID_OPUS {
             AudioFormat::OGG
-        } else if codec == codec_ids::CODEC_ID_PCM_S16LE
-            || codec == codec_ids::CODEC_ID_PCM_S24LE
-            || codec == codec_ids::CODEC_ID_PCM_F32LE
+        } else if is_lossless_integer(codec)
+            || [codec_ids::CODEC_ID_PCM_F32LE, codec_ids::CODEC_ID_PCM_F32BE, codec_ids::CODEC_ID_PCM_F64LE, codec_ids::CODEC_ID_PCM_F64BE].contains(&codec)
         {
-            AudioFormat::WAV
+            // Du PCM : le conteneur dit s'il s'agit d'AIFF ou de WAV.
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+            if matches!(ext.as_str(), "aif" | "aiff" | "aifc") { AudioFormat::AIFF } else { AudioFormat::WAV }
         } else {
             AudioFormat::Unknown
         }
     }
 
-    fn tags_reader(mut tags: AudioTags, metadata_rev: &MetadataRevision) -> AudioTags {
+    fn tags_reader(mut tags: AudioTags, metadata_rev: &MetadataRevision, itunes: bool) -> AudioTags {
         // 0.6 : les tags sont dans un MetadataContainer (media-level +
         // per-track) et un Tag = RawTag + Option<StandardTag> typé.
         let all_tags = metadata_rev
@@ -274,6 +281,8 @@ impl AudioAnalyser {
                         tags.track_number = u16::try_from(*num).ok();
                     }
                     StandardTag::Composer(v) => tags.composer = Some(v.to_string()),
+                    // iTunes range le compositeur dans `©wrt`, que Symphonia nomme « Writer ».
+                    StandardTag::Writer(v) if itunes && tags.composer.is_none() => tags.composer = Some(v.to_string()),
                     StandardTag::Encoder(v) | StandardTag::EncodedBy(v) => {
                         tags.encoded_by = Some(v.to_string())
                     }
@@ -289,6 +298,9 @@ impl AudioAnalyser {
                     StandardTag::DiscNumber(num) => {
                         tags.disc_number = u16::try_from(*num).ok();
                     }
+                    // Sans eux, l'éditeur affichait les totaux vides.
+                    StandardTag::TrackTotal(num) => tags.total_tracks = u16::try_from(*num).ok(),
+                    StandardTag::DiscTotal(num) => tags.total_discs = u16::try_from(*num).ok(),
                     StandardTag::Comment(v) => tags.comment = Some(v.to_string()),
                     StandardTag::Rating(ppm) => {
                         // 0.6 normalise le rating en PPM (0..=1_000_000),
@@ -564,6 +576,16 @@ mod tests {
         let dir = dossier("casse", &["COVER.JPG", "01.flac"]);
         assert_eq!(AudioAnalyser::find_folder_cover(&dir), Some(dir.join("COVER.JPG")));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// ALAC et AIFF étaient « Unknown », donc affichés avec perte (issue #8).
+    #[test]
+    fn lossless_containers_get_their_format() {
+        let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        for (file, format, bits) in [("alac16.m4a", "ALAC", 16), ("alac24.m4a", "ALAC", 24), ("aiff24.aiff", "AIFF", 24), ("wav24.wav", "WAV", 24)] {
+            let audio = AudioAnalyser::analyse_for_import(&fixtures.join(file)).unwrap();
+            assert_eq!((format!("{:?}", audio.audio_format).as_str(), audio.bits_per_sample), (format, bits), "{file}");
+        }
     }
 
     #[test]

@@ -370,8 +370,22 @@ fn single_instance() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     }
 }
 
-fn focus_existing_window(app: &tauri::AppHandle, _args: Vec<String>, _cwd: String) {
+fn focus_existing_window(app: &tauri::AppHandle, args: Vec<String>, _cwd: String) {
     eprintln!("📌 Single-instance callback fired");
+
+    // Commandes (`/play`, `--next`…) : relayées à l'instance en place, sans la ramener au premier plan.
+    let cmds = crate::core::launch_args::parse(args.iter().skip(1));
+    if cmds.contains(&"quit") {
+        app.exit(0);
+        return;
+    }
+    let controles: Vec<&str> = cmds.iter().copied().filter(|c| *c != "show").collect();
+    for cmd in &controles {
+        let _ = tauri::Emitter::emit(app, "cli-command", *cmd);
+    }
+    if !controles.is_empty() && !cmds.contains(&"show") {
+        return;
+    }
 
     // On itère TOUTES les fenêtres au lieu de chercher "main" en dur
     let windows = app.webview_windows();
@@ -419,6 +433,8 @@ pub async fn run() {
     // Écrit les erreurs dans un fichier logs/rustmusic.log
     // dans le même répertoire que la DB (AppData)
     init_logger();
+    // `RustMusic /play` : gardé jusqu'à ce que l'interface soit prête.
+    crate::core::launch_args::remember_startup();
 
     let database_url: String = get_database_url("com.larevuegeek.rustmusic", "rustmusic.db".into());
     log::info!("SQLite DB = {}", database_url);

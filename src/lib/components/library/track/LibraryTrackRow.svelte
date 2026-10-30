@@ -21,6 +21,7 @@ import { remoteServerId } from "#lib/types/db/library/Library";
 import { serverStore } from "#lib/stores/mediaServer/mediaServer.store";
 import { offlineStore } from "#lib/stores/mediaServer/offline.store";
 import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
+import { isOutsideLibrary } from "#lib/mapper/library/mapTrackOutsideLibrary";
 
 let {
     libraryId,
@@ -190,7 +191,7 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
 
         {:else if col.widget === "rating"}
             <div class="shrink-0 flex" style={w}>
-                <StarRating trackId={track.id} value={track.rating} size={16} ton="or" videsAuSurvol />
+                <StarRating trackId={track.id} readonly={isOutsideLibrary(track.id)} value={track.rating} size={16} ton="or" videsAuSurvol />
             </div>
 
         {:else if col.key === "album"}

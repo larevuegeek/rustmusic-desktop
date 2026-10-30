@@ -28,6 +28,7 @@ export type AppSettings = {
   dsd_dop: string;                   // 'true' | 'false' — DSD natif (DoP) via WASAPI exclusive
   gapless: string;                   // 'true' | 'false' — enchaînement sans blanc entre pistes
   resume_playback: string;           // 'true' | 'false' — Lecture reprend à la position enregistrée
+  play_on_start: string;             // 'true' | 'false' — Le dernier morceau repart au lancement
   prevent_sleep: string;             // 'true' | 'false' — pas de veille automatique pendant la lecture
   theme: string;                     // 'auto' | 'light' | 'dark'
   contrast: string;                  // 'normal' | 'high' — lisibilité renforcée
@@ -117,6 +118,7 @@ export const settingsDefaults: AppSettings = {
   dsd_dop: 'false',
   gapless: 'true',
   resume_playback: 'true',
+  play_on_start: 'false',
   prevent_sleep: 'true',
   theme: 'dark',
   contrast: 'normal',

@@ -25,7 +25,7 @@ const formatNumber = (n: number) => new Intl.NumberFormat($currentLocale).format
   <div class="grid grid-cols-2 @xl:grid-cols-3 @6xl:grid-cols-6 gap-3.5">
     {#each affiches as g (g.name)}
       <button type="button" onclick={() => goto(`/library/${libraryId}/genres/${encodeURIComponent(g.name)}`)}
-              class="genre-tuile group relative h-33 flex items-start rounded-2xl overflow-hidden text-left cursor-pointer
+              class="genre-tuile group relative w-full min-w-0 h-33 flex items-start rounded-2xl overflow-hidden text-left cursor-pointer
                      transition-transform duration-300 hover:-translate-y-1"
               style="--h: {hue(g.name)}">
 

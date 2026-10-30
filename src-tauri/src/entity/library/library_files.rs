@@ -48,3 +48,16 @@ pub struct LibraryFileCreate {
     pub updated_at: DateTime<Utc>,
     pub last_verified_at: Option<DateTime<Utc>>,
 }
+
+/// Ce qui reconnaît un fichier indexé sous un autre nom : taille, date, titre, artiste, durée.
+#[derive(Debug, Clone, FromRow)]
+pub struct FileFingerprint {
+    pub path: String,
+    pub size: i64,
+    /// Secondes depuis 1970, en texte, comme au scan.
+    pub modified_at: Option<String>,
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub duration: Option<f64>,
+    pub library_album_id: Option<String>,
+}

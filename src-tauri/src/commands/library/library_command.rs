@@ -33,7 +33,7 @@ use crate::repository::library::library_track_repository::{LibraryTrackRepositor
 use crate::mapper::library::artist::track_artist_view::TrackArtistView;
 use crate::repository::library::library_track_artist_repository::LibraryTrackArtistRepository;
 use crate::service::library::artist_link_repair::ArtistLinkReport;
-use crate::service::library::library_service::{IMPORT, LibrarySaveContext, RescanProgress, create_context, list_files, save_dir_to_library, save_files_to_library, save_track_to_library};
+use crate::service::library::library_service::{IMPORT, Listing, LibrarySaveContext, RescanProgress, create_context, list_files, save_dir_to_library, save_files_to_library, save_track_to_library};
 use crate::{state::AppState};
 use crate::service::external_server::feedback_service::{self, Feedback};
 use crate::mapper::library::track::track_list_item_view::TrackListView;
@@ -210,24 +210,45 @@ pub async fn rescan_library(
             inaccessibles.push(absent);
             continue;
         }
-        let Some(files) = list_files(&app, library_id, &dir.path).await else { break };
-        lots.push((dir, files));
+        let Some(listing) = list_files(&app, library_id, &dir.path).await else { break };
+        lots.push((dir, listing));
     }
 
-    let total: usize = lots.iter().map(|(_, files)| files.len()).sum();
+    // Avant le scan, sur toute la bibliothèque (un fichier peut changer de dossier) : renommé ou
+    // déplacé, il garde sa piste au lieu d'en recréer une.
+    if !jeton.is_cancelled() && !lots.is_empty() {
+        let dirs: Vec<String> = lots.iter().map(|(dir, _)| dir.path.clone()).collect();
+        let listed: Vec<PathBuf> = lots.iter().flat_map(|(_, l)| l.files.iter().cloned()).collect();
+        let unreadable: Vec<PathBuf> = lots.iter().flat_map(|(_, l)| l.unreadable.iter().cloned()).collect();
+        if let Err(e) = crate::service::library::missing_files::relink_renamed(&state.pool, library_id, &dirs, &listed, &unreadable).await {
+            log::warn!("📁 Renommages non suivis : {e}");
+        }
+    }
+
+    let total: usize = lots.iter().map(|(_, listing)| listing.files.len()).sum();
     let mut progression = RescanProgress::new(library_id, total);
     progression.emit_progress(&app);
 
     let mut all_tracks: Vec<TrackListView> = Vec::new();
 
     // Re-scanner chaque dossier (les fichiers inchangés sont sautés via le cache)
-    for (dir, files) in lots {
+    for (dir, Listing { files, unreadable }) in lots {
         if jeton.is_cancelled() {
             break;
         }
-        match save_files_to_library(app.clone(), &state.pool, library_id, dir.path, files, Some(&mut progression), &jeton).await {
+        let listed = files.clone();
+        match save_files_to_library(app.clone(), &state.pool, library_id, dir.path.clone(), files, Some(&mut progression), &jeton).await {
             Ok(tracks) => all_tracks.extend(tracks),
-            Err(e) => log::error!("Erreur rescan dossier {}: {}", dir.name, e),
+            Err(e) => {
+                log::error!("Erreur rescan dossier {}: {}", dir.name, e);
+                continue;
+            }
+        }
+        // Listage complet et scan mené au bout : ce qui manque au disque quitte la bibliothèque.
+        if !jeton.is_cancelled() {
+            if let Err(e) = crate::service::library::missing_files::remove_missing_files(&state.pool, library_id, &dir.path, &listed, &unreadable).await {
+                log::warn!("📁 Fichiers disparus de {} non retirés : {e}", dir.path);
+            }
         }
     }
 
@@ -367,6 +388,7 @@ pub async fn list_directory(
                 duration: None,
                 thumbnail_path: None,
                 track_id: None,
+                preview: None,
             });
         } else if file_type.is_file() {
             let ext = entry_path.extension()
@@ -388,6 +410,7 @@ pub async fn list_directory(
                         duration: None,
                         thumbnail_path: None,
                         track_id: None,
+                        preview: None,
                     });
                 }
             }
@@ -413,6 +436,14 @@ pub async fn list_directory(
             e.duration = f.duration;
             e.thumbnail_path = f.thumbnail_path;
             e.track_id = f.track_id;
+        }
+    }
+
+    // Sous-dossiers : pochettes et qualité de leur contenu, en une requête.
+    if entries.iter().any(|e| e.is_dir) {
+        let mut apercus = crate::service::library::folder_preview::subfolder_previews(&state.pool, library_id, &base.to_string_lossy()).await;
+        for e in entries.iter_mut().filter(|e| e.is_dir) {
+            e.preview = apercus.remove(&e.name);
         }
     }
 
@@ -1674,8 +1705,10 @@ pub async fn get_genres(
 
     let mut genres = Vec::with_capacity(rows.len());
     for (name, total_albums, total_tracks, last_played_at) in rows {
-        let covers = covers.remove(&name).unwrap_or_default();
-        let top_artists = artistes.remove(&name).unwrap_or_default();
+        // Clé en minuscules ASCII, comme le `LOWER` de SQLite.
+        let k = name.to_ascii_lowercase();
+        let covers = covers.remove(&k).unwrap_or_default();
+        let top_artists = artistes.remove(&k).unwrap_or_default();
         genres.push(GenreView { name, total_albums, total_tracks, covers, top_artists, last_played_at });
     }
 

@@ -14,4 +14,6 @@ pub struct DirEntry {
     pub thumbnail_path: Option<String>,
     /// Piste de bibliothèque correspondante, pour la sélection multiple.
     pub track_id: Option<String>,
+    /// Sous-dossier : pochettes et qualité de ce qu'il contient.
+    pub preview: Option<crate::service::library::folder_preview::FolderPreview>,
 }

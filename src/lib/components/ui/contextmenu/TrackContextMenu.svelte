@@ -17,6 +17,7 @@
   import AddPlaylistPopin from "#lib/components/playlist/popin/AddPlaylistPopin.svelte";
   import { canWriteTags } from "#lib/services/tags/tagEditor.service";
   import EditTagsPopin from "#lib/components/library/common/popin/EditTagsPopin.svelte";
+  import { isOutsideLibrary } from "#lib/mapper/library/mapTrackOutsideLibrary";
 
   type Props = {
     track: TrackLike & { id?: string | number | null; artist_id?: string | null; library_artist_id?: string | null; album_id?: string | null };
@@ -146,7 +147,7 @@
       const params: Record<string, unknown> = { playlistId: pl.id };
 
       // Si on a un ID string (UUID des library_tracks)
-      if (track.id && typeof track.id === 'string') {
+      if (track.id && typeof track.id === 'string' && !isOutsideLibrary(track.id)) {
         params.libraryTrackId = track.id;
       }
       // Sinon on cherche par path
@@ -174,7 +175,7 @@
   }
 
   function handleViewTrack() {
-    if (libraryId && track.id) goto(`/library/${libraryId}/tracks/${track.id}`);
+    if (libraryId && track.id && !isOutsideLibrary(track.id)) goto(`/library/${libraryId}/tracks/${track.id}`);
     onclose();
   }
 
@@ -321,7 +322,7 @@
   {#if showNavigation && libraryId}
     <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
 
-    {#if track.id}
+    {#if track.id && !isOutsideLibrary(track.id)}
       <button
         class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
                text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"

@@ -9,6 +9,7 @@
   import { libraryStore } from "#lib/stores/library/library.store";
   import { resetTagCache } from "#lib/config/trackColumns";
   import PlaylistTracksView from "#lib/components/playlist/PlaylistTracksView.svelte";
+  import { mapTrackOutsideLibrary } from "#lib/mapper/library/mapTrackOutsideLibrary";
   import type { TrackLikedView } from "#lib/types/ui/like/trackLikedView";
   import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
@@ -37,7 +38,9 @@
       resetTagCache();
       // Dans l'ordre des likes, le plus récent d'abord.
       const byPath = new Map(view.map((x) => [x.path, x]));
-      tracks = paths.map((p) => byPath.get(p)).filter((x): x is TrackListView => !!x);
+      // Hors bibliothèque, le titre aimé reste là.
+      const entries = new Map(likes.map((l) => [l.path, l]));
+      tracks = paths.map((p) => byPath.get(p) ?? mapTrackOutsideLibrary(entries.get(p) ?? { path: p }));
     } catch (e) {
       console.error("[likés] chargement :", e);
     } finally {

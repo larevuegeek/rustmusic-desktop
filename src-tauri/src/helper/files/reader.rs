@@ -17,15 +17,17 @@ pub fn read_dir_deep(
     directory: &str,
     files: &mut Vec<PathBuf>
 ) {
-    read_dir_deep_with_progress(directory, files, &mut |_| true);
+    read_dir_deep_with_progress(directory, files, &mut Vec::new(), &mut |_| true);
 }
 
 /// `on_progress` reçoit le nombre de fichiers trouvés ; faux arrête le parcours.
+/// `unreadable` reçoit les dossiers lus en partie ou pas du tout : leurs fichiers manquent au listage.
 /// Sans récursion, et chaque dossier n'est lu qu'une fois : une jonction qui boucle
 /// (vieux disque système, « Application Data ») ne fait plus tourner le scan sans fin.
 pub fn read_dir_deep_with_progress(
     directory: &str,
     files: &mut Vec<PathBuf>,
+    unreadable: &mut Vec<PathBuf>,
     on_progress: &mut dyn FnMut(usize) -> bool,
 ) -> bool {
     let mut visited: HashSet<PathBuf> = HashSet::new();
@@ -40,14 +42,17 @@ pub fn read_dir_deep_with_progress(
             Ok(e) => e,
             Err(e) => {
                 log::warn!("Impossible de lire le dir {:?}: {}", dir, e);
+                unreadable.push(dir);
                 continue;
             }
         };
 
         let mut subdirs: Vec<PathBuf> = Vec::new();
-        for entry in entries.flatten() {
+        let mut partiel = false;
+        for entry in entries {
+            let Ok(entry) = entry else { partiel = true; continue };
             let path: PathBuf = entry.path();
-            let Ok(kind) = entry.file_type() else { continue };
+            let Ok(kind) = entry.file_type() else { partiel = true; continue };
             // Un lien vers un dossier est suivi ; `visited` coupe les boucles.
             let is_dir_entry = kind.is_dir() || (kind.is_symlink() && path.is_dir());
 
@@ -61,6 +66,9 @@ pub fn read_dir_deep_with_progress(
                     return false;
                 }
             }
+        }
+        if partiel {
+            unreadable.push(dir.clone());
         }
         // Pile : à l'envers pour garder l'ordre de lecture.
         stack.extend(subdirs.into_iter().rev());

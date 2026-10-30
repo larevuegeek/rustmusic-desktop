@@ -19,7 +19,7 @@ export const settingsSections: SettingsSection[] = [
     id: "general", icon: "material-symbols:tune-rounded",
     labelKey: "settings.general", hintKey: "settings.general_hint", descKey: "settings.general_desc",
     cles: [
-      "auto_start", "minimize_to_tray", "scan_on_startup",
+      "auto_start", "minimize_to_tray", "scan_on_startup", "play_on_start",
       "single_click_play", "resume_playback", "gapless", "prevent_sleep",
       "system_media_controls", "show_notifications", "show_sleep_timer", "show_whats_new_button", "show_theme_toggle",
     ],

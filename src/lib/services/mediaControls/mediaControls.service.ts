@@ -5,7 +5,7 @@ import { get } from "svelte/store";
 import { player } from "#lib/stores/player/player.store";
 import { queueState } from "#lib/stores/queue/queueState.store";
 import { settingsStore } from "#lib/stores/settings/settings.store";
-import { playerService } from "#lib/services/player/player.service";
+import { runPlayerCommand } from "#lib/services/player/playerCommand";
 
 // ============================================================================
 // SERVICE FRONTEND POUR SMTC (System Media Transport Controls)
@@ -77,31 +77,8 @@ function pushPlaybackState(status: string, positionSecs: number | undefined) {
 
 async function attachListeners() {
   // Listener Tauri : commandes OS → playerService
-  unlistenCommand = await listen<string>("smtc-command", (event) => {
-    const cmd = event.payload;
-    switch (cmd) {
-      // Un bureau peut envoyer « pause » au verrouillage ou à la veille : une bascule relançait alors la musique.
-      case "play":
-        if (!playerService.isPlaying()) playerService.handleTogglePlay();
-        break;
-      case "pause":
-        if (playerService.isPlaying()) playerService.pauseFile();
-        break;
-      case "toggle":
-        playerService.handleTogglePlay();
-        break;
-      case "next":
-        playerService.nextTrack();
-        break;
-      case "previous":
-        playerService.prevTrack();
-        break;
-      case "stop":
-        playerService.stopPlay();
-        break;
-      // "quit" / "raise" → ignorés (on ne ferme/refocus pas l'app depuis SMTC)
-    }
-  });
+  // "quit" / "raise" sont ignorés : on ne ferme ni ne ramène l'appli depuis SMTC.
+  unlistenCommand = await listen<string>("smtc-command", (event) => runPlayerCommand(event.payload));
 
   // Abonnement player store : track change → metadata, status change → state
   unsubPlayer = player.subscribe((p) => {

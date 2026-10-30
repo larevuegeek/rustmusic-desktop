@@ -13,6 +13,7 @@ import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import StarRating from "#lib/components/ui/rating/StarRating.svelte";
 import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 import { widthOf, isFlexible, cellStyle, type TrackColumn } from "#lib/config/trackColumns";
+import { isOutsideLibrary } from "#lib/mapper/library/mapTrackOutsideLibrary";
 
 // Les colonnes viennent de la page : la ligne n'a pas à relire les réglages.
 let { libraryId, track, tracks = [], columns = [], largeurs = {} }:
@@ -102,7 +103,7 @@ function handleClick(e?: MouseEvent) {
 
       {:else if col.widget === 'rating'}
         <div class="flex shrink-0" style="width: {w}px">
-          <StarRating trackId={track.id} value={track.rating} size={11} />
+          <StarRating trackId={track.id} readonly={isOutsideLibrary(track.id)} value={track.rating} size={11} />
         </div>
 
       {:else}

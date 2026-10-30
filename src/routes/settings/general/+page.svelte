@@ -29,6 +29,7 @@
           { cle: "auto_start", titre: txt("autostart"), desc: txt("autostart_desc") },
           { cle: "minimize_to_tray", titre: txt("tray"), desc: txt("tray_desc"), motsCles: "tray" },
           { cle: "scan_on_startup", titre: txt("scan_on_startup"), desc: txt("scan_on_startup_desc"), motsCles: "scan" },
+          { cle: "play_on_start", titre: txt("play_on_start"), desc: txt("play_on_start_desc"), motsCles: "lecture automatique autoplay /play" },
         ],
       },
       {

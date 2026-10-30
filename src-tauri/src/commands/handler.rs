@@ -27,6 +27,7 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         settings_command::get_all_settings,
         settings_command::reset_application,
         system_command::get_render_mode,
+        crate::core::launch_args::take_launch_commands,
         system_command::get_light_effects_auto,
         system_command::set_render_mode,
         system_command::notify_ui_ready,

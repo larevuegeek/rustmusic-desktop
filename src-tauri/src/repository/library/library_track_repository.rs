@@ -59,6 +59,17 @@ pub struct FicheChemin {
     pub thumbnail_path: Option<String>,
 }
 
+/// Une piste sous un dossier : de quoi résumer ses sous-dossiers (pochettes, qualité).
+#[derive(sqlx::FromRow)]
+pub struct FolderTrackRow {
+    pub path: String,
+    pub album_id: Option<String>,
+    pub cover: Option<String>,
+    pub audio_format: Option<String>,
+    pub bits_per_sample: Option<i64>,
+    pub sample_rate: Option<i64>,
+}
+
 /// Colonnes d'une piste en liste, pour les requêtes par dossier.
 const PISTES_DE_DOSSIER: &str = r#"
             SELECT
@@ -128,6 +139,26 @@ impl LibraryTrackRepository {
         fiches
     }
 
+
+    /// Pistes dont le chemin commence par `prefix` (séparateur final compris), dans l'ordre des chemins.
+    pub async fn find_under_prefix(pool: &SqlitePool, library_id: i64, prefix: &str) -> Result<Vec<FolderTrackRow>, sqlx::Error> {
+        sqlx::query_as::<_, FolderTrackRow>(
+            "SELECT f.path AS path, t.library_album_id AS album_id,
+                    COALESCE(la.cover_url, c.thumbnail_path) AS cover,
+                    c.audio_format AS audio_format, c.bits_per_sample AS bits_per_sample, c.sample_rate AS sample_rate
+             FROM library_files f
+             JOIN library_tracks t ON t.file_id = f.id
+             LEFT JOIN library_cache c ON c.id = COALESCE(t.cache_id, f.cache_id)
+             LEFT JOIN library_albums la ON la.id = t.library_album_id
+             WHERE f.library_id = ? AND SUBSTR(f.path, 1, ?) = ?
+             ORDER BY f.path",
+        )
+        .bind(library_id)
+        .bind(prefix.chars().count() as i64)
+        .bind(prefix)
+        .fetch_all(pool)
+        .await
+    }
 
     pub async fn insert_library_track<'e, E>(
         exec: E,

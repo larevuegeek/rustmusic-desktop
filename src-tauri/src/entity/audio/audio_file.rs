@@ -43,6 +43,7 @@ pub enum AudioFormat {
     DFF,
     DSF,
     WAV,
+    AIFF,
     Unknown,
 }
 

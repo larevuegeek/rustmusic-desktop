@@ -519,6 +519,19 @@ impl LibraryAlbumRepository {
             .map(|_| ())
     }
 
+    /// Chemins des fichiers de l'album.
+    pub async fn track_paths<'e, E>(exec: E, album_id: &str) -> Result<Vec<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_scalar(
+            "SELECT lf.path FROM library_tracks lt JOIN library_files lf ON lf.id = lt.file_id WHERE lt.library_album_id = ?",
+        )
+        .bind(album_id)
+        .fetch_all(exec)
+        .await
+    }
+
 }
 
 #[cfg(test)]

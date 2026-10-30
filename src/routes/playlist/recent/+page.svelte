@@ -9,7 +9,9 @@
   import { resetTagCache } from "#lib/config/trackColumns";
   import RoundButton from "#lib/components/ui/button/RoundButton.svelte";
   import PlaylistTracksView from "#lib/components/playlist/PlaylistTracksView.svelte";
+  import { mapTrackOutsideLibrary } from "#lib/mapper/library/mapTrackOutsideLibrary";
   import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
+  import type { RecentFileListView } from "#lib/types/ui/recent/RecentFileListView";
 
   let tracks = $state<TrackListView[]>([]);
   let loading = $state(true);
@@ -23,18 +25,20 @@
 
   // L'historique désigne ses morceaux par chemin : on les relit au format de la bibliothèque.
   $effect(() => {
-    const paths = [...new Set($recent.map((x) => x.path).filter(Boolean))];
-    untrack(() => load(paths, ++run));
+    const entries = new Map($recent.map((r) => [r.path, r]));
+    const paths = [...entries.keys()].filter(Boolean);
+    untrack(() => load(paths, entries, ++run));
   });
 
-  async function load(paths: string[], n: number) {
+  async function load(paths: string[], entries: Map<string, RecentFileListView>, n: number) {
     loading = true;
     try {
       const view = paths.length ? await invoke<TrackListView[]>("get_tracks_view_by_paths", { paths }) : [];
       if (n !== run) return;
       resetTagCache();
       const byPath = new Map(view.map((x) => [x.path, x]));
-      tracks = paths.map((p) => byPath.get(p)).filter((x): x is TrackListView => !!x);
+      // Hors bibliothèque, le morceau reste là, comme sur l'accueil.
+      tracks = paths.map((p) => byPath.get(p) ?? mapTrackOutsideLibrary(entries.get(p) ?? { path: p }));
     } catch (e) {
       console.error("[récents] chargement :", e);
     } finally {

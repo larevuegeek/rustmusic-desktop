@@ -327,7 +327,7 @@ async function playFromQueue(track: QueueTrack, index: number) {
         {#each g.cartes as c (c.cle)}
           <button type="button" onclick={c.lancer} title={c.titre}
                   class="group grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 text-left
-                         rounded-xl px-1.5 py-1.5 cursor-pointer min-w-0
+                         rounded-xl px-1.5 py-1.5 cursor-pointer w-full min-w-0
                          hover:bg-black/[0.04] dark:hover:bg-white/[0.07] transition-colors duration-150">
             <span class="relative w-11 h-11 rounded-lg overflow-hidden bg-black/5 dark:bg-white/10
                          shadow-[0_4px_10px_rgba(0,0,0,0.12)] dark:shadow-[0_6px_16px_rgba(0,0,0,0.4)]">

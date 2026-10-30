@@ -1,5 +1,80 @@
 # Changelog
 
+## [Non publié]
+
+La vue Dossiers montre ce que contiennent les dossiers (pochettes, titres,
+qualité), les tags des fichiers .m4a se modifient enfin, et l'ALAC est
+reconnu comme sans perte. Un rescan suit les fichiers renommés au lieu de les
+dupliquer, la musique peut repartir dès l'ouverture, et RustMusic se pilote
+en ligne de commande comme foobar2000.
+
+### Dossiers
+- **Pochettes des sous-dossiers** : chaque dossier montre les pochettes de ce
+  qu'il contient (une mosaïque s'il réunit plusieurs albums), son nombre de
+  titres et sa meilleure qualité (« FLAC 24/96 », « DSD128 »). Les fichiers
+  montrent leur titre, leur artiste et leur durée plutôt que leur nom de
+  fichier, et se lancent d'un bouton au survol. Le libellé « dossier », en
+  trop, disparaît (suggestion de miguelmonfortenicolas).
+- **Option « Pochettes »** dans la barre d'outils : sans elle, dossiers et
+  fichiers sont illustrés (un dossier d'où dépasse un vinyle, un fichier à
+  l'étiquette de son format, teinté selon sa qualité).
+- **Fil d'Ariane repensé** : le dossier ouvert est mis en avant, les niveaux
+  intermédiaires se replient au-delà de quatre, et le contenu du niveau
+  (dossiers, fichiers) s'affiche à droite.
+- **Barre d'outils sur une seule ligne** : elle ne passe plus à la ligne
+  selon le contenu du dossier ; les libellés s'effacent quand la place
+  manque.
+
+### Lecture
+- **Lancer la lecture au démarrage** (Réglages → Général → Démarrage) : le
+  dernier morceau repart tout seul, à la seconde où on l'avait laissé
+  (suggestion de FabiRich).
+- **Commandes de lancement**, à la foobar2000 : `/play`, `/pause`,
+  `/playpause`, `/stop`, `/next`, `/prev`, `/show`, `/exit` (ou `--play`,
+  `-play`). Si RustMusic est déjà ouvert, la commande lui est transmise sans
+  ramener la fenêtre : de quoi piloter la musique depuis un Stream Deck, un
+  raccourci, le planificateur de tâches ou un script (suggestion de
+  FabiRich).
+
+### Tags
+- **Les fichiers .m4a et .m4b se modifient** (AAC et ALAC) : titre, artistes,
+  album, année, genre, commentaire, compositeur, numéros de piste et de
+  disque, pochettes. L'audio n'est jamais réécrit ; paroles, ReplayGain,
+  MusicBrainz et autres données iTunes sont gardés (signalé par
+  miguelmonfortenicolas).
+- **Compositeur des .m4a** : rangé par iTunes dans un champ que RustMusic ne
+  lisait pas, il s'affiche désormais.
+- **Totaux de pistes et de disques** lus dans tous les formats : l'éditeur
+  les montrait vides en FLAC et en MP3.
+
+### Bibliothèque
+- **ALAC et AIFF reconnus sans perte** : ils étaient affichés « avec perte ».
+  Les fichiers déjà importés sont corrigés à la mise à jour ; un rescan
+  rafraîchit ensuite leur profondeur exacte (signalé par
+  miguelmonfortenicolas).
+- **Le rescan retire les fichiers disparus du disque** et **suit les fichiers
+  renommés ou déplacés** (même taille, même date, mêmes tags) : plus de
+  doublon après un renommage, et la note, les écoutes, les playlists et les
+  J'aime sont gardés. Rien n'est retiré si le scan est annulé, si un dossier
+  apparaît soudain vide ou sous un sous-dossier illisible (signalé par
+  miguelmonfortenicolas).
+- **Genres réunis sans tenir compte de la casse** : « Classical » et
+  « classical » ne font plus qu'un, dans la liste, les mix, les statistiques
+  et le filtre des albums (signalé par miguelmonfortenicolas).
+
+### Interface
+- **« Voir tout » des récemment joués et des titres aimés** montre tout ce
+  qu'affiche l'accueil, y compris les morceaux hors bibliothèque (signalé
+  par miguelmonfortenicolas).
+- **Titres longs coupés proprement sous macOS** sur l'accueil (Ajoutés
+  récemment, Genres, Reprendre) : ils débordaient sur la carte voisine
+  (signalé par miguelmonfortenicolas).
+
+### Sous le capot
+- **Accès à la base réorganisé** : toutes les requêtes SQL passent par des
+  repositories, et les 269 commandes de l'interface sont rangées par domaine
+  dans leur propre fichier.
+
 ## [0.4.1] - 2026-10-27
 
 Les podcasts se lisent plus vite sans voix déformée et se parcourent par

@@ -1,7 +1,7 @@
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::entity::library::library_files::LibraryFile;
+use crate::entity::library::library_files::{FileFingerprint, LibraryFile};
 use crate::entity::library::library_files::LibraryFileCreate;
 
 pub struct LibraryFilesRepository;
@@ -206,6 +206,32 @@ impl LibraryFilesRepository {
     {
         sqlx::query_scalar(
             "SELECT f.path FROM library_files f JOIN library l ON l.id = f.library_id WHERE f.library_id = ? AND l.server_id IS NOT NULL",
+        )
+        .bind(library_id)
+        .fetch_all(exec)
+        .await
+    }
+
+    /// Tous les fichiers de la bibliothèque : (id, chemin).
+    pub async fn find_paths_by_library<'e, E>(exec: E, library_id: i64) -> Result<Vec<(String, String)>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as("SELECT id, path FROM library_files WHERE library_id = ?").bind(library_id).fetch_all(exec).await
+    }
+
+    /// Empreintes des fichiers indexés de la bibliothèque, pour reconnaître un renommage.
+    pub async fn find_fingerprints<'e, E>(exec: E, library_id: i64) -> Result<Vec<FileFingerprint>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as(
+            "SELECT lf.path, lf.size, CAST(lf.modified_at AS TEXT) AS modified_at,
+                    lc.title, lc.artist, COALESCE(lt.duration, lc.duration) AS duration, lt.library_album_id
+             FROM library_files lf
+             LEFT JOIN library_cache lc ON lc.id = lf.cache_id
+             LEFT JOIN library_tracks lt ON lt.file_id = lf.id
+             WHERE lf.library_id = ? AND lf.status = 'indexed'",
         )
         .bind(library_id)
         .fetch_all(exec)

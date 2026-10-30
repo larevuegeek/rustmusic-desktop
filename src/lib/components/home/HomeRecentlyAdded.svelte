@@ -27,8 +27,9 @@ const affiches = $derived(
 
   <div class="grid grid-cols-3 @3xl:grid-cols-4 @4xl:grid-cols-6 gap-[18px]">
     {#each affiches as album (album.id)}
+      <!-- `w-full` : WebKit (macOS) n'étire pas un bouton dans sa colonne, un titre long débordait. -->
       <button type="button" onclick={() => goto(`/library/${libraryId}/albums/${album.id}`)}
-              class="group flex flex-col gap-2 text-left cursor-pointer min-w-0">
+              class="group w-full min-w-0 overflow-hidden flex flex-col gap-2 text-left cursor-pointer">
         <div class="aspect-square rounded-[10px] overflow-hidden bg-neutral-200 dark:bg-neutral-800
                     border border-neutral-200 dark:border-[#1f2522]">
           {#if album.cover_url}
@@ -40,8 +41,8 @@ const affiches = $derived(
             </div>
           {/if}
         </div>
-        <span class="text-[15px] font-semibold truncate text-neutral-900 dark:text-neutral-100">{album.title}</span>
-        <span class="text-[13px] -mt-1.5 truncate text-neutral-500 dark:text-[#9aa39e]">
+        <span class="block text-[15px] font-semibold truncate text-neutral-900 dark:text-neutral-100" title={album.title}>{album.title}</span>
+        <span class="block text-[13px] -mt-1.5 truncate text-neutral-500 dark:text-[#9aa39e]">
           <CloudMark {libraryId} size={13} />{" "}{[album.artist, album.year ? dateToYear(String(album.year)) : ''].filter(Boolean).join(' · ')}
         </span>
       </button>

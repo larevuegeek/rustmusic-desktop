@@ -72,10 +72,21 @@ const cleTitre = sortKey;
 const lettre = sortLetter;
 
 const albums = $derived($libraryContentStore.albums);
+// Un genre par nom, sans la casse (« Classical » = « classical ») : l'orthographe la plus fréquente.
 const genres = $derived.by(() => {
-  const n = new Map<string, number>();
-  for (const a of albums) if (a.genre) n.set(a.genre, (n.get(a.genre) ?? 0) + 1);
-  return [...n.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const parCle = new Map<string, Map<string, number>>();
+  for (const a of albums) {
+    if (!a.genre) continue;
+    const graphies = parCle.get(a.genre.toLowerCase()) ?? new Map<string, number>();
+    graphies.set(a.genre, (graphies.get(a.genre) ?? 0) + 1);
+    parCle.set(a.genre.toLowerCase(), graphies);
+  }
+  return [...parCle.values()]
+    .map((graphies) => {
+      const [nom] = [...graphies.entries()].sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1))[0];
+      return [nom, [...graphies.values()].reduce((s, v) => s + v, 0)] as [string, number];
+    })
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 });
 const annees = $derived.by(() => {
   const n = new Map<number, number>();
@@ -103,7 +114,7 @@ const filtres = $derived.by(() => {
     (!hiRes || !!hiResLabel(a.max_bits, a.max_sample_rate)) &&
     (!compilations || a.album_type === "compilation") &&
     (!sansPochette || !a.cover_url) &&
-    (!genre || (genre === SANS_GENRE ? !a.genre : a.genre === genre)) &&
+    (!genre || (genre === SANS_GENRE ? !a.genre : a.genre?.toLowerCase() === genre.toLowerCase())) &&
     (!annee || a.year === annee));
 });
 const visibles = $derived(filtres.map((e) => e.a));

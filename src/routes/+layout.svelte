@@ -41,6 +41,7 @@ import { initUnavailableDirsListener } from "#lib/stores/library/unavailableDirs
 import BatchPanel from "#lib/components/ui/batch/BatchPanel.svelte";
 import { trackNotificationService } from "#lib/services/notification/trackNotification.service";
 import { mediaControlsService } from "#lib/services/mediaControls/mediaControls.service";
+import { initLaunchCommands } from "#lib/services/player/launchCommands.service";
 import { onDestroy } from "svelte";
 import { page } from "$app/state";
 import { afterNavigate } from "$app/navigation";
@@ -182,6 +183,9 @@ onMount(async () => {
 
   // Le `playback-preparing` event est désormais écouté par taskProgressStore
   // (déjà init plus haut), pas besoin d'un listener dédié.
+
+  // `RustMusic /play`, ou lecture au démarrage : après les préférences de sortie, pour partir sur la bonne.
+  initLaunchCommands().catch((e) => console.warn('[startup] commandes de lancement :', e));
 
   // Scan automatique au démarrage si activé
   if (settingsStore.get('scan_on_startup') === 'true') {

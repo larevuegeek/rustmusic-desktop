@@ -27,12 +27,36 @@
   import SelectionCheck from "#lib/components/ui/selection/SelectionCheck.svelte";
   import { selectionStore } from "#lib/stores/ui/selection.store";
   import { groupKey, toggleGroupSelection } from "#lib/helper/tools/selectionGroups";
+  import CoverMosaic from "#lib/components/ui/image/CoverMosaic.svelte";
+  import FolderArt from "#lib/components/ui/image/FolderArt.svelte";
+  import FileArt from "#lib/components/ui/image/FileArt.svelte";
+  import ToolbarButton from "#lib/components/ui/button/ToolbarButton.svelte";
+  import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
+  import { minutesSeconds } from "#lib/helper/tools/dateTools";
+  import type { PalierPiste } from "#lib/helper/tools/audioFormatTools";
+  import { readLocal, writeLocal } from "#lib/helper/tools/storage";
+  import QualityBadge from "#lib/components/ui/text/QualityBadge.svelte";
+  import { formatCourt, trackTier } from "#lib/helper/tools/audioFormatTools";
 
   type DirEntry = {
     name: string; path: string; is_dir: boolean; size: number; extension: string | null;
     title: string | null; artist: string | null; duration: number | null; thumbnail_path: string | null;
     track_id: string | null;
+    preview: FolderPreview | null;
   };
+  type FolderPreview = {
+    covers: string[]; track_count: number; album_count: number;
+    best_format: string | null; best_bits: number | null; best_rate: number | null;
+  };
+  // Option de la barre : pochettes des sous-dossiers, ou dossier illustré. Retenue d'une session à l'autre.
+  let avecPochettes = $state(readLocal("folderCovers", "1") !== "0");
+  $effect(() => writeLocal("folderCovers", avecPochettes ? "1" : "0"));
+  const pochettesDe = (e: DirEntry) => (avecPochettes ? e.preview?.covers ?? [] : []);
+  // Sans profondeur connue au niveau du fichier : le DSD en or, le reste selon le format.
+  const paliersFichier = (format: string): PalierPiste => (format === "dsf" || format === "dff" ? "hires" : trackTier(format, null, null));
+  /** « DSD128 », « FLAC 24/96 », « AAC » : la meilleure piste du dossier. */
+  const qualite = (p: FolderPreview | null) =>
+    p?.best_format ? { palier: trackTier(p.best_format, p.best_bits, p.best_rate), texte: formatCourt(p.best_format, p.best_bits, p.best_rate) } : null;
 
   const libraryId = $derived(Number(page.params.library_id));
   const currentLibrary = $derived($libraryStore.libraries.find((l) => l.id === libraryId));
@@ -74,6 +98,15 @@
       if (currentPath === path) loading = false;
     }
   }
+
+  // Au-delà de quatre niveaux, le milieu se replie en « … » : le premier et les deux derniers restent.
+  type Miette = { crumb: { name: string; path: string } | null; dernier: boolean; cache: { name: string; path: string }[] };
+  const miettes = $derived.by((): Miette[] => {
+    const n = breadcrumb.length;
+    const m = (c: { name: string; path: string }, i: number): Miette => ({ crumb: c, dernier: i === n - 1, cache: [] });
+    if (n <= 4) return breadcrumb.map(m);
+    return [m(breadcrumb[0], 0), { crumb: null, dernier: false, cache: breadcrumb.slice(1, n - 2) }, m(breadcrumb[n - 2], n - 2), m(breadcrumb[n - 1], n - 1)];
+  });
 
   function goToRoot() {
     currentPath = null;
@@ -206,12 +239,98 @@
   const tuileDossier = "shrink-0 rounded-xl flex items-center justify-center border";
 </script>
 
-<!-- Icône d'une entrée : dossier en ambre, fichier audio en vert. -->
-{#snippet icone(estDossier: boolean, taille: string, largeur: number, coche: boolean | null = null)}
-  <span class="relative {tuileDossier} {taille} {estDossier ? 'bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-am)' : 'bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)'}">
-    <Icon icon={estDossier ? "material-symbols:folder-outline-rounded" : "material-symbols:music-note-rounded"} width={largeur} />
+<!-- Icône d'un dossier importé : le dossier illustré dans sa pastille ambre. -->
+{#snippet icone(taille: string, coche: boolean | null = null)}
+  <span class="relative {tuileDossier} {taille} bg-(--rg-ambg) border-(--rg-ambd)">
+    <FolderArt music class="w-[78%] h-[78%] drop-shadow-[0_2px_3px_rgb(0_0_0/0.18)]" />
     {#if coche !== null}<SelectionCheck {coche} class="absolute -top-1.5 -left-1.5" />{/if}
   </span>
+{/snippet}
+
+<!-- Sous-dossier : ses pochettes, empilées s'il contient plusieurs albums ; son nom, ses titres, sa meilleure qualité. -->
+{#snippet dossierTuile(entry: DirEntry)}
+  {@const p = entry.preview}
+  {@const covers = pochettesDe(entry)}
+  {@const q = qualite(p)}
+  {@const coche = isEntryChecked(entry)}
+  <button type="button" class="group flex flex-col gap-2.5 w-full min-w-0 text-left cursor-pointer" onclick={(e) => openEntry(entry, e)} title={entry.name}>
+    <span class="relative block aspect-square w-full mt-2">
+      <!-- Feuillets derrière : le dossier contient plusieurs albums. -->
+      {#if covers.length > 0 && (p?.album_count ?? 0) > 1}
+        <span class="absolute inset-x-4 -top-2 h-6 rounded-t-[10px] bg-(--rg-s2) border border-(--rg-bd) opacity-70 transition-transform duration-300 group-hover:-translate-y-0.5"></span>
+        <span class="absolute inset-x-2 -top-1 h-6 rounded-t-[11px] bg-(--rg-s2) border border-(--rg-bd) transition-transform duration-300 group-hover:-translate-y-px"></span>
+      {/if}
+      <span class="relative block h-full rounded-xl overflow-hidden border transition-[border-color,box-shadow] duration-200
+                   {coche ? 'border-(--rg-g) ring-2 ring-(--rg-g)/40' : 'border-(--rg-bd) group-hover:border-(--rg-bd2)'}
+                   shadow-[0_6px_18px_-8px_rgb(0_0_0/0.45)]">
+        {#if covers.length > 0}
+          <CoverMosaic {covers} class="absolute inset-0" imgClass="transition-transform duration-500 group-hover:scale-105" />
+        {:else}
+          <!-- Option coupée, ou rien de connu dedans : le dossier illustré, vinyle compris s'il contient de la musique. -->
+          <span class="absolute inset-0 flex items-center justify-center bg-radial from-(--rg-ambg) from-10% to-(--rg-carte) to-75%">
+            <FolderArt music={!!p} class="w-[58%] drop-shadow-[0_10px_14px_rgb(0_0_0/0.25)] transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-105" />
+          </span>
+        {/if}
+        <!-- Pastille : sur les pochettes, « c'est un dossier » ; sur l'illustration, le nombre d'albums. -->
+        {#if covers.length > 0 || (p?.album_count ?? 0) > 1}
+          <span class="absolute left-2 bottom-2 h-6 px-1.5 flex items-center gap-1 rounded-md bg-black/60 text-white text-[11px] font-semibold">
+            <Icon icon={covers.length > 0 ? "material-symbols:folder-rounded" : "material-symbols:album"} width={14} class="text-amber-300" />
+            {#if p && p.album_count > 1}{formatNumber(p.album_count)}{/if}
+          </span>
+        {/if}
+      </span>
+      {#if selection.active}<SelectionCheck {coche} class="absolute top-1.5 left-1.5" />{/if}
+    </span>
+    <span class="min-w-0 px-0.5">
+      <span class="line-clamp-2 wrap-break-word text-sm font-semibold leading-5 text-(--rg-tx)">{entry.name}</span>
+      {#if p || q}
+        <span class="mt-1 flex items-center gap-1.5 min-w-0 text-[12px] text-(--rg-mu)">
+          {#if p}<span class="truncate">{nb(p.track_count, "library_head.tracks_one", "library_head.tracks_n")}</span>{/if}
+          {#if q}<QualityBadge palier={q.palier} texte={q.texte} class="px-1.5 py-px shrink-0" />{/if}
+        </span>
+      {/if}
+    </span>
+  </button>
+{/snippet}
+
+<!-- Fichier : sa pochette (option) ou le fichier illustré ; son titre connu de la bibliothèque, sinon son nom. -->
+{#snippet fichierTuile(entry: DirEntry)}
+  {@const cover = avecPochettes ? entry.thumbnail_path : null}
+  {@const format = (entry.extension ?? "").toLowerCase()}
+  {@const coche = isEntryChecked(entry)}
+  {@const infos = [entry.artist, entry.duration ? minutesSeconds(entry.duration) : null].filter(Boolean)}
+  <button type="button" class="group flex flex-col gap-2.5 w-full min-w-0 text-left cursor-pointer" title={entry.name}
+          onclick={(e) => openEntry(entry, e)}
+          oncontextmenu={(e) => { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, entry }; }}>
+    <span class="relative block aspect-square w-full">
+      <span class="relative block h-full rounded-xl overflow-hidden border transition-[border-color,box-shadow] duration-200
+                   {coche ? 'border-(--rg-g) ring-2 ring-(--rg-g)/40' : 'border-(--rg-bd) group-hover:border-(--rg-bd2)'}
+                   shadow-[0_6px_18px_-8px_rgb(0_0_0/0.45)]">
+        {#if cover}
+          <CoverImg path={cover} size="2x" alt="" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <span class="absolute left-2 bottom-2 h-6 px-1.5 flex items-center rounded-md bg-black/60 text-white text-[10px] font-bold uppercase tracking-[0.06em]">{format}</span>
+        {:else}
+          <span class="absolute inset-0 flex items-center justify-center bg-radial from-(--rg-gbg) from-10% to-(--rg-carte) to-75%">
+            <FileArt {format} palier={paliersFichier(format)} class="w-[54%] drop-shadow-[0_10px_14px_rgb(0_0_0/0.25)] transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-105" />
+          </span>
+        {/if}
+        <!-- Lecture au survol : un clic sur la tuile lance le morceau. -->
+        {#if !selection.active}
+          <span class="absolute right-2 bottom-2 w-9 h-9 flex items-center justify-center rounded-full bg-(--rg-g) text-(--rg-on-g) shadow-lg
+                       opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition duration-200">
+            <Icon icon="material-symbols:play-arrow-rounded" width="22" />
+          </span>
+        {/if}
+      </span>
+      {#if selection.active}<SelectionCheck {coche} class="absolute top-1.5 left-1.5" />{/if}
+    </span>
+    <span class="min-w-0 px-0.5">
+      <span class="line-clamp-2 wrap-break-word text-sm font-semibold leading-5 text-(--rg-tx)">{entry.title ?? entry.name.replace(/\.[^.]+$/, "")}</span>
+      <span class="mt-1 block truncate text-[12px] text-(--rg-mu)">
+        {infos.length ? infos.join(" · ") : entry.size > 0 ? readableSize(entry.size, $currentLocale) : ""}
+      </span>
+    </span>
+  </button>
 {/snippet}
 
 {#if $importAffiche}
@@ -220,50 +339,80 @@
   <div class="flex flex-col h-full">
     <!-- ─── Outils : recherche, actions du dossier, tri, vue ─── -->
     <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 pt-3 pb-2">
-      <div class="flex flex-wrap items-center gap-2.5">
-        <SearchField bind:value={recherche} class="w-65 @max-4xl:flex-1 @max-4xl:w-auto min-w-36" clearLabel={$t("folders_view.clear")}
+      <!-- Une seule ligne : la recherche absorbe la place qui varie, les libellés s'effacent par priorité
+           (Pochettes, puis Lire et Tags, puis le tri). On ne passe à la ligne qu'en très petite largeur. -->
+      <div class="flex flex-wrap @3xl:flex-nowrap items-center gap-2">
+        <SearchField bind:value={recherche} class="flex-1 min-w-40 max-w-72" clearLabel={$t("folders_view.clear")}
                      placeholder={isRoot ? $t("folders_view.filter_dirs").replace("{n}", formatNumber(rootDirs.length)) : $t("folders_view.filter_entries")} />
 
         {#if !isRoot && fichiers.length > 0}
-          <button type="button" class={bouton} onclick={playFolder}>
-            <Icon icon="material-symbols:play-arrow-rounded" width="18" class="text-(--rg-g)" /><span class="@max-2xl:hidden">{$t("folders_view.play_folder")}</span>
+          <button type="button" class="{bouton} shrink-0" onclick={playFolder} title={$t("folders_view.play_folder")}>
+            <Icon icon="material-symbols:play-arrow-rounded" width="18" class="text-(--rg-g)" /><span class="@max-5xl:hidden">{$t("folders_view.play_folder")}</span>
           </button>
-          <button type="button" class={bouton} onclick={openWorkshop} disabled={openingWorkshop} title={$t("workshop.fix_tags")}>
+          <button type="button" class="{bouton} shrink-0" onclick={openWorkshop} disabled={openingWorkshop} title={$t("workshop.fix_tags")}>
             <Icon icon={openingWorkshop ? "material-symbols:progress-activity" : "material-symbols:table-edit-outline-rounded"} width="18" class={openingWorkshop ? "animate-spin" : ""} />
-            <span class="@max-2xl:hidden">{$t("workshop.fix_tags")}</span>
+            <span class="@max-5xl:hidden">{$t("workshop.fix_tags")}</span>
           </button>
         {/if}
 
-        <span class="flex-1"></span>
+        <span class="flex-1 min-w-0"></span>
 
-        <MenuSelect value={triEffectif} options={trisDispo.map((x) => ({ value: x.cle, label: $t(x.libelle), icon: x.icone }))}
-                    onchange={(v) => (tri = v as typeof tri)} labelClass="@max-xl:hidden" menuClass="w-55" />
-
-        <ViewModeSwitch />
-        <SelectionToggle />
+        <span class="shrink-0 flex items-center gap-2">
+          <MenuSelect value={triEffectif} options={trisDispo.map((x) => ({ value: x.cle, label: $t(x.libelle), icon: x.icone }))}
+                      onchange={(v) => (tri = v as typeof tri)} labelClass="@max-4xl:hidden" menuClass="w-55" />
+          {#if !isRoot && entries.length > 0}
+            <!-- Dossiers et fichiers : leurs pochettes, ou leur illustration. -->
+            <ToolbarButton icon={avecPochettes ? "material-symbols:photo-library-rounded" : "material-symbols:photo-library-outline-rounded"}
+                           pressed={avecPochettes} label={$t("folders_view.covers")} title={$t("folders_view.covers_hint")} labelClass="@max-6xl:hidden"
+                           onclick={() => (avecPochettes = !avecPochettes)} />
+          {/if}
+          <ViewModeSwitch />
+          <SelectionToggle />
+        </span>
       </div>
 
       <!-- Fil d'Ariane : racine › dossiers ouverts ; à droite, le contenu du niveau. -->
       {#if !isRoot}
-        <div class="mt-3 flex items-center gap-1 min-w-0 text-[13px]">
-          <button type="button" class="w-7.5 h-7.5 shrink-0 mr-1 flex items-center justify-center rounded-lg cursor-pointer text-(--rg-mu) hover:bg-(--rg-carte) hover:text-(--rg-tx)"
-                  title={$t("common.parent_folder")} aria-label={$t("common.parent_folder")} onclick={goToParent}>
-            <Icon icon="material-symbols:arrow-upward-rounded" width="18" />
-          </button>
-          <button type="button" class="shrink-0 flex items-center gap-1.5 px-1.5 py-1 rounded-md cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-carte)" onclick={goToRoot}>
-            <Icon icon="material-symbols:hard-drive-outline-rounded" width="16" />{$t("folders_view.root")}
-          </button>
-          {#each breadcrumb as crumb, i (crumb.path)}
-            <Icon icon="material-symbols:chevron-right-rounded" width="16" class="shrink-0 text-(--rg-mu2)" />
-            {#if i < breadcrumb.length - 1}
-              <button type="button" class="min-w-0 max-w-40 truncate px-1.5 py-1 rounded-md cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-carte)"
-                      title={crumb.path} onclick={() => navigateTo(crumb.path, crumb.name)}>{crumb.name}</button>
-            {:else}
-              <span class="min-w-0 truncate px-1.5 font-semibold text-(--rg-tx)" title={crumb.path}>{crumb.name}</span>
+        <div class="mt-3 flex items-center gap-3 min-w-0">
+          <!-- Capsule : parent | racine › … › niveaux › niveau courant -->
+          <nav class="flex items-center min-w-0 h-10 pl-1 pr-1.5 rounded-xl border border-(--rg-bd) bg-(--rg-carte) text-[13px]" aria-label={$t("nav.folders")}>
+            <button type="button" class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-pointer text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) transition-colors"
+                    title={$t("common.parent_folder")} aria-label={$t("common.parent_folder")} onclick={goToParent}>
+              <Icon icon="material-symbols:arrow-upward-rounded" width="18" />
+            </button>
+            <span class="w-px h-5 mx-1 shrink-0 bg-(--rg-bd)"></span>
+            <button type="button" class="shrink-0 h-8 flex items-center gap-1.5 px-2 rounded-lg cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2) transition-colors" onclick={goToRoot}>
+              <Icon icon="material-symbols:hard-drive-outline-rounded" width="16" /><span class="@max-xl:hidden">{$t("folders_view.root")}</span>
+            </button>
+            {#each miettes as m (m.crumb?.path ?? "…")}
+              <Icon icon="material-symbols:chevron-right-rounded" width="16" class="shrink-0 text-(--rg-mu2)" />
+              {#if !m.crumb}
+                <!-- Niveaux repliés : un clic remonte au dernier d'entre eux. -->
+                <button type="button" class="shrink-0 h-8 px-2 rounded-lg cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                        title={m.cache.map((c) => c.name).join(" › ")} onclick={() => navigateTo(m.cache[m.cache.length - 1].path, m.cache[m.cache.length - 1].name)}>…</button>
+              {:else if !m.dernier}
+                <button type="button" class="min-w-0 max-w-44 h-8 truncate px-2 rounded-lg cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2) transition-colors"
+                        title={m.crumb.path} onclick={() => navigateTo(m.crumb!.path, m.crumb!.name)}>{m.crumb.name}</button>
+              {:else}
+                <span class="min-w-0 h-8 flex items-center gap-1.5 pl-1.5 pr-2.5 rounded-lg bg-(--rg-s2) font-semibold text-(--rg-tx)" title={m.crumb.path} aria-current="page">
+                  <FolderArt music={fichiers.length > 0} class="w-5 h-5 shrink-0" />
+                  <span class="truncate">{m.crumb.name}</span>
+                </span>
+              {/if}
+            {/each}
+          </nav>
+          <!-- Contenu du niveau -->
+          <span class="ml-auto shrink-0 flex items-center gap-1.5 text-xs text-(--rg-mu)">
+            {#if dirCount > 0}
+              <span class="h-7 flex items-center gap-1.5 px-2.5 rounded-lg border border-(--rg-bd) bg-(--rg-carte)">
+                <Icon icon="material-symbols:folder-rounded" width="14" class="text-(--rg-am)" />{nb(dirCount, "library_head.folders_one", "library_head.folders_n")}
+              </span>
             {/if}
-          {/each}
-          <span class="ml-auto pl-3 shrink-0 whitespace-nowrap text-xs text-(--rg-mu)">
-            {#if dirCount > 0}{nb(dirCount, "library_head.folders_one", "library_head.folders_n")}{/if}{#if dirCount > 0 && fichiers.length > 0}{" · "}{/if}{#if fichiers.length > 0}{nb(fichiers.length, "library_head.files_one", "library_head.files_n")}{/if}
+            {#if fichiers.length > 0}
+              <span class="h-7 flex items-center gap-1.5 px-2.5 rounded-lg border border-(--rg-bd) bg-(--rg-carte)">
+                <Icon icon="material-symbols:music-note-rounded" width="14" class="text-(--rg-g)" />{nb(fichiers.length, "library_head.files_one", "library_head.files_n")}
+              </span>
+            {/if}
           </span>
         </div>
       {/if}
@@ -299,7 +448,7 @@
                                {isRootChecked(dir) ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-carte)'}
                                before:absolute before:left-18 before:right-3 before:top-0 before:h-px [button+&]:before:bg-(--rg-line) hover:before:opacity-0 [&:hover+button]:before:opacity-0"
                         onclick={() => openRoot(dir)}>
-                  {@render icone(true, "w-12 h-12", 22, selection.active ? isRootChecked(dir) : null)}
+                  {@render icone("w-12 h-12", selection.active ? isRootChecked(dir) : null)}
                   <span class="min-w-0">
                     <span class="block truncate text-base font-semibold text-(--rg-tx)">{dir.name}</span>
                     <span class="block mt-0.5 truncate font-mono text-xs text-(--rg-mu)" title={dir.path}>{dir.path}</span>
@@ -325,7 +474,7 @@
                                {isRootChecked(dir) ? 'bg-(--rg-creux-on) border-(--rg-g)' : 'bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)'}"
                         onclick={() => openRoot(dir)}>
                   <span class="flex items-start justify-between gap-3">
-                    {@render icone(true, "w-12 h-12", 24, selection.active ? isRootChecked(dir) : null)}
+                    {@render icone("w-12 h-12", selection.active ? isRootChecked(dir) : null)}
                     <span class="flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap {etat.classes}">
                       <span class="w-1.5 h-1.5 rounded-full bg-current"></span>{$t(etat.cle)}
                     </span>
@@ -354,43 +503,69 @@
           <p class="py-16 text-center text-sm text-(--rg-mu)">{$t("folders_view.no_match")}</p>
 
         {:else if $viewMode === "grid"}
-          <!-- Entrées en tuiles : un dossier parmi trente se retrouve à l'œil. -->
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 pt-3">
-            {#each visibles as entry (entry.path)}
-              <button type="button"
-                      class="group flex flex-col items-center gap-2.5 p-4 rounded-2xl border text-center cursor-pointer transition-colors
-                             {isEntryChecked(entry) ? 'bg-(--rg-creux-on) border-(--rg-g)' : 'bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)'}"
-                      onclick={(e) => openEntry(entry, e)}
-                      oncontextmenu={(e) => { if (!entry.is_dir) { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, entry }; } }}>
-                {@render icone(entry.is_dir, "w-14 h-14", 26, selection.active ? isEntryChecked(entry) : null)}
-                <span class="w-full min-w-0">
-                  <span class="block truncate text-sm font-semibold text-(--rg-tx)" title={entry.name}>{entry.name}</span>
-                  <span class="block mt-0.5 text-[11px] text-(--rg-mu)">
-                    {#if entry.is_dir}{$t("library_head.folders_one")}{:else}<span class="uppercase tracking-wide">{entry.extension ?? $t("folders_view.audio")}</span>{#if entry.size > 0}{" · "}{readableSize(entry.size, $currentLocale)}{/if}{/if}
-                  </span>
-                </span>
-              </button>
-            {/each}
-          </div>
+          <!-- Sous-dossiers en pochettes (ce qu'ils contiennent), puis les fichiers en tuiles compactes. -->
+          {#if visibles.some((e) => e.is_dir)}
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-x-4 gap-y-5 pt-4">
+              {#each visibles.filter((e) => e.is_dir) as entry (entry.path)}
+                {@render dossierTuile(entry)}
+              {/each}
+            </div>
+          {/if}
+          {#if visibles.some((e) => !e.is_dir)}
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-x-4 gap-y-5 {dirCount > 0 ? 'pt-7' : 'pt-4'}">
+              {#each visibles.filter((e) => !e.is_dir) as entry (entry.path)}
+                {@render fichierTuile(entry)}
+              {/each}
+            </div>
+          {/if}
 
         {:else}
           <!-- Entrées en liste : nom, format, poids ; lecture au survol des fichiers. -->
           <div class="flex flex-col pt-2">
             {#each visibles as entry (entry.path)}
               <button type="button"
-                      class="group relative grid grid-cols-[40px_minmax(0,1fr)_70px_90px_40px] items-center gap-4 py-1.5 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors
+                      class="group relative grid grid-cols-[40px_minmax(0,1fr)_88px_90px_40px] items-center gap-4 py-1.5 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors
                              {isEntryChecked(entry) ? 'bg-(--rg-creux-on)' : 'hover:bg-(--rg-carte)'}
                              before:absolute before:left-16 before:right-3 before:top-0 before:h-px [button+&]:before:bg-(--rg-line) hover:before:opacity-0 [&:hover+button]:before:opacity-0"
                       onclick={(e) => openEntry(entry, e)}
                       oncontextmenu={(e) => { if (!entry.is_dir) { e.preventDefault(); contextMenu = { x: e.clientX, y: e.clientY, entry }; } }}>
-                {@render icone(entry.is_dir, "w-10 h-10", 19, selection.active ? isEntryChecked(entry) : null)}
+                {#if entry.is_dir && pochettesDe(entry).length}
+                  <!-- Le sous-dossier montre sa première pochette, marquée d'un coin de dossier. -->
+                  <span class="relative w-10 h-10">
+                    <CoverMosaic covers={pochettesDe(entry).slice(0, 1)} class="absolute inset-0 rounded-[10px] overflow-hidden border border-(--rg-bd)" />
+                    <span class="absolute -right-1 -bottom-1 w-4.5 h-4.5 flex items-center justify-center rounded-[5px] bg-(--rg-ambg) border border-(--rg-ambd) text-(--rg-am)">
+                      <Icon icon="material-symbols:folder-rounded" width={11} />
+                    </span>
+                    {#if selection.active}<SelectionCheck coche={isEntryChecked(entry)} class="absolute -top-1.5 -left-1.5" />{/if}
+                  </span>
+                {:else if entry.is_dir}
+                  <span class="relative w-10 h-10 flex items-center justify-center">
+                    <FolderArt music={!!entry.preview} class="w-10 h-10 drop-shadow-[0_2px_3px_rgb(0_0_0/0.2)]" />
+                    {#if selection.active}<SelectionCheck coche={isEntryChecked(entry)} class="absolute -top-1.5 -left-1.5" />{/if}
+                  </span>
+                {:else}
+                  <!-- Fichier : sa pochette (option), sinon le fichier illustré. -->
+                  <span class="relative w-10 h-10 flex items-center justify-center">
+                    {#if avecPochettes && entry.thumbnail_path}
+                      <CoverImg path={entry.thumbnail_path} size="1x" alt="" class="w-10 h-10 rounded-[10px] object-cover border border-(--rg-bd)" />
+                    {:else}
+                      <FileArt format={entry.extension ?? ""} palier={paliersFichier((entry.extension ?? "").toLowerCase())} class="w-10 h-10 drop-shadow-[0_2px_3px_rgb(0_0_0/0.2)]" />
+                    {/if}
+                    {#if selection.active}<SelectionCheck coche={isEntryChecked(entry)} class="absolute -top-1.5 -left-1.5" />{/if}
+                  </span>
+                {/if}
                 <span class="min-w-0 truncate text-sm {entry.is_dir ? 'font-semibold text-(--rg-tx)' : 'text-(--rg-tx2)'}" title={entry.name}>{entry.name}</span>
                 <span class="justify-self-end">
-                  {#if entry.extension}
+                  {#if entry.is_dir && qualite(entry.preview)}
+                    {@const q = qualite(entry.preview)!}
+                    <QualityBadge palier={q.palier} texte={q.texte} class="px-1.5 py-0.5" />
+                  {:else if entry.extension}
                     <span class="px-1.5 py-0.5 rounded-[5px] border text-[10px] font-bold uppercase tracking-[0.06em] bg-(--rg-s2) border-(--rg-bd) text-(--rg-mu)">{entry.extension}</span>
                   {/if}
                 </span>
-                <span class="text-right text-[13px] tabular-nums text-(--rg-mu)">{!entry.is_dir && entry.size > 0 ? readableSize(entry.size, $currentLocale) : ""}</span>
+                <span class="text-right text-[13px] tabular-nums text-(--rg-mu) whitespace-nowrap">
+                  {#if entry.is_dir}{entry.preview ? nb(entry.preview.track_count, "library_head.tracks_one", "library_head.tracks_n") : ""}{:else}{entry.size > 0 ? readableSize(entry.size, $currentLocale) : ""}{/if}
+                </span>
                 <span class="justify-self-end flex items-center justify-center w-8 h-8 rounded-full
                              {entry.is_dir ? 'text-(--rg-mu2) group-hover:text-(--rg-tx2)' : 'opacity-0 group-hover:opacity-100 bg-(--rg-g) text-(--rg-on-g)'}"
                       title={entry.is_dir ? $t("folders_view.open") : $t("folders_view.play")}>

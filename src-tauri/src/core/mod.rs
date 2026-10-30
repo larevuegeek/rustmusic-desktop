@@ -55,6 +55,7 @@ pub mod audio_metadata {
         pub mod image_prep;
         pub mod injector;
         pub mod mp3_container;
+        pub mod mp4_container;
     }
 }
 
@@ -106,6 +107,7 @@ pub mod gpu_sentinel;
 pub mod render_mode;
 pub mod window_geometry;
 pub mod system_detect;
+pub mod launch_args;
 pub mod media_controls;
 pub mod system_sleep;
 pub mod mix_variety;
