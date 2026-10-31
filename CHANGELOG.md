@@ -43,6 +43,15 @@ moment où un morceau compte comme écouté se règle.
   raccourci, le planificateur de tâches ou un script (suggestion de
   FabiRich).
 
+### Suivi d'écoute
+- **Last.fm** (Réglages → Écoute en ligne) : chaque profil relie son compte
+  en autorisant RustMusic dans le navigateur, sans jamais donner son mot de
+  passe ; ses écoutes y partent avec les mêmes règles que pour ListenBrainz
+  (moitié du morceau ou 4 min, morceau en cours en option, envoi différé
+  hors connexion). On peut utiliser sa propre clé d'API Last.fm, guide en
+  trois étapes à l'appui. Les deux services peuvent être reliés en même
+  temps.
+
 ### Tags
 - **Les fichiers .m4a et .m4b se modifient** (AAC et ALAC) : titre, artistes,
   album, année, genre, commentaire, compositeur, numéros de piste et de

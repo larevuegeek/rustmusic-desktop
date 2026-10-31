@@ -206,6 +206,13 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         scrobble_command::listenbrainz_disconnect,
         scrobble_command::listenbrainz_status,
         scrobble_command::listenbrainz_set_now_playing,
+        scrobble_command::lastfm_has_builtin_key,
+        scrobble_command::lastfm_begin,
+        scrobble_command::lastfm_finish,
+        scrobble_command::lastfm_cancel,
+        scrobble_command::lastfm_disconnect,
+        scrobble_command::lastfm_status,
+        scrobble_command::lastfm_set_now_playing,
         scrobble_command::scrobble_listen,
         scrobble_command::scrobble_now_playing,
         // ─── playback ───

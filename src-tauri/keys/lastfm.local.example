@@ -1,0 +1,4 @@
+# Copier en « keys/lastfm.local » (ignoré par Git) et remplir avec la clé créée sur
+# https://www.last.fm/api/account/create — lue par build.rs à chaque compilation.
+RUSTMUSIC_LASTFM_API_KEY=
+RUSTMUSIC_LASTFM_API_SECRET=

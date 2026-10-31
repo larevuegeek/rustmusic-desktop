@@ -25,6 +25,7 @@
   import { popinStore } from "#lib/stores/ui/popin.store";
   import Dialog from "#lib/components/ui/dialog/Dialog.svelte";
   import ListenBrainzSettings from "#lib/components/settings/ListenBrainzSettings.svelte";
+  import LastfmSettings from "#lib/components/settings/LastfmSettings.svelte";
 
   // OPML : les abonnements, échangés avec les autres applis de podcasts.
   let opml = $state<"import" | "export" | null>(null);
@@ -182,3 +183,5 @@
 </OptionGroup>
 
 <ListenBrainzSettings />
+
+<LastfmSettings />

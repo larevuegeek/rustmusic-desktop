@@ -8,23 +8,41 @@ pub struct ScrobbleRepository;
 
 impl ScrobbleRepository {
     pub async fn find_account(pool: &SqlitePool, profil_id: i64, service: &str) -> Result<Option<ScrobbleAccount>, sqlx::Error> {
-        sqlx::query_as("SELECT token, user_name, now_playing FROM scrobble_accounts WHERE profil_id = ? AND service = ?")
+        sqlx::query_as("SELECT service, token, user_name, now_playing, api_key, api_secret FROM scrobble_accounts WHERE profil_id = ? AND service = ?")
             .bind(profil_id)
             .bind(service)
             .fetch_optional(pool)
             .await
     }
 
-    /// Nouveau compte, ou nouveau jeton pour le même.
-    pub async fn upsert_account(pool: &SqlitePool, profil_id: i64, service: &str, token: &str, user_name: &str) -> Result<(), sqlx::Error> {
+    /// Tous les comptes reliés d'un profil.
+    pub async fn find_accounts(pool: &SqlitePool, profil_id: i64) -> Result<Vec<ScrobbleAccount>, sqlx::Error> {
+        sqlx::query_as("SELECT service, token, user_name, now_playing, api_key, api_secret FROM scrobble_accounts WHERE profil_id = ?")
+            .bind(profil_id)
+            .fetch_all(pool)
+            .await
+    }
+
+    /// Nouveau compte, ou nouveau jeton pour le même ; `api` : la clé d'API personnelle (Last.fm).
+    pub async fn upsert_account(
+        pool: &SqlitePool,
+        profil_id: i64,
+        service: &str,
+        token: &str,
+        user_name: &str,
+        api: Option<(&str, &str)>,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "INSERT INTO scrobble_accounts (profil_id, service, token, user_name) VALUES (?, ?, ?, ?)
-             ON CONFLICT(profil_id, service) DO UPDATE SET token = excluded.token, user_name = excluded.user_name",
+            "INSERT INTO scrobble_accounts (profil_id, service, token, user_name, api_key, api_secret) VALUES (?, ?, ?, ?, ?, ?)
+             ON CONFLICT(profil_id, service) DO UPDATE SET token = excluded.token, user_name = excluded.user_name,
+                 api_key = excluded.api_key, api_secret = excluded.api_secret",
         )
         .bind(profil_id)
         .bind(service)
         .bind(token)
         .bind(user_name)
+        .bind(api.map(|a| a.0))
+        .bind(api.map(|a| a.1))
         .execute(pool)
         .await
         .map(|_| ())

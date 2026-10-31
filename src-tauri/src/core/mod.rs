@@ -203,8 +203,9 @@ pub mod subsonic {
     pub mod stream;
 }
 pub mod playlist_file;
-/// Suivi d'écoute en ligne (ListenBrainz).
+/// Suivi d'écoute en ligne (ListenBrainz, Last.fm).
 pub mod scrobble {
+    pub mod lastfm;
     pub mod listenbrainz;
 }
 pub mod smart_playlist;
