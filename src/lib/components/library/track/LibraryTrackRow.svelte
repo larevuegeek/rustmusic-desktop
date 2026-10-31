@@ -22,6 +22,7 @@ import { serverStore } from "#lib/stores/mediaServer/mediaServer.store";
 import { offlineStore } from "#lib/stores/mediaServer/offline.store";
 import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 import { isOutsideLibrary } from "#lib/mapper/library/mapTrackOutsideLibrary";
+import { playStats, withPlayStats } from "#lib/stores/player/playStats.store";
 
 let {
     libraryId,
@@ -53,6 +54,8 @@ let {
 } = $props();
 
 let contextMenu = $state<{ x: number; y: number } | null>(null);
+// Compteur d'écoutes à jour pendant la lecture, sans recharger la page.
+const vivant = $derived(withPlayStats(track, $playStats));
 const aime = $derived($liked.paths.has(track.path));
 const selection = $derived($selectionStore);
 const coche = $derived(selection.active && selection.ids.has(track.id));
@@ -205,7 +208,7 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
 
         {:else}
             <span class="shrink-0 truncate text-[13px] text-(--rg-mu) {col.align === 'right' ? 'text-right' : ''} {col.numeric ? 'tabular-nums' : ''}"
-                  style={w} title={col.value?.(track) ?? ""}>{col.value?.(track) ?? ""}</span>
+                  style={w} title={col.value?.(vivant) ?? ""}>{col.value?.(vivant) ?? ""}</span>
         {/if}
     {/each}
 

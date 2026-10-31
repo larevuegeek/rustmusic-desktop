@@ -19,6 +19,7 @@ import { radioPlayer } from "#lib/stores/radio/radioPlayer.store";
 import { podcastQueue } from "#lib/stores/podcast/podcastQueue.store";
 import { playbackSpeed } from "#lib/stores/player/playbackSpeed.store";
 import { chapters } from "#lib/stores/podcast/chapters.store";
+import { playStats, type PlayStats } from "#lib/stores/player/playStats.store";
 
 /** Morceau d'un serveur injoignable ou désactivé : sauté à l'enchaînement. */
 const skipUnavailable = (track: QueueTrack) => serverStore.unavailable(track.path);
@@ -64,9 +65,13 @@ const scrobbleThreshold = (duree: number) => Math.min(240, duree / 2);
  * échantillon ferait d'un survol de bibliothèque une série de fausses écoutes,
  * et « les plus écoutés » remonterait ce qu'on a le plus vite passé. Le plafond
  * évite qu'un morceau de vingt minutes ne compte jamais.
+ *
+ * Réglage `listen_threshold` : « auto » (cette règle), ou un pourcentage du morceau.
  */
 function listenThreshold(duree: number): number {
     if (!duree || duree <= 0) return 60;
+    const pct = Number(settingsStore.get('listen_threshold'));
+    if (pct > 0 && pct < 100) return duree * pct / 100;
     return Math.min(60, duree / 2);
 }
 
@@ -870,9 +875,10 @@ class PlayerService {
                 playCountedPath = p.pathFile;
                 // Sans `await` : un compteur ne doit pas retarder le sondage de
                 // position, et son échec ne regarde pas la lecture.
-                invoke('mark_track_played', { path: p.pathFile }).catch(e =>
-                    console.error('Compteur d\'écoutes :', e)
-                );
+                const chemin = p.pathFile;
+                invoke<PlayStats | null>('mark_track_played', { path: chemin })
+                    .then((s) => { if (s) playStats.set(chemin, s); })
+                    .catch(e => console.error('Compteur d\'écoutes :', e));
             }
             // Suivi d'écoute : un seuil à part, celui de ListenBrainz et Last.fm.
             if (p.pathFile && p.pathFile !== scrobbledPath && total > 30 && current >= scrobbleThreshold(total)) {

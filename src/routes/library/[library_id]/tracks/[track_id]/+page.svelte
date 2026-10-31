@@ -40,6 +40,7 @@ import { isRemotePath, type Library } from "#lib/types/db/library/Library";
 import type { TrackDetailView } from "#lib/types/ui/library/track/TrackDetailView";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
+import { playStats, withPlayStats } from "#lib/stores/player/playStats.store";
 
 /** Artistes crédités ; `library_artist_id` vide quand l'artiste n'est pas dans cette bibliothèque. */
 type Credit = { artist_id: string; library_artist_id: string | null; name: string };
@@ -184,6 +185,8 @@ const resume = $derived.by(() => {
   return { palier, titre: $t("track_view.q_lossy"), detail: [`${f} ${$t("track_view.lossy_word")}`, track.bitrate ? `${formatNumber(track.bitrate)} kb/s` : ""].filter(Boolean).join(" · "), niveau: "LOSSY" };
 });
 
+// Compteur d'écoutes à jour pendant la lecture, sans recharger la fiche.
+const vivant = $derived(track ? withPlayStats(track, $playStats) : null);
 const channelsLabel = (c: number | null) => (c === 1 ? $t("track_view.mono") : c === 2 ? $t("track_view.stereo") : c === 6 ? "5.1" : c === 8 ? "7.1" : c ? `${c} ch` : "—");
 const audio = $derived(track ? [
   { l: "track_view.duration", v: track.duration ? minutesSeconds(track.duration) : "—" },
@@ -193,13 +196,13 @@ const audio = $derived(track ? [
   { l: "track_view.resolution", v: track.bits_per_sample ? `${track.bits_per_sample} bit` : "—" },
   { l: "track_view.channels", v: channelsLabel(track.channels) },
   { l: "track_view.size", v: readableSize(track.file_size ?? track.size ?? 0, $currentLocale) || "—" },
-  { l: "track_view.plays", v: formatNumber(track.play_count ?? 0), discret: !track.play_count },
+  { l: "track_view.plays", v: formatNumber(vivant?.play_count ?? 0), discret: !vivant?.play_count },
 ] : []);
 
 const ecoute = $derived.by(() => {
-  if (!track?.play_count) return $t("track_view.never_played");
-  const fois = $t(track.play_count === 1 ? "track_view.played_once" : "track_view.played_n").replace("{n}", formatNumber(track.play_count));
-  return track.last_played_at ? `${fois} · ${ilYA(track.last_played_at, $currentLocale)}` : fois;
+  if (!vivant?.play_count) return $t("track_view.never_played");
+  const fois = $t(vivant.play_count === 1 ? "track_view.played_once" : "track_view.played_n").replace("{n}", formatNumber(vivant.play_count));
+  return vivant.last_played_at ? `${fois} · ${ilYA(vivant.last_played_at, $currentLocale)}` : fois;
 });
 
 // Dossier et nom du fichier, le second mis en avant.

@@ -812,7 +812,7 @@ pub async fn get_tracks(
 pub async fn mark_track_played(
     state: State<'_, AppState>,
     path: String,
-) -> Result<(), String> {
+) -> Result<Option<crate::repository::library::library_track_repository::PlayStats>, String> {
     let touchees = LibraryTrackRepository::mark_played(&state.pool, &path)
         .await
         .map_err(|e| format!("Compteur d'écoutes : {e}"))?;
@@ -831,9 +831,10 @@ pub async fn mark_track_played(
     }
     // Morceau d'un serveur : l'écoute lui est aussi comptée (scrobble).
     let now = chrono::Utc::now().timestamp_millis();
-    crate::commands::playlist::playlist_command::send_feedback(&state, path, Feedback::Scrobble(now));
+    crate::commands::playlist::playlist_command::send_feedback(&state, path.clone(), Feedback::Scrobble(now));
 
-    Ok(())
+    // Les nouvelles valeurs, pour que les listes ouvertes se mettent à jour sans rechargement.
+    Ok(LibraryTrackRepository::find_play_stats(&state.pool, &path).await.ok().flatten())
 }
 
 #[derive(Serialize)]

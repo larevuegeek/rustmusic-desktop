@@ -14,6 +14,7 @@ import StarRating from "#lib/components/ui/rating/StarRating.svelte";
 import CloudMark from "#lib/components/ui/status/CloudMark.svelte";
 import { widthOf, isFlexible, cellStyle, type TrackColumn } from "#lib/config/trackColumns";
 import { isOutsideLibrary } from "#lib/mapper/library/mapTrackOutsideLibrary";
+import { playStats, withPlayStats } from "#lib/stores/player/playStats.store";
 
 // Les colonnes viennent de la page : la ligne n'a pas à relire les réglages.
 let { libraryId, track, tracks = [], columns = [], largeurs = {} }:
@@ -28,6 +29,8 @@ let { libraryId, track, tracks = [], columns = [], largeurs = {} }:
     } = $props();
 
 let contextMenu = $state<{ x: number; y: number } | null>(null);
+// Compteur d'écoutes à jour pendant la lecture, sans recharger la page.
+const vivant = $derived(withPlayStats(track, $playStats));
 let isLiked = $derived($liked.paths.has(track.path));
 let selection = $derived($selectionStore);
 let isSelected = $derived(selection.active && selection.ids.has(track.id));
@@ -112,9 +115,9 @@ function handleClick(e?: MouseEvent) {
                  {col.align === 'right' ? 'text-right' : ''}
                  {col.numeric ? 'tabular-nums' : ''}"
           style="width: {w}px"
-          title={col.value?.(track) ?? ''}
+          title={col.value?.(vivant) ?? ''}
         >
-          {col.value?.(track) ?? ''}
+          {col.value?.(vivant) ?? ''}
         </span>
       {/if}
     {/each}

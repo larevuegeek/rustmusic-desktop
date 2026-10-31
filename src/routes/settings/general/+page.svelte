@@ -20,6 +20,12 @@
     { value: "it", label: "Italiano" },
   ];
 
+  // Part du morceau à écouter pour qu'il compte ; « auto » garde la règle d'origine.
+  const seuils = $derived([
+    { value: "auto", label: $t("settings.listen_threshold_auto") },
+    ...["25", "50", "75", "80", "90"].map((n) => ({ value: n, label: $t("settings.listen_threshold_pct").replace("{n}", n) })),
+  ]);
+
   const groupes = $derived.by((): { titre: string; hint: string; items: Interrupteur[] }[] => {
     const txt = (cle: string) => $t(`settings.${cle}`).replaceAll("{os}", systeme);
     return [
@@ -77,5 +83,16 @@
         />
       </OptionItem>
     {/each}
+    {#if i === 1}
+      <!-- Lecture : à partir de quand un morceau compte comme écouté. -->
+      <OptionItem title={$t("settings.listen_threshold")} desc={$t("settings.listen_threshold_desc")} keywords="écoute compteur pourcentage play count">
+        <SelectField
+          value={$settingsStore.listen_threshold}
+          options={seuils}
+          label={$t("settings.listen_threshold")}
+          onchange={(v) => settingsStore.set("listen_threshold", v)}
+        />
+      </OptionItem>
+    {/if}
   </OptionGroup>
 {/each}

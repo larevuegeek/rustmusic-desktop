@@ -59,6 +59,13 @@ pub struct FicheChemin {
     pub thumbnail_path: Option<String>,
 }
 
+/// Compteur d'écoutes d'une piste, juste après une écoute.
+#[derive(sqlx::FromRow, serde::Serialize)]
+pub struct PlayStats {
+    pub play_count: i64,
+    pub last_played_at: Option<String>,
+}
+
 /// Une piste sous un dossier : de quoi résumer ses sous-dossiers (pochettes, qualité).
 #[derive(sqlx::FromRow)]
 pub struct FolderTrackRow {
@@ -1279,6 +1286,20 @@ impl LibraryTrackRepository {
         .execute(exec)
         .await
         .map(|r| r.rows_affected())
+    }
+
+    /// Compteur et dernière écoute du fichier à ce chemin, pour l'affichage en direct.
+    pub async fn find_play_stats<'e, E>(exec: E, path: &str) -> Result<Option<PlayStats>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as::<_, PlayStats>(
+            "SELECT play_count, last_played_at FROM library_tracks
+              WHERE file_id IN (SELECT id FROM library_files WHERE path = ?) LIMIT 1",
+        )
+        .bind(path)
+        .fetch_optional(exec)
+        .await
     }
 
     /// Tags supplémentaires (JSON) de chaque piste de la bibliothèque.

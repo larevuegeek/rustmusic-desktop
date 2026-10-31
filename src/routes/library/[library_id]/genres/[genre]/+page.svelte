@@ -1,6 +1,7 @@
 <script lang="ts">
-// Page d'un genre : mosaïque et chiffres, ses albums, ses artistes, puis tous ses titres.
+// Page d'un genre : mosaïque et chiffres, puis ses albums, ses morceaux ou ses artistes (`?vue=`), comme une période.
 import { page } from "$app/state";
+import { goto } from "$app/navigation";
 import Icon from "@iconify/svelte";
 import { untrack } from "svelte";
 import { invoke } from "@tauri-apps/api/core";
@@ -25,7 +26,6 @@ import ChipLink from "#lib/components/ui/link/ChipLink.svelte";
 import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
 import ViewModeSwitch from "#lib/components/ui/input/ViewModeSwitch.svelte";
 import SelectionToggle from "#lib/components/ui/selection/SelectionToggle.svelte";
-import CarouselSection from "#lib/components/ui/carousel/CarouselSection.svelte";
 import TrackColumnsButton from "#lib/components/library/track/TrackColumnsButton.svelte";
 import CollectionContextMenu from "#lib/components/ui/contextmenu/CollectionContextMenu.svelte";
 import AlbumTrackRow from "#lib/components/library/album/AlbumTrackRow.svelte";
@@ -34,7 +34,6 @@ import AlbumListItem from "#lib/components/library/album/AlbumListItem.svelte";
 import AlbumListRow from "#lib/components/library/album/AlbumListRow.svelte";
 import ArtistListItem from "#lib/components/library/artist/ArtistListItem.svelte";
 import ArtistListRow from "#lib/components/library/artist/ArtistListRow.svelte";
-import type { AlbumListView } from "#lib/types/ui/library/album/AlbumListView";
 import type { ArtistListView } from "#lib/types/ui/library/artist/ArtistListView";
 import type { TrackListView } from "#lib/types/ui/library/track/TrackListView";
 
@@ -81,6 +80,27 @@ const albums = $derived(
     .filter((a) => a.genre?.toLowerCase() === genre.toLowerCase())
     .sort((x, y) => (y.year ?? 0) - (x.year ?? 0) || byTitle(x.title, y.title)),
 );
+// La vue vit dans l'adresse : elle se partage et survit au retour. Sans album, on montre les morceaux.
+type Vue = "albums" | "morceaux" | "artistes";
+const vue = $derived.by((): Vue => {
+  const v = page.url.searchParams.get("vue");
+  return v === "morceaux" || v === "artistes" || v === "albums" ? v : albums.length ? "albums" : "morceaux";
+});
+function setVue(v: string) {
+  const url = new URL(page.url.href);
+  url.searchParams.set("vue", v);
+  goto(url.pathname + url.search, { replace: true, reset: false });
+}
+
+type TriAlbums = "year" | "title" | "artist";
+let triAlbums = $state<TriAlbums>("year");
+const albumsTries = $derived(
+  [...albums].sort((x, y) =>
+    triAlbums === "title" ? byTitle(x.title, y.title)
+    : triAlbums === "artist" ? byTitle(x.artist ?? "", y.artist ?? "") || (y.year ?? 0) - (x.year ?? 0)
+    : (y.year ?? 0) - (x.year ?? 0) || byTitle(x.title, y.title)),
+);
+
 // Les plus présents d'abord : le nombre de titres du genre, pas de toute leur carrière.
 const artistes = $derived.by((): ArtistListView[] => {
   const n = new Map<string, number>();
@@ -115,6 +135,7 @@ const LOT = 200;
 let affiches = $state(LOT);
 $effect(() => {
   void genre;
+  void vue;
   affiches = LOT;
 });
 const visibles = $derived(tries.slice(0, affiches));
@@ -130,20 +151,15 @@ const sortArrow = (cle: string) => (tri === cle ? (sens === "asc" ? "material-sy
 
 const grille = $derived($viewMode !== "list");
 $effect(() => {
-  if (grille) selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
+  if (vue === "morceaux" && grille) selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
 });
 
 const colonnes = $derived(resolveColumns(shownKeys($settingsStore.track_columns)).filter((c) => c.key !== "genre"));
 const largeurs = $derived(readWidths($settingsStore.track_column_widths));
 
 let menu = $state<{ x: number; y: number } | null>(null);
+const grilleCartes = "grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x-4.5 gap-y-6";
 </script>
-
-<!-- Cartes et lignes des sections (hors de DetailPage : sinon ce seraient ses props). -->
-{#snippet carteAlbum(a: AlbumListView)}<AlbumListItem {libraryId} album={a} />{/snippet}
-{#snippet ligneAlbum(a: AlbumListView)}<AlbumListRow {libraryId} album={a} />{/snippet}
-{#snippet carteArtiste(a: ArtistListView)}<ArtistListItem {libraryId} artist={a} />{/snippet}
-{#snippet ligneArtiste(a: ArtistListView)}<ArtistListRow {libraryId} artist={a} />{/snippet}
 
 <!-- Mosaïque du genre : quatre pochettes, sinon des dégradés dans sa teinte. -->
 {#snippet mosaique(taille: string, icone: number)}
@@ -223,23 +239,27 @@ let menu = $state<{ x: number; y: number } | null>(null);
       </div>
     </div>
 
-    {#if albums.length > 0}
-      <CarouselSection class="mt-3" titre={$t("genre_view.albums")}
-                       sousTitre={`${formatNumber(albums.length)} ${plural(albums.length, "library_head.albums_one", "library_head.albums_n")}`}
-                       {grille} items={albums} cle={(a) => a.id} carte={carteAlbum} ligne={ligneAlbum} />
-    {/if}
-    {#if artistes.length > 0}
-      <CarouselSection titre={$t("genre_view.artists")} sousTitre={$t("genre_view.artists_desc")}
-                       {grille} items={artistes.slice(0, 30)} cle={(a) => a.id} carte={carteArtiste} ligne={ligneArtiste} />
-    {/if}
-
-    <!-- ─── Tous les titres ─── -->
-    <section class="mt-12">
-      <h2 class="mb-2 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{$t("artist_view.all_tracks")}</h2>
-
-      <div class="flex flex-wrap items-center gap-2.5 pt-1 pb-3.5">
-        <span class="mr-auto text-[13px] text-(--rg-mu)"><b class="font-semibold text-(--rg-tx2)">{formatNumber(tracks.length)}</b> {plural(tracks.length, "library_head.tracks_one", "library_head.tracks_n")}{#if duree}{" · "}{listenDuration(duree)}{/if}</span>
-
+    <!-- ─── Albums, morceaux ou artistes ─── -->
+    <div class="flex flex-wrap items-center gap-2.5 pb-4 border-t border-(--rg-line) pt-5">
+      <SegmentedControl
+        label={$t("period_view.explore")}
+        value={vue}
+        onchange={setVue}
+        options={[
+          { value: "albums", label: `${$t("library.albums")} · ${formatNumber(albums.length)}` },
+          { value: "morceaux", label: `${$t("library.tracks")} · ${formatNumber(tracks.length)}` },
+          { value: "artistes", label: `${$t("library.artists")} · ${formatNumber(artistes.length)}` },
+        ]}
+      />
+      <span class="flex-1"></span>
+      {#if vue === "albums"}
+        <SegmentedControl variant="discret" label={$t("common.sort")} value={triAlbums} onchange={(v) => (triAlbums = v as TriAlbums)}
+                          options={[
+                            { value: "year", label: $t("period_view.sort_year") },
+                            { value: "title", label: $t("period_view.sort_title") },
+                            { value: "artist", label: $t("period_view.sort_artist") },
+                          ]} />
+      {:else if vue === "morceaux"}
         <SegmentedControl variant="discret" label={$t("common.sort")} value={tri} onchange={changeSort}
                           options={[
                             { value: "title", label: $t("artist_view.sort_title"), after: sortArrow("title") },
@@ -248,8 +268,36 @@ let menu = $state<{ x: number; y: number } | null>(null);
                             { value: "created_at", label: $t("genre_view.sort_added"), after: sortArrow("created_at") },
                           ]} />
         {#if !grille}<TrackColumnsButton {libraryId} avecLibelle />{/if}
-      </div>
+      {/if}
+    </div>
 
+    {#if vue === "albums"}
+      {#if albums.length === 0}
+        <p class="py-10 text-center text-sm text-(--rg-mu)">{$t("genre_view.empty")}</p>
+      {:else if grille}
+        <div class={grilleCartes}>
+          {#each albumsTries as a (a.id)}<AlbumListItem {libraryId} album={a} />{/each}
+        </div>
+      {:else}
+        <div class="flex flex-col">
+          {#each albumsTries as a (a.id)}<AlbumListRow {libraryId} album={a} />{/each}
+        </div>
+      {/if}
+
+    {:else if vue === "artistes"}
+      <p class="-mt-2 mb-4 text-[13px] text-(--rg-mu)">{$t("genre_view.artists_desc")}</p>
+      {#if grille}
+        <div class={grilleCartes}>
+          {#each artistes as a (a.id)}<ArtistListItem {libraryId} artist={a} />{/each}
+        </div>
+      {:else}
+        <div class="flex flex-col">
+          {#each artistes as a (a.id)}<ArtistListRow {libraryId} artist={a} />{/each}
+        </div>
+      {/if}
+
+    {:else}
+    <section>
       {#if !charge}
         <div class="flex justify-center py-10 text-(--rg-mu)"><Icon icon="material-symbols:progress-activity" width="22" class="animate-spin" /></div>
       {:else if tracks.length === 0}
@@ -276,6 +324,7 @@ let menu = $state<{ x: number; y: number } | null>(null);
         </div>
       {/if}
     </section>
+    {/if}
 </DetailPage>
 
 {#if menu}

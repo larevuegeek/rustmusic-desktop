@@ -29,6 +29,7 @@ export type AppSettings = {
   gapless: string;                   // 'true' | 'false' — enchaînement sans blanc entre pistes
   resume_playback: string;           // 'true' | 'false' — Lecture reprend à la position enregistrée
   play_on_start: string;             // 'true' | 'false' — Le dernier morceau repart au lancement
+  listen_threshold: string;          // 'auto' (1 min ou la moitié) | '25' | '50' | '75' | '80' | '90' — % écouté pour compter
   prevent_sleep: string;             // 'true' | 'false' — pas de veille automatique pendant la lecture
   theme: string;                     // 'auto' | 'light' | 'dark'
   contrast: string;                  // 'normal' | 'high' — lisibilité renforcée
@@ -119,6 +120,7 @@ export const settingsDefaults: AppSettings = {
   gapless: 'true',
   resume_playback: 'true',
   play_on_start: 'false',
+  listen_threshold: 'auto',
   prevent_sleep: 'true',
   theme: 'dark',
   contrast: 'normal',

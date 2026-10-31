@@ -20,7 +20,7 @@ export const settingsSections: SettingsSection[] = [
     labelKey: "settings.general", hintKey: "settings.general_hint", descKey: "settings.general_desc",
     cles: [
       "auto_start", "minimize_to_tray", "scan_on_startup", "play_on_start",
-      "single_click_play", "resume_playback", "gapless", "prevent_sleep",
+      "single_click_play", "resume_playback", "listen_threshold", "gapless", "prevent_sleep",
       "system_media_controls", "show_notifications", "show_sleep_timer", "show_whats_new_button", "show_theme_toggle",
     ],
   },

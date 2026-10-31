@@ -6,7 +6,9 @@ La vue Dossiers montre ce que contiennent les dossiers (pochettes, titres,
 qualité), les tags des fichiers .m4a se modifient enfin, et l'ALAC est
 reconnu comme sans perte. Un rescan suit les fichiers renommés au lieu de les
 dupliquer, la musique peut repartir dès l'ouverture, et RustMusic se pilote
-en ligne de commande comme foobar2000.
+en ligne de commande comme foobar2000. La page d'un genre s'explore comme
+celle d'une année, le compteur d'écoutes se met à jour en direct, et le
+moment où un morceau compte comme écouté se règle.
 
 ### Dossiers
 - **Pochettes des sous-dossiers** : chaque dossier montre les pochettes de ce
@@ -29,6 +31,11 @@ en ligne de commande comme foobar2000.
 - **Lancer la lecture au démarrage** (Réglages → Général → Démarrage) : le
   dernier morceau repart tout seul, à la seconde où on l'avait laissé
   (suggestion de FabiRich).
+- **Seuil d'écoute réglable** (Réglages → Général → Lecture) : un morceau
+  compte comme écouté après 1 minute ou la moitié (comme avant), ou à 25,
+  50, 75, 80 ou 90 % de sa durée. Utile pour les longs morceaux, qui
+  comptaient au bout d'une minute à peine. Le suivi ListenBrainz garde sa
+  propre règle.
 - **Commandes de lancement**, à la foobar2000 : `/play`, `/pause`,
   `/playpause`, `/stop`, `/next`, `/prev`, `/show`, `/exit` (ou `--play`,
   `-play`). Si RustMusic est déjà ouvert, la commande lui est transmise sans
@@ -63,6 +70,14 @@ en ligne de commande comme foobar2000.
   et le filtre des albums (signalé par miguelmonfortenicolas).
 
 ### Interface
+- **Page d'un genre comme celle d'une année** : un sélecteur Albums /
+  Morceaux / Artistes remplace les sections empilées ; plus besoin de
+  descendre sous les albums et les artistes pour atteindre les titres. Le
+  choix se garde dans l'adresse, et les albums se trient par année, titre
+  ou artiste.
+- **Compteur d'écoutes à jour en direct** : dans les listes de morceaux et
+  sur la fiche d'un morceau, le nombre d'écoutes et la dernière écoute
+  changent dès que l'écoute compte, sans changer de page.
 - **« Voir tout » des récemment joués et des titres aimés** montre tout ce
   qu'affiche l'accueil, y compris les morceaux hors bibliothèque (signalé
   par miguelmonfortenicolas).
