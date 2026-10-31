@@ -2633,6 +2633,22 @@
       "sidebar_organize": {
         "title": "Eine Seitenleiste nach Ihrem Geschmack",
         "text": "Ordnen Sie Bereiche und Playlists, einschließlich Favorisierte Titel und Kürzlich gespielt, wie Sie möchten: „…“-Menü der Playlists, dann „Seitenleiste anordnen“."
+      },
+      "folder_covers": {
+        "title": "Deine Ordner mit Covern",
+        "text": "In der Ordneransicht zeigt jeder Ordner die Cover seines Inhalts, die Zahl der Titel und die beste Qualität. Lieber Symbole? Schaltfläche „Cover“ in der Werkzeugleiste."
+      },
+      "lastfm": {
+        "title": "Last.fm gesellt sich zu ListenBrainz",
+        "text": "Verknüpfe dein Last.fm-Konto mit einem Klick, ohne dein Passwort anzugeben: Deine Wiedergaben werden automatisch gesendet, auf Wunsch auch an ListenBrainz. Einstellungen → Online hören."
+      },
+      "m4a_tags": {
+        "title": ".m4a bearbeiten, ALAC ist verlustfrei",
+        "text": "Titel, Interpreten, Album, Cover … die Tags von .m4a-Dateien lassen sich endlich bearbeiten, ohne den Ton anzutasten. Und ALAC wird als verlustfrei erkannt."
+      },
+      "playback_start": {
+        "title": "Musik, die von selbst startet",
+        "text": "Starte die Wiedergabe beim Öffnen, lege fest, ab wann ein Titel als gehört zählt, und steuere RustMusic per Kommandozeile (/play, /next …). Einstellungen → Allgemein."
       }
     }
   },

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Non publié]
+## [0.4.2] - 2026-10-31
 
 La vue Dossiers montre ce que contiennent les dossiers (pochettes, titres,
 qualité), les tags des fichiers .m4a se modifient enfin, et l'ALAC est

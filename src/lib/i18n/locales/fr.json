@@ -2633,6 +2633,22 @@
       "sidebar_organize": {
         "title": "Une barre latérale à votre goût",
         "text": "Rangez les sections et les playlists, « Titres likés » et « Récemment joués » compris, dans l'ordre que vous voulez : menu « … » des Playlists, puis « Organiser la barre latérale »."
+      },
+      "folder_covers": {
+        "title": "Vos dossiers en pochettes",
+        "text": "Dans la vue Dossiers, chaque dossier montre les pochettes de ce qu'il contient, son nombre de titres et sa meilleure qualité. Préférez des icônes ? Le bouton « Pochettes » de la barre d'outils."
+      },
+      "lastfm": {
+        "title": "Last.fm rejoint ListenBrainz",
+        "text": "Reliez votre compte Last.fm en un clic, sans donner votre mot de passe : vos écoutes y partent toutes seules, aussi vers ListenBrainz si vous voulez. Réglages → Écoute en ligne."
+      },
+      "m4a_tags": {
+        "title": "Les .m4a se modifient, l'ALAC est sans perte",
+        "text": "Titre, artistes, album, pochettes… les tags des fichiers .m4a se modifient enfin, sans toucher au son. Et l'ALAC est reconnu comme sans perte."
+      },
+      "playback_start": {
+        "title": "La musique repart toute seule",
+        "text": "Lancez la lecture dès l'ouverture, choisissez à quel pourcentage un morceau compte comme écouté, et pilotez RustMusic en ligne de commande (/play, /next…). Réglages → Général."
       }
     }
   },

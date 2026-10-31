@@ -2633,6 +2633,22 @@
       "sidebar_organize": {
         "title": "A sidebar your way",
         "text": "Put sections and playlists, Liked tracks and Recently played included, in the order you like: Playlists “…” menu, then “Arrange the sidebar”."
+      },
+      "folder_covers": {
+        "title": "Your folders, in cover art",
+        "text": "In the Folders view, each folder shows the covers of what's inside, its track count and its best quality. Prefer icons? Use the \"Covers\" button in the toolbar."
+      },
+      "lastfm": {
+        "title": "Last.fm joins ListenBrainz",
+        "text": "Link your Last.fm account in one click, without giving your password: your listens are sent automatically, to ListenBrainz too if you like. Settings → Online listening."
+      },
+      "m4a_tags": {
+        "title": "Edit .m4a tags, ALAC is lossless",
+        "text": "Title, artists, album, covers… .m4a tags can finally be edited, without touching the audio. And ALAC is now recognized as lossless."
+      },
+      "playback_start": {
+        "title": "Music that starts on its own",
+        "text": "Start playback when the app opens, choose when a track counts as played, and control RustMusic from the command line (/play, /next…). Settings → General."
       }
     }
   },

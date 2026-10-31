@@ -4,6 +4,7 @@ import { goto } from "$app/navigation";
 import { get } from "svelte/store";
 import { settingsStore } from "#lib/stores/settings/settings.store";
 import { sidebarOrganize } from "#lib/stores/ui/sidebarOrganize.store";
+import { libraryStore } from "#lib/stores/library/library.store";
 
 export type WhatsNewSlide = {
   id: string;
@@ -95,6 +96,42 @@ const RELEASES: Record<string, WhatsNewSlide[]> = {
       colors: ["#10b981", "#0d9488"],
       satellites: ["material-symbols:drag-indicator", "material-symbols:queue-music-rounded", "material-symbols:favorite-rounded"],
       action: () => sidebarOrganize.set(true),
+    },
+  ],
+  "0.4.2": [
+    {
+      id: "folder_covers",
+      icon: "material-symbols:folder-rounded",
+      colors: ["#f59e0b", "#d97706"],
+      satellites: ["material-symbols:album", "material-symbols:photo-library-rounded", "material-symbols:high-quality-outline-rounded"],
+      action: () => {
+        const id = get(libraryStore).librarySelected?.id;
+        if (id) goto(`/library/${id}/folders`);
+      },
+    },
+    {
+      id: "lastfm",
+      icon: "simple-icons:lastdotfm",
+      colors: ["#e11d48", "#f97316"],
+      satellites: ["material-symbols:graphic-eq-rounded", "material-symbols:history-rounded", "material-symbols:public"],
+      logos: [
+        { icon: "simple-icons:lastdotfm", label: "Last.fm" },
+        { icon: "material-symbols:graphic-eq-rounded", label: "ListenBrainz" },
+      ],
+      action: () => goto("/settings/online"),
+    },
+    {
+      id: "m4a_tags",
+      icon: "material-symbols:sell-outline-rounded",
+      colors: ["#10b981", "#0ea5e9"],
+      satellites: ["material-symbols:music-note-rounded", "material-symbols:image-outline-rounded", "material-symbols:verified-outline-rounded"],
+    },
+    {
+      id: "playback_start",
+      icon: "material-symbols:play-circle-outline-rounded",
+      colors: ["#8b5cf6", "#0ea5e9"],
+      satellites: ["material-symbols:terminal-rounded", "material-symbols:percent-rounded", "material-symbols:counter-1-outline-rounded"],
+      action: () => goto("/settings/general"),
     },
   ],
 };

@@ -2633,6 +2633,22 @@
       "sidebar_organize": {
         "title": "Una barra laterale a modo tuo",
         "text": "Disponi le sezioni e le playlist, compresi Brani preferiti e Riprodotti di recente, nell'ordine che preferisci: menu «…» delle Playlist, poi «Organizza la barra laterale»."
+      },
+      "folder_covers": {
+        "title": "Le tue cartelle, con le copertine",
+        "text": "Nella vista Cartelle, ogni cartella mostra le copertine di ciò che contiene, il numero di brani e la qualità migliore. Preferisci le icone? Pulsante «Copertine» nella barra degli strumenti."
+      },
+      "lastfm": {
+        "title": "Last.fm si unisce a ListenBrainz",
+        "text": "Collega il tuo account Last.fm con un clic, senza dare la password: i tuoi ascolti partono da soli, anche verso ListenBrainz se vuoi. Impostazioni → Ascolto online."
+      },
+      "m4a_tags": {
+        "title": "I .m4a si modificano, l'ALAC è lossless",
+        "text": "Titolo, artisti, album, copertine… i tag dei file .m4a finalmente si modificano, senza toccare l'audio. E l'ALAC è riconosciuto come senza perdita."
+      },
+      "playback_start": {
+        "title": "La musica riparte da sola",
+        "text": "Avvia la riproduzione all'apertura, scegli quando un brano conta come ascoltato e comanda RustMusic da riga di comando (/play, /next…). Impostazioni → Generale."
       }
     }
   },
