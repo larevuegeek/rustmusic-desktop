@@ -10,7 +10,7 @@
   } = $props();
 </script>
 
-<label class="h-9.5 flex items-center gap-2 px-3 rounded-[10px] border bg-(--rg-carte) border-(--rg-bd) focus-within:border-(--rg-bd2) {classes}">
+<label class="rg-field h-9.5 flex items-center gap-2 px-3 rounded-[10px] border bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2) cursor-text {classes}">
   <Icon icon="material-symbols:search-rounded" width="18" class="shrink-0 text-(--rg-mu)" />
   <input bind:value class="flex-1 min-w-0 bg-transparent border-0 outline-0 text-sm text-(--rg-tx) placeholder:text-(--rg-ph)" {placeholder} />
   {#if value}

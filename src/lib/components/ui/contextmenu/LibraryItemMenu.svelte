@@ -10,6 +10,7 @@
   import { toasts } from "#lib/stores/ui/toast.store";
   import { portal } from "#lib/helper/portal";
   import { pinsStore, isPinned, type PinKind } from "#lib/stores/library/pins.store";
+  import { artistCheck } from "#lib/stores/library/artistCheck.store";
 
   /** Les actions d'un album ou d'un artiste : lire, ouvrir, épingler. */
   let { kind, id, title, libraryId, x, y, onclose }: {
@@ -72,6 +73,18 @@
     }
   }
 
+  // Artiste au nom douteux : proposer la vérification (MusicBrainz) pour lui seul.
+  let douteux = $state(false);
+  $effect(() => {
+    if (kind !== 'artist') return;
+    invoke<boolean>('artist_is_doubtful', { name: title }).then((d) => (douteux = d)).catch(() => {});
+  });
+  function checkArtist() {
+    const nom = title;
+    onclose();
+    void artistCheck.checkOne(nom);
+  }
+
   const ligne = "w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors";
 </script>
 
@@ -114,5 +127,14 @@
     <Icon icon={epingle ? 'material-symbols:keep-off-outline-rounded' : 'material-symbols:keep-outline-rounded'} width="15" class="opacity-60" />
     {$t(epingle ? 'sidebar.unpin' : 'sidebar.pin')}
   </button>
+
+  {#if douteux}
+    <!-- « A, B » ou « A/B » : un groupe, ou plusieurs artistes ? -->
+    <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
+    <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={checkArtist}>
+      <Icon icon="material-symbols:group-search-rounded" width="15" class="opacity-60" />
+      {$t('artist_split.menu')}
+    </button>
+  {/if}
 </div>
 </div>

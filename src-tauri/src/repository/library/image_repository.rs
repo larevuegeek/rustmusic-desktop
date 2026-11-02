@@ -1,10 +1,11 @@
 use sqlx::SqlitePool;
 
 /// Colonnes qui citent une image du cache (pochettes, vignettes, portraits).
-const IMAGE_COLUMNS: [&str; 5] = [
+const IMAGE_COLUMNS: [&str; 6] = [
     "SELECT cover_url FROM library_albums",
     "SELECT thumbnail_path FROM library_cache",
     "SELECT image_url FROM artists",
+    "SELECT image_url FROM composer_images",
     "SELECT cover FROM queue_tracks",
     "SELECT cover FROM playlists",
 ];

@@ -18,6 +18,8 @@
   import GhostButton from "#lib/components/ui/button/GhostButton.svelte";
   import ResetConfirmPopin from "#lib/components/settings/ResetConfirmPopin.svelte";
   import ServersSettings from "#lib/components/settings/ServersSettings.svelte";
+  import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
+  import { artistCheck, openArtistReport } from "#lib/stores/library/artistCheck.store";
 
   let showResetDialog = $state(false);
   let rescanning = $state(false);
@@ -272,6 +274,22 @@
   </OptionItem>
   <OptionItem title={$t("settings.repair_links")} desc={$t("settings.repair_links_desc")} keywords="feat artistes">
     <GhostButton icon="material-symbols:link-rounded" label={$t("settings.repair_links_btn")} busy={repairingLinks} onclick={handleRepairArtistLinks} />
+  </OptionItem>
+</OptionGroup>
+
+<!-- ─── Artistes multiples ─── -->
+<OptionGroup foldKey="settings.artist_split_group" title={$t("artist_split.title")} hint={$t("artist_split.group_hint")}>
+  <OptionItem title={$t("artist_split.check_now")} keywords="artistes multiples virgule musicbrainz feat séparer"
+              desc={$artistCheck.running
+                ? $t("artist_split.progress").replace("{done}", String($artistCheck.done)).replace("{total}", String($artistCheck.total)) + ($artistCheck.current ? ` · ${$artistCheck.current}` : "")
+                : $t("artist_split.check_now_desc")}>
+    <GhostButton icon="material-symbols:group-search-rounded" label={$t("artist_split.check_btn")} onclick={() => artistCheck.start()} />
+  </OptionItem>
+  <OptionItem title={$t("artist_split.auto")} desc={$t("artist_split.auto_desc")} keywords="artistes musicbrainz scan automatique" onclick={() => settingsStore.toggle("artist_check_auto")}>
+    <ToggleSwitch checked={$settingsStore.artist_check_auto === "true"} label={$t("artist_split.auto")} onclick={() => settingsStore.toggle("artist_check_auto")} />
+  </OptionItem>
+  <OptionItem title={$t("artist_split.review")} desc={$t("artist_split.review_desc")} keywords="artistes annuler corrections">
+    <GhostButton icon="lucide:undo-2" label={$t("artist_split.review_btn")} onclick={() => openArtistReport()} />
   </OptionItem>
 </OptionGroup>
 

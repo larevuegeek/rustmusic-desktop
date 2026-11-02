@@ -14,6 +14,8 @@ use crate::entity::library::library_cache::{LibraryCache, LibraryCacheCreate};
 use crate::entity::library::library_track::TrackLocation;
 use crate::helper::library::thumbnail_helper::{thumbnail_saver, save_artist_image, resolve_thumbnail};
 use crate::helper::library::image_fetch::{download, search_first, shrink_image, COVER_FETCH, PORTRAIT_FETCH};
+use crate::repository::library::composer_repository::ComposerRepository;
+use crate::service::library::composer;
 use crate::mapper::library::album::album_detail_view::AlbumDetailView;
 use crate::mapper::library::album::album_list_view::AlbumListView;
 use crate::mapper::library::artist::artist_detail_view::ArtistDetailView;
@@ -1083,7 +1085,7 @@ pub async fn get_similar_artists(
         .map_err(|e| format!("Failed to get similar artists: {}", e))
 }
 
-fn portraits_dir() -> PathBuf {
+pub(crate) fn portraits_dir() -> PathBuf {
     let mut dossier = dirs::data_dir().unwrap_or_default();
     dossier.push("com.larevuegeek.rustmusic");
     dossier.push("covers");
@@ -1091,7 +1093,7 @@ fn portraits_dir() -> PathBuf {
     dossier
 }
 
-fn client_deezer(secondes: u64) -> Result<reqwest::Client, String> {
+pub(crate) fn client_deezer(secondes: u64) -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(secondes))
         .build()
@@ -1099,6 +1101,13 @@ fn client_deezer(secondes: u64) -> Result<reqwest::Client, String> {
 }
 
 const CHAMPS_PORTRAIT: &[&str] = &["picture_xl", "picture_big", "picture_medium"];
+
+/// Portrait Deezer d'un nom : `Ok(None)` introuvable, `Err` passager (réseau, quota, téléchargement).
+pub(crate) async fn deezer_portrait(client: &reqwest::Client, name: &str) -> Result<Option<Vec<u8>>, String> {
+    let url = format!("https://api.deezer.com/search/artist?q={}&limit=1", urlencoding::encode(name));
+    let Some(image) = search_first(client, &url, CHAMPS_PORTRAIT).await? else { return Ok(None) };
+    download(client, &image).await.map(Some).ok_or_else(|| "téléchargement".to_string())
+}
 
 /// Ce qu'une passe de récupération rapporte à l'interface.
 #[derive(Serialize)]
@@ -1165,12 +1174,18 @@ pub async fn fetch_all_artist_images(
         ArtistRepository::reset_not_found_images(&state.pool)
             .await
             .map_err(|e| format!("DB error reset: {}", e))?;
+        ComposerRepository::reset_not_found(&state.pool)
+            .await
+            .map_err(|e| format!("DB error reset: {}", e))?;
     }
 
     let artists = ArtistRepository::find_without_image(&state.pool)
         .await
         .map_err(|e| format!("DB error: {}", e))?;
-    let total = artists.len();
+    let composers = composer::without_photo(&state.pool)
+        .await
+        .map_err(|e| format!("DB error: {}", e))?;
+    let total = artists.len() + composers.len();
     if total == 0 {
         return Ok(BilanRecuperation { found: 0, errors: 0, cancelled: false });
     }
@@ -1217,6 +1232,34 @@ pub async fn fetch_all_artist_images(
         }
 
         // Une respiration entre deux artistes : Deezer limite le débit.
+        jeton.sleep(500).await;
+    }
+
+    for (j, name) in composers.iter().enumerate() {
+        if jeton.is_cancelled() {
+            break;
+        }
+        let _ = app.emit("artist-image-progress", serde_json::json!({ "current": artists.len() + j + 1, "total": total, "name": name }));
+        match deezer_portrait(&client, name).await {
+            Ok(None) => {
+                let _ = composer::save_photo(&state.pool, name, "").await;
+            }
+            Ok(Some(octets)) => match save_artist_image(&dossier, &composer::photo_file(name), &octets) {
+                Ok(chemin) => {
+                    found += 1;
+                    let _ = composer::save_photo(&state.pool, name, &chemin).await;
+                    let _ = app.emit("composer-image-ready", serde_json::json!({ "name": name, "image_url": chemin }));
+                }
+                Err(_) => erreurs += 1,
+            },
+            Err(e) => {
+                erreurs += 1;
+                log::warn!("[portraits] compositeur '{}' : {}", name, e);
+                if e.contains("Quota") {
+                    jeton.sleep(5000).await;
+                }
+            }
+        }
         jeton.sleep(500).await;
     }
 

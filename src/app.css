@@ -502,6 +502,29 @@ html, body {
   outline-offset: -1px;
 }
 
+/* Boîte de saisie (loupe + champ sans fond) : au focus, c'est la boîte entière qui s'allume,
+   bordure teintée et halo dans la couleur d'accent ; jamais un rectangle autour du seul champ. */
+.rg-field {
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rg-field:focus-within {
+  border-color: color-mix(in oklab, var(--rg-g) 75%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--rg-g) 16%, transparent);
+}
+.rg-field :is(input, textarea):focus-visible,
+.rg-field:is(input, textarea, select):focus-visible {
+  outline: none;
+}
+/* Contraste élevé : un trait net qui épouse l'arrondi de la boîte. */
+:root[data-contrast="high"] .rg-field:focus-within {
+  outline: 2px solid var(--color-emerald-500);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+:root[data-contrast="high"] .rg-field :is(input, textarea):focus-visible {
+  outline: none;
+}
+
 /* ───────────────────────────────────────────────────────────────────────────
    Lignes de liste : ne peindre que ce qui est à l'écran
    ───────────────────────────────────────────────────────────────────────────

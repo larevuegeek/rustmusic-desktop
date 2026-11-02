@@ -303,7 +303,7 @@
             </button>
           {/each}
         </div>
-        <label class="flex-[1_1_280px] h-11.5 flex items-center gap-2.5 pl-3.5 pr-1.5 rounded-xl border border-(--rg-bd) bg-(--rg-champ) focus-within:border-(--rg-bd2)">
+        <label class="flex-[1_1_280px] h-11.5 flex items-center gap-2.5 pl-3.5 pr-1.5 rounded-xl border border-(--rg-bd) bg-(--rg-champ) rg-field">
           <Icon icon="material-symbols:search-rounded" width="20" class="text-(--rg-mu)" />
           <input bind:value={query} onkeydown={(e) => e.key === "Enter" && search()} data-focus-ring="none"
                  placeholder={$t("source.search_placeholder")}

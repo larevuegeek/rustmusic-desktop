@@ -724,6 +724,13 @@ pub async fn run() {
                 crate::commands::online::scrobble_command::init(&scrobble_state).await;
             });
 
+            // ─── ARTISTES MULTIPLES ──────────────────────────
+            // Règles « groupe ou plusieurs artistes » en mémoire, pour le scan.
+            let split_state = app.state::<AppState>().inner().clone();
+            tauri::async_runtime::spawn(async move {
+                crate::commands::library::artist_split_command::init(&split_state).await;
+            });
+
             // ─── ALBUMS DISTANTS ─────────────────────────────
             // Compilations éclatées par un serveur avant leur regroupement : réunies une fois.
             let regroup_pool = app.state::<AppState>().pool.clone();

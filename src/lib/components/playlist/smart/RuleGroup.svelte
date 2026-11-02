@@ -137,7 +137,7 @@
               type="text"
               bind:value={noeud.value}
               placeholder={$t("smart.value")}
-              class="h-9 px-2.5 rounded-lg text-[13px] w-40 shrink-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) outline-none focus:border-(--rg-g)"
+              class="h-9 px-2.5 rounded-lg text-[13px] w-40 shrink-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) rg-field"
             />
           {:else if arite === 2}
             <div class="flex items-center gap-1 w-40 shrink-0">
@@ -148,7 +148,7 @@
                   const b = Array.isArray(noeud.value) ? noeud.value[1] : 0;
                   group.rules[i] = { ...noeud, value: [Number(e.currentTarget.value), b] };
                 }}
-                class="h-9 px-2.5 rounded-lg text-[13px] w-full min-w-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) outline-none focus:border-(--rg-g)"
+                class="h-9 px-2.5 rounded-lg text-[13px] w-full min-w-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) rg-field"
               />
               <span class="text-xs text-(--rg-mu) shrink-0">{$t("smart.and")}</span>
               <input
@@ -158,7 +158,7 @@
                   const a = Array.isArray(noeud.value) ? noeud.value[0] : 0;
                   group.rules[i] = { ...noeud, value: [a, Number(e.currentTarget.value)] };
                 }}
-                class="h-9 px-2.5 rounded-lg text-[13px] w-full min-w-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) outline-none focus:border-(--rg-g)"
+                class="h-9 px-2.5 rounded-lg text-[13px] w-full min-w-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) rg-field"
               />
             </div>
           {:else}

@@ -76,7 +76,7 @@
           bind:value={root}
           class="h-8 px-2.5 rounded-xl text-[12px] font-normal normal-case tracking-normal outline-none cursor-pointer transition-colors
                  bg-(--rg-champ) text-(--rg-tx) border border-(--rg-bd)
-                 hover:border-(--rg-bd2) focus:border-(--rg-g)"
+                 hover:border-(--rg-bd2) rg-field"
         >
           {#each dirs as dir (dir.id)}
             <option value={dir.path}>{dir.path}</option>
@@ -98,7 +98,7 @@
              bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border
              {patternError
                ? 'border-red-500/60 focus:border-red-500'
-               : 'border-(--rg-bd) hover:border-(--rg-bd2) focus:border-(--rg-g)'}"
+               : 'border-(--rg-bd) hover:border-(--rg-bd2) rg-field'}"
     />
   </div>
 

@@ -36,6 +36,7 @@ use crate::entity::audio::audio_tags::AudioTags;
 use crate::entity::library::library_files::{LibraryFile, LibraryFileCreate};
 use crate::mapper::library::track::track_list_item_view::TrackListView;
 use crate::service::library::album_folder::album_root;
+use crate::service::library::artist_split;
 
 // ============================================================================
 // RÉSULTAT D'ANALYSE D'UN FICHIER (phase CPU, sync, rayon-compatible)
@@ -642,7 +643,8 @@ pub(crate) async fn save_analysed_to_db(
 
     // ─── Artistes (split multi-artistes) ───
     let raw_artist = audio_tags.artist.as_deref().unwrap_or("Unknown Artist");
-    let artist_names = split_artists(raw_artist);
+    // Tag ARTISTS, sinon découpe d'origine corrigée par les règles des artistes multiples.
+    let artist_names = artist_split::resolve(raw_artist, &artist_split::artists_tag(&audio_tags.custom_tags), &artist_split::rules());
 
     // Le premier artiste est le "principal" (affiché sur la track)
     let mut all_artist_ids: Vec<String> = Vec::new();
@@ -886,7 +888,7 @@ pub async fn save_track_to_library_tx(
 
         // ─── Artistes (split multi-artistes) ───
         let raw_artist = audio_tags.artist.as_deref().unwrap_or("Unknown Artist");
-        let artist_names = split_artists(raw_artist);
+        let artist_names = artist_split::resolve(raw_artist, &artist_split::artists_tag(&audio_tags.custom_tags), &artist_split::rules());
 
         let mut all_artist_ids: Vec<String> = Vec::new();
         let mut first_artist: Option<Artist> = None;

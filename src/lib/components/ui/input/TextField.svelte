@@ -31,7 +31,7 @@
   {maxlength}
   aria-label={label}
   class="shrink-0 h-9.5 px-3 rounded-[10px] outline-none transition-colors
-         bg-(--rg-s2) border border-(--rg-off) hover:border-(--rg-bd2) focus:border-(--rg-g)
+         bg-(--rg-s2) border border-(--rg-off) hover:border-(--rg-bd2) rg-field
          text-sm font-semibold text-(--rg-tx) {mono ? 'font-mono tabular-nums text-right' : ''} {classe}"
   onblur={(e) => onchange(e.currentTarget.value)}
   onkeydown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}

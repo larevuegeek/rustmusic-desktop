@@ -1,16 +1,25 @@
 <script lang="ts">
-    import Icon from "@iconify/svelte";
-  import { toogleTheme } from "#lib/helper/theme/theme";
+  import Icon from "@iconify/svelte";
+  import { t } from "#lib/i18n";
+  import { settingsStore } from "#lib/stores/settings/settings.store";
 
-  let isDarkTheme = $state(true);
+  // Reflète le thème réellement affiché (y compris « Système ») ; le clic l'enregistre en base.
+  let isDarkTheme = $state(document.documentElement.classList.contains("dark"));
+
+  $effect(() => {
+    const root = document.documentElement;
+    const obs = new MutationObserver(() => (isDarkTheme = root.classList.contains("dark")));
+    obs.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  });
 </script>
 
 <button
   type="button"
   role="switch"
   aria-checked={isDarkTheme}
-  aria-label={isDarkTheme ? "Activer le thème clair" : "Activer le thème sombre"}
-  onclick={() => (isDarkTheme = toogleTheme(isDarkTheme))}
+  aria-label={isDarkTheme ? $t("settings.theme_light") : $t("settings.theme_dark")}
+  onclick={() => settingsStore.set("theme", isDarkTheme ? "light" : "dark")}
   class="inline-flex items-center rounded-full p-1 transition-colors
          bg-neutral-200 dark:bg-neutral-800"
 >

@@ -118,7 +118,7 @@
         <span class="w-5 h-0.75 rounded-full" style="background: {color}"></span>{kicker}
         <CloudMark {serverId} size={16} label class="ml-1" />
       </div>
-      <h1 class="font-extrabold leading-none tracking-[-0.03em] text-balance line-clamp-2 text-(--rg-tx)
+      <h1 class="font-extrabold leading-[1.12] tracking-[-0.03em] text-balance line-clamp-2 text-(--rg-tx)
                  {title.length > 24 ? 'text-[56px] @max-[760px]:text-[34px]' : 'text-[72px] @max-[760px]:text-[44px]'}" {title}>{title}</h1>
       {#if subtitle}<p class="text-[14px] leading-snug text-(--rg-mu) line-clamp-2" title={subtitle}>{subtitle}</p>{/if}
 

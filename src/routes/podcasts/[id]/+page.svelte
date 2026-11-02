@@ -270,7 +270,7 @@
     <div class="flex-[1_1_360px] min-w-0 flex flex-col gap-3.5">
       <p class="text-xs font-bold tracking-widest uppercase text-(--rg-tx2)">{$t("podcasts.kicker_podcast")}</p>
       <div>
-        <h1 class="font-extrabold leading-[1.02] tracking-[-0.03em] text-balance line-clamp-2 text-(--rg-tx)
+        <h1 class="font-extrabold leading-[1.12] tracking-[-0.03em] text-balance line-clamp-2 text-(--rg-tx)
                    {podcast.title.length > 32 ? 'text-[38px] @max-[760px]:text-[28px]' : 'text-[48px] @max-[760px]:text-[34px]'}" title={podcast.title}>{podcast.title}</h1>
         {#if podcast.author}<p class="mt-1.5 text-[16px] font-semibold text-(--rg-tx2)">{podcast.author}</p>{/if}
       </div>

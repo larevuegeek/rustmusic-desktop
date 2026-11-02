@@ -137,6 +137,72 @@ fn cover_thumb(release_id: &str) -> String {
     format!("{COVERS}/{release_id}/front-250")
 }
 
+/// Le nom exact, entre guillemets : seuls `"` et `\` y gardent un sens pour Lucene.
+fn phrase(name: &str) -> String {
+    name.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// Un artiste de ce nom (ou d'un de ses alias) existe-t-il, tel quel ? « AC/DC » oui, « Chris Brown/Nicki Minaj » non.
+pub async fn artist_exists(name: &str) -> Result<bool, String> {
+    // « Doors, The » n'est connu que comme nom de tri ; « Siouxsie & The Banshees » s'écrit « and » là-bas.
+    let mut variants = vec![name.trim().to_string()];
+    let with_and = conjunctions(name.trim(), "and");
+    if with_and != variants[0] {
+        variants.push(with_and);
+    }
+    let query = variants
+        .iter()
+        .map(|v| {
+            let q = phrase(v);
+            format!("artist:\"{q}\" OR alias:\"{q}\" OR sortname:\"{q}\"")
+        })
+        .collect::<Vec<_>>()
+        .join(" OR ");
+    let query = urlencoding::encode(&query).into_owned();
+    let path = format!("artist?query={query}&limit=10");
+    // Une longue série finit par croiser un « surchargé » ou une coupure : on patiente et on réessaie.
+    let mut wait = Duration::from_secs(3);
+    for _ in 0..5 {
+        match get_json(&path).await {
+            Err(e) if e.contains("surchargé") || e.contains("injoignable") => {
+                tokio::time::sleep(wait).await;
+                wait *= 2;
+            }
+            other => return other.map(|json| exact_artist(&json, name)),
+        }
+    }
+    get_json(&path).await.map(|json| exact_artist(&json, name))
+}
+
+/// Un résultat dont le nom, le nom de tri ou un alias est exactement celui cherché. Pas de seuil de
+/// score : il est relatif (« The Wailers » exact sort à 76, derrière « Bob Marley & The Wailers »).
+fn exact_artist(json: &Value, name: &str) -> bool {
+    // « & » disparaît à la normalisation : on l'écrit « and » avant.
+    let fold = |n: &str| crate::helper::string::string::normalize_name(&conjunctions(n, "and"));
+    let wanted = fold(name);
+    let same = |v: &Value| v.as_str().is_some_and(|n| fold(n) == wanted);
+    let none = Vec::new();
+    json["artists"].as_array().unwrap_or(&none).iter().any(|a| {
+        same(&a["name"])
+            || same(&a["sort-name"])
+            || a["aliases"].as_array().unwrap_or(&none).iter().any(|al| same(&al["name"]) || same(&al["sort-name"]))
+    })
+}
+
+/// « & », « and », « et », « + » entre deux mots deviennent `with` : la même conjonction partout.
+fn conjunctions(name: &str, with: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    let words: Vec<&str> = name.split(' ').collect();
+    for (i, w) in words.iter().enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        let inner = i > 0 && i + 1 < words.len();
+        out.push_str(if inner && matches!(w.to_lowercase().as_str(), "&" | "and" | "et" | "+") { with } else { w });
+    }
+    out
+}
+
 /// Cherche des albums (éditions).
 pub async fn search_albums(query: &str, limit: u32) -> Result<Vec<AlbumHit>, String> {
     let q = urlencoding::encode(&lucene(query, &["release", "artist"])).into_owned();
@@ -330,6 +396,35 @@ mod tests {
         assert_eq!(seconds(&serde_json::json!(61400)), 61);
         assert_eq!(top_genre(&serde_json::json!([{ "name": "rock", "count": 2 }, { "name": "hip hop", "count": 5 }])).as_deref(), Some("Hip hop"));
         assert_eq!(credit(&serde_json::json!([{ "name": "A", "joinphrase": " feat. " }, { "name": "B" }])), "A feat. B");
+    }
+
+    #[test]
+    fn an_artist_matches_by_exact_name_or_alias_only() {
+        let r = serde_json::json!({ "artists": [
+            { "name": "AC/DC", "sort-name": "AC/DC", "score": 100, "aliases": [{ "name": "ACDC" }] },
+            { "name": "AC/DC Tribute", "score": 95 },
+            { "name": "The Doors", "sort-name": "Doors, The", "score": 60 }
+        ] });
+        assert!(exact_artist(&r, "AC/DC"));
+        assert!(exact_artist(&r, "acdc"), "un alias compte");
+        assert!(exact_artist(&r, "Doors, The"), "le nom de tri compte, quel que soit le score");
+        assert!(!exact_artist(&r, "AC/DC Trib"), "un nom proche ne suffit pas");
+        let s = serde_json::json!({ "artists": [{ "name": "Siouxsie and the Banshees", "score": 100 }] });
+        assert!(exact_artist(&s, "Siouxsie & The Banshees"), "« & » vaut « and »");
+        assert_eq!(conjunctions("Simon & Garfunkel", "and"), "Simon and Garfunkel");
+        assert_eq!(conjunctions("& Sons", "and"), "& Sons", "seulement entre deux mots");
+        assert_eq!(phrase(r#"Say "Hi" \o/"#), r#"Say \"Hi\" \\o/"#);
+    }
+
+    /// Le vrai service : `cargo test --lib musicbrainz_artists -- --ignored`.
+    #[tokio::test]
+    #[ignore]
+    async fn musicbrainz_artists_live() {
+        assert!(artist_exists("AC/DC").await.unwrap());
+        assert!(artist_exists("Earth, Wind & Fire").await.unwrap());
+        assert!(artist_exists("Tyler, The Creator").await.unwrap());
+        assert!(artist_exists("Nicki Minaj").await.unwrap());
+        assert!(!artist_exists("Chris Brown/Nicki Minaj").await.unwrap());
     }
 
     /// Interroge le vrai service : `cargo test musicbrainz -- --ignored`.

@@ -173,8 +173,8 @@
       <!-- ─── Ce qu'on peut ajouter ─── -->
       <div class="min-h-0 flex flex-col">
         <div class="px-5 pt-4 pb-3">
-          <label class="h-10 flex items-center gap-2 px-3.5 rounded-xl border transition-colors
-                        bg-(--rg-champ) border-(--rg-bd) hover:border-(--rg-bd2) focus-within:border-(--rg-g)">
+          <label class="rg-field h-10 flex items-center gap-2 px-3.5 rounded-xl border
+                        bg-(--rg-champ) border-(--rg-bd) hover:border-(--rg-bd2)">
             <Icon icon="material-symbols:search-rounded" width="18" class="shrink-0 text-(--rg-mu)" />
             <input
               type="text"

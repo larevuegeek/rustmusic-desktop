@@ -98,11 +98,3 @@ function cleanupAutoListener() {
         mediaQueryListener = null;
     }
 }
-
-// Compat avec l'ancien code (SwitchTheme.svelte) — sera supprimé plus tard
-export function toogleTheme(isDarkTheme: boolean): boolean {
-    const next = !isDarkTheme;
-    applyDarkClass(next);
-    return next;
-}
-

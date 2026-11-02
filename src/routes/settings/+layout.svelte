@@ -11,6 +11,7 @@
   import { rechercheReglages } from "#lib/stores/ui/settingsSearch.store";
   import VersionCard from "#lib/components/settings/VersionCard.svelte";
   import { settingsReturnUrl } from "#lib/stores/ui/settingsReturn.store";
+  import { detectOS } from "#lib/helper/tools/osDetection";
   import type { Snippet } from "svelte";
 
   let { children }: { children: Snippet } = $props();
@@ -20,8 +21,9 @@
     if (from && !from.url.pathname.startsWith("/settings")) rechercheReglages.set("");
   });
 
-  // Retour à la page d'avant les réglages ; à l'accueil si elle n'existe plus.
+  // Retour à la page d'avant les réglages ; sur macOS et Linux, toujours l'accueil (#20, retour sans effet).
   async function back() {
+    if (detectOS() !== "windows") return goto("/");
     await goto(settingsReturnUrl()).catch(() => goto("/"));
   }
 
@@ -54,9 +56,8 @@
     </div>
 
     <label
-      class="shrink-0 h-10 flex items-center gap-2.5 px-3 rounded-[10px] cursor-text
-             bg-(--rg-champ) border border-(--rg-bd) focus-within:border-(--rg-bd2)"
-      data-focus-ring="row"
+      class="rg-field shrink-0 h-10 flex items-center gap-2.5 px-3 rounded-[10px] cursor-text
+             bg-(--rg-champ) border border-(--rg-bd) hover:border-(--rg-bd2)"
     >
       <Icon icon="material-symbols:search-rounded" width="19" class="shrink-0 text-(--rg-mu)" />
       <input

@@ -100,7 +100,7 @@ async function importer(type: "dossier" | "fichiers") {
               placeholder={$t("import_page.name_default")}
               class="select-text h-11 px-3.5 rounded-xl text-[15px] font-semibold outline-none transition-colors
                      bg-(--rg-carte)/80 border border-(--rg-bd2) text-(--rg-tx) placeholder:text-(--rg-ph)
-                     focus:border-(--rg-g)"
+                     rg-field"
               oninput={() => (erreur = null)}
             />
           </label>

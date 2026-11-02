@@ -28,6 +28,7 @@
   import Dialog from "#lib/components/ui/dialog/Dialog.svelte";
   import AddLibraryPopin from "#lib/components/library/common/popin/AddLibraryPopin.svelte";
   import { libraryIcon, type Library } from "#lib/types/db/library/Library";
+  import { artistCheck } from "#lib/stores/library/artistCheck.store";
   import type { LibraryDir } from "#lib/types/db/library/LibraryDir";
 
   let { library, dirs: fournis, onclose, onfolders, onchange }: {
@@ -192,6 +193,9 @@
     !ouverte ? $t("library_head.covers_desc") : sansPochette === 0 ? $t("library_head.covers_ok") : sansPochette === 1 ? $t("library_head.covers_missing_one") : $t("library_head.covers_missing_n").replace("{n}", formatNumber(sansPochette)),
     refreshCovers, sansPochette, sansPochette > 0, !!taches.covers)}
   {@render action("material-symbols:person-outline-rounded", $t("library_head.artist_images"), $t("library_head.artist_images_desc"), portraits, undefined, false, !!taches.artists)}
+  {@render action("material-symbols:group-search-rounded", $t("artist_split.check_now"),
+    $artistCheck.running ? $t("artist_split.progress").replace("{done}", String($artistCheck.done)).replace("{total}", String($artistCheck.total)) : $t("artist_split.menu_desc"),
+    () => { onclose(); void artistCheck.start(); })}
   {@render action("material-symbols:swap-vert-rounded", $t("library_head.import_export"), $t("library_head.import_export_desc"), () => { onclose(); goto("/settings/storage"); }, "fleche")}
 </div>
 {/if}

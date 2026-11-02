@@ -394,7 +394,7 @@ const sortArrow = (cle: string) => (tri === cle ? (sens === "asc" ? "material-sy
         <div class="flex flex-wrap items-center gap-2.5 text-xs font-bold tracking-[0.1em] uppercase text-(--rg-tx2)">
           {$t("artist_view.kicker")}<CloudMark {libraryId} size={16} label />
         </div>
-        <h1 class="font-extrabold leading-none tracking-[-0.03em] text-balance line-clamp-2 text-(--rg-tx)
+        <h1 class="font-extrabold leading-[1.12] tracking-[-0.03em] text-balance line-clamp-2 text-(--rg-tx)
                    {artist.name.length > 24 ? 'text-[56px] @max-[760px]:text-[34px]' : 'text-[72px] @max-[760px]:text-[44px]'}" title={artist.name}>{artist.name}</h1>
 
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[15px] text-(--rg-mu)">

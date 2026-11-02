@@ -1,5 +1,62 @@
 # Changelog
 
+## [0.4.3] - 2026-11-02
+
+Les noms qui réunissent plusieurs artistes (« Chris Brown/Nicki Minaj »)
+deviennent enfin des artistes séparés, sans casser les groupes comme
+« AC/DC » : chaque cas douteux est vérifié auprès du tag `ARTISTS` ou de
+MusicBrainz, en direct, et tout reste annulable. Les champs de saisie ont un
+focus plus net, le bouton jour / nuit retient enfin son choix, les grands
+titres ne rognent plus le bas des lettres et l'icône macOS a enfin la taille
+des autres.
+
+### Bibliothèque
+- **Artistes multiples** (Réglages → Stockage & données, ou menu « … » d'un
+  artiste) : « Chris Brown/Nicki Minaj » ou « Billie Eilish & Khalid »
+  deviennent deux artistes, tandis qu'« AC/DC », « Simon & Garfunkel » ou
+  « Florence + The Machine » restent un seul groupe. Chaque nom douteux
+  (virgule, barre, « & », « x »…) est vérifié une fois : d'abord le tag
+  `ARTISTS` du fichier (Picard, Mp3tag), sinon MusicBrainz (seuls les noms
+  d'artistes sont envoyés). Sans réponse sûre, rien ne change et le nom est
+  proposé à l'utilisateur. La fenêtre s'ouvre aussitôt et suit la vérification
+  en direct (progression, résultats, photos des artistes connus), qui peut
+  continuer en arrière-plan ; elle devient ensuite le bilan : séparations,
+  chacune annulable, et noms à trancher. Vérification automatique après chaque
+  scan en option. Les fichiers ne sont jamais modifiés (suggestion de
+  FabiRich).
+- **Tag `ARTISTS` lu au scan** : quand il est présent, la liste exacte des
+  artistes d'un morceau est utilisée, sans séparateur à deviner.
+- **Compositeurs** : l'onglet Artistes bascule entre « Artistes » et
+  « Compositeurs » (tag `composer`), et le choix est retenu. Chaque
+  compositeur a sa page : ses albums, ses morceaux et ses interprètes. Les
+  listes (« Hans Zimmer, James Newton Howard ») sont séparées, les mentions
+  vides de sens (« Various Composers ») écartées. Photos : celle de l'artiste
+  du même nom, sinon un portrait Deezer, cherché à l'ouverture de sa page ou
+  avec « Images d'artistes » (menu Gérer), sinon deux initiales colorées.
+  Bibliothèques locales (suggestion de miguelmonfortenicolas).
+
+### Interface
+- **Focus des champs de saisie repensé** : recherches, filtres et formulaires
+  s'allument d'un seul tenant (bordure teintée et halo dans la couleur
+  d'accent) ; en contraste élevé, un contour net épouse l'arrondi du champ, au
+  lieu d'un rectangle tracé autour de la seule zone de texte.
+
+### Corrections
+- **Bouton jour / nuit de la barre du haut** : le choix est enregistré et
+  retrouvé au redémarrage ; le bouton montre toujours le thème réellement
+  affiché, y compris en mode « Système » (signalé par
+  miguelmonfortenicolas).
+- **Grands titres rognés** : sur les pages d'un artiste, d'un album, d'un
+  morceau, d'un genre, d'une playlist et d'un podcast, le bas des lettres
+  comme « g », « p » ou « y » n'est plus coupé (signalé par
+  miguelmonfortenicolas).
+- **Icône sur macOS** : même taille que celle des autres applications dans
+  le Dock et le sélecteur ⌘ Tab (marges et ombre de la grille Apple) ;
+  signalé par miguelmonfortenicolas.
+- **Bouton retour des réglages sur macOS et Linux** : il ramène toujours à
+  l'accueil, au lieu de rester parfois sans effet ; sous Windows, il revient
+  toujours à la page d'avant (signalé par miguelmonfortenicolas).
+
 ## [0.4.2] - 2026-10-31
 
 La vue Dossiers montre ce que contiennent les dossiers (pochettes, titres,

@@ -3,7 +3,7 @@
 
 use super::app::{platform_command, profil_command, settings_command, system_command};
 use super::audio::{audio_command, device_command, wasapi_command};
-use super::library::{audit_command, library_command, pin_command, search_command, sidebar_command};
+use super::library::{artist_split_command, audit_command, composer_command, library_command, pin_command, search_command, sidebar_command};
 use super::network::{amp_remote_command, dlna_command, network_player_command, server_command};
 use super::online::{podcast_command, radio_command, scrobble_command};
 use super::playback::{media_controls_command, player_command, queue_command, recent_command, volume_command};
@@ -83,6 +83,15 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         library_command::search_deezer_covers,
         library_command::apply_deezer_cover,
         library_command::list_directory,
+        artist_split_command::artist_check_running,
+        artist_split_command::artist_check_start,
+        artist_split_command::artist_check_name,
+        artist_split_command::artist_check_report,
+        artist_split_command::artist_rule_set,
+        artist_split_command::artist_is_doubtful,
+        composer_command::get_composers,
+        composer_command::get_tracks_by_composer,
+        composer_command::fetch_composer_image,
         library_command::get_file_tags,
         library_command::remove_library_dir,
         library_command::create_library,

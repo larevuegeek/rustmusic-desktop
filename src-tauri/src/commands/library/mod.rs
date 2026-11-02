@@ -1,3 +1,5 @@
+pub mod artist_split_command;
+pub mod composer_command;
 pub mod library_command;
 pub mod pin_command;
 pub mod audit_command;

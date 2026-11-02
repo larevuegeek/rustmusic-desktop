@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use crate::entity::artist::artist::ArtistCreate;
 use crate::entity::library::library_artist::LibraryArtistCreate;
 use crate::entity::library::library_track_artist::LibraryTrackArtistCreate;
-use crate::helper::string::string::{normalize_name, normalize_sort_name, split_artists};
+use crate::helper::string::string::{normalize_name, normalize_sort_name};
 use crate::repository::artist::artist_repository::ArtistRepository;
 use crate::repository::library::library_artist_repository::LibraryArtistRepository;
 use crate::repository::library::library_track_artist_repository::LibraryTrackArtistRepository;
@@ -38,6 +38,7 @@ pub async fn repair(
         .await
         .map_err(|e| format!("Lecture des pistes : {e}"))?;
 
+    let regles = crate::service::library::artist_split::rules();
     let mut rapport = ArtistLinkReport {
         tracks_seen: pistes.len() as i64,
         ..Default::default()
@@ -62,7 +63,7 @@ pub async fn repair(
             _ => continue,
         };
 
-        let noms = split_artists(brut);
+        let noms = crate::service::library::artist_split::resolve(brut, &[], &regles);
         if noms.is_empty() {
             continue;
         }

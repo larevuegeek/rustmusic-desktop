@@ -42,6 +42,7 @@ import BatchPanel from "#lib/components/ui/batch/BatchPanel.svelte";
 import { trackNotificationService } from "#lib/services/notification/trackNotification.service";
 import { mediaControlsService } from "#lib/services/mediaControls/mediaControls.service";
 import { initLaunchCommands } from "#lib/services/player/launchCommands.service";
+import { artistCheck } from "#lib/stores/library/artistCheck.store";
 import { onDestroy } from "svelte";
 import { page } from "$app/state";
 import { afterNavigate } from "$app/navigation";
@@ -142,6 +143,8 @@ onMount(async () => {
   playerService.init();
   importProgressStore.init();
   taskProgressStore.init();
+  // Artistes multiples : progression, bilan, vérification après un scan si l'option est active.
+  void artistCheck.init();
   artistImageReadyStore.init();
   showWhatsNewIfDue();
 

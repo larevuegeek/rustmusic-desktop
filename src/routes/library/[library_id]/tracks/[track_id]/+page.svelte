@@ -295,7 +295,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
           <CloudMark path={track.path} size={16} label />
         </div>
 
-        <h1 class="font-extrabold leading-none tracking-[-0.03em] text-balance line-clamp-3 text-(--rg-tx)
+        <h1 class="font-extrabold leading-[1.12] tracking-[-0.03em] text-balance line-clamp-3 text-(--rg-tx)
                    {track.title.length > 40 ? 'text-[44px] @max-[760px]:text-[30px]' : 'text-[56px] @max-[760px]:text-[38px]'}" title={track.title}>{track.title}</h1>
 
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[15px] text-(--rg-mu)">

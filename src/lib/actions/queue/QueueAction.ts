@@ -77,6 +77,27 @@ export async function handleArtistAddToQueue(libraryId: number, artistId: string
   }
 }
 
+/** Lit tous les titres d'un compositeur (tag `composer`). */
+export async function handleComposerPlay(libraryId: number, name: string) {
+  try {
+    await handleTracksPlay((await invoke<TrackListView[]>("get_tracks_by_composer", { libraryId, name })) ?? []);
+  } catch (e) {
+    console.error("Impossible de lire le compositeur", e);
+  }
+}
+
+/** Ajoute tous les titres d'un compositeur à la fin de la file. */
+export async function handleComposerAddToQueue(libraryId: number, name: string) {
+  try {
+    const pistes = await invoke<TrackListView[]>("get_tracks_by_composer", { libraryId, name });
+    if (!pistes?.length) return;
+    for (const qt of toQueueTracks(pistes)) await queueState.enqueue(qt);
+    toasts.push({ type: "success", title: get(t)("notify.queued"), message: countLabel(pistes.length, "notify.queued_one", "notify.queued_n") });
+  } catch (e) {
+    console.error("Impossible d'ajouter le compositeur à la file", e);
+  }
+}
+
 /** Lit un genre, dans l'ordre de la bibliothèque ou mélangé. */
 export async function handleGenrePlay(libraryId: number, genre: string, melanger = false) {
   try {

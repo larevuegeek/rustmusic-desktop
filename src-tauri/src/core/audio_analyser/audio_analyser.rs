@@ -20,6 +20,9 @@ use symphonia::default::get_probe;
 
 pub struct AudioAnalyser;
 
+/// Clé, dans `custom_tags`, de chaque nom du tag `ARTISTS`.
+pub const ARTISTS_TAG: &str = "ARTISTS";
+
 impl AudioAnalyser {
     pub fn analyse_audio_file(
         file_path: &PathBuf,
@@ -321,10 +324,35 @@ impl AudioAnalyser {
                             .push((tag.raw.key.clone(), tag.raw.value.to_string()));
                     }
                 }
+            } else if let Some(names) = Self::artists_tag(&tag.raw) {
+                // Liste exacte des artistes (Picard, Mp3tag) : chacun séparément, sans séparateur à deviner.
+                tags.custom_tags.extend(names.into_iter().map(|n| (ARTISTS_TAG.to_string(), n)));
             }
         }
 
         tags
+    }
+
+    /// Le tag `ARTISTS` sous ses trois formes : `ARTISTS` (Vorbis), `TXXX:ARTISTS` (ID3), `…iTunes:ARTISTS` (MP4).
+    fn artists_tag(raw: &symphonia::core::meta::RawTag) -> Option<Vec<String>> {
+        use symphonia::core::meta::RawValue;
+        let key = raw.key.to_ascii_lowercase();
+        let txxx = key == "txxx"
+            && raw.sub_fields.iter().flatten().any(|f| f.value.to_string().eq_ignore_ascii_case("artists"));
+        if key != "artists" && !key.ends_with(":artists") && !txxx {
+            return None;
+        }
+        let values: Vec<String> = match &raw.value {
+            RawValue::StringList(list) => list.iter().cloned().collect(),
+            other => vec![other.to_string()],
+        };
+        let names: Vec<String> = values
+            .iter()
+            .flat_map(|v| v.split(['\0', '\n']))
+            .map(|n| n.trim().to_string())
+            .filter(|n| !n.is_empty())
+            .collect();
+        (!names.is_empty()).then_some(names)
     }
 
     fn visual_tag_reader(visual: &Visual, with_base64: bool) -> AttachedImage {

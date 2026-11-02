@@ -146,7 +146,7 @@
           placeholder={$t("popins.cover_search_placeholder")}
           class="w-full h-11 pl-10 pr-4 text-sm rounded-xl outline-none transition-colors
                  bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) placeholder:text-(--rg-ph)
-                 hover:border-(--rg-bd2) focus:border-(--rg-g)"
+                 hover:border-(--rg-bd2) rg-field"
         />
       </div>
       <button

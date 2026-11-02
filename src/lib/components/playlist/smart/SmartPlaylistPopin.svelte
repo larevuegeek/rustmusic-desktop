@@ -286,6 +286,7 @@
             type="text"
             bind:value={name}
             placeholder={mix ? $t("mix_view.name_placeholder") : $t("smart.name_placeholder")}
+            data-focus-ring="none"
             class="w-full bg-transparent text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx) placeholder:text-(--rg-ph)
                    border-b-2 border-(--rg-bd) focus:border-(--rg-g) outline-none pb-1.5 transition-colors"
           />
@@ -377,7 +378,7 @@
               value={limit.count ?? ''}
               onchange={(e) => limit = { ...limit, count: e.currentTarget.value ? Number(e.currentTarget.value) : null }}
               placeholder="—"
-              class="h-9 w-24 px-3 rounded-lg text-sm bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) outline-none focus:border-(--rg-g)"
+              class="h-9 w-24 px-3 rounded-lg text-sm bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) rg-field"
             />
             <span class="text-sm text-(--rg-mu)">{$t("smart.tracks_sorted_by")}</span>
             <select

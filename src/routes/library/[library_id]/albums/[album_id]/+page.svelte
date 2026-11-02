@@ -355,7 +355,7 @@ const grille = $derived($viewMode !== "list");
         <CloudMark {libraryId} size={16} label />
       </div>
 
-      <h1 class="font-extrabold leading-none tracking-[-0.03em] text-balance line-clamp-3 text-(--rg-tx)
+      <h1 class="font-extrabold leading-[1.12] tracking-[-0.03em] text-balance line-clamp-3 text-(--rg-tx)
                  {album.title.length > 40 ? 'text-[44px] @max-[760px]:text-[30px]' : 'text-[56px] @max-[760px]:text-[38px]'}" title={album.title}>{album.title}</h1>
 
       <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[15px] text-(--rg-mu)">

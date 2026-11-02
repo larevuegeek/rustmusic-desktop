@@ -26,6 +26,13 @@ import FilterChip from "#lib/components/ui/input/FilterChip.svelte";
 import Menu from "#lib/components/ui/menu/Menu.svelte";
 import MenuItem from "#lib/components/ui/menu/MenuItem.svelte";
 import type { ArtistListView } from "#lib/types/ui/library/artist/ArtistListView";
+import type { ComposerListView } from "#lib/types/ui/library/composer/ComposerListView";
+import ModeSwitch from "#lib/components/ui/input/ModeSwitch.svelte";
+import ComposerListItem from "#lib/components/library/composer/ComposerListItem.svelte";
+import ComposerListRow from "#lib/components/library/composer/ComposerListRow.svelte";
+import { settingsStore } from "#lib/stores/settings/settings.store";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 const libraryId = $derived(Number(page.params.library_id));
 const currentLibrary = $derived($libraryStore.libraries.find((l) => l.id === libraryId));
@@ -54,11 +61,39 @@ function clearFilters() {
 }
 
 const artistes = $derived($libraryContentStore.artists);
+
+// ─── Artistes ou compositeurs (tag `composer`, bibliothèques locales) : choix retenu ───
+let compositeurs = $state<ComposerListView[]>([]);
+$effect(() => {
+  const id = libraryId;
+  void $libraryContentStore.artists; // rechargés après un scan
+  if (!id || currentLibrary?.server_id) return void (compositeurs = []);
+  let perime = false;
+  invoke<ComposerListView[]>("get_composers", { libraryId: id })
+    .then((c) => { if (!perime) compositeurs = c; })
+    .catch(() => { if (!perime) compositeurs = []; });
+  return () => { perime = true; };
+});
+// Photo trouvée pendant la passe des portraits : la carte s'éclaire aussitôt.
+$effect(() => {
+  let arreter: (() => void) | null = null;
+  let fini = false;
+  listen<{ name: string; image_url: string }>("composer-image-ready", (e) => {
+    const k = e.payload.name.trim().toLowerCase();
+    compositeurs = compositeurs.map((c) => (c.name.trim().toLowerCase() === k ? { ...c, thumbnail_path: e.payload.image_url } : c));
+  }).then((u) => (fini ? u() : (arreter = u)));
+  return () => { fini = true; arreter?.(); };
+});
+const parCompositeur = $derived($settingsStore.artists_tab === "composers" && compositeurs.length > 0);
+function setOnglet(v: string) {
+  if (v !== $settingsStore.artists_tab) clearFilters();
+  void settingsStore.set("artists_tab", v);
+}
 // Un portrait arrivé pendant la visite compte : l'artiste quitte « Sans portrait ».
 const aUnPortrait = (a: ArtistListView) => !!(artistImageReadyStore.get(a.id, $artistImageReadyStore) ?? a.thumbnail_path);
 
 // Clés calculées une fois par liste et par tri : la frappe ne fait plus que filtrer.
-type Entree = { a: ArtistListView; cle: string; lettre: string; nom: string };
+type Entree = { a: ArtistListView | ComposerListView; cle: string; lettre: string; nom: string };
 const byName = (x: Entree, y: Entree) => comparerNaturel.compare(x.cle, y.cle);
 const TRI_FN: Record<Tri, (x: Entree, y: Entree) => number> = {
   name: byName,
@@ -67,14 +102,16 @@ const TRI_FN: Record<Tri, (x: Entree, y: Entree) => number> = {
   duration: (x, y) => (y.a.total_duration ?? 0) - (x.a.total_duration ?? 0) || byName(x, y),
 };
 const tries = $derived(
-  artistes.map((a) => ({ a, cle: sortKey(a.name), lettre: sortLetter(a.name), nom: (a.name ?? "").toLowerCase() })).sort(TRI_FN[tri]),
+  (parCompositeur ? compositeurs : artistes).map((a) => ({ a, cle: sortKey(a.name), lettre: sortLetter(a.name), nom: (a.name ?? "").toLowerCase() })).sort(TRI_FN[tri]),
 );
 
 const filtres = $derived.by(() => {
   const q = cherche.valeur.trim().toLowerCase();
-  return tries.filter((e) => (!q || e.nom.includes(q)) && (!sansPortrait || !aUnPortrait(e.a)));
+  return tries.filter((e) => (!q || e.nom.includes(q)) && (!sansPortrait || !(parCompositeur ? !!e.a.thumbnail_path : aUnPortrait(e.a as ArtistListView))));
 });
 const visibles = $derived(filtres.map((e) => e.a));
+const visiblesArtistes = $derived(parCompositeur ? [] : (visibles as ArtistListView[]));
+const visiblesCompositeurs = $derived(parCompositeur ? (visibles as ComposerListView[]) : []);
 
 
 // ─── Navigation A–Z (tri par nom seulement) ───
@@ -119,11 +156,18 @@ const formatNumber = (n: number) => n.toLocaleString($currentLocale);
     <!-- ─── Outils : une ligne si la place le permet ; sinon recherche + vue en haut, filtres dessous ─── -->
     <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
       <div class="flex flex-wrap items-center gap-2.5">
-        <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={$t("artists_view.filter").replace("{n}", formatNumber(artistes.length))} clearLabel={$t("artists_view.clear_filters")} />
+        {#if compositeurs.length}
+          <ModeSwitch class="order-0" label={$t("composers_view.mode_label")} value={parCompositeur ? "composers" : "artists"} onchange={setOnglet} labelClass="@max-4xl:hidden"
+                      options={[
+                        { value: "artists", label: $t("composers_view.mode_artists"), icon: "material-symbols:artist-outline-rounded", count: formatNumber(artistes.length) },
+                        { value: "composers", label: $t("composers_view.mode_composers"), icon: "material-symbols:stylus-note-rounded", count: formatNumber(compositeurs.length) },
+                      ]} />
+        {/if}
+        <SearchField bind:value={recherche} class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" placeholder={(parCompositeur ? $t("composers_view.filter") : $t("artists_view.filter")).replace("{n}", formatNumber(parCompositeur ? compositeurs.length : artistes.length))} clearLabel={$t("artists_view.clear_filters")} />
 
-        <div class="order-2 @max-6xl:order-4 @max-6xl:basis-full flex flex-wrap items-center gap-2.5">
+        <div class="order-2 @max-2xl:order-4 @max-2xl:basis-full flex flex-wrap items-center gap-2.5">
           <FilterChip icon="material-symbols:no-accounts-outline-rounded" pressed={sansPortrait} title={$t("artists_view.no_portrait")} onclick={() => (sansPortrait = !sansPortrait)}>
-            <span class="@max-xl:hidden">{$t("artists_view.no_portrait")}</span>
+            <span class="@max-6xl:hidden">{$t("artists_view.no_portrait")}</span>
           </FilterChip>
           {#if filtresActifs}
             <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={$t("artists_view.clear_filters")} labelClass="@max-3xl:hidden" onclick={clearFilters} />
@@ -137,7 +181,7 @@ const formatNumber = (n: number) => n.toLocaleString($currentLocale);
 
           <ViewModeSwitch />
 
-          <SelectionToggle />
+          {#if !parCompositeur}<SelectionToggle />{/if}
         </div>
       </div>
     </div>
@@ -149,7 +193,13 @@ const formatNumber = (n: number) => n.toLocaleString($currentLocale);
           <EmptyResult message={$t("artists_view.no_match")} effacerLabel={$t("artists_view.clear_filters")} oneffacer={filtresActifs ? clearFilters : null} />
         {:else if $viewMode === "grid"}
           <div class="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-x-5 gap-y-7 pt-3">
-            {#each visibles as artist, i (artist.id)}
+            {#each visiblesCompositeurs as composer, i (composer.name)}
+              <div class="relative min-w-0">
+                {#if isLetterStart(i)}<span class="absolute -top-3 left-0 h-0 scroll-mt-4" data-letter={sortLetter(composer.name)}></span>{/if}
+                <ComposerListItem {composer} {libraryId} />
+              </div>
+            {/each}
+            {#each visiblesArtistes as artist, i (artist.id)}
               <div class="relative min-w-0">
                 {#if isLetterStart(i)}<span class="absolute -top-3 left-0 h-0 scroll-mt-4" data-letter={sortLetter(artist.name)}></span>{/if}
                 <ArtistListItem {artist} {libraryId} />
@@ -158,7 +208,11 @@ const formatNumber = (n: number) => n.toLocaleString($currentLocale);
           </div>
         {:else}
           <div class="flex flex-col pt-2">
-            {#each visibles as artist, i (artist.id)}
+            {#each visiblesCompositeurs as composer, i (composer.name)}
+              {#if isLetterStart(i)}<span class="h-0 scroll-mt-4" data-letter={sortLetter(composer.name)}></span>{/if}
+              <ComposerListRow {composer} {libraryId} />
+            {/each}
+            {#each visiblesArtistes as artist, i (artist.id)}
               {#if isLetterStart(i)}<span class="h-0 scroll-mt-4" data-letter={sortLetter(artist.name)}></span>{/if}
               <ArtistListRow {artist} {libraryId} />
             {/each}

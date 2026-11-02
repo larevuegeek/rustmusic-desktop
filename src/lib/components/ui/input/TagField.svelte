@@ -58,7 +58,7 @@
   data-focus-ring="row"
   class="group relative rounded-xl overflow-hidden transition-colors duration-150
          bg-(--rg-champ) border border-(--rg-bd)
-         hover:border-(--rg-bd2) focus-within:border-(--rg-g) focus-within:hover:border-(--rg-g)
+         hover:border-(--rg-bd2) rg-field
          focus-within:bg-[color-mix(in_srgb,white_5%,var(--rg-champ))]"
 >
   {#if dirty}

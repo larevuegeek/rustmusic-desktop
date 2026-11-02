@@ -12,4 +12,6 @@ pub mod library_stats_repository;
 pub mod library_audit_repository;
 pub mod track_path_repository;
 pub mod library_pin_repository;
+pub mod artist_split_repository;
 pub mod image_repository;
+pub mod composer_repository;

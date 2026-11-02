@@ -32,7 +32,7 @@
   const classes = $derived(
     `w-full px-4 rounded-xl text-sm outline-none transition-colors disabled:opacity-60
      bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border
-     ${invalid ? "border-red-500/60 focus:border-red-500" : "border-(--rg-bd) hover:border-(--rg-bd2) focus:border-(--rg-g)"}`,
+     ${invalid ? "border-red-500/60 focus:border-red-500" : "border-(--rg-bd) hover:border-(--rg-bd2) rg-field"}`,
   );
 </script>
 

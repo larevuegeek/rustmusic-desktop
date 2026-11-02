@@ -133,7 +133,7 @@
         </button>
 
         <!-- Personnalisé -->
-        <div class="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 dark:bg-white/3 border border-neutral-200/60 dark:border-white/6">
+        <div class="rg-field mt-1.5 flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 dark:bg-white/3 border border-neutral-200/60 dark:border-white/6">
           <Icon icon="lucide:sliders-horizontal" width="13" class="text-neutral-400 dark:text-neutral-500 shrink-0" />
           <input
             type="number"
