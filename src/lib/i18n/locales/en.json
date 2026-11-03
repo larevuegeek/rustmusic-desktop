@@ -886,6 +886,7 @@
     "no_playlist": "No playlists",
     "play_all_album": "Play whole album",
     "play_all_genre": "Play whole genre",
+    "play_all_composer": "Play all tracks",
     "play_all_playlist": "Play whole playlist"
   },
   "stats": {
@@ -2620,6 +2621,7 @@
   "whats_new": {
     "title": "What's new",
     "kicker": "What's new in {version}",
+    "kicker_since": "Since {version}",
     "hide": "Don't show at startup",
     "try": "Try it",
     "done": "Let's go",
@@ -2667,6 +2669,18 @@
       "playback_start": {
         "title": "Music that starts on its own",
         "text": "Start playback when the app opens, choose when a track counts as played, and control RustMusic from the command line (/play, /next…). Settings → General."
+      },
+      "artist_split": {
+        "title": "Multiple artists, finally split",
+        "text": "\"Chris Brown/Nicki Minaj\" becomes two artists, \"AC/DC\" stays one band: each doubtful name is checked (ARTISTS tag, MusicBrainz), live, and everything can be undone. Settings → Storage & data."
+      },
+      "composers": {
+        "title": "Composers get their own shelf",
+        "text": "In the Artists tab, switch to Composers: each one has a page with their albums, tracks and performers. You'll also find them in search and from a track's page."
+      },
+      "mac_polish": {
+        "title": "More polished on Mac",
+        "text": "The icon matches other apps, the day/night button remembers your choice, Back in Settings takes you home, and big titles no longer clip the bottom of letters."
       }
     }
   },

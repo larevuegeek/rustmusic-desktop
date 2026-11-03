@@ -13,6 +13,8 @@
   import { handlePlayTrack } from "#lib/actions/player/PlayerAction";
   import { toQueue } from "#lib/mapper/queue/mapQueueTrack";
   import { groupVersions, type SearchHit, type SearchResult } from "#lib/helper/search/searchVersions";
+  import { composerHref } from "#lib/types/ui/library/composer/ComposerListView";
+  import ArtistAvatar from "#lib/components/ui/image/ArtistAvatar.svelte";
   import { formatCourt, trackTier } from "#lib/helper/tools/audioFormatTools";
   import { minutesSeconds } from "#lib/helper/tools/dateTools";
   import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
@@ -31,7 +33,7 @@
   let fiches = $state<Map<string, TrackListView>>(new Map());
   let menu = $state<{ x: number; y: number; result: SearchResult } | null>(null);
 
-  type Filtre = "all" | "tracks" | "albums" | "artists";
+  type Filtre = "all" | "tracks" | "albums" | "artists" | "composers";
   let filtre = $state<Filtre>("all");
 
   $effect(() => {
@@ -60,8 +62,9 @@
   const tracks = $derived(hits.filter((r) => r.result_type === "track"));
   const albums = $derived(hits.filter((r) => r.result_type === "album"));
   const artists = $derived(hits.filter((r) => r.result_type === "artist"));
-  // Le meilleur résultat : un album d'abord, sinon un morceau, sinon un artiste.
-  const top = $derived(albums[0] ?? tracks[0] ?? artists[0] ?? null);
+  const composers = $derived(hits.filter((r) => r.result_type === "composer"));
+  // Le meilleur résultat : un album d'abord, sinon un morceau, un artiste, un compositeur.
+  const top = $derived(albums[0] ?? tracks[0] ?? artists[0] ?? composers[0] ?? null);
 
   const n = (x: number) => x.toLocaleString($currentLocale);
 
@@ -69,6 +72,7 @@
     if (r.result_type === "track" && r.path) handlePlayTrack(r.path, toQueue(tracks));
     else if (r.result_type === "album" && r.library_id) goto(`/library/${r.library_id}/albums/${r.id}`);
     else if (r.result_type === "artist" && r.library_id) goto(`/library/${r.library_id}/artists/${r.id}`);
+    else if (r.result_type === "composer" && r.library_id) goto(composerHref(r.library_id, r.title));
   }
   // Une version choisie à la main : elle remplace la préférée dans la file.
   function openVersion(hit: SearchHit, r: SearchResult) {
@@ -77,7 +81,9 @@
   }
   const playAll = () => tracks[0]?.path && handlePlayTrack(tracks[0].path, toQueue(tracks));
 
-  const typeLabel = (type: string) => $t(type === "track" ? "track_view.kicker" : type === "album" ? "sidebar.album" : "sidebar.artist");
+  const typeLabel = (type: string) =>
+    $t(type === "track" ? "track_view.kicker" : type === "album" ? "sidebar.album" : type === "composer" ? "composers_view.kicker" : "sidebar.artist");
+  const rond = (type: string) => type === "artist" || type === "composer";
   const fiche = (r: SearchResult) => (r.path ? fiches.get(r.path) : undefined);
 </script>
 
@@ -145,12 +151,14 @@
     <div class="aspect-square rounded-full overflow-hidden mx-auto bg-(--rg-s2) shadow-[0_8px_24px_rgba(0,0,0,0.16)]">
       {#if r.thumbnail_path}
         <CoverImg path={r.thumbnail_path} alt="" class="w-full h-full object-cover" />
+      {:else if r.result_type === "composer"}
+        <ArtistAvatar name={r.title} deux class="w-full h-full text-[44px] tracking-[-0.02em]" />
       {:else}
         <span class="w-full h-full flex items-center justify-center text-(--rg-mu)"><Icon icon="material-symbols:artist-outline-rounded" width="40" /></span>
       {/if}
     </div>
     <p class="mt-2.5 text-[14px] font-semibold truncate text-(--rg-tx)">{r.title}</p>
-    <p class="text-[12.5px] text-(--rg-mu)">{typeLabel("artist")}</p>
+    <p class="text-[12.5px] text-(--rg-mu)">{typeLabel(r.result_type)}</p>
   </div>
 {/snippet}
 
@@ -181,6 +189,7 @@
         <span><b class="font-bold text-(--rg-tx)">{n(tracks.length)}</b> {$t("library.tracks").toLowerCase()}</span>
         <span><b class="font-bold text-(--rg-tx)">{n(albums.length)}</b> {$t("library.albums").toLowerCase()}</span>
         <span><b class="font-bold text-(--rg-tx)">{n(artists.length)}</b> {$t("library.artists").toLowerCase()}</span>
+        {#if composers.length}<span><b class="font-bold text-(--rg-tx)">{n(composers.length)}</b> {$t("composers_view.mode_composers").toLowerCase()}</span>{/if}
       </div>
     </div>
     {#if tracks.length}
@@ -200,6 +209,7 @@
                           ...(tracks.length ? [{ value: "tracks", label: `${$t("library.tracks")} · ${n(tracks.length)}` }] : []),
                           ...(albums.length ? [{ value: "albums", label: `${$t("library.albums")} · ${n(albums.length)}` }] : []),
                           ...(artists.length ? [{ value: "artists", label: `${$t("library.artists")} · ${n(artists.length)}` }] : []),
+                          ...(composers.length ? [{ value: "composers", label: `${$t("composers_view.mode_composers")} · ${n(composers.length)}` }] : []),
                         ]} />
     </div>
   {/if}
@@ -226,9 +236,11 @@
             <div role="button" tabindex="0" onclick={() => open(top)} onkeydown={(e) => { if (e.key === "Enter") open(top); }}
                  class="group relative p-5 rounded-2xl border cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)">
               {#if top.thumbnail_path}
-                <CoverImg path={top.thumbnail_path} alt="" class="w-28 h-28 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.25)] {top.result_type === 'artist' ? 'rounded-full' : 'rounded-xl'}" />
+                <CoverImg path={top.thumbnail_path} alt="" class="w-28 h-28 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.25)] {rond(top.result_type) ? 'rounded-full' : 'rounded-xl'}" />
+              {:else if top.result_type === "composer"}
+                <ArtistAvatar name={top.title} deux class="w-28 h-28 text-[36px]" />
               {:else}
-                <span class="w-28 h-28 flex items-center justify-center bg-(--rg-s2) text-(--rg-mu) {top.result_type === 'artist' ? 'rounded-full' : 'rounded-xl'}">
+                <span class="w-28 h-28 flex items-center justify-center bg-(--rg-s2) text-(--rg-mu) {rond(top.result_type) ? 'rounded-full' : 'rounded-xl'}">
                   <Icon icon="material-symbols:album-outline" width="44" />
                 </span>
               {/if}
@@ -274,6 +286,14 @@
           </div>
         </div>
       {/if}
+      {#if composers.length}
+        <div class="mb-10">
+          {@render section($t("composers_view.mode_composers"), composers.length, composers.length > 6 ? "composers" : null)}
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-6">
+            {#each composers.slice(0, 6) as r (r.id)}{@render artistCard(r)}{/each}
+          </div>
+        </div>
+      {/if}
     {:else if filtre === "tracks"}
       {#each tracks as r, i (r.id)}{@render trackRow(r, i)}{/each}
     {:else if filtre === "albums"}
@@ -282,7 +302,7 @@
       </div>
     {:else}
       <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-6">
-        {#each artists as r (r.id)}{@render artistCard(r)}{/each}
+        {#each filtre === "composers" ? composers : artists as r (r.id)}{@render artistCard(r)}{/each}
       </div>
     {/if}
   </div>

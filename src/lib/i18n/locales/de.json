@@ -886,6 +886,7 @@
     "no_playlist": "Keine Playlist",
     "play_all_album": "Ganzes Album abspielen",
     "play_all_genre": "Ganzes Genre abspielen",
+    "play_all_composer": "Alle Titel abspielen",
     "play_all_playlist": "Ganze Playlist abspielen"
   },
   "stats": {
@@ -2620,6 +2621,7 @@
   "whats_new": {
     "title": "Neuigkeiten",
     "kicker": "Neu in {version}",
+    "kicker_since": "Seit {version}",
     "hide": "Beim Start nicht mehr anzeigen",
     "try": "Ausprobieren",
     "done": "Los geht's",
@@ -2667,6 +2669,18 @@
       "playback_start": {
         "title": "Musik, die von selbst startet",
         "text": "Starte die Wiedergabe beim Öffnen, lege fest, ab wann ein Titel als gehört zählt, und steuere RustMusic per Kommandozeile (/play, /next …). Einstellungen → Allgemein."
+      },
+      "artist_split": {
+        "title": "Mehrere Künstler, endlich getrennt",
+        "text": "„Chris Brown/Nicki Minaj“ wird zu zwei Künstlern, „AC/DC“ bleibt eine Band: Jeder zweifelhafte Name wird geprüft (ARTISTS-Tag, MusicBrainz), live, und alles lässt sich rückgängig machen. Einstellungen → Speicher & Daten."
+      },
+      "composers": {
+        "title": "Komponisten bekommen ihr eigenes Regal",
+        "text": "Wechsle im Tab Künstler zu Komponisten: Jeder hat eine Seite mit Alben, Titeln und Interpreten. Du findest sie auch in der Suche und auf der Seite eines Titels."
+      },
+      "mac_polish": {
+        "title": "Feinschliff für den Mac",
+        "text": "Das Symbol ist so groß wie bei anderen Apps, der Tag-/Nacht-Schalter merkt sich deine Wahl, Zurück in den Einstellungen führt zur Startseite, und große Titel schneiden Unterlängen nicht mehr ab."
       }
     }
   },

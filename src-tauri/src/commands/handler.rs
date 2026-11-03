@@ -92,6 +92,7 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         composer_command::get_composers,
         composer_command::get_tracks_by_composer,
         composer_command::fetch_composer_image,
+        composer_command::composer_split_config,
         library_command::get_file_tags,
         library_command::remove_library_dir,
         library_command::create_library,

@@ -886,6 +886,7 @@
     "no_playlist": "Nessuna playlist",
     "play_all_album": "Riproduci tutto l'album",
     "play_all_genre": "Riproduci tutto il genere",
+    "play_all_composer": "Riproduci tutti i brani",
     "play_all_playlist": "Riproduci tutta la playlist"
   },
   "stats": {
@@ -2571,7 +2572,7 @@
     "tab_sources": "Sorgenti",
     "tab_sound": "Suono",
     "tab_controls": "Comandi",
-    "tab_nav": "Navigazione",
+    "tab_nav": "Navigazione",
     "nav_hint_keys": "I tasti guidano il menu a schermo dell'amplificatore sulla TV.",
     "nav_hint": "La rotella guida il menu a schermo dell'amplificatore sulla TV: premi per una direzione, gira per scorrere.",
     "go_net": "Passa a NET",
@@ -2579,7 +2580,7 @@
     "loading": "Caricamento…",
     "back": "Indietro",
     "home": "Home",
-    "menu": "Menu",
+    "menu": "Menu",
     "pad": "Comandi di direzione",
     "pad_wheel": "Rotella",
     "pad_keys": "Tasti in riga",
@@ -2620,6 +2621,7 @@
   "whats_new": {
     "title": "Novità",
     "kicker": "Novità della {version}",
+    "kicker_since": "Dalla {version}",
     "hide": "Non mostrare all'avvio",
     "try": "Prova",
     "done": "Iniziamo",
@@ -2667,6 +2669,18 @@
       "playback_start": {
         "title": "La musica riparte da sola",
         "text": "Avvia la riproduzione all'apertura, scegli quando un brano conta come ascoltato e comanda RustMusic da riga di comando (/play, /next…). Impostazioni → Generale."
+      },
+      "artist_split": {
+        "title": "Più artisti, finalmente separati",
+        "text": "«Chris Brown/Nicki Minaj» diventa due artisti, «AC/DC» resta un gruppo: ogni nome dubbio viene verificato (tag ARTISTS, MusicBrainz), in diretta, e tutto si può annullare. Impostazioni → Archiviazione & dati."
+      },
+      "composers": {
+        "title": "I compositori hanno il loro scaffale",
+        "text": "Nella scheda Artisti, passa ai Compositori: ognuno ha la sua pagina, con album, brani e interpreti. Li trovi anche nella ricerca e dalla scheda di un brano."
+      },
+      "mac_polish": {
+        "title": "Più rifinito su Mac",
+        "text": "L'icona ha la stessa dimensione delle altre app, il pulsante giorno / notte ricorda la scelta, Indietro nelle Impostazioni porta alla home e i titoli grandi non tagliano più la parte bassa delle lettere."
       }
     }
   },

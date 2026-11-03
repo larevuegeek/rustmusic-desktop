@@ -5,6 +5,7 @@ use tauri::State;
 use crate::commands::library::library_command::{client_deezer, deezer_portrait, portraits_dir};
 use crate::helper::library::thumbnail_helper::save_artist_image;
 use crate::mapper::library::track::track_list_item_view::TrackListView;
+use crate::service::library::artist_split;
 use crate::service::library::composer::{self, ComposerView};
 use crate::state::AppState;
 
@@ -43,4 +44,10 @@ pub async fn fetch_composer_image(state: State<'_, AppState>, name: String) -> R
             Ok(None)
         }
     }
+}
+
+/// De quoi découper un tag compositeur côté interface, exactement comme ici : mentions écartées et décisions des artistes multiples.
+#[tauri::command]
+pub fn composer_split_config() -> serde_json::Value {
+    serde_json::json!({ "junk": composer::JUNK, "rules": *artist_split::rules() })
 }

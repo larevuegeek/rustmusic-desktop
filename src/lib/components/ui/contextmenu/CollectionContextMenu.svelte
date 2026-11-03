@@ -17,7 +17,7 @@
 
   type Props = {
     title: string;
-    type: "album" | "playlist" | "genre";
+    type: "album" | "playlist" | "genre" | "composer";
     loadTracks: () => Promise<TrackLike[]>;
     x: number;
     y: number;
@@ -35,9 +35,11 @@
      * playlist autrement.
      */
     onedittags?: () => void;
+    /** Ajoute « Lecture aléatoire » (compositeur). */
+    onshuffle?: () => void;
   };
 
-  let { title, type, loadTracks, x, y, onclose, oncover, albumId = null, artistName = null, libraryId = null, onedittags }: Props = $props();
+  let { title, type, loadTracks, x, y, onclose, oncover, albumId = null, artistName = null, libraryId = null, onedittags, onshuffle }: Props = $props();
   const distante = $derived(libraryId != null && !!$libraryStore.libraries.find((l) => l.id === libraryId)?.server_id);
 
   const epingle = $derived(isPinned($pinsStore, "album", albumId));
@@ -117,7 +119,9 @@
     return `left: ${posX}px; top: ${posY}px;`;
   });
 
-  const playAllKey = $derived(type === "album" ? "menu.play_all_album" : type === "genre" ? "menu.play_all_genre" : "menu.play_all_playlist");
+  const playAllKey = $derived(
+    type === "album" ? "menu.play_all_album" : type === "genre" ? "menu.play_all_genre" : type === "composer" ? "menu.play_all_composer" : "menu.play_all_playlist",
+  );
 
   /** « 1 morceau » / « n morceaux », nombre au format de la langue. */
   function count(n: number, one: string, many: string, extra: Record<string, string> = {}): string {
@@ -256,6 +260,17 @@
     <Icon icon="lucide:play" width="14" class="opacity-60" />
     {$t(playAllKey)}
   </button>
+
+  {#if onshuffle}
+    <button
+      class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer
+             text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+      onclick={() => { onshuffle(); onclose(); }}
+    >
+      <Icon icon="lucide:shuffle" width="14" class="opacity-60" />
+      {$t("album_view.shuffle")}
+    </button>
+  {/if}
 
   <button
     class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer

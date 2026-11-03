@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 use sqlx::SqlitePool;
 
+use crate::entity::search::search_result::SearchResult;
 use crate::helper::string::string::normalize_name;
 use crate::mapper::library::track::track_list_item_view::TrackListView;
 use crate::repository::library::artist_split_repository::{key, ArtistSplitRepository};
@@ -24,7 +25,7 @@ pub struct ComposerView {
 }
 
 /// Mentions qui ne nomment personne.
-const JUNK: &[&str] = &[
+pub const JUNK: &[&str] = &[
     "various", "various composers", "various artists", "unknown", "unknown composer", "[unknown]",
     "composer information unavailable", "n/a", "na", "-", "?", "inconnu", "divers", "compositeurs divers",
 ];
@@ -141,6 +142,39 @@ pub fn photo_file(name: &str) -> String {
     format!("composer_{:x}.jpg", md5::compute(normalize_name(name)))
 }
 
+/// Recherche globale : les compositeurs dont le nom contient `query`, chacun une fois (sa première bibliothèque).
+pub async fn search(pool: &SqlitePool, query: &str, limit: usize, profil_id: i64, source: Option<i64>) -> Result<Vec<SearchResult>, sqlx::Error> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return Ok(vec![]);
+    }
+    let rows = ComposerRepository::search_raw(pool, &format!("%{q}%"), profil_id, source).await?;
+    let rules = artist_split::rules();
+    let photos = photos(pool).await;
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for (library_id, raw) in rows {
+        for name in split(&raw, &rules) {
+            let k = normalize_name(&name);
+            if name.to_lowercase().contains(&q) && seen.insert(k.clone()) {
+                out.push(SearchResult {
+                    id: name.clone(),
+                    result_type: "composer".into(),
+                    title: name,
+                    subtitle: None,
+                    thumbnail_path: photos.get(&k).cloned(),
+                    path: None,
+                    library_id: Some(library_id),
+                });
+            }
+        }
+    }
+    // Ceux qui commencent par la recherche d'abord.
+    out.sort_by_key(|r| (!r.title.to_lowercase().starts_with(&q), r.title.to_lowercase()));
+    out.truncate(limit);
+    Ok(out)
+}
+
 /// Les morceaux d'un compositeur, toutes écritures de son nom confondues.
 pub async fn tracks(pool: &SqlitePool, library_id: i64, name: &str) -> Result<Vec<TrackListView>, sqlx::Error> {
     let wanted = normalize_name(name);
@@ -175,6 +209,89 @@ mod tests {
         assert_eq!(split("Mozart, Unknown, mozart", &k), ["Mozart"]);
         // « & » ne coupe pas : souvent un duo d'auteurs qu'on cherche ensemble.
         assert_eq!(split("Lennon & McCartney", &k), ["Lennon & McCartney"]);
+    }
+
+    /// Bibliothèque 5 : quatre morceaux à compositeur, un sans ; la bibliothèque 6 ne compte pas.
+    async fn library() -> SqlitePool {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!("./SQL/").run(&pool).await.unwrap();
+        sqlx::query("INSERT OR IGNORE INTO profil (id, name) VALUES (1, 'Socle')").execute(&pool).await.unwrap();
+        for lib in [5, 6] {
+            sqlx::query("INSERT INTO library (id, profil_id, name) VALUES (?, 1, ?)").bind(lib).bind(format!("L{lib}")).execute(&pool).await.unwrap();
+        }
+        sqlx::query("INSERT INTO artists (id, name, name_normalized, sort_name, image_url) VALUES ('hz', 'Hans Zimmer', 'hans zimmer', 'Hans Zimmer', '/p/hz.jpg')")
+            .execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO library_artists (library_id, artist_id) VALUES (5, 'hz')").execute(&pool).await.unwrap();
+        for a in ["a1", "a2"] {
+            sqlx::query("INSERT INTO library_albums (id, library_id, artist_id, title, title_normalized) VALUES (?, 5, 'hz', ?, ?)")
+                .bind(a).bind(a).bind(a).execute(&pool).await.unwrap();
+        }
+        let tracks: [(&str, i64, Option<&str>, Option<&str>, f64); 6] = [
+            ("t1", 5, Some("a1"), Some("Hans Zimmer, James Newton Howard"), 100.0),
+            ("t2", 5, Some("a2"), Some("hans zimmer"), 50.0),
+            ("t3", 5, Some("a2"), Some("Various Composers"), 10.0),
+            ("t4", 5, Some("a2"), Some("Lisa Gerrard"), 20.0),
+            ("t5", 5, Some("a2"), None, 30.0),
+            ("t6", 6, None, Some("Hans Zimmer"), 40.0),
+        ];
+        for (id, lib, album, composer, duration) in tracks {
+            let tags = composer.map(|c| serde_json::json!({ "composer": c }).to_string());
+            sqlx::query("INSERT INTO library_files (id, library_id, path, filename) VALUES (?, ?, ?, 'x')")
+                .bind(format!("f{id}")).bind(lib).bind(format!("/m/{id}.flac")).execute(&pool).await.unwrap();
+            sqlx::query("INSERT INTO library_tracks (id, library_id, file_id, title, title_normalized, duration, library_album_id, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+                .bind(id).bind(lib).bind(format!("f{id}")).bind(id).bind(id).bind(duration).bind(album).bind(tags)
+                .execute(&pool).await.unwrap();
+        }
+        ComposerRepository::save_image(&pool, &normalize_name("James Newton Howard"), "/p/jnh.jpg").await.unwrap();
+        ComposerRepository::save_image(&pool, &normalize_name("Lisa Gerrard"), "").await.unwrap();
+        pool
+    }
+
+    #[tokio::test]
+    async fn lists_the_composers_of_one_library() {
+        let pool = library().await;
+        let mut all = list(&pool, 5).await.unwrap();
+        all.sort_by(|a, b| a.name.cmp(&b.name));
+        let names: Vec<&str> = all.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["Hans Zimmer", "James Newton Howard", "Lisa Gerrard"]);
+
+        // Deux écritures, deux albums ; photo et page de l'artiste du même nom.
+        let hz = &all[0];
+        assert_eq!((hz.total_tracks, hz.total_albums, hz.total_duration), (2, 2, 150.0));
+        assert_eq!((hz.thumbnail_path.as_deref(), hz.artist_id.as_deref()), (Some("/p/hz.jpg"), Some("hz")));
+        // Photo de compositeur ; cherchée sans résultat = pas de photo.
+        assert_eq!(all[1].thumbnail_path.as_deref(), Some("/p/jnh.jpg"));
+        assert_eq!(all[2].thumbnail_path, None);
+    }
+
+    #[tokio::test]
+    async fn finds_the_tracks_of_a_composer() {
+        let pool = library().await;
+        let ids = |t: Vec<TrackListView>| t.into_iter().map(|t| t.id).collect::<Vec<_>>();
+        assert_eq!(ids(tracks(&pool, 5, "HANS ZIMMER").await.unwrap()), ["t1", "t2"]);
+        assert_eq!(ids(tracks(&pool, 5, "James Newton Howard").await.unwrap()), ["t1"]);
+        assert!(tracks(&pool, 5, "Various Composers").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_global_search_finds_each_composer_once() {
+        let pool = library().await;
+        let titles = |r: Vec<SearchResult>| r.into_iter().map(|r| (r.title, r.library_id)).collect::<Vec<_>>();
+        // Deux bibliothèques, deux écritures : un seul résultat.
+        assert_eq!(titles(search(&pool, "ZIM", 5, 1, None).await.unwrap()), [("Hans Zimmer".to_string(), Some(5))]);
+        assert_eq!(titles(search(&pool, "howard", 5, 1, None).await.unwrap()), [("James Newton Howard".to_string(), Some(5))]);
+        assert!(search(&pool, "various", 5, 1, None).await.unwrap().is_empty());
+        assert!(search(&pool, "zim", 5, 2, None).await.unwrap().is_empty(), "autre profil");
+    }
+
+    #[tokio::test]
+    async fn only_unsearched_composers_go_to_deezer() {
+        let pool = library().await;
+        // Hans Zimmer a une fiche d'artiste, James et Lisa ont déjà été cherchés.
+        assert!(without_photo(&pool).await.unwrap().is_empty());
+        ComposerRepository::reset_not_found(&pool).await.unwrap();
+        assert_eq!(without_photo(&pool).await.unwrap(), ["Lisa Gerrard"]);
+        assert_eq!(known_photo(&pool, "james newton howard").await.as_deref(), Some("/p/jnh.jpg"));
     }
 
     #[test]

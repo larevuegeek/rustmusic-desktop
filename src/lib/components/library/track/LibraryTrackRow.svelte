@@ -1,6 +1,7 @@
 <script lang="ts">
 // Ligne de l'onglet Morceaux : colonnes au choix, habillées comme la maquette (compact ou détaillé).
 import { goto } from "$app/navigation";
+import ComposerLinks from "#lib/components/library/composer/ComposerLinks.svelte";
 import Icon from "@iconify/svelte";
 import { t, currentLocale } from "#lib/i18n";
 import { handleSelectTrack, handlePlayTrack } from "#lib/actions/player/PlayerAction";
@@ -201,6 +202,11 @@ const ib = "w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-
             <span class="shrink-0 truncate text-sm text-(--rg-mu)" style={w} title={track.album ?? ""}>
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 {#if track.album}<span class={lienAlbum ? lien : ""} onclick={(e) => goTo(e, lienAlbum)}>{track.album}</span>{/if}
+            </span>
+
+        {:else if col.key === "tag:composer"}
+            <span class="shrink-0 truncate text-[13px] text-(--rg-mu)" style={w} title={col.value?.(vivant) ?? ""}>
+                <ComposerLinks {libraryId} raw={col.value?.(vivant)} class={lien} />
             </span>
 
         {:else if col.key === "duration"}

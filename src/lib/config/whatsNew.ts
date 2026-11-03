@@ -18,6 +18,8 @@ export type WhatsNewSlide = {
   logos?: { icon: string; label: string }[];
   /** Bouton « Essayer » : mène à la nouveauté. */
   action?: () => void;
+  /** Rappel d'une version précédente : le badge le dit. */
+  since?: string;
 };
 
 const podcastsEnabled = () => get(settingsStore).podcasts === "true";
@@ -134,6 +136,40 @@ const RELEASES: Record<string, WhatsNewSlide[]> = {
       action: () => goto("/settings/general"),
     },
   ],
+  "0.4.3": [
+    {
+      id: "artist_split",
+      icon: "material-symbols:group-outline-rounded",
+      colors: ["#8b5cf6", "#ec4899"],
+      satellites: ["material-symbols:call-split-rounded", "simple-icons:musicbrainz", "material-symbols:undo-rounded"],
+      action: () => goto("/settings/storage"),
+    },
+    {
+      id: "composers",
+      icon: "material-symbols:stylus-note-rounded",
+      colors: ["#10b981", "#0ea5e9"],
+      satellites: ["material-symbols:piano-rounded", "material-symbols:mic-external-on-outline-rounded", "material-symbols:search-rounded"],
+      action: () => {
+        const id = get(libraryStore).librarySelected?.id;
+        if (!id) return;
+        void settingsStore.set("artists_tab", "composers");
+        goto(`/library/${id}/artists`);
+      },
+    },
+    {
+      id: "mac_polish",
+      icon: "simple-icons:apple",
+      colors: ["#94a3b8", "#64748b"],
+      satellites: ["material-symbols:dark-mode-outline-rounded", "material-symbols:title-rounded", "material-symbols:apps-rounded"],
+    },
+  ],
 };
 
-export const slidesFor = (version: string): WhatsNewSlide[] => RELEASES[version] ?? [];
+/** Les grandes nouveautés de la 0.4.0, rappelées après celles de chaque version. */
+const RECALLED = "0.4.0";
+
+export const slidesFor = (version: string): WhatsNewSlide[] => {
+  const own = RELEASES[version] ?? [];
+  if (!own.length || version === RECALLED) return own;
+  return [...own, ...(RELEASES[RECALLED] ?? []).map((s) => ({ ...s, since: RECALLED }))];
+};

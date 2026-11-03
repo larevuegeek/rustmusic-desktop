@@ -886,6 +886,7 @@
     "no_playlist": "Aucune playlist",
     "play_all_album": "Lire tout l'album",
     "play_all_genre": "Lire tout le genre",
+    "play_all_composer": "Lire tous ses morceaux",
     "play_all_playlist": "Lire toute la playlist"
   },
   "stats": {
@@ -2620,6 +2621,7 @@
   "whats_new": {
     "title": "Nouveautés",
     "kicker": "Nouveautés {version}",
+    "kicker_since": "Depuis la {version}",
     "hide": "Ne plus afficher au démarrage",
     "try": "Essayer",
     "done": "C'est parti",
@@ -2667,6 +2669,18 @@
       "playback_start": {
         "title": "La musique repart toute seule",
         "text": "Lancez la lecture dès l'ouverture, choisissez à quel pourcentage un morceau compte comme écouté, et pilotez RustMusic en ligne de commande (/play, /next…). Réglages → Général."
+      },
+      "artist_split": {
+        "title": "Plusieurs artistes, enfin séparés",
+        "text": "« Chris Brown/Nicki Minaj » devient deux artistes, « AC/DC » reste un groupe : chaque nom douteux est vérifié (tag ARTISTS, MusicBrainz), en direct, et tout reste annulable. Réglages → Stockage & données."
+      },
+      "composers": {
+        "title": "Les compositeurs ont leur rayon",
+        "text": "Dans l'onglet Artistes, passez aux Compositeurs : chacun a sa page, ses albums, ses morceaux et ses interprètes. On les retrouve aussi dans la recherche et depuis la fiche d'un morceau."
+      },
+      "mac_polish": {
+        "title": "Plus soigné sur Mac",
+        "text": "L'icône a la taille des autres apps, le bouton jour / nuit retient son choix, le retour des réglages ramène à l'accueil et les grands titres ne rognent plus le bas des lettres."
       }
     }
   },

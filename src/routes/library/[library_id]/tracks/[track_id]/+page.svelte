@@ -1,6 +1,7 @@
 <script lang="ts">
 // Fiche d'un morceau : en-tête teinté par la pochette, audio et tags, album et artiste, fichier, le reste de l'album.
 import { page } from "$app/state";
+import ComposerLinks from "#lib/components/library/composer/ComposerLinks.svelte";
 import { goto } from "$app/navigation";
 import Icon from "@iconify/svelte";
 import { untrack } from "svelte";
@@ -419,7 +420,7 @@ const petitBouton = "h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-
           {#if tags.compositeur}
             <div class={ligneDl}>
               {@render ligne($t("track_view.composer"))}
-              <dd class="text-sm font-semibold text-right truncate text-(--rg-tx)" title={tags.compositeur}>{tags.compositeur}</dd>
+              <dd class="text-sm font-semibold text-right truncate text-(--rg-tx)" title={tags.compositeur}><ComposerLinks {libraryId} raw={tags.compositeur} class={lien} /></dd>
             </div>
           {/if}
           {#if tags.label}

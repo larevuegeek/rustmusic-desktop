@@ -77,10 +77,10 @@ export async function handleArtistAddToQueue(libraryId: number, artistId: string
   }
 }
 
-/** Lit tous les titres d'un compositeur (tag `composer`). */
-export async function handleComposerPlay(libraryId: number, name: string) {
+/** Lit tous les titres d'un compositeur (tag `composer`), dans l'ordre ou mélangés. */
+export async function handleComposerPlay(libraryId: number, name: string, melanger = false) {
   try {
-    await handleTracksPlay((await invoke<TrackListView[]>("get_tracks_by_composer", { libraryId, name })) ?? []);
+    await handleTracksPlay((await invoke<TrackListView[]>("get_tracks_by_composer", { libraryId, name })) ?? [], melanger);
   } catch (e) {
     console.error("Impossible de lire le compositeur", e);
   }

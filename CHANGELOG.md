@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.3] - 2026-11-02
+## [0.4.3] - 2026-11-03
 
 Les noms qui réunissent plusieurs artistes (« Chris Brown/Nicki Minaj »)
 deviennent enfin des artistes séparés, sans casser les groupes comme
@@ -28,7 +28,10 @@ des autres.
   artistes d'un morceau est utilisée, sans séparateur à deviner.
 - **Compositeurs** : l'onglet Artistes bascule entre « Artistes » et
   « Compositeurs » (tag `composer`), et le choix est retenu. Chaque
-  compositeur a sa page : ses albums, ses morceaux et ses interprètes. Les
+  compositeur a sa page : ses albums, ses morceaux et ses interprètes ; on y
+  arrive aussi depuis la fiche d'un morceau, la colonne Compositeur et la
+  recherche, et son menu « … » lit, mélange, met en file ou ajoute à une
+  playlist. Les
   listes (« Hans Zimmer, James Newton Howard ») sont séparées, les mentions
   vides de sens (« Various Composers ») écartées. Photos : celle de l'artiste
   du même nom, sinon un portrait Deezer, cherché à l'ouverture de sa page ou

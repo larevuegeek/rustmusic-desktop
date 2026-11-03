@@ -29,7 +29,7 @@
 
 <div class="relative flex flex-col" role="region" aria-roledescription="carousel" aria-label={$t("whats_new.title")}>
   <span class="absolute left-4 top-4 z-10 h-7 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-bold text-white bg-black/35">
-    <Icon icon="material-symbols:campaign-rounded" width="16" />{$t("whats_new.kicker").replace("{version}", whatsNew.version)}
+    <Icon icon="material-symbols:campaign-rounded" width="16" />{$t(slides[index]?.since ? "whats_new.kicker_since" : "whats_new.kicker").replace("{version}", slides[index]?.since ?? whatsNew.version)}
   </span>
   <button type="button" onclick={() => popinStore.close()} aria-label={$t("common.close")} title={$t("common.close")}
           class="absolute right-3 top-3 z-10 w-8.5 h-8.5 rounded-full flex items-center justify-center cursor-pointer transition-colors

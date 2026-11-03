@@ -105,6 +105,25 @@
 
   <!-- Une entrée par version, la plus récente en tête ; la date à corriger le jour de la sortie. -->
   <releases>
+    <release version="0.4.3" date="2026-11-03">
+      <description>
+        <ul>
+          <li>Multiple artists: names like "Chris Brown/Nicki Minaj" are split after checking the ARTISTS tag or MusicBrainz, bands like AC/DC stay whole, and every change can be undone</li>
+          <li>Composers: switch the Artists tab to Composers, with a page per composer, search and links from tracks</li>
+          <li>The day/night button remembers your choice, and big titles no longer clip descenders</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.4.2" date="2026-10-31">
+      <description>
+        <ul>
+          <li>Folders show the cover art, track count and quality of what they contain</li>
+          <li>Scrobbling to Last.fm, alongside ListenBrainz</li>
+          <li>Tags of .m4a files can be edited, and ALAC is recognised as lossless</li>
+          <li>Genre pages, adjustable listen threshold, playback on startup and command-line controls</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.1" date="2026-10-27">
       <description>
         <ul>

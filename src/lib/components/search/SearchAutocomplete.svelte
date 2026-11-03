@@ -14,6 +14,7 @@
   import { libraryStore } from "#lib/stores/library/library.store";
 
   import { groupVersions, type SearchHit, type SearchResult } from "#lib/helper/search/searchVersions";
+  import { composerHref } from "#lib/types/ui/library/composer/ComposerListView";
   import VersionMarks from "#lib/components/ui/status/VersionMarks.svelte";
   import { activeServers, currentSource } from "#lib/stores/source/source.store";
   import { settingsStore } from "#lib/stores/settings/settings.store";
@@ -96,6 +97,8 @@
       goto(`/library/${result.library_id}/albums/${result.id}`);
     } else if (result.result_type === 'artist' && result.library_id) {
       goto(`/library/${result.library_id}/artists/${result.id}`);
+    } else if (result.result_type === 'composer' && result.library_id) {
+      goto(composerHref(result.library_id, result.title));
     }
     close();
   }
@@ -131,6 +134,7 @@
       case 'track': return 'lucide:music';
       case 'album': return 'lucide:disc-album';
       case 'artist': return 'lucide:mic-2';
+      case 'composer': return 'material-symbols:stylus-note-rounded';
       default: return 'lucide:search';
     }
   }
@@ -140,6 +144,7 @@
       case 'track': return $t('track_view.kicker');
       case 'album': return $t('sidebar.album');
       case 'artist': return $t('sidebar.artist');
+      case 'composer': return $t('composers_view.kicker');
       default: return '';
     }
   }

@@ -23,10 +23,12 @@ import RoundButton from "#lib/components/ui/button/RoundButton.svelte";
 import ToolbarButton from "#lib/components/ui/button/ToolbarButton.svelte";
 import ChipLink from "#lib/components/ui/link/ChipLink.svelte";
 import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
+import ModeSwitch from "#lib/components/ui/input/ModeSwitch.svelte";
 import ViewModeSwitch from "#lib/components/ui/input/ViewModeSwitch.svelte";
 import SelectionToggle from "#lib/components/ui/selection/SelectionToggle.svelte";
 import TrackColumnsButton from "#lib/components/library/track/TrackColumnsButton.svelte";
 import AlbumTrackRow from "#lib/components/library/album/AlbumTrackRow.svelte";
+import CollectionContextMenu from "#lib/components/ui/contextmenu/CollectionContextMenu.svelte";
 import LibraryTrackTable from "#lib/components/library/track/LibraryTrackTable.svelte";
 import AlbumListItem from "#lib/components/library/album/AlbumListItem.svelte";
 import AlbumListRow from "#lib/components/library/album/AlbumListRow.svelte";
@@ -145,6 +147,7 @@ $effect(() => {
 
 const colonnes = $derived(resolveColumns(shownKeys($settingsStore.track_columns)));
 const largeurs = $derived(readWidths($settingsStore.track_column_widths));
+let menu = $state<{ x: number; y: number } | null>(null);
 const grilleCartes = "grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x-4.5 gap-y-6";
 </script>
 
@@ -203,6 +206,8 @@ const grilleCartes = "grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x
         <div class="flex flex-wrap items-center gap-2.5 mt-2">
           <PlayButton label={$t("artist_view.play_all")} disabled={!tracks.length} onclick={() => handleTracksPlay(tries)} />
           <RoundButton icon="material-symbols:shuffle-rounded" title={$t("album_view.shuffle")} disabled={!tracks.length} onclick={() => handleTracksPlay(tracks, true)} />
+          <RoundButton icon="material-symbols:more-horiz" title={$t("album_view.more")}
+                       onclick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); menu = { x: r.left, y: r.bottom + 6 }; }} />
           <div class="flex flex-wrap gap-1.5 ml-1.5 @max-[760px]:ml-0">
             {#if commeArtiste}
               <ChipLink href={`/library/${libraryId}/artists/${commeArtiste.id}`} label={$t("composers_view.artist_page")} title={commeArtiste.name} />
@@ -215,14 +220,15 @@ const grilleCartes = "grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x
 
     <!-- ─── Albums, morceaux ou interprètes ─── -->
     <div class="flex flex-wrap items-center gap-2.5 pb-4 border-t border-(--rg-line) pt-5">
-      <SegmentedControl
+      <ModeSwitch
         label={$t("period_view.explore")}
         value={vue}
         onchange={setVue}
+        labelClass="@max-[560px]:hidden"
         options={[
-          { value: "albums", label: `${$t("library.albums")} · ${formatNumber(albums.length)}` },
-          { value: "morceaux", label: `${$t("library.tracks")} · ${formatNumber(tracks.length)}` },
-          { value: "interpretes", label: `${$t("composers_view.performers")} · ${formatNumber(interpretes.length)}` },
+          { value: "albums", label: $t("library.albums"), icon: "material-symbols:album-outline-rounded", count: formatNumber(albums.length) },
+          { value: "morceaux", label: $t("library.tracks"), icon: "material-symbols:music-note-rounded", count: formatNumber(tracks.length) },
+          { value: "interpretes", label: $t("composers_view.performers"), icon: "material-symbols:mic-external-on-outline-rounded", count: formatNumber(interpretes.length) },
         ]}
       />
       <span class="flex-1"></span>
@@ -290,4 +296,9 @@ const grilleCartes = "grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x
     </section>
     {/if}
 </DetailPage>
+
+{#if menu}
+  <CollectionContextMenu title={nom} type="composer" loadTracks={async () => tries} onshuffle={() => handleTracksPlay(tracks, true)}
+                         x={menu.x} y={menu.y} onclose={() => (menu = null)} {libraryId} />
+{/if}
 {/if}

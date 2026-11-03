@@ -51,6 +51,22 @@ impl ComposerRepository {
         .await
     }
 
+    /// Recherche : (bibliothèque, compositeur brut) des morceaux du profil dont le tag contient `term` (`%…%`).
+    pub async fn search_raw(pool: &SqlitePool, term: &str, profil_id: i64, source: Option<i64>) -> Result<Vec<(i64, String)>, sqlx::Error> {
+        sqlx::query_as(
+            "SELECT DISTINCT lt.library_id, TRIM(json_extract(lt.tags, '$.composer')) FROM library_tracks lt
+             WHERE LOWER(json_extract(lt.tags, '$.composer')) LIKE ?1
+               AND lt.library_id IN (SELECT id FROM library WHERE profil_id = ?2)
+               AND (CASE WHEN ?3 IS NULL THEN lt.library_id IN (SELECT id FROM library WHERE server_id IS NULL OR server_id IN (SELECT id FROM media_servers WHERE enabled = 1))
+                    ELSE lt.library_id IN (SELECT id FROM library WHERE COALESCE(server_id, 0) = ?3) END)",
+        )
+        .bind(term)
+        .bind(profil_id)
+        .bind(source)
+        .fetch_all(pool)
+        .await
+    }
+
     /// Les artistes de la bibliothèque : (nom normalisé, id), pour relier un compositeur à sa page d'artiste.
     pub async fn library_artists(pool: &SqlitePool, library_id: i64) -> Result<Vec<(String, String)>, sqlx::Error> {
         sqlx::query_as(

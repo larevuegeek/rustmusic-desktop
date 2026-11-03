@@ -6,9 +6,12 @@ import CoverImg from "#lib/components/ui/image/CoverImg.svelte";
 import ArtistAvatar from "#lib/components/ui/image/ArtistAvatar.svelte";
 import { handleComposerAddToQueue, handleComposerPlay } from "#lib/actions/queue/QueueAction";
 import { listenDuration } from "#lib/helper/tools/dateTools";
+import ComposerMenu from "./ComposerMenu.svelte";
 import { composerHref, type ComposerListView } from "#lib/types/ui/library/composer/ComposerListView";
 
 let { libraryId, composer }: { libraryId: number; composer: ComposerListView } = $props();
+
+let menu = $state<{ x: number; y: number } | null>(null);
 
 function withoutNavigating(e: MouseEvent, action: () => void) {
     e.preventDefault();
@@ -26,6 +29,7 @@ const chiffre = "text-right text-[13px] tabular-nums whitespace-nowrap text-(--r
            hover:before:opacity-0 [&:hover+a]:before:opacity-0
            grid-cols-[56px_minmax(0,1fr)_90px_90px_90px_110px] max-[900px]:grid-cols-[48px_minmax(0,1fr)_80px_40px]"
     href={composerHref(libraryId, composer.name)}
+    oncontextmenu={(e) => { e.preventDefault(); menu = { x: e.clientX, y: e.clientY }; }}
 >
     <div class="relative w-14 h-14 max-[900px]:w-12 max-[900px]:h-12 rounded-full overflow-hidden bg-(--rg-s2) shadow-[0_4px_12px_rgba(0,0,0,0.2)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
         {#if composer.thumbnail_path}
@@ -53,8 +57,14 @@ const chiffre = "text-right text-[13px] tabular-nums whitespace-nowrap text-(--r
                 onclick={(e) => withoutNavigating(e, () => handleComposerAddToQueue(libraryId, composer.name))}>
             <Icon icon="material-symbols:queue-music-rounded" width="19" />
         </button>
+        <button type="button" class="{act} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-[900px]:hidden" title={$t("artists_view.more")} aria-label={$t("artists_view.more")}
+                onclick={(e) => withoutNavigating(e, () => (menu = { x: e.clientX, y: e.clientY }))}>
+            <Icon icon="material-symbols:more-horiz" width="19" />
+        </button>
         <span class="w-8.5 h-8.5 flex items-center justify-center text-(--rg-mu2) group-hover:text-(--rg-tx2)" title={$t("artists_view.open")}>
             <Icon icon="material-symbols:chevron-right-rounded" width="19" />
         </span>
     </div>
 </a>
+
+{#if menu}<ComposerMenu {libraryId} name={composer.name} x={menu.x} y={menu.y} onclose={() => (menu = null)} />{/if}

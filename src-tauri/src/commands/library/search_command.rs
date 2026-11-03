@@ -3,6 +3,7 @@ use crate::entity::search::search_result::SearchResult;
 use crate::repository::artist::artist_repository::ArtistRepository;
 use crate::repository::library::library_album_repository::LibraryAlbumRepository;
 use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::service::library::composer;
 use crate::state::AppState;
 
 #[tauri::command]
@@ -33,10 +34,15 @@ pub async fn search(
         .await
         .map_err(|e| format!("Failed to search artists: {}", e))?;
 
+    let composers = composer::search(&state.pool, &query, artist_limit as usize, profil_id, source_id)
+        .await
+        .map_err(|e| format!("Failed to search composers: {}", e))?;
+
     let mut results: Vec<SearchResult> = Vec::new();
     results.extend(tracks);
     results.extend(albums);
     results.extend(artists);
+    results.extend(composers);
 
     Ok(results)
 }
