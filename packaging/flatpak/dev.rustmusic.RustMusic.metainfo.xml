@@ -105,6 +105,16 @@
 
   <!-- Une entrée par version, la plus récente en tête ; la date à corriger le jour de la sortie. -->
   <releases>
+    <release version="0.4.4" date="2026-11-13">
+      <description>
+        <ul>
+          <li>Playlists can be exported automatically as .m3u8 with relative paths, ready to copy to a USB stick or a phone</li>
+          <li>Choose an artist's portrait from a file, Deezer or Wikipedia</li>
+          <li>Edited tags now update the library (composer, title, artist, album)</li>
+          <li>Select all, wider tag editor panel, menus that stay inside the window</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.3" date="2026-11-03">
       <description>
         <ul>
