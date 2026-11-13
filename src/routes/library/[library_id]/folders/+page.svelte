@@ -132,7 +132,7 @@
 
   // Maj + clic : la plage suit l'ordre affiché des fichiers.
   $effect(() => {
-    selectionStore.setOrder(visibles.filter((e) => !e.is_dir).map((e) => ({ id: fileId(e), track: asTrack(e) })));
+    return selectionStore.setOrder(visibles.filter((e) => !e.is_dir).map((e) => ({ id: fileId(e), track: asTrack(e) })));
   });
 
   function openEntry(entry: DirEntry, e: MouseEvent) {

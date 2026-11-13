@@ -4,6 +4,7 @@ import SearchField from "#lib/components/ui/input/SearchField.svelte";
 import TextButton from "#lib/components/ui/button/TextButton.svelte";
 import MenuSelect from "#lib/components/ui/menu/MenuSelect.svelte";
 import SelectionToggle from "#lib/components/ui/selection/SelectionToggle.svelte";
+import { selectionStore } from "#lib/stores/ui/selection.store";
 import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
 import TrackColumnsButton from "#lib/components/library/track/TrackColumnsButton.svelte";
 import { page } from "$app/state";
@@ -253,6 +254,15 @@ async function playAll() {
     console.error("[morceaux] tout lire :", e);
   }
 }
+
+// « Tout sélectionner » : toute la liste filtrée, pas seulement le lot chargé.
+$effect(() => {
+  const params = queryParams(0, Math.max(total, PAGE));
+  return selectionStore.provideAll(async () => {
+    const r = await invoke<{ tracks: TrackListView[] }>("get_tracks_paginated", params);
+    return r.tracks.map((x) => ({ id: x.id, track: x }));
+  });
+});
 
 // Dans un effet (après le montage) : la page quittée a déjà remis l'en-tête à zéro.
 $effect(() => {

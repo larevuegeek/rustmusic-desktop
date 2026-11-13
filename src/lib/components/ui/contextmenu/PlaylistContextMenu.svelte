@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
+  import { setPlaylistAutoExport } from "#lib/services/playlist/autoExport.service";
   import { invoke } from "@tauri-apps/api/core";
   import { goto } from "$app/navigation";
   import { t } from "#lib/i18n";
@@ -54,6 +55,15 @@
     } catch (e) {
       toasts.push({ type: "error", title: $t("playlist.export_m3u"), message: String(e) });
     }
+  }
+
+  // Export automatique : bascule sur place, le menu reste ouvert ; revient en arrière si l'activation échoue.
+  // svelte-ignore state_referenced_locally
+  let autoExport = $state(!!playlist.auto_export);
+  async function toggleAutoExport() {
+    const next = !autoExport;
+    autoExport = next;
+    if (!(await setPlaylistAutoExport(playlist.id, playlist.name, next))) autoExport = !next;
   }
 
   async function play() {
@@ -173,6 +183,15 @@
       <Icon icon="material-symbols:download-rounded" width="15" class="opacity-60" />
       {$t("playlist.export_m3u")}
     </button>
+    {#if !playlist.is_mix}
+      <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={toggleAutoExport} role="menuitemcheckbox" aria-checked={autoExport}>
+        <Icon icon="material-symbols:sync-saved-locally-outline-rounded" width="15" class="opacity-60" />
+        <span class="flex-1 min-w-0 truncate">{$t("playlist_export.menu")}</span>
+        <span class="relative w-7.5 h-4.5 shrink-0 rounded-full transition-colors {autoExport ? 'bg-(--rg-g)' : 'bg-(--rg-off)'}" aria-hidden="true">
+          <span class="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-[left] {autoExport ? 'left-3.5' : 'left-0.5'}"></span>
+        </span>
+      </button>
+    {/if}
   {/if}
 
   <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={pin}>

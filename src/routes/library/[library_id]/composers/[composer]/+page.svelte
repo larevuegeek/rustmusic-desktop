@@ -22,6 +22,7 @@ import PlayButton from "#lib/components/ui/button/PlayButton.svelte";
 import RoundButton from "#lib/components/ui/button/RoundButton.svelte";
 import ToolbarButton from "#lib/components/ui/button/ToolbarButton.svelte";
 import ChipLink from "#lib/components/ui/link/ChipLink.svelte";
+import { composerHref } from "#lib/types/ui/library/composer/ComposerListView";
 import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
 import ModeSwitch from "#lib/components/ui/input/ModeSwitch.svelte";
 import ViewModeSwitch from "#lib/components/ui/input/ViewModeSwitch.svelte";
@@ -100,7 +101,7 @@ const vue = $derived.by((): Vue => {
   const v = page.url.searchParams.get("vue");
   return v === "morceaux" || v === "interpretes" || v === "albums" ? v : albums.length ? "albums" : "morceaux";
 });
-function setVue(v: string) {
+function setView(v: string) {
   const url = new URL(page.url.href);
   url.searchParams.set("vue", v);
   goto(url.pathname + url.search, { replace: true, reset: false });
@@ -142,7 +143,7 @@ const sortArrow = (cle: string) => (tri === cle ? (sens === "asc" ? "material-sy
 
 const grille = $derived($viewMode !== "list");
 $effect(() => {
-  if (vue === "morceaux" && grille) selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
+  if (vue === "morceaux" && grille) return selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
 });
 
 const colonnes = $derived(resolveColumns(shownKeys($settingsStore.track_columns)));
@@ -208,12 +209,22 @@ const grilleCartes = "grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x
           <RoundButton icon="material-symbols:shuffle-rounded" title={$t("album_view.shuffle")} disabled={!tracks.length} onclick={() => handleTracksPlay(tracks, true)} />
           <RoundButton icon="material-symbols:more-horiz" title={$t("album_view.more")}
                        onclick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); menu = { x: r.left, y: r.bottom + 6 }; }} />
-          <div class="flex flex-wrap gap-1.5 ml-1.5 @max-[760px]:ml-0">
-            {#if commeArtiste}
-              <ChipLink href={`/library/${libraryId}/artists/${commeArtiste.id}`} label={$t("composers_view.artist_page")} title={commeArtiste.name} />
-            {/if}
-            {#each interpretes.slice(0, 3) as a (a.id)}<ChipLink href={`/library/${libraryId}/artists/${a.id}`} label={a.name} title={$t("composers_view.performer_title")} />{/each}
-          </div>
+          {#if commeArtiste}
+            <span class="ml-1.5 @max-[760px]:ml-0">
+              <ChipLink href={`/library/${libraryId}/artists/${commeArtiste.id}`} icon="material-symbols:person-outline-rounded"
+                        label={$t("composers_view.artist_page")} title={commeArtiste.name} />
+            </span>
+          {/if}
+          <!-- Les interprètes, nommés comme tels : sans libellé, on les prenait pour des genres ou des homonymes. -->
+          {#if interpretes.length}
+            <div class="flex flex-wrap items-center gap-1.5 ml-1.5 @max-[760px]:ml-0">
+              <span class="mr-0.5 text-[12.5px] text-(--rg-mu)">{$t("composers_view.performed_by")}</span>
+              {#each interpretes.slice(0, 3) as a (a.id)}<ChipLink href={`/library/${libraryId}/artists/${a.id}`} label={a.name} title={$t("composers_view.performer_title")} />{/each}
+              {#if interpretes.length > 3}
+                <ChipLink href={`${composerHref(libraryId, nom)}?vue=interpretes`} label={`+${formatNumber(interpretes.length - 3)}`} title={$t("composers_view.performers")} />
+              {/if}
+            </div>
+          {/if}
         </div>
       </div>
     </div>
@@ -223,7 +234,7 @@ const grilleCartes = "grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x
       <ModeSwitch
         label={$t("period_view.explore")}
         value={vue}
-        onchange={setVue}
+        onchange={setView}
         labelClass="@max-[560px]:hidden"
         options={[
           { value: "albums", label: $t("library.albums"), icon: "material-symbols:album-outline-rounded", count: formatNumber(albums.length) },

@@ -24,17 +24,17 @@
   let animee = $state(false);
 
   // Position mesurée : suit le choix et la largeur des libellés (masqués ou non).
-  function mesurer() {
+  function measure() {
     const b = zone?.querySelector<HTMLElement>('[aria-checked="true"]');
     if (b) pastille = { x: b.offsetLeft, w: b.offsetWidth };
   }
   $effect(() => {
     void value;
-    mesurer();
+    measure();
   });
   $effect(() => {
     if (!zone) return;
-    const ro = new ResizeObserver(mesurer);
+    const ro = new ResizeObserver(measure);
     ro.observe(zone);
     // Pas de glissement à l'apparition, seulement aux changements.
     requestAnimationFrame(() => (animee = true));

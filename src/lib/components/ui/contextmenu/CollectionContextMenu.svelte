@@ -14,6 +14,7 @@
   import { libraryContentStore } from "#lib/stores/library/libraryContent.store";
   import DeezerCoverSearchPopin from "#lib/components/library/common/popin/DeezerCoverSearchPopin.svelte";
   import { pinsStore, isPinned } from "#lib/stores/library/pins.store";
+  import { portal } from "#lib/helper/portal";
 
   type Props = {
     title: string;
@@ -107,15 +108,12 @@
   const libraryServer = $derived(libraryId != null ? $libraryStore.libraries.find((l) => l.id === libraryId)?.server_id ?? null : null);
   let playlists = $derived($playlistsRangees.filter((pl) => playlistAcceptsLibrary(pl, libraryServer)));
 
+  // Hauteur mesurée : le menu remonte quand un sous-menu (pochette, playlists) le fait grandir.
+  let height = $state(0);
   let menuStyle = $derived.by(() => {
     const menuWidth = 220;
-    const menuHeight = 320;
-    let posX = x;
-    let posY = y;
-
-    if (posX + menuWidth > window.innerWidth) posX = window.innerWidth - menuWidth - 8;
-    if (posY + menuHeight > window.innerHeight) posY = window.innerHeight - menuHeight - 8;
-
+    const posX = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8));
+    const posY = Math.max(8, Math.min(y, window.innerHeight - height - 8));
     return `left: ${posX}px; top: ${posY}px;`;
   });
 
@@ -224,6 +222,8 @@
 </script>
 
 {#if !showDeezerSearch}
+<!-- Porté vers `body` : une carte de la grille (content-visibility) piégeait le `fixed`. -->
+<div use:portal>
 <!-- Le clic droit est avalé ici aussi : sans ça, un second clic droit pendant
      que le menu est ouvert laissait passer celui du navigateur. -->
 <button
@@ -242,8 +242,9 @@
          bg-(--rg-carte) dark:bg-(--rg-s2) 
          border border-(--rg-bd) dark:border-[#2a312d]
          rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] 
-         overflow-hidden"
+         overflow-x-hidden overflow-y-auto scrollbar-app max-h-[calc(100vh-16px)]"
   style={menuStyle}
+  bind:clientHeight={height}
 >
   <!-- Header -->
   <div class="px-3.5 py-1.5 mb-1">
@@ -429,6 +430,7 @@
       </div>
     {/if}
   {/if}
+</div>
 </div>
 {/if}
 

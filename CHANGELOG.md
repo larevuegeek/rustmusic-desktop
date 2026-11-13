@@ -1,5 +1,70 @@
 # Changelog
 
+## [0.4.4] - en cours
+
+Les playlists s'emportent : cochées, elles s'écrivent toutes seules en .m3u8
+avec des chemins relatifs, prêtes à copier sur une clé ou un téléphone. Le
+portrait d'un artiste se choisit (fichier, Deezer, Wikipédia), les tags
+modifiés mettent enfin la bibliothèque à jour, et une série de retouches
+suit les retours : tout sélectionner, menus qui ne sortent plus de la
+fenêtre, pages de détail sur toute la largeur, panneau des tags élargissable.
+
+### Playlists
+- **Export automatique** (pour une clé USB ou un téléphone) : interrupteur
+  « Export auto » dans le menu « … » d'une playlist, ou liste des playlists
+  avec leur interrupteur dans Réglages → Stockage & données, où se choisit
+  le dossier. Elle s'écrit en .m3u8 (ou .m3u) avec des
+  chemins relatifs (« ../Muse/01.flac ») qui restent valables une fois la
+  musique copiée. Le fichier suit la playlist : réécrit quelques secondes
+  après une modification, après un scan et au démarrage (playlists
+  intelligentes comprises), seulement si son contenu change ; renommée,
+  supprimée ou décochée, l'ancien fichier est retiré (#16, suggestion de
+  lprobsth).
+
+### Interface
+- **Tout sélectionner** : en mode sélection, un bouton coche d'un clic tous
+  les morceaux de la vue (onglet Morceaux, album, artiste, genre, période,
+  compositeur, playlist, dossier) ; il devient « Tout désélectionner » dès
+  que quelque chose est coché. Dans l'onglet Morceaux, il prend toute la
+  liste filtrée, pas seulement les morceaux déjà chargés (suggestion de
+  miguelmonfortenicolas).
+- **Page d'un compositeur** : les interprètes sont annoncés (« Interprété
+  par »), « Sa page d'artiste » porte une icône pour ne plus être pris pour
+  un nom de plus, et une pastille « +n » mène à tous les interprètes quand
+  il y en a plus de trois (#26, suggestion de miguelmonfortenicolas).
+- **Portrait d'un artiste au choix** : menu « … » d'un artiste (page, grille
+  ou liste) → « Changer de portrait… ». Une fenêtre montre le portrait
+  actuel en grand et propose une image du disque, ou un choix parmi les
+  résultats de Deezer et de Wikipédia (recherche modifiable, aperçu avant de
+  valider) ; le portrait peut aussi être retiré. Le choix est gardé : la
+  recherche automatique sur Deezer ne revient que sur les artistes sans
+  portrait (#24, suggestion de miguelmonfortenicolas).
+- **Atelier des tags, panneau de droite** : les champs pleine largeur
+  (titre, artiste, album, compositeur, commentaire…) reviennent à la ligne
+  au lieu de défiler, si bien qu'une liste de dix interprètes se lit d'un
+  coup d'œil ; le panneau s'élargit en tirant son bord gauche, et garde sa
+  largeur (double-clic : largeur d'origine). #23, suggestion de
+  miguelmonfortenicolas.
+
+### Corrections
+- **Menus du clic droit hors de la fenêtre** : le menu d'un album ou d'un
+  morceau ouvert en bas de la page restait coupé ou passait sous le contenu,
+  surtout une fois « Changer de pochette » ou « Ajouter à une playlist »
+  déplié. Il remonte désormais juste assez pour rester entièrement visible
+  (#28, signalé par miguelmonfortenicolas).
+- **Pages de détail sur grand écran** : sur les pages d'un album, d'un
+  artiste, d'un genre, d'une période, d'un compositeur, d'un morceau et
+  d'un podcast, le contenu s'arrêtait à 1 400 px et laissait « Sélectionner »
+  et le choix de vue au milieu de l'écran. Elles occupent désormais toute la
+  largeur, comme les onglets (#25, signalé par miguelmonfortenicolas).
+- **Tags modifiés, bibliothèque à jour** : un morceau déjà connu gardait ses
+  anciennes valeurs une fois ses tags réécrits (par RustMusic ou un autre
+  logiciel), même après un rescan : compositeur, titre, artiste, album,
+  numéro. Il reprend désormais ce que dit le fichier, en gardant sa note, ses
+  écoutes et ses favoris ; un album resté vide disparaît. Les fichiers
+  modifiés depuis leur import sont relus au prochain rescan (#22, signalé
+  par miguelmonfortenicolas).
+
 ## [0.4.3] - 2026-11-03
 
 Les noms qui réunissent plusieurs artistes (« Chris Brown/Nicki Minaj »)

@@ -86,7 +86,7 @@
 
   // L'ordre affiché, pour la sélection par plage (Maj + clic).
   $effect(() => {
-    selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
+    return selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
   });
 
   // ─── Largeurs ───

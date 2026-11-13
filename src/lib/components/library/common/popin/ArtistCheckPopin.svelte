@@ -43,9 +43,9 @@
     return report?.images[k] ?? etat.images[k] ?? null;
   };
   // Coupé net à 30 caractères : la limite des vieux tags ID3v1, la fin manque sans doute.
-  const coupe = (nom: string) => [...nom].length === 30;
+  const isTruncated = (nom: string) => [...nom].length === 30;
 
-  async function regle(nom: string, decision: "split" | "whole", parts: string[] = []) {
+  async function setRule(nom: string, decision: "split" | "whole", parts: string[] = []) {
     working = nom;
     erreur = null;
     try {
@@ -59,39 +59,39 @@
       working = null;
     }
   }
-  async function annuler(v: RuleView) {
-    if (await regle(v.name, "whole")) annules = new Set(annules).add(v.name);
+  async function undoSplit(v: RuleView) {
+    if (await setRule(v.name, "whole")) annules = new Set(annules).add(v.name);
   }
-  async function retablir(v: RuleView) {
-    if (await regle(v.name, "split", v.parts)) {
+  async function redoSplit(v: RuleView) {
+    if (await setRule(v.name, "split", v.parts)) {
       const s = new Set(annules);
       s.delete(v.name);
       annules = s;
     }
   }
-  async function toutAnnuler() {
-    for (const v of report?.split ?? []) if (!annules.has(v.name)) await annuler(v);
+  async function undoAllSplits() {
+    for (const v of report?.split ?? []) if (!annules.has(v.name)) await undoSplit(v);
   }
   // Possible dès le direct : la vérification ne repasse jamais sur un nom déjà vu.
-  async function trancher(v: RuleView, d: "split" | "whole") {
-    if (await regle(v.name, d, d === "split" ? v.parts : [])) tranches = new Map(tranches).set(v.name, d);
+  async function decide(v: RuleView, d: "split" | "whole") {
+    if (await setRule(v.name, d, d === "split" ? v.parts : [])) tranches = new Map(tranches).set(v.name, d);
   }
 
-  function fermer() {
+  function close() {
     popinStore.close();
     if (touche) libraryContentStore.refresh();
   }
-  const aller = (id: string) => corps?.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollToSection = (id: string) => corps?.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const fmt = (n: number) => Math.round(n).toLocaleString($currentLocale);
-  const compte = (d: string) => etat.live.filter((x) => x.decision === d).length;
+  const countDecision = (d: string) => etat.live.filter((x) => x.decision === d).length;
   const restants = $derived((report?.split ?? []).filter((v) => !annules.has(v.name)).length);
   const aTrancher = $derived((report?.unknown ?? []).filter((v) => !tranches.has(v.name)).length);
 
   // Chiffres des tuiles : en direct pendant la vérification, ceux du bilan ensuite ; ils glissent d'une valeur à l'autre.
   const chiffres = $derived(
     etat.running
-      ? { split: compte("split"), whole: compte("whole"), unknown: compte("unknown") }
+      ? { split: countDecision("split"), whole: countDecision("whole"), unknown: countDecision("unknown") }
       : { split: report?.split.length ?? 0, whole: report?.whole.length ?? 0, unknown: report?.run_unknown ?? 0 },
   );
   const tw = { duration: 450, easing: cubicOut };
@@ -111,7 +111,7 @@
 
   // Pendant la vérification : les plus récents en haut, sans les noms confirmés (rien n'a changé pour eux).
   const fil = $derived([...etat.live].reverse().filter((x) => x.decision !== "whole").slice(0, 40));
-  const entree = (i: number) => ({ y: 8, duration: 280, delay: Math.min(i, 14) * 28, easing: cubicOut });
+  const enterTransition = (i: number) => ({ y: 8, duration: 280, delay: Math.min(i, 14) * 28, easing: cubicOut });
 
   const seg = "flex items-center gap-1.5 h-7.5 px-2.5 rounded-[9px] text-[12px] font-semibold cursor-pointer transition-[background-color,color,box-shadow] duration-150 disabled:opacity-40 disabled:cursor-default";
   const lien = "shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx) disabled:opacity-40 disabled:cursor-default";
@@ -120,7 +120,7 @@
 </script>
 
 <!-- Les artistes d'un nom, en pile de pastilles (3 places au plus) ; largeur fixe pour aligner les noms. -->
-{#snippet pile(noms: string[], terne = false, coche = false)}
+{#snippet avatarStack(noms: string[], terne = false, coche = false)}
   <span class="w-19 shrink-0 flex items-center">
   <span class="relative inline-flex items-center {terne ? 'opacity-45 grayscale' : ''} transition-[opacity,filter] duration-300">
     {#each noms.slice(0, noms.length > 3 ? 2 : 3) as n, i (i)}
@@ -141,13 +141,13 @@
 {/snippet}
 
 <!-- Les noms proposés, sobres : la couleur est réservée à l'état. -->
-{#snippet noms(parts: string[], coupe = false)}
+{#snippet proposedNames(parts: string[], truncated = false)}
   <span class="flex flex-wrap items-center gap-x-1 gap-y-1 min-w-0 text-[12px]">
     {#each parts as p, i (i)}
       {#if i}<span class="text-(--rg-mu2)" aria-hidden="true">+</span>{/if}
       <span class="px-2 py-0.5 rounded-md border border-(--rg-bd) bg-(--rg-champ) font-medium text-(--rg-tx2)">{p}</span>
     {/each}
-    {#if coupe}
+    {#if truncated}
       <span class="ml-1 flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold border border-(--rg-ambd) text-(--rg-am)" title={$t("artist_split.truncated_hint")}>
         <Icon icon="material-symbols:content-cut-rounded" width="11" />{$t("artist_split.truncated")}
       </span>
@@ -156,9 +156,9 @@
 {/snippet}
 
 <!-- Une tuile de chiffre ; cliquable quand sa section est là. -->
-{#snippet tuile(valeur: number, libelle: string, teinte: string, icone: string, cible: string | null)}
+{#snippet statTile(valeur: number, libelle: string, teinte: string, icone: string, cible: string | null)}
   {@const actif = !!cible && !etat.running}
-  <button type="button" disabled={!actif} onclick={() => cible && aller(cible)}
+  <button type="button" disabled={!actif} onclick={() => cible && scrollToSection(cible)}
           class="group/t flex items-center gap-2.5 min-w-0 px-3 py-2.5 rounded-xl border border-(--rg-bd) bg-(--rg-creux) text-left transition-[border-color,background-color] duration-150
                  {actif ? 'cursor-pointer hover:border-(--rg-bd2) hover:bg-(--rg-s2)/60' : 'cursor-default'}">
     <span class="w-7 h-7 shrink-0 rounded-lg flex items-center justify-center {teinte}"><Icon icon={icone} width="16" /></span>
@@ -173,11 +173,11 @@
 {/snippet}
 
 <!-- Un nom à trancher : la commande segmentée, puis la décision prise (modifiable). -->
-{#snippet aTrancherLigne(v: RuleView, i: number)}
+{#snippet undecidedRow(v: RuleView, i: number)}
   {@const fait = tranches.get(v.name)}
   {@const parts = v.parts.length >= 2 ? v.parts : [v.name]}
-  <div class="{ligne} {fait ? 'border-(--rg-gbd) bg-(--rg-gbg) artiste-tranche' : `border-(--rg-ambd) bg-(--rg-creux) ${survol}`}" in:fly={entree(i)}>
-    {@render pile(fait === "whole" ? [v.name] : parts, false, !!fait)}
+  <div class="{ligne} {fait ? 'border-(--rg-gbd) bg-(--rg-gbg) artiste-tranche' : `border-(--rg-ambd) bg-(--rg-creux) ${survol}`}" in:fly={enterTransition(i)}>
+    {@render avatarStack(fait === "whole" ? [v.name] : parts, false, !!fait)}
     <div class="min-w-0 flex-1 basis-56">
       <p class="text-[13px] font-semibold truncate text-(--rg-tx)" title={v.name}>{v.name}</p>
       <div class="mt-1.5">
@@ -186,25 +186,25 @@
             {fait === "split" ? $t("artist_split.split_into").replace("{n}", String(v.parts.length)) : $t("artist_split.done_whole")}
           </p>
         {:else if v.parts.length >= 2}
-          {@render noms(v.parts, coupe(v.name))}
+          {@render proposedNames(v.parts, isTruncated(v.name))}
         {/if}
       </div>
     </div>
     {#if fait}
       {#if v.parts.length >= 2}
-        <button type="button" class={lien} disabled={working !== null} onclick={() => trancher(v, fait === "split" ? "whole" : "split")}>
+        <button type="button" class={lien} disabled={working !== null} onclick={() => decide(v, fait === "split" ? "whole" : "split")}>
           <Icon icon="material-symbols:swap-horiz-rounded" width="15" />{$t("artist_split.change")}
         </button>
       {/if}
     {:else}
       <span class="ml-auto shrink-0 inline-flex p-0.5 rounded-xl border border-(--rg-bd) bg-(--rg-champ)" role="group" aria-label={v.name}>
         {#if v.parts.length >= 2}
-          <button type="button" class="{seg} text-(--rg-gtx) hover:bg-(--rg-gbg) hover:shadow-[inset_0_0_0_1px_var(--rg-gbd)]" disabled={working !== null} onclick={() => trancher(v, "split")}>
+          <button type="button" class="{seg} text-(--rg-gtx) hover:bg-(--rg-gbg) hover:shadow-[inset_0_0_0_1px_var(--rg-gbd)]" disabled={working !== null} onclick={() => decide(v, "split")}>
             <Icon icon="material-symbols:call-split-rounded" width="15" />{$t("artist_split.split")}
           </button>
           <span class="w-px my-1.5 bg-(--rg-bd)" aria-hidden="true"></span>
         {/if}
-        <button type="button" class="{seg} text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)" disabled={working !== null} onclick={() => trancher(v, "whole")}>
+        <button type="button" class="{seg} text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)" disabled={working !== null} onclick={() => decide(v, "whole")}>
           <Icon icon="material-symbols:person-outline-rounded" width="15" />{$t("artist_split.keep")}
         </button>
       </span>
@@ -268,9 +268,9 @@
     </div>
 
     <div class="mt-3.5 grid grid-cols-3 gap-2">
-      {@render tuile(nSplit.current, $t("artist_split.section_split"), "bg-(--rg-gbg) text-(--rg-g)", "material-symbols:call-split-rounded", report?.split.length ? "artistes-separes" : null)}
-      {@render tuile(nWhole.current, $t("artist_split.stat_whole"), "bg-(--rg-s2) text-(--rg-tx2)", "material-symbols:person-outline-rounded", null)}
-      {@render tuile(nUnknown.current, $t("artist_split.section_unknown"), "bg-(--rg-ambg) text-(--rg-am)", "material-symbols:help-outline-rounded", report?.unknown.length ? "artistes-trancher" : null)}
+      {@render statTile(nSplit.current, $t("artist_split.section_split"), "bg-(--rg-gbg) text-(--rg-g)", "material-symbols:call-split-rounded", report?.split.length ? "artistes-separes" : null)}
+      {@render statTile(nWhole.current, $t("artist_split.stat_whole"), "bg-(--rg-s2) text-(--rg-tx2)", "material-symbols:person-outline-rounded", null)}
+      {@render statTile(nUnknown.current, $t("artist_split.section_unknown"), "bg-(--rg-ambg) text-(--rg-am)", "material-symbols:help-outline-rounded", report?.unknown.length ? "artistes-trancher" : null)}
     </div>
   </div>
 
@@ -306,10 +306,10 @@
         {#each fil as x, i (x.name)}
           {#if x.decision === "split"}
             <div class="{ligne} border-(--rg-bd) bg-(--rg-creux)" in:fly={{ y: -10, duration: 300, easing: cubicOut }}>
-              {@render pile(x.parts)}
+              {@render avatarStack(x.parts)}
               <div class="min-w-0 flex-1 basis-56">
                 <p class="text-[13px] font-semibold truncate text-(--rg-tx)" title={x.name}>{x.name}</p>
-                <div class="mt-1.5">{@render noms(x.parts)}</div>
+                <div class="mt-1.5">{@render proposedNames(x.parts)}</div>
               </div>
               <!-- Un état, pas un bouton : du texte, sans fond. -->
               <span class="shrink-0 flex items-center gap-1 text-[12px] font-semibold text-(--rg-gtx)">
@@ -317,7 +317,7 @@
               </span>
             </div>
           {:else}
-            {@render aTrancherLigne({ name: x.name, parts: x.parts, source: "musicbrainz" }, i)}
+            {@render undecidedRow({ name: x.name, parts: x.parts, source: "musicbrainz" }, i)}
           {/if}
         {/each}
 
@@ -335,7 +335,7 @@
         </div>
         <p class="mb-3 text-[12.5px] text-(--rg-mu) text-pretty">{$t("artist_split.section_unknown_desc")}</p>
         <div class="space-y-2 mb-7">
-          {#each report.unknown as v, i (v.name)}{@render aTrancherLigne(v, i)}{/each}
+          {#each report.unknown as v, i (v.name)}{@render undecidedRow(v, i)}{/each}
         </div>
       {/if}
 
@@ -345,7 +345,7 @@
           <h3 class="text-[12px] font-bold uppercase tracking-[0.09em] text-(--rg-tx2)">{$t("artist_split.section_split")}</h3>
           <span class="px-1.75 py-0.5 rounded-md font-mono text-[11px] font-bold bg-(--rg-gbg) text-(--rg-gtx)">{fmt(restants)}</span>
           {#if restants > 1}
-            <button type="button" class="{lien} ml-auto" disabled={working !== null} onclick={toutAnnuler}>
+            <button type="button" class="{lien} ml-auto" disabled={working !== null} onclick={undoAllSplits}>
               <Icon icon="lucide:undo-2" width="14" />{$t("artist_split.undo_all")}
             </button>
           {/if}
@@ -353,8 +353,8 @@
         <div class="space-y-2 mb-6">
           {#each report.split as v, i (v.name)}
             {@const annule = annules.has(v.name)}
-            <div class="{ligne} border-(--rg-bd) bg-(--rg-creux) {survol}" in:fly={entree(i + report.unknown.length)}>
-              {@render pile(annule ? [v.name] : v.parts, annule)}
+            <div class="{ligne} border-(--rg-bd) bg-(--rg-creux) {survol}" in:fly={enterTransition(i + report.unknown.length)}>
+              {@render avatarStack(annule ? [v.name] : v.parts, annule)}
               <div class="min-w-0 flex-1 basis-56">
                 <p class="flex items-center gap-2 min-w-0">
                   <span class="text-[13px] font-semibold truncate {annule ? 'text-(--rg-mu)' : 'text-(--rg-tx)'}" title={v.name}>{v.name}</span>
@@ -367,16 +367,16 @@
                   {#if annule}
                     <p class="text-[12px] text-(--rg-mu)" in:fade={{ duration: 200 }}>{$t("artist_split.done_whole")}</p>
                   {:else}
-                    {@render noms(v.parts)}
+                    {@render proposedNames(v.parts)}
                   {/if}
                 </div>
               </div>
               {#if annule}
-                <button type="button" class={lien} disabled={working !== null} onclick={() => retablir(v)}>
+                <button type="button" class={lien} disabled={working !== null} onclick={() => redoSplit(v)}>
                   <Icon icon="material-symbols:call-split-rounded" width="15" />{$t("artist_split.redo")}
                 </button>
               {:else}
-                <button type="button" class="{lien} opacity-70 group-hover:opacity-100 focus-visible:opacity-100" disabled={working !== null} onclick={() => annuler(v)}>
+                <button type="button" class="{lien} opacity-70 group-hover:opacity-100 focus-visible:opacity-100" disabled={working !== null} onclick={() => undoSplit(v)}>
                   <Icon icon="lucide:undo-2" width="14" />{$t("artist_split.undo")}
                 </button>
               {/if}
@@ -413,14 +413,14 @@
         <span class="relative w-2 h-2 rounded-full bg-(--rg-g)"></span>
       </span>
       <span class="flex-1 min-w-0 truncate text-[12.5px] text-(--rg-mu)">{$t("artist_split.background_hint")}</span>
-      <button type="button" onclick={fermer}
+      <button type="button" onclick={close}
               class="shrink-0 flex items-center gap-2 h-10 pl-3.5 pr-4 rounded-xl border border-(--rg-bd) bg-(--rg-champ) text-sm font-semibold text-(--rg-tx2) cursor-pointer
                      transition-[border-color,color,background-color] duration-150 hover:border-(--rg-gbd) hover:bg-(--rg-gbg) hover:text-(--rg-gtx)">
         <Icon icon="material-symbols:close-fullscreen-rounded" width="16" />{$t("artist_split.hide")}
       </button>
     </footer>
   {:else}
-    <PopinFooter cancelLabel={$t("batch.close")} oncancel={fermer} />
+    <PopinFooter cancelLabel={$t("batch.close")} oncancel={close} />
   {/if}
 </div>
 

@@ -11,9 +11,12 @@
   import { portal } from "#lib/helper/portal";
   import { pinsStore, isPinned, type PinKind } from "#lib/stores/library/pins.store";
   import { artistCheck } from "#lib/stores/library/artistCheck.store";
+  import { popinStore } from "#lib/stores/ui/popin.store";
+  import ArtistPortraitPopin from "#lib/components/library/common/popin/ArtistPortraitPopin.svelte";
 
   /** Les actions d'un album ou d'un artiste : lire, ouvrir, épingler. */
-  let { kind, id, title, libraryId, x, y, onclose }: {
+  // `portrait` (artiste) : celui affiché, repris en grand dans la fenêtre du portrait.
+  let { kind, id, title, libraryId, x, y, onclose, portrait = null }: {
     kind: PinKind;
     id: string;
     title: string;
@@ -21,6 +24,7 @@
     x: number;
     y: number;
     onclose: () => void;
+    portrait?: string | null;
   } = $props();
 
   const epingle = $derived(isPinned($pinsStore, kind, id));
@@ -54,6 +58,14 @@
     } catch (e) {
       toasts.push({ type: 'error', title: $t('notify.error'), message: String(e) });
     }
+  }
+
+  // Portrait : la fenêtre dédiée (actuel, fichier, recherche Deezer et Wikipédia).
+  function openPortrait() {
+    const m = snapshot();
+    onclose();
+    popinStore.open($t("portrait.title"), ArtistPortraitPopin, { artistId: m.id, name: m.title, portrait },
+      { size: "xl", flush: true, icon: "material-symbols:account-box-outline-rounded" });
   }
 
   function openItem() {
@@ -127,6 +139,14 @@
     <Icon icon={epingle ? 'material-symbols:keep-off-outline-rounded' : 'material-symbols:keep-outline-rounded'} width="15" class="opacity-60" />
     {$t(epingle ? 'sidebar.unpin' : 'sidebar.pin')}
   </button>
+
+  {#if kind === 'artist'}
+    <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8"></div>
+    <button class="{ligne} text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]" onclick={openPortrait}>
+      <Icon icon="material-symbols:add-photo-alternate-outline-rounded" width="15" class="opacity-60" />
+      {$t('menu.change_portrait')}
+    </button>
+  {/if}
 
   {#if douteux}
     <!-- « A, B » ou « A/B » : un groupe, ou plusieurs artistes ? -->

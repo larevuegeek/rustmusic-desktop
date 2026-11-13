@@ -11,7 +11,7 @@ import { composerHref, type ComposerListView } from "#lib/types/ui/library/compo
 let { libraryId, composer }: { libraryId: number; composer: ComposerListView } = $props();
 
 let menu = $state<{ x: number; y: number } | null>(null);
-const nb = (n: number, un: string, plusieurs: string) => `${n} ${$t(n === 1 ? un : plusieurs)}`;
+const countLabel = (n: number, un: string, plusieurs: string) => `${n} ${$t(n === 1 ? un : plusieurs)}`;
 
 function play(e: MouseEvent) {
     e.preventDefault();
@@ -47,7 +47,7 @@ function play(e: MouseEvent) {
 
     <div class="w-full text-[15px] font-bold leading-[1.3] truncate text-(--rg-tx)" title={composer.name}>{composer.name}</div>
     <div class="-mt-1.5 w-full truncate text-[13px] text-(--rg-mu)">
-        {nb(composer.total_albums, "library_head.albums_one", "library_head.albums_n")} · {nb(composer.total_tracks, "library_head.tracks_one", "library_head.tracks_n")}
+        {countLabel(composer.total_albums, "library_head.albums_one", "library_head.albums_n")} · {countLabel(composer.total_tracks, "library_head.tracks_one", "library_head.tracks_n")}
     </div>
 </a>
 

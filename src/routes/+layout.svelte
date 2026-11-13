@@ -32,6 +32,7 @@ import LibraryTabs from "#lib/components/library/common/LibraryTabs.svelte";
 import { readPlacement } from "#lib/config/libraryTabs";
 import { taskProgressStore } from "#lib/stores/ui/taskProgress.store";
 import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
+import { initAutoExport } from "#lib/services/playlist/autoExport.service";
 import { refreshDlnaStatus } from "#lib/stores/dlna/dlna.store";
 import { initPlaybackPipelineListener } from "#lib/stores/player/playbackPipeline.store";
 import { networkPlayerStore } from "#lib/stores/audio/networkPlayer.store";
@@ -146,6 +147,7 @@ onMount(async () => {
   // Artistes multiples : progression, bilan, vérification après un scan si l'option est active.
   void artistCheck.init();
   artistImageReadyStore.init();
+  initAutoExport();
   showWhatsNewIfDue();
 
   // Refresh DLNA status (server may have auto-started in Rust setup)

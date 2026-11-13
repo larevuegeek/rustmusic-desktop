@@ -281,6 +281,8 @@ pub async fn delete_playlist(
 ) -> Result<(), String> {
 
     let remote = playlist_service::remote_of(&state.pool, playlist_id).await;
+    // Son fichier exporté part avec elle.
+    crate::service::playlist::auto_export::forget(&state.pool, playlist_id).await;
     if let Err(e) = PlaylistRepository::delete_playlist(&state.pool, playlist_id).await {
         log::warn!("delete_playlist failed: {}", e);
     }

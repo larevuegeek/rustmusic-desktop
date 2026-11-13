@@ -227,7 +227,7 @@ const disques = $derived.by(() => {
 
 // L'ordre affiché, pour Maj + clic (le tableau déclare le sien).
 $effect(() => {
-  if ($viewMode !== "list") selectionStore.setOrder(pistesTriees.map((x) => ({ id: x.id, track: x })));
+  if ($viewMode !== "list") return selectionStore.setOrder(pistesTriees.map((x) => ({ id: x.id, track: x })));
 });
 
 // Jaquettes de la vue grille, retenues d'une visite à l'autre.

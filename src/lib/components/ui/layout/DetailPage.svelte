@@ -51,7 +51,8 @@
 <div bind:this={defilement} onscroll={() => (colle = (defilement?.scrollTop ?? 0) > 260)} class="relative h-full overflow-y-auto scrollbar-app" style="--ah: {teinte.h}; --as: {teinte.s}">
   <div class="album-lueur absolute inset-x-0 top-0 h-115 pointer-events-none" aria-hidden="true"></div>
 
-  <div class="@container relative max-w-350 px-4 md:px-8 pb-24">
+  <!-- Toute la largeur, comme les onglets : un plafond laissait la barre (Sélectionner, vue) au milieu d'un grand écran (#25). -->
+  <div class="@container relative px-4 md:px-8 pb-24">
     <div class="sticky top-0 z-20 h-15 -mx-4 md:-mx-8 px-4 md:px-8 flex items-center gap-3 border-b transition-colors duration-200
                 {colle ? 'bg-(--c-fond)/90 dark:bg-[rgba(11,13,12,0.88)] backdrop-blur-md border-(--rg-bd)' : 'border-transparent'}">
       <a href={retourHref}

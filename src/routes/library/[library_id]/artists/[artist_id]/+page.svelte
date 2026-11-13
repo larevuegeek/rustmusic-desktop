@@ -10,6 +10,7 @@ import { profilSelector } from "#lib/stores/profil/profil.store";
 import { selectionStore } from "#lib/stores/ui/selection.store";
 import { viewMode } from "#lib/stores/ui/viewMode.store";
 import { settingsStore } from "#lib/stores/settings/settings.store";
+import { artistImageReadyStore } from "#lib/stores/library/artistImageReady.store";
 import { liked } from "#lib/stores/playlist/like.store";
 import { toasts } from "#lib/stores/ui/toast.store";
 import { loadArtist } from "#lib/services/library/library.service";
@@ -147,6 +148,13 @@ $effect(() => {
   resetTagCache();
 });
 
+// Portrait changé ou retiré depuis un menu (ou trouvé par la passe Deezer) : la page suit.
+$effect(() => {
+  const id = artist?.id;
+  const changed = id ? artistImageReadyStore.get(id, $artistImageReadyStore) : undefined;
+  if (changed !== undefined) portrait = changed || null;
+});
+
 // Teinte de la lueur : le portrait, à défaut la première pochette.
 const imageTeinte = $derived(portrait ?? albums.find((a) => a.cover_url)?.cover_url ?? null);
 
@@ -250,7 +258,7 @@ function changeSort(cle: string) {
 // L'ordre affiché, pour Maj + clic (le tableau déclare le sien).
 const visibles = $derived(groupe ? groupes.flatMap((g) => (ouverts.has(g.cle) ? g.pistes : [])) : aPlat);
 $effect(() => {
-  if ($viewMode !== "list") selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
+  if ($viewMode !== "list") return selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
 });
 
 // Clic sur une carte de la discographie : son album s'ouvre plus bas.
@@ -499,7 +507,7 @@ const sortArrow = (cle: string) => (tri === cle ? (sens === "asc" ? "material-sy
 </DetailPage>
 
 {#if artistMenu}
-  <LibraryItemMenu kind="artist" id={artist.id} title={artist.name} {libraryId}
+  <LibraryItemMenu kind="artist" id={artist.id} title={artist.name} {libraryId} {portrait}
                    x={artistMenu.x} y={artistMenu.y} onclose={() => (artistMenu = null)} />
 {/if}
 

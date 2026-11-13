@@ -26,6 +26,8 @@ export interface Playlist {
   is_mix: boolean;
   /** Affichée dans la barre latérale. */
   pinned: boolean;
+  /** Réécrite en .m3u8 dans le dossier d'export à chaque changement. */
+  auto_export?: boolean;
   /** Playlist d'un serveur, synchronisée avec lui ; sinon locale. */
   server_id?: number | null;
   /** Source à laquelle elle appartient : 0 = cet ordinateur, sinon l'id du serveur. */

@@ -3,11 +3,11 @@
 
 use super::app::{platform_command, profil_command, settings_command, system_command};
 use super::audio::{audio_command, device_command, wasapi_command};
-use super::library::{artist_split_command, audit_command, composer_command, library_command, pin_command, search_command, sidebar_command};
+use super::library::{artist_image_command, artist_split_command, audit_command, composer_command, library_command, pin_command, search_command, sidebar_command};
 use super::network::{amp_remote_command, dlna_command, network_player_command, server_command};
 use super::online::{podcast_command, radio_command, scrobble_command};
 use super::playback::{media_controls_command, player_command, queue_command, recent_command, volume_command};
-use super::playlist::{export_command, playlist_command, playlist_view_command, smart_playlist_command};
+use super::playlist::{auto_export_command, export_command, playlist_command, playlist_view_command, smart_playlist_command};
 use super::tags::{batch_command, lyrics_command, metadata_command, rename_command, tag_command};
 
 /// Le routeur des commandes, à passer à `invoke_handler`.
@@ -90,6 +90,10 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         artist_split_command::artist_rule_set,
         artist_split_command::artist_is_doubtful,
         composer_command::get_composers,
+        artist_image_command::search_artist_portraits,
+        artist_image_command::set_artist_image,
+        artist_image_command::apply_artist_image_url,
+        artist_image_command::clear_artist_image,
         composer_command::get_tracks_by_composer,
         composer_command::fetch_composer_image,
         composer_command::composer_split_config,
@@ -274,6 +278,8 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         playlist_command::get_playlist_tracks,
         playlist_command::playlist_import_m3u,
         playlist_command::playlist_export_m3u,
+        auto_export_command::playlist_auto_export_run,
+        auto_export_command::playlist_set_auto_export,
         playlist_command::add_track_to_playlist,
         playlist_command::remove_track_from_playlist,
         playlist_view_command::get_playlist_tracks_view,

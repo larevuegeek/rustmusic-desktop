@@ -369,6 +369,18 @@ impl LibraryAlbumRepository {
 
 
 
+    /// Retire cet album s'il n'a plus aucune piste (ses morceaux ont changé d'album dans leurs tags).
+    pub async fn delete_if_empty<'e, E>(exec: E, album_id: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query("DELETE FROM library_albums WHERE id = ?1 AND NOT EXISTS (SELECT 1 FROM library_tracks WHERE library_album_id = ?1)")
+            .bind(album_id)
+            .execute(exec)
+            .await
+            .map(|_| ())
+    }
+
     /// Albums de la bibliothèque qui n'ont plus aucune piste.
     pub async fn delete_empty<'e, E>(exec: E, library_id: i64) -> Result<(), sqlx::Error>
     where

@@ -31,6 +31,7 @@ use crate::repository::library::library_dirs_repository::LibraryDirRepository;
 use crate::repository::library::library_files_repository::LibraryFilesRepository;
 use crate::repository::library::library_track_artist_repository::LibraryTrackArtistRepository;
 use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::repository::library::artist_split_repository::ArtistSplitRepository;
 use crate::{core::audio_analyser::audio_analyser::AudioAnalyser, entity::audio::audio_file::AudioFile};
 use crate::entity::audio::audio_tags::AudioTags;
 use crate::entity::library::library_files::{LibraryFile, LibraryFileCreate};
@@ -731,6 +732,8 @@ pub(crate) async fn save_analysed_to_db(
     let track_number = audio_tags.track_number.map(|n| n as i32);
     let title_normalized = title.to_lowercase();
 
+    let previous_album = LibraryTrackRepository::album_of_file(&mut *conn, library_file.library_id, &library_file.id)
+        .await.map_err(|e| format!("Failed to read track: {}", e))?;
     let library_track = LibraryTrackRepository::insert_library_track(&mut *conn, LibraryTrackCreate {
         library_id: library_file.library_id, file_id: library_file.id.clone(),
         cache_id: Some(library_cache.id.clone()), artist_id: main_artist_id.clone(),
@@ -746,6 +749,7 @@ pub(crate) async fn save_analysed_to_db(
         sample_rate: Some(analysis.audio_file.sample_rate as i32),
         rating: audio_tags.rating,
     }).await.map_err(|e| format!("Failed to insert track: {}", e))?;
+    forget_previous_links(&mut *conn, &library_track.id, previous_album.as_deref(), library_album_id.as_deref()).await?;
 
     // ─── Liaison artistes ↔ track (tous les artistes splittés) ───
     for aid in &all_artist_ids {
@@ -782,6 +786,25 @@ pub(crate) async fn save_analysed_to_db(
     ).await;
 
     Ok((to_track_list_view(&library_track, &library_file, &library_cache, &artist, library_artist.as_ref(), library_album.as_ref()), nouveau))
+}
+
+/// Piste relue : ses liens d'artistes sont refaits d'après le fichier, et l'album qu'elle quitte
+/// disparaît s'il ne lui reste rien. Sans effet sur une piste neuve.
+async fn forget_previous_links(
+    conn: &mut sqlx::SqliteConnection,
+    track_id: &str,
+    previous_album: Option<&str>,
+    new_album: Option<&str>,
+) -> Result<(), String> {
+    ArtistSplitRepository::delete_track_links(&mut *conn, track_id)
+        .await
+        .map_err(|e| format!("Failed to reset artist links: {}", e))?;
+    if let Some(old) = previous_album.filter(|old| Some(*old) != new_album) {
+        LibraryAlbumRepository::delete_if_empty(&mut *conn, old)
+            .await
+            .map_err(|e| format!("Failed to drop empty album: {}", e))?;
+    }
+    Ok(())
 }
 
 // Version pool — pour l'import de fichiers individuels (hors transaction)
@@ -969,6 +992,8 @@ pub async fn save_track_to_library_tx(
         let track_number = audio_tags.track_number.map(|n| n as i32);
         let title_normalized = title.to_lowercase();
 
+        let previous_album = LibraryTrackRepository::album_of_file(&mut *conn, library_file.library_id, &library_file.id)
+            .await.map_err(|e| format!("Failed to read track: {}", e))?;
         let library_track: LibraryTrack = LibraryTrackRepository::insert_library_track(&mut *conn, LibraryTrackCreate {
             library_id: library_file.library_id, file_id: library_file.id.clone(),
             cache_id: Some(library_cache.id.clone()), artist_id: main_artist_id.clone(),
@@ -983,6 +1008,7 @@ pub async fn save_track_to_library_tx(
             sample_rate: Some(audio_file.sample_rate as i32),
             rating: audio_tags.rating,
         }).await.map_err(|e| format!("Failed to insert track: {}", e))?;
+        forget_previous_links(&mut *conn, &library_track.id, previous_album.as_deref(), library_album_id.as_deref()).await?;
 
         // ─── Liaison artistes ↔ track (tous les artistes splittés) ───
         for aid in &all_artist_ids {

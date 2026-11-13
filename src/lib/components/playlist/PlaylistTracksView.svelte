@@ -81,7 +81,7 @@
   const widths = $derived(readWidths($settingsStore.track_column_widths));
   const grid = $derived($viewMode !== "list");
   $effect(() => {
-    if (grid) selectionStore.setOrder(sorted.map((x) => ({ id: x.id, track: x })));
+    if (grid) return selectionStore.setOrder(sorted.map((x) => ({ id: x.id, track: x })));
   });
 </script>
 

@@ -42,6 +42,29 @@ pub fn build(entries: &[M3uEntry]) -> String {
     out
 }
 
+/// Chemin de `target` vu depuis le dossier `from`, avec des `/` (lus partout : Android, clés USB, Windows).
+/// `None` si les deux ne partagent pas de racine (autre lecteur) : il faut alors le chemin complet.
+/// Lettre de lecteur et casse ignorées sous Windows.
+pub fn relative_path(from: &str, target: &str) -> Option<String> {
+    fn parts(p: &str) -> Vec<String> {
+        p.split(['\\', '/']).filter(|s| !s.is_empty() && *s != ".").map(str::to_string).collect()
+    }
+    // Éléments qui font la racine : « C: » (lecteur), « serveur/partage » (UNC), rien sous Linux/macOS (« / »).
+    let root = |p: &str| if p.as_bytes().get(1) == Some(&b':') { 1 } else if p.starts_with(r"\\") { 2 } else { 0 };
+    let windows = root(from) > 0;
+    let same = |a: &str, b: &str| if windows { a.eq_ignore_ascii_case(b) } else { a == b };
+    let (base, dest) = (parts(from), parts(target));
+    // Racines différentes (C: et S:, autre partage…) : pas de chemin relatif possible.
+    let n = root(from);
+    if n != root(target) || base.len() < n || dest.len() < n || (0..n).any(|i| !same(&base[i], &dest[i])) {
+        return None;
+    }
+    let common = base.iter().zip(&dest).take_while(|(a, b)| same(a, b)).count();
+    let mut out: Vec<&str> = vec![".."; base.len() - common];
+    out.extend(dest[common..].iter().map(String::as_str));
+    Some(out.join("/"))
+}
+
 /// Les deux derniers éléments d'un chemin (dossier/fichier), sans la casse : reconnaît un morceau
 /// d'une liste écrite sur un autre ordinateur (autre lecteur, autre dossier racine).
 pub fn tail_key(path: &str) -> String {
@@ -74,6 +97,20 @@ mod tests {
     fn writes_extended_m3u() {
         let s = build(&[M3uEntry { path: "/m/a.flac".into(), duration: Some(201.6), label: "Queen - Bohemian\nRhapsody".into() }]);
         assert_eq!(s, "#EXTM3U\n#EXTINF:202,Queen - Bohemian Rhapsody\n/m/a.flac\n");
+    }
+
+    #[test]
+    fn relative_paths_from_the_playlist_folder() {
+        // Liste à la racine de la musique, liste dans un sous-dossier, même dossier.
+        assert_eq!(relative_path(r"S:\Musique", r"S:\Musique\Muse\01.flac").as_deref(), Some("Muse/01.flac"));
+        assert_eq!(relative_path(r"S:\Musique\Playlists", r"s:\musique\Muse\01.flac").as_deref(), Some("../Muse/01.flac"));
+        assert_eq!(relative_path(r"/mnt/m/Listes", r"/mnt/m/Listes/a.flac").as_deref(), Some("a.flac"));
+        assert_eq!(relative_path(r"/home/d/Listes", r"/mnt/nas/a.flac").as_deref(), Some("../../../mnt/nas/a.flac"));
+        // Autre lecteur, ou casse différente sous Linux : impossible / distinct.
+        assert_eq!(relative_path(r"C:\Listes", r"S:\Musique\a.flac"), None);
+        assert_eq!(relative_path(r"/home/d", r"/Home/d/a.flac").as_deref(), Some("../../Home/d/a.flac"));
+        assert_eq!(relative_path(r"\\nas\music\Listes", r"\\NAS\Music\Muse\a.flac").as_deref(), Some("../Muse/a.flac"));
+        assert_eq!(relative_path(r"\\nas\music", r"\\nas\films\a.mkv"), None);
     }
 
     #[test]

@@ -25,8 +25,8 @@ type State = {
   error: string | null;
 };
 
-const vierge = (o: Partial<State> = {}): State => ({ running: true, done: 0, total: 0, current: "", live: [], images: {}, startedAt: Date.now(), runId: null, error: null, ...o });
-const state = writable<State>(vierge({ running: false }));
+const freshState = (o: Partial<State> = {}): State => ({ running: true, done: 0, total: 0, current: "", live: [], images: {}, startedAt: Date.now(), runId: null, error: null, ...o });
+const state = writable<State>(freshState({ running: false }));
 let initialized = false;
 
 export type RuleView = { name: string; parts: string[]; source: string };
@@ -39,7 +39,7 @@ export type CheckReport = {
   images: Record<string, string>;
 };
 
-const popinOuverte = () => get(popinStore).component === ArtistCheckPopin;
+const isPopinOpen = () => get(popinStore).component === ArtistCheckPopin;
 
 /** La fenêtre : en direct pendant la vérification, puis le bilan. `one` : un seul nom à vérifier. */
 export function openArtistReport(props: { one?: string } = {}) {
@@ -49,7 +49,7 @@ export function openArtistReport(props: { one?: string } = {}) {
 async function finished(runId: number | null, error: string | null, silent: boolean) {
   state.update((s) => ({ ...s, running: false, current: "", runId, error }));
   libraryContentStore.refresh();
-  if (popinOuverte() || !silent) return;
+  if (isPopinOpen() || !silent) return;
   // Après un scan : la fenêtre ne s'ouvre que s'il y a du neuf.
   if (get(state).live.some((x) => x.decision !== "whole")) openArtistReport();
 }
@@ -86,7 +86,7 @@ export const artistCheck = {
     if (!quiet) openArtistReport();
     if (get(state).running) return;
     silencieux = quiet;
-    state.set(vierge());
+    state.set(freshState());
     try {
       await invoke("artist_check_start");
     } catch (e) {
@@ -98,7 +98,7 @@ export const artistCheck = {
   async checkOne(name: string) {
     if (get(state).running) return openArtistReport();
     silencieux = false;
-    state.set(vierge({ total: 1, current: name }));
+    state.set(freshState({ total: 1, current: name }));
     openArtistReport({ one: name });
     try {
       const runId = await invoke<number>("artist_check_name", { name });

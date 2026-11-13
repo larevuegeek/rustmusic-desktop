@@ -201,8 +201,21 @@ impl LibraryTrackRepository {
                 updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            -- Fichier déjà connu (rescan, tags écrits) : ce que dit le fichier remplace l'ancien.
+            -- Restent ceux de l'utilisateur : note, écoutes, favori, date d'ajout.
             ON CONFLICT(library_id, file_id) DO UPDATE SET
-                id = library_tracks.id
+                cache_id = excluded.cache_id,
+                artist_id = excluded.artist_id,
+                library_album_id = excluded.library_album_id,
+                title = excluded.title,
+                title_normalized = excluded.title_normalized,
+                track_number = excluded.track_number,
+                disc_number = excluded.disc_number,
+                tags = excluded.tags,
+                duration = excluded.duration,
+                bitrate = excluded.bitrate,
+                sample_rate = excluded.sample_rate,
+                updated_at = CURRENT_TIMESTAMP
             RETURNING *
             "#
         )
@@ -225,6 +238,19 @@ impl LibraryTrackRepository {
         .await?;
 
         Ok(result)
+    }
+
+    /// L'album d'une piste déjà connue, avant de la relire (pour retirer l'ancien s'il se vide).
+    pub async fn album_of_file<'e, E>(exec: E, library_id: i64, file_id: &str) -> Result<Option<String>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        Ok(sqlx::query_scalar::<_, Option<String>>("SELECT library_album_id FROM library_tracks WHERE library_id = ? AND file_id = ?")
+            .bind(library_id)
+            .bind(file_id)
+            .fetch_optional(exec)
+            .await?
+            .flatten())
     }
 
     pub async fn update_rating<'e, E>(
@@ -1356,4 +1382,56 @@ impl LibraryTrackRepository {
         query.fetch_all(exec).await
     }
 
+}
+
+#[cfg(test)]
+mod reimport_tests {
+    use super::*;
+    use crate::entity::library::library_track::LibraryTrackCreate;
+    use crate::repository::library::library_album_repository::LibraryAlbumRepository;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    fn track(album: &str, title: &str, composer: &str) -> LibraryTrackCreate {
+        LibraryTrackCreate {
+            library_id: 1, file_id: "f1".into(), cache_id: None, artist_id: None, library_album_id: Some(album.into()),
+            title: title.into(), title_normalized: title.to_lowercase(), track_number: Some(1), disc_number: 1,
+            tags: Some(serde_json::json!({ "composer": composer }).to_string()),
+            duration: Some(100.0), bitrate: None, sample_rate: None, rating: None,
+        }
+    }
+
+    /// Tags réécrits puis relus : la piste suit le fichier, la note et les écoutes restent, l'ancien album vide part.
+    #[tokio::test]
+    async fn a_reread_track_takes_the_new_tags_and_keeps_user_data() {
+        let pool = SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!("./SQL/").run(&pool).await.unwrap();
+        sqlx::query("INSERT OR IGNORE INTO profil (id, name) VALUES (1, 'Socle')").execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO library (id, profil_id, name) VALUES (1, 1, 'L')").execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO artists (id, name, name_normalized, sort_name) VALUES ('ar', 'A', 'a', 'A')").execute(&pool).await.unwrap();
+        for al in ["old", "new"] {
+            sqlx::query("INSERT INTO library_albums (id, library_id, artist_id, title, title_normalized) VALUES (?, 1, 'ar', ?, ?)")
+                .bind(al).bind(al).bind(al).execute(&pool).await.unwrap();
+        }
+        sqlx::query("INSERT INTO library_files (id, library_id, path, filename) VALUES ('f1', 1, '/m/a.flac', 'a')").execute(&pool).await.unwrap();
+
+        let first = LibraryTrackRepository::insert_library_track(&pool, track("old", "Prélude", "Serge Rachmaninoff")).await.unwrap();
+        sqlx::query("UPDATE library_tracks SET rating = 4, play_count = 7 WHERE id = ?").bind(&first.id).execute(&pool).await.unwrap();
+
+        assert_eq!(LibraryTrackRepository::album_of_file(&pool, 1, "f1").await.unwrap().as_deref(), Some("old"));
+        let again = LibraryTrackRepository::insert_library_track(&pool, track("new", "Prélude en ut", "Sergei Rachmaninoff")).await.unwrap();
+        LibraryAlbumRepository::delete_if_empty(&pool, "old").await.unwrap();
+
+        assert_eq!(again.id, first.id, "même piste, pas un doublon");
+        let (title, composer, album, rating, plays): (String, String, String, Option<f64>, i64) = sqlx::query_as(
+            "SELECT title, json_extract(tags, '$.composer'), library_album_id, rating, play_count FROM library_tracks WHERE id = ?",
+        )
+        .bind(&first.id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!((title.as_str(), composer.as_str(), album.as_str()), ("Prélude en ut", "Sergei Rachmaninoff", "new"));
+        assert_eq!((rating, plays), (Some(4.0), 7));
+        let albums: Vec<String> = sqlx::query_scalar("SELECT id FROM library_albums ORDER BY id").fetch_all(&pool).await.unwrap();
+        assert_eq!(albums, ["new"]);
+    }
 }

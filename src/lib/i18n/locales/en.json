@@ -258,6 +258,7 @@
     "sort_album": "Album"
   },
   "actions": {
+    "dialog_choose_portrait": "Choose a portrait",
     "play_now": "Play now",
     "add_start": "Add to beginning",
     "add_end": "Play next",
@@ -266,6 +267,7 @@
     "view_artist": "View artist",
     "delete": "Delete",
     "deselect_all": "Deselect all",
+    "select_all": "Select all",
     "dialog_audio_files": "Audio files",
     "dialog_choose_cover": "Choose a cover",
     "dialog_images": "Images",
@@ -870,6 +872,8 @@
     "email_desc": "Bug, suggestion or question — we read every message"
   },
   "menu": {
+    "remove_portrait": "Remove portrait",
+    "change_portrait": "Change portrait…",
     "change_profil": "Change profile",
     "settings": "Settings",
     "feedback": "Feedback",
@@ -1062,6 +1066,7 @@
     "writing_tags": "Writing tags"
   },
   "workshop": {
+    "panel_resize": "Drag to widen the panel (double-click: default width)",
     "title": "Tag workshop",
     "view_grid": "Spreadsheet view",
     "view_panel": "List and panel view",
@@ -1629,6 +1634,49 @@
     "no_match": "No artist matches.",
     "clear_filters": "Clear filters"
   },
+  "portrait": {
+    "title": "Artist portrait",
+    "current": "Current portrait",
+    "preview": "Preview",
+    "none": "No portrait",
+    "choose_file": "Choose a file…",
+    "search": "Search",
+    "search_placeholder": "Artist name…",
+    "sources": "Sources",
+    "source_all": "All",
+    "use": "Use this portrait",
+    "empty": "No image found. Try another spelling.",
+    "offline": "Search failed: no connection?",
+    "fans": "{n} fans"
+  },
+  "playlist_export": {
+    "title": "Automatic playlist export",
+    "hint": "For a USB stick or a phone: ticked playlists are written as .m3u8 files to a folder you copy along with the music.",
+    "menu": "Auto-export",
+    "choose_dir": "Playlist export folder",
+    "dir": "Export folder",
+    "dir_none": "No folder chosen. Tip: a \"Playlists\" folder inside your music folder.",
+    "choose_dir_btn": "Choose…",
+    "change_dir": "Change…",
+    "format": "Format",
+    "format_desc": ".m3u8 (UTF-8) suits almost everything; .m3u for older players.",
+    "relative": "Relative paths",
+    "relative_desc": "\"../Muse/01.flac\" instead of the full path: playlists keep working once copied with the music.",
+    "now": "Export now",
+    "now_btn": "Export",
+    "marked": "{n} playlist(s): {names}",
+    "none_marked": "No playlist exported yet: turn one on above.",
+    "done": "{n} playlist(s), {w} file(s) rewritten, {t} tracks",
+    "absolute": "{n} on another drive (full path)",
+    "skipped": "{n} from a server left out",
+    "enabled": "Exported automatically",
+    "disabled": "Automatic export stopped, file removed",
+    "row_on": "Exported on every change",
+    "row_off": "Not exported",
+    "choose_first": "Choose the export folder first.",
+    "no_playlist": "No playlist",
+    "no_playlist_desc": "Create a playlist to export it."
+  },
   "composers_view": {
     "mode_label": "Show",
     "mode_artists": "Artists",
@@ -1644,6 +1692,7 @@
     "performers_n": "performers",
     "performers_desc": "Artists performing their works in your library, most present first.",
     "performer_title": "Performer",
+    "performed_by": "Performed by",
     "artist_page": "Artist page",
     "sort_album": "Album"
   },
@@ -2011,6 +2060,9 @@
     "searching": "Searching…"
   },
   "notify": {
+    "not_an_image": "This file isn't an image",
+    "portrait_removed": "Portrait removed",
+    "portrait_updated": "Portrait updated",
     "access_denied": "Access denied",
     "access_failed": "Access failed",
     "add_files_failed": "Unable to add the files",

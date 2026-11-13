@@ -258,6 +258,7 @@
     "sort_album": "Album"
   },
   "actions": {
+    "dialog_choose_portrait": "Scegli un ritratto",
     "play_now": "Riproduci ora",
     "add_start": "Aggiungi all'inizio",
     "add_end": "Riproduci dopo",
@@ -266,6 +267,7 @@
     "view_artist": "Vedi l'artista",
     "delete": "Elimina",
     "deselect_all": "Deseleziona tutto",
+    "select_all": "Seleziona tutto",
     "dialog_audio_files": "File audio",
     "dialog_choose_cover": "Scegli una copertina",
     "dialog_images": "Immagini",
@@ -870,6 +872,8 @@
     "email_desc": "Bug, suggerimento o domanda — leggiamo ogni messaggio"
   },
   "menu": {
+    "remove_portrait": "Rimuovi ritratto",
+    "change_portrait": "Cambia ritratto…",
     "change_profil": "Cambia profilo",
     "settings": "Impostazioni",
     "feedback": "Feedback",
@@ -1062,6 +1066,7 @@
     "writing_tags": "Scrittura dei tag"
   },
   "workshop": {
+    "panel_resize": "Trascina per allargare il pannello (doppio clic: larghezza originale)",
     "title": "Officina dei tag",
     "view_grid": "Vista tabella",
     "view_panel": "Vista elenco e pannello",
@@ -1629,6 +1634,49 @@
     "no_match": "Nessun artista corrisponde.",
     "clear_filters": "Cancella i filtri"
   },
+  "portrait": {
+    "title": "Ritratto dell'artista",
+    "current": "Ritratto attuale",
+    "preview": "Anteprima",
+    "none": "Nessun ritratto",
+    "choose_file": "Scegli un file…",
+    "search": "Cerca",
+    "search_placeholder": "Nome dell'artista…",
+    "sources": "Fonti",
+    "source_all": "Tutto",
+    "use": "Usa questo ritratto",
+    "empty": "Nessuna immagine trovata. Prova un'altra grafia.",
+    "offline": "Ricerca impossibile: nessuna connessione?",
+    "fans": "{n} fan"
+  },
+  "playlist_export": {
+    "title": "Esportazione automatica delle playlist",
+    "hint": "Per una chiavetta USB o un telefono: le playlist spuntate vengono scritte in .m3u8 in una cartella da copiare insieme alla musica.",
+    "menu": "Export auto",
+    "choose_dir": "Cartella di esportazione delle playlist",
+    "dir": "Cartella di esportazione",
+    "dir_none": "Nessuna cartella scelta. Consiglio: una cartella «Playlists» dentro quella della musica.",
+    "choose_dir_btn": "Scegli…",
+    "change_dir": "Cambia…",
+    "format": "Formato",
+    "format_desc": ".m3u8 (UTF-8) va bene quasi ovunque; .m3u per i lettori più vecchi.",
+    "relative": "Percorsi relativi",
+    "relative_desc": "«../Muse/01.flac» invece del percorso completo: le playlist funzionano anche copiate con la musica.",
+    "now": "Esporta ora",
+    "now_btn": "Esporta",
+    "marked": "{n} playlist: {names}",
+    "none_marked": "Nessuna playlist esportata: attivane una qui sopra.",
+    "done": "{n} playlist, {w} file riscritti, {t} brani",
+    "absolute": "{n} su un altro disco (percorso completo)",
+    "skipped": "{n} da un server ignorati",
+    "enabled": "Esportata automaticamente",
+    "disabled": "Esportazione automatica interrotta, file rimosso",
+    "row_on": "Esportata a ogni modifica",
+    "row_off": "Non esportata",
+    "choose_first": "Scegli prima la cartella di esportazione.",
+    "no_playlist": "Nessuna playlist",
+    "no_playlist_desc": "Crea una playlist per poterla esportare."
+  },
   "composers_view": {
     "mode_label": "Mostra",
     "mode_artists": "Artisti",
@@ -1644,6 +1692,7 @@
     "performers_n": "interpreti",
     "performers_desc": "Gli artisti che eseguono le sue opere nella libreria, i più presenti per primi.",
     "performer_title": "Interprete",
+    "performed_by": "Interpretato da",
     "artist_page": "Pagina dell'artista",
     "sort_album": "Album"
   },
@@ -2011,6 +2060,9 @@
     "searching": "Ricerca in corso…"
   },
   "notify": {
+    "not_an_image": "Questo file non è un'immagine",
+    "portrait_removed": "Ritratto rimosso",
+    "portrait_updated": "Ritratto aggiornato",
     "access_denied": "Accesso negato",
     "access_failed": "Accesso impossibile",
     "add_files_failed": "Impossibile aggiungere i file",

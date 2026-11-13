@@ -1,3 +1,4 @@
+pub mod artist_image_command;
 pub mod artist_split_command;
 pub mod composer_command;
 pub mod library_command;

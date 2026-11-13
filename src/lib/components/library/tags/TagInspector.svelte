@@ -7,6 +7,8 @@
   import { tagWorkshop, isDirty, valueOf, type WorkshopField } from "#lib/stores/tags/tagWorkshop.store";
   import { fileName } from "#lib/services/batch/batch.service";
   import { FLAGGED_WHEN_EMPTY } from "./TagTable.svelte";
+  import { autosize } from "#lib/helper/tools/autosize";
+  import { readLocal, writeLocal } from "#lib/helper/tools/storage";
 
   let {
     source,
@@ -56,7 +58,39 @@
 
   const plural = (n: number) => `${n} ${n > 1 ? $t("workshop.track_many") : $t("workshop.track_one")}`;
 
-  function apply(field: WorkshopField, raw: string, input?: HTMLInputElement) {
+  // ─── Largeur réglable (bord gauche), retenue ───
+  const MIN_WIDTH = 320;
+  const MAX_WIDTH = 760;
+  // Jamais plus de 60 % de la fenêtre : le tableau reste visible.
+  const clampWidth = (w: number) => Math.round(Math.min(MAX_WIDTH, window.innerWidth * 0.6, Math.max(MIN_WIDTH, w)));
+  let width = $state(clampWidth(Number(readLocal("tags:inspector-width", String(MIN_WIDTH))) || MIN_WIDTH));
+  let drag = $state<{ x: number; w: number } | null>(null);
+  function startResize(e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    drag = { x: e.clientX, w: width };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  // Tiré vers la gauche : le panneau s'élargit.
+  const moveResize = (e: PointerEvent) => drag && (width = clampWidth(drag.w + drag.x - e.clientX));
+  function endResize() {
+    if (!drag) return;
+    drag = null;
+    writeLocal("tags:inspector-width", String(width));
+  }
+  function resizeByKey(e: KeyboardEvent) {
+    const step = e.key === "ArrowLeft" ? 24 : e.key === "ArrowRight" ? -24 : 0;
+    if (!step) return;
+    e.preventDefault();
+    width = clampWidth(width + step);
+    writeLocal("tags:inspector-width", String(width));
+  }
+  function resetWidth() {
+    width = MIN_WIDTH;
+    writeLocal("tags:inspector-width", String(width));
+  }
+
+  function apply(field: WorkshopField, raw: string, input?: HTMLInputElement | HTMLTextAreaElement) {
     const value = raw.replace(/\s+/g, " ").trim();
     // « Mixte » laissé vide : on conserve les valeurs de chacun.
     if (common(field) === null && value === "") {
@@ -91,7 +125,17 @@
   ];
 </script>
 
-<aside class="w-80 shrink-0 overflow-y-auto scrollbar-app border-l border-(--rg-bd) bg-(--rg-creux) px-5 pt-5 pb-32">
+<aside class="relative shrink-0 overflow-y-auto scrollbar-app border-l border-(--rg-bd) bg-(--rg-creux) px-5 pt-5 pb-32" style="width: {width}px">
+  <!-- Poignée du bord gauche : tirer pour élargir, double-clic pour revenir à la largeur d'origine. -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+  <div role="separator" aria-orientation="vertical" aria-label={$t("workshop.panel_resize")} title={$t("workshop.panel_resize")}
+       aria-valuenow={width} aria-valuemin={MIN_WIDTH} aria-valuemax={MAX_WIDTH} tabindex="0"
+       class="group/poignee sticky top-0 float-left -ml-5 -mt-5 -mb-[100vh] h-[100vh] w-2.5 z-10 cursor-col-resize outline-none"
+       onpointerdown={startResize} onpointermove={moveResize} onpointerup={endResize} onpointercancel={endResize}
+       ondblclick={resetWidth} onkeydown={resizeByKey}>
+    <span class="absolute left-0 top-0 bottom-0 w-0.5 transition-colors
+                 {drag ? 'bg-(--rg-g)' : 'bg-transparent group-hover/poignee:bg-(--rg-gbd) group-focus-visible/poignee:bg-(--rg-g)'}"></span>
+  </div>
   {#if targets.length === 0}
     <p class="px-2.5 py-16 text-center text-[14px] leading-relaxed text-(--rg-mu)">{$t("workshop.select_to_edit")}</p>
   {:else}
@@ -147,6 +191,18 @@
                       </button>
                     {/if}
                   </span>
+                {:else if !half}
+                  <!-- Pleine largeur : le texte revient à la ligne (une liste de dix interprètes reste lisible). -->
+                  <textarea
+                    data-focus-ring="none"
+                    rows="1"
+                    use:autosize={value}
+                    value={value ?? ""}
+                    placeholder={value === null ? $t("workshop.mixed_keep") : "—"}
+                    onchange={(e) => apply(field, e.currentTarget.value, e.currentTarget)}
+                    onkeydown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
+                    class="block w-full mt-1.5 resize-none overflow-hidden bg-transparent leading-snug outline-none text-[13px] text-(--rg-tx) placeholder:text-(--rg-ph) {dirty ? 'pr-8' : ''}"
+                  ></textarea>
                 {:else}
                   <input
                     data-focus-ring="none"

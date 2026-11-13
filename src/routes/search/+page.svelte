@@ -83,7 +83,7 @@
 
   const typeLabel = (type: string) =>
     $t(type === "track" ? "track_view.kicker" : type === "album" ? "sidebar.album" : type === "composer" ? "composers_view.kicker" : "sidebar.artist");
-  const rond = (type: string) => type === "artist" || type === "composer";
+  const isRound = (type: string) => type === "artist" || type === "composer";
   const fiche = (r: SearchResult) => (r.path ? fiches.get(r.path) : undefined);
 </script>
 
@@ -236,11 +236,11 @@
             <div role="button" tabindex="0" onclick={() => open(top)} onkeydown={(e) => { if (e.key === "Enter") open(top); }}
                  class="group relative p-5 rounded-2xl border cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)">
               {#if top.thumbnail_path}
-                <CoverImg path={top.thumbnail_path} alt="" class="w-28 h-28 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.25)] {rond(top.result_type) ? 'rounded-full' : 'rounded-xl'}" />
+                <CoverImg path={top.thumbnail_path} alt="" class="w-28 h-28 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.25)] {isRound(top.result_type) ? 'rounded-full' : 'rounded-xl'}" />
               {:else if top.result_type === "composer"}
                 <ArtistAvatar name={top.title} deux class="w-28 h-28 text-[36px]" />
               {:else}
-                <span class="w-28 h-28 flex items-center justify-center bg-(--rg-s2) text-(--rg-mu) {rond(top.result_type) ? 'rounded-full' : 'rounded-xl'}">
+                <span class="w-28 h-28 flex items-center justify-center bg-(--rg-s2) text-(--rg-mu) {isRound(top.result_type) ? 'rounded-full' : 'rounded-xl'}">
                   <Icon icon="material-symbols:album-outline" width="44" />
                 </span>
               {/if}

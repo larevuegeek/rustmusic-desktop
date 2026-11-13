@@ -34,7 +34,7 @@ impl PlaylistRepository {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING
                 id, profil_id, library_id, name, description, color, icon, cover,
-                track_count, duration, position, is_smart, is_mix, pinned, server_id, source_id, created_at, updated_at
+                track_count, duration, position, is_smart, is_mix, pinned, server_id, source_id, auto_export, created_at, updated_at
             "#,
         )
         .bind(profil_id)
@@ -76,7 +76,7 @@ impl PlaylistRepository {
             WHERE id = ?
             RETURNING
                 id, profil_id, library_id, name, description, color, icon, cover,
-                track_count, duration, position, is_smart, is_mix, pinned, server_id, created_at, updated_at
+                track_count, duration, position, is_smart, is_mix, pinned, server_id, source_id, auto_export, created_at, updated_at
             "#,
         )
         .bind(name)
@@ -135,7 +135,7 @@ impl PlaylistRepository {
             SELECT
                 id, profil_id, library_id, name, description, color, icon, cover,
                 {COUNT_ITEMS} AS track_count,
-                duration, position, is_smart, is_mix, pinned, server_id, source_id, created_at, updated_at
+                duration, position, is_smart, is_mix, pinned, server_id, source_id, auto_export, created_at, updated_at
             FROM playlists
             WHERE id = ?
             "#
@@ -179,7 +179,7 @@ impl PlaylistRepository {
             SELECT
                 id, profil_id, library_id, name, description, color, icon, cover,
                 {COUNT_ITEMS} AS track_count,
-                duration, position, is_smart, is_mix, pinned, server_id, source_id, created_at, updated_at
+                duration, position, is_smart, is_mix, pinned, server_id, source_id, auto_export, created_at, updated_at
             FROM playlists
             WHERE profil_id = ? {filter}
             ORDER BY position ASC, id DESC

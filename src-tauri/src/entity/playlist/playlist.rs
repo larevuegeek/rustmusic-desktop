@@ -37,6 +37,10 @@ pub struct Playlist {
     #[serde(default)]
     #[sqlx(default)]
     pub source_id: i64,
+    /// Réécrite en .m3u8 dans le dossier d'export à chaque changement.
+    #[serde(default)]
+    #[sqlx(default)]
+    pub auto_export: bool,
     pub created_at: String,
     pub updated_at: Option<String>,
 }

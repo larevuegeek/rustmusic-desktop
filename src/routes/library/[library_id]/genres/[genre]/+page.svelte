@@ -151,7 +151,7 @@ const sortArrow = (cle: string) => (tri === cle ? (sens === "asc" ? "material-sy
 
 const grille = $derived($viewMode !== "list");
 $effect(() => {
-  if (vue === "morceaux" && grille) selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
+  if (vue === "morceaux" && grille) return selectionStore.setOrder(visibles.map((x) => ({ id: x.id, track: x })));
 });
 
 const colonnes = $derived(resolveColumns(shownKeys($settingsStore.track_columns)).filter((c) => c.key !== "genre"));

@@ -41,6 +41,10 @@ const state = writable<SelectionState>({
 let ordre: string[] = [];
 /** Les pistes de `ordre`, telles que la vue les a déclarées. */
 let catalogue: Map<string, TrackLike> = new Map();
+/** La vue courante a déclaré des pistes : « Tout sélectionner » a un sens. */
+const declared = writable(false);
+/** Toutes les pistes de la vue quand elle n'en charge qu'une partie (onglet Morceaux). */
+let loadAll: (() => Promise<{ id: string; track: TrackLike }[]>) | null = null;
 
 export const selectionStore = {
   subscribe: derived(state, ($s) => ({
@@ -69,9 +73,35 @@ export const selectionStore = {
    * sélection par plage n'a aucun sens : « de celui-ci à celui-là » suppose un
    * entre-deux, et lui seul le connaît.
    */
-  setOrder(items: { id: string; track: TrackLike }[]) {
+  setOrder(items: { id: string; track: TrackLike }[]): () => void {
+    const mine = items.map((i) => i.id);
     catalogue = new Map(items.map((i) => [i.id, i.track]));
-    ordre = items.map((i) => i.id);
+    ordre = mine;
+    declared.set(mine.length > 0);
+    // À rendre par l'effet de la vue : la liste s'efface quand elle quitte l'écran.
+    return () => {
+      if (ordre !== mine) return;
+      ordre = [];
+      catalogue = new Map();
+      declared.set(false);
+    };
+  },
+
+  /** Si la vue peut tout cocher (elle a déclaré ses pistes). */
+  canSelectAll: { subscribe: declared.subscribe },
+
+  /** Fournit toutes les pistes d'une vue chargée par lots ; rend de quoi le retirer. */
+  provideAll(fn: () => Promise<{ id: string; track: TrackLike }[]>): () => void {
+    loadAll = fn;
+    return () => {
+      if (loadAll === fn) loadAll = null;
+    };
+  },
+
+  /** Coche toutes les pistes de la vue, chargées ou non. */
+  async selectEverything() {
+    if (loadAll) selectionStore.selectAll(await loadAll());
+    else selectionStore.selectAllVisible();
   },
 
   /** Coche ou décoche une piste, et en fait l'ancre d'une future plage. */

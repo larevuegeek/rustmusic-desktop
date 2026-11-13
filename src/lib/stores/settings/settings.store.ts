@@ -31,7 +31,10 @@ export type AppSettings = {
   play_on_start: string;             // 'true' | 'false' — Le dernier morceau repart au lancement
   listen_threshold: string;          // 'auto' (1 min ou la moitié) | '25' | '50' | '75' | '80' | '90' — % écouté pour compter
   artist_check_auto: string;         // 'true' | 'false' — artistes multiples vérifiés (MusicBrainz) après chaque scan
-  artists_tab: string;               // 'artists' | 'composers' — ce que liste l'onglet Artistes
+  artists_tab: string;
+  playlist_export_dir: string;       // dossier de l'export automatique des playlists ('' : pas choisi)
+  playlist_export_format: string;    // 'm3u8' | 'm3u'
+  playlist_export_relative: string;  // 'true' | 'false' — chemins relatifs au dossier               // 'artists' | 'composers' — ce que liste l'onglet Artistes
   prevent_sleep: string;             // 'true' | 'false' — pas de veille automatique pendant la lecture
   theme: string;                     // 'auto' | 'light' | 'dark'
   contrast: string;                  // 'normal' | 'high' — lisibilité renforcée
@@ -125,6 +128,9 @@ export const settingsDefaults: AppSettings = {
   listen_threshold: 'auto',
   artist_check_auto: 'false',
   artists_tab: 'artists',
+  playlist_export_dir: '',
+  playlist_export_format: 'm3u8',
+  playlist_export_relative: 'true',
   prevent_sleep: 'true',
   theme: 'dark',
   contrast: 'normal',

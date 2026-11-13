@@ -22,13 +22,13 @@ export const composerSplit = { subscribe: config.subscribe };
 
 export function splitComposer(raw: string | null | undefined, c: ComposerSplitConfig): string[] {
   const nom = (raw ?? "").trim();
-  const ecarte = (n: string) => c.junk.includes(n.toLowerCase());
-  if (!nom || ecarte(nom)) return [];
+  const isJunk = (n: string) => c.junk.includes(n.toLowerCase());
+  if (!nom || isJunk(nom)) return [];
   const regle = c.rules[nom.toLowerCase()];
   if (regle) return regle;
   const vus = new Set<string>();
   return nom
     .split(/[,;/\0]/)
     .map((n) => n.trim())
-    .filter((n) => n && !ecarte(n) && !vus.has(n.toLowerCase()) && vus.add(n.toLowerCase()));
+    .filter((n) => n && !isJunk(n) && !vus.has(n.toLowerCase()) && vus.add(n.toLowerCase()));
 }

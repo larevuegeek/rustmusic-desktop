@@ -85,7 +85,7 @@ $effect(() => {
   return () => { fini = true; arreter?.(); };
 });
 const parCompositeur = $derived($settingsStore.artists_tab === "composers" && compositeurs.length > 0);
-function setOnglet(v: string) {
+function setTab(v: string) {
   if (v !== $settingsStore.artists_tab) clearFilters();
   void settingsStore.set("artists_tab", v);
 }
@@ -157,7 +157,7 @@ const formatNumber = (n: number) => n.toLocaleString($currentLocale);
     <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
       <div class="flex flex-wrap items-center gap-2.5">
         {#if compositeurs.length}
-          <ModeSwitch class="order-0" label={$t("composers_view.mode_label")} value={parCompositeur ? "composers" : "artists"} onchange={setOnglet} labelClass="@max-4xl:hidden"
+          <ModeSwitch class="order-0" label={$t("composers_view.mode_label")} value={parCompositeur ? "composers" : "artists"} onchange={setTab} labelClass="@max-4xl:hidden"
                       options={[
                         { value: "artists", label: $t("composers_view.mode_artists"), icon: "material-symbols:artist-outline-rounded", count: formatNumber(artistes.length) },
                         { value: "composers", label: $t("composers_view.mode_composers"), icon: "material-symbols:stylus-note-rounded", count: formatNumber(compositeurs.length) },

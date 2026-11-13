@@ -18,6 +18,7 @@
   import { canWriteTags } from "#lib/services/tags/tagEditor.service";
   import EditTagsPopin from "#lib/components/library/common/popin/EditTagsPopin.svelte";
   import { isOutsideLibrary } from "#lib/mapper/library/mapTrackOutsideLibrary";
+  import { portal } from "#lib/helper/portal";
 
   type Props = {
     track: TrackLike & { id?: string | number | null; artist_id?: string | null; library_artist_id?: string | null; album_id?: string | null };
@@ -79,16 +80,12 @@
   }
   let playlists = $derived($playlistsRangees.filter((pl) => playlistAccepts(pl, track.path)));
 
-  // Position ajustée pour ne pas sortir de l'écran
+  // Hauteur mesurée : le menu reste dans la fenêtre, sous-menu des playlists ouvert compris.
+  let height = $state(0);
   let menuStyle = $derived.by(() => {
     const menuWidth = 220;
-    const menuHeight = 350;
-    let posX = x;
-    let posY = y;
-
-    if (posX + menuWidth > window.innerWidth) posX = window.innerWidth - menuWidth - 8;
-    if (posY + menuHeight > window.innerHeight) posY = window.innerHeight - menuHeight - 8;
-
+    const posX = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8));
+    const posY = Math.max(8, Math.min(y, window.innerHeight - height - 8));
     return `left: ${posX}px; top: ${posY}px;`;
   });
 
@@ -197,6 +194,8 @@
   }
 </script>
 
+<!-- Porté vers `body` : une ligne du tableau (content-visibility) piégeait le `fixed`. -->
+<div use:portal>
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- Backdrop invisible pour fermer -->
 <!-- Le clic droit est avalé ici aussi : sans ça, un second clic droit pendant
@@ -218,8 +217,9 @@
          bg-(--rg-carte) dark:bg-(--rg-s2) 
          border border-(--rg-bd) dark:border-[#2a312d]
          rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] 
-         overflow-hidden"
+         overflow-x-hidden overflow-y-auto scrollbar-app max-h-[calc(100vh-16px)]"
   style={menuStyle}
+  bind:clientHeight={height}
 >
   <!-- Lire -->
   <button
@@ -395,4 +395,5 @@
       {deleteLabel ?? $t("actions.delete")}
     </button>
   {/if}
+</div>
 </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fetchCovers, fetchPortraits, cleanImages } from "#lib/actions/library/ImageAction";
+  import Icon from "@iconify/svelte";
   import { onMount } from "svelte";
   import { forgetLocations } from "#lib/helper/library/trackLocation";
   import { invoke } from "@tauri-apps/api/core";
@@ -20,6 +21,9 @@
   import ServersSettings from "#lib/components/settings/ServersSettings.svelte";
   import ToggleSwitch from "#lib/components/ui/input/ToggleSwitch.svelte";
   import { artistCheck, openArtistReport } from "#lib/stores/library/artistCheck.store";
+  import SegmentedControl from "#lib/components/ui/input/SegmentedControl.svelte";
+  import { playlistStore } from "#lib/stores/playlist/playlist.store";
+  import { runAutoExport, setPlaylistAutoExport, type ExportReport } from "#lib/services/playlist/autoExport.service";
 
   let showResetDialog = $state(false);
   let rescanning = $state(false);
@@ -244,8 +248,45 @@
   }
 
   onMount(async () => {
+      // La barre latérale, qui charge les playlists, est absente des réglages.
+      if (!$playlistStore.playlists.length) void playlistStore.refresh();
       dataDir = await appDataDir();
   })
+
+  // ─── Export automatique des playlists ───
+  const exported = $derived($playlistStore.playlists.filter((p) => p.auto_export));
+  // Celles qui peuvent l'être : de cet ordinateur, hors mix du jour.
+  const exportable = $derived($playlistStore.playlists.filter((p) => !p.server_id && !p.is_mix));
+  let exportingPlaylists = $state(false);
+  let lastExport = $state<ExportReport | null>(null);
+
+  async function chooseExportDir() {
+    const dir = await open({ directory: true, title: $t("playlist_export.choose_dir") }).catch(() => null);
+    if (typeof dir !== "string") return;
+    await settingsStore.set("playlist_export_dir", dir);
+    if (exported.length) void exportNow();
+  }
+
+  async function exportNow() {
+    exportingPlaylists = true;
+    lastExport = await runAutoExport();
+    exportingPlaylists = false;
+  }
+
+  // Format ou chemins changés : les fichiers suivent aussitôt.
+  async function setExportOption(key: "playlist_export_format" | "playlist_export_relative", value: string) {
+    await settingsStore.set(key, value);
+    if (exported.length && $settingsStore.playlist_export_dir) void exportNow();
+  }
+
+  const exportSummary = $derived.by(() => {
+    if (!lastExport) return "";
+    const r = lastExport;
+    let text = $t("playlist_export.done").replace("{n}", String(r.playlists)).replace("{w}", String(r.written)).replace("{t}", r.tracks.toLocaleString($currentLocale));
+    if (r.absolute) text += " · " + $t("playlist_export.absolute").replace("{n}", String(r.absolute));
+    if (r.skipped) text += " · " + $t("playlist_export.skipped").replace("{n}", String(r.skipped));
+    return text;
+  });
 </script>
 
 <!-- ─── Bibliothèques ─── -->
@@ -290,6 +331,44 @@
   </OptionItem>
   <OptionItem title={$t("artist_split.review")} desc={$t("artist_split.review_desc")} keywords="artistes annuler corrections">
     <GhostButton icon="lucide:undo-2" label={$t("artist_split.review_btn")} onclick={() => openArtistReport()} />
+  </OptionItem>
+</OptionGroup>
+
+<!-- ─── Export automatique des playlists (clé USB, téléphone) ─── -->
+<OptionGroup foldKey="settings.playlist_export_group" title={$t("playlist_export.title")} hint={$t("playlist_export.hint")}>
+  <OptionItem title={$t("playlist_export.dir")} keywords="m3u m3u8 export playlist clé usb téléphone android dossier"
+              desc={$settingsStore.playlist_export_dir || $t("playlist_export.dir_none")}>
+    <GhostButton icon="material-symbols:folder-open-outline-rounded"
+                 label={$t($settingsStore.playlist_export_dir ? "playlist_export.change_dir" : "playlist_export.choose_dir_btn")} onclick={chooseExportDir} />
+  </OptionItem>
+  <OptionItem title={$t("playlist_export.format")} desc={$t("playlist_export.format_desc")} keywords="m3u m3u8 format">
+    <SegmentedControl value={$settingsStore.playlist_export_format === "m3u" ? "m3u" : "m3u8"} label={$t("playlist_export.format")}
+                      options={[{ value: "m3u8", label: ".m3u8" }, { value: "m3u", label: ".m3u" }]}
+                      onchange={(v) => setExportOption("playlist_export_format", v)} />
+  </OptionItem>
+  <OptionItem title={$t("playlist_export.relative")} desc={$t("playlist_export.relative_desc")} keywords="chemins relatifs android"
+              onclick={() => setExportOption("playlist_export_relative", $settingsStore.playlist_export_relative === "false" ? "true" : "false")}>
+    <ToggleSwitch checked={$settingsStore.playlist_export_relative !== "false"} label={$t("playlist_export.relative")}
+                  onclick={() => setExportOption("playlist_export_relative", $settingsStore.playlist_export_relative === "false" ? "true" : "false")} />
+  </OptionItem>
+  {#if $settingsStore.playlist_export_dir}
+    {#each exportable as pl (pl.id)}
+      <OptionItem title={pl.name} keywords="export m3u playlist {pl.name}"
+                  desc={$t(pl.auto_export ? "playlist_export.row_on" : "playlist_export.row_off")}
+                  onclick={() => setPlaylistAutoExport(pl.id, pl.name, !pl.auto_export)}>
+        {#snippet lead()}<Icon icon={pl.is_smart ? "lucide:sparkles" : (pl.icon ?? "lucide:list-music")} width="18" style="color: {pl.color}" />{/snippet}
+        <ToggleSwitch checked={!!pl.auto_export} label={pl.name} onclick={() => setPlaylistAutoExport(pl.id, pl.name, !pl.auto_export)} />
+      </OptionItem>
+    {:else}
+      <OptionItem title={$t("playlist_export.no_playlist")} desc={$t("playlist_export.no_playlist_desc")} />
+    {/each}
+  {/if}
+  <OptionItem title={$t("playlist_export.now")} keywords="exporter maintenant m3u"
+              desc={exportSummary || (exported.length
+                ? $t("playlist_export.marked").replace("{n}", String(exported.length)).replace("{names}", exported.slice(0, 3).map((p) => p.name).join(", ") + (exported.length > 3 ? "…" : ""))
+                : $t($settingsStore.playlist_export_dir ? "playlist_export.none_marked" : "playlist_export.choose_first"))}>
+    <GhostButton icon="material-symbols:sync-saved-locally-outline-rounded" label={$t("playlist_export.now_btn")} busy={exportingPlaylists}
+                 disabled={!exported.length || !$settingsStore.playlist_export_dir} onclick={exportNow} />
   </OptionItem>
 </OptionGroup>
 

@@ -86,5 +86,5 @@ function withoutNavigating(e: MouseEvent, action: () => void) {
 </a>
 
 {#if menu}
-    <LibraryItemMenu kind="artist" id={artist.id} title={artist.name} {libraryId} x={menu.x} y={menu.y} onclose={() => (menu = null)} />
+    <LibraryItemMenu kind="artist" id={artist.id} title={artist.name} {portrait} {libraryId} x={menu.x} y={menu.y} onclose={() => (menu = null)} />
 {/if}
