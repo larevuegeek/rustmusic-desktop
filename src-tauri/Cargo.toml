@@ -114,6 +114,8 @@ libc = "0.2.190"
 objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware"] }
 objc2-core-audio-types = { version = "0.3", default-features = false, features = ["std", "CoreAudioBaseTypes"] }
 objc2-core-foundation = "0.3"
+# Boutons de fenêtre natifs, montrés ou masqués selon le style choisi.
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSResponder", "NSView", "NSControl", "NSButton", "NSWindow"] }
 
 # ALSA direct (hw:) pour le DoP bit-perfect sur Linux (bypass PipeWire/Pulse).
 # Nécessite libasound2-dev au build.

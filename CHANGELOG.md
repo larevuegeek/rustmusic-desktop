@@ -45,6 +45,12 @@ fenêtre, pages de détail sur toute la largeur, panneau des tags élargissable.
   coup d'œil ; le panneau s'élargit en tirant son bord gauche, et garde sa
   largeur (double-clic : largeur d'origine). #23, suggestion de
   miguelmonfortenicolas.
+- **Coins arrondis sous macOS** : la fenêtre a enfin les coins arrondis et
+  l'ombre des autres applications. Avec le style de boutons « Système » ou
+  « macOS », ce sont les vrais boutons de macOS, à gauche de la barre (menu
+  de disposition au survol du vert, plein écran natif) ; les styles Windows
+  et Linux gardent leurs boutons dessinés (#32, suggestion de
+  miguelmonfortenicolas).
 
 ### Corrections
 - **Menus du clic droit hors de la fenêtre** : le menu d'un album ou d'un
@@ -64,6 +70,13 @@ fenêtre, pages de détail sur toute la largeur, panneau des tags élargissable.
   écoutes et ses favoris ; un album resté vide disparaît. Les fichiers
   modifiés depuis leur import sont relus au prochain rescan (#22, signalé
   par miguelmonfortenicolas).
+- **macOS redemandait l'accès au Bureau à chaque lancement** quand une
+  bibliothèque s'y trouvait : l'application n'était pas signée dans son
+  ensemble, et macOS ne pouvait pas retenir l'autorisation. Elle l'est
+  désormais, et la demande explique pourquoi RustMusic lit ces dossiers
+  (Bureau, Documents, Téléchargements, disques externes, partages réseau).
+  L'autorisation sera encore redemandée une fois après chaque mise à jour
+  (#31, signalé par miguelmonfortenicolas).
 
 ## [0.4.3] - 2026-11-03
 

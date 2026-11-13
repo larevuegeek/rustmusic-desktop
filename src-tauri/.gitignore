@@ -8,3 +8,5 @@
 
 # Clé d'API Last.fm de RustMusic (lue par build.rs) : ne jamais committer
 /keys/lastfm.local
+/keys/apple.local
+*.p8

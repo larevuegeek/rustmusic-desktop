@@ -1,0 +1,13 @@
+# Signature et notarisation des versions macOS (copier en apple.local, ignoré par Git).
+# Identité : `security find-identity -v -p codesigning`, ligne « Developer ID Application ».
+APPLE_SIGNING_IDENTITY="Developer ID Application: Nom de l'équipe (TEAMID1234)"
+
+# Notarisation par clé API App Store Connect (Utilisateurs et accès → Intégrations → Clés).
+APPLE_API_ISSUER="00000000-0000-0000-0000-000000000000"
+APPLE_API_KEY="ABCDE12345"
+APPLE_API_KEY_PATH="/Users/moi/.private_keys/AuthKey_ABCDE12345.p8"
+
+# Ou bien par identifiant Apple et mot de passe d'app (appleid.apple.com) :
+# APPLE_ID="moi@exemple.com"
+# APPLE_PASSWORD="abcd-efgh-ijkl-mnop"
+# APPLE_TEAM_ID="TEAMID1234"

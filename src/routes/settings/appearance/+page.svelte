@@ -108,6 +108,8 @@
     ...(["macos", "windows", "linux"] as const).map((v) => ({ valeur: v, apercu: v, label: nomsStyles[v] })),
   ]);
   const cotePosition = $derived($settingsStore.window_controls_position === "left" ? "left" : "right");
+  // Sur Mac, le style macOS prend les boutons natifs, toujours à gauche.
+  const boutonsNatifs = $derived(os === "macos" && ["auto", "macos", ""].includes($settingsStore.window_controls_style ?? ""));
 
   // ─── Mode de rendu : variables WebKit, n'agit que sous Linux ───
   const surLinux = os === "linux";
@@ -352,12 +354,14 @@
           selected={($settingsStore.window_controls_style || "auto") === st.valeur}
           onclick={() => settingsStore.set("window_controls_style", st.valeur)}
         >
-          <WindowControlsPreview style={st.apercu} position={cotePosition} />
+          <WindowControlsPreview style={st.apercu} position={os === "macos" && st.apercu === "macos" ? "left" : cotePosition} />
         </ChoiceCard>
       {/each}
     </div>
   </OptionBlock>
-  <OptionItem title={$t("settings.window_controls_position")} desc={$t("settings.window_controls_position_desc")}>
+  <OptionItem title={$t("settings.window_controls_position")}
+              desc={boutonsNatifs ? $t("settings.window_controls_position_native") : $t("settings.window_controls_position_desc")}>
+    {#if !boutonsNatifs}
     <SegmentedControl
       value={cotePosition}
       options={[
@@ -367,6 +371,7 @@
       label={$t("settings.window_controls_position")}
       onchange={(v) => settingsStore.set("window_controls_position", v)}
     />
+    {/if}
   </OptionItem>
 </OptionGroup>
 

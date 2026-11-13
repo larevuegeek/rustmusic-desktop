@@ -5,5 +5,16 @@
   <!-- macOS 15+ : sans cette mention, la recherche des lecteurs réseau et le serveur DLNA sont bloqués en silence. -->
   <key>NSLocalNetworkUsageDescription</key>
   <string>RustMusic finds and plays on the network players and amplifiers of your home, and shares your library with them.</string>
+  <!-- Texte des demandes d'accès aux dossiers de la bibliothèque. -->
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>RustMusic reads the music folders you add to your library.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>RustMusic reads the music folders you add to your library.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>RustMusic reads the music folders you add to your library.</string>
+  <key>NSRemovableVolumesUsageDescription</key>
+  <string>RustMusic reads the music on external drives you add to your library.</string>
+  <key>NSNetworkVolumesUsageDescription</key>
+  <string>RustMusic reads the music on network shares you add to your library.</string>
 </dict>
 </plist>

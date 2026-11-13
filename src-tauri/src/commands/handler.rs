@@ -34,6 +34,7 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         system_command::set_dmabuf_mode,
         system_command::set_compact_window_size,
         system_command::set_compact_mode,
+        system_command::set_native_window_buttons,
         // ─── audio ───
         audio_command::get_audio_quality_status,
         audio_command::set_audio_quality_setting,

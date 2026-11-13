@@ -494,6 +494,7 @@
     "window_controls_style_desc": "Auto segue il sistema: semafori macOS, pulsanti Windows o GNOME",
     "window_controls_position": "Posizione dei pulsanti",
     "window_controls_position_desc": "Lato della barra del titolo in cui si trovano",
+    "window_controls_position_native": "Pulsanti nativi di macOS: sempre a sinistra, come nelle altre app",
     "auto": "Auto",
     "left": "Sinistra",
     "right": "Destra",

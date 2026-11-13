@@ -222,6 +222,32 @@ pub fn set_compact_window_size(
     Ok(())
 }
 
+/// Boutons de fenêtre natifs de macOS : montrés avec le style « macOS », masqués pour
+/// les boutons dessinés (styles Windows, Linux) et en mini-lecteur.
+#[tauri::command]
+pub fn set_native_window_buttons(window: tauri::WebviewWindow, visible: bool) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let target = window.clone();
+        window
+            .run_on_main_thread(move || {
+                use objc2_app_kit::{NSWindow, NSWindowButton};
+                let Ok(ptr) = target.ns_window() else { return };
+                // SAFETY : pointeur NSWindow vivant fourni par tao, utilisé sur le thread principal.
+                let ns_window = unsafe { &*(ptr as *const NSWindow) };
+                for bouton in [NSWindowButton::CloseButton, NSWindowButton::MiniaturizeButton, NSWindowButton::ZoomButton] {
+                    if let Some(b) = ns_window.standardWindowButton(bouton) {
+                        b.setHidden(!visible);
+                    }
+                }
+            })
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, visible);
+    Ok(())
+}
+
 /// Mini ou micro-lecteur actif : la taille et la position du mode normal ne sont plus réécrites.
 #[tauri::command]
 pub fn set_compact_mode(app: tauri::AppHandle, active: bool) {

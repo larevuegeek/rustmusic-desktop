@@ -494,6 +494,7 @@
     "window_controls_style_desc": "Auto follows the system: macOS lights, Windows or GNOME buttons",
     "window_controls_position": "Button position",
     "window_controls_position_desc": "Which side of the title bar they sit on",
+    "window_controls_position_native": "Native macOS buttons: always on the left, as in other apps",
     "auto": "Auto",
     "left": "Left",
     "right": "Right",
@@ -2624,7 +2625,8 @@
     "tab_sources": "Sources",
     "tab_sound": "Sound",
     "tab_controls": "Controls",
-    "tab_nav": "Navigation",
+    "tab_nav": "Navigation",
+
     "nav_hint_keys": "The keys drive the amplifier's on-screen menu on the TV.",
     "nav_hint": "The wheel drives the amplifier's on-screen menu on the TV: press for a direction, turn to scroll.",
     "go_net": "Switch to NET",
@@ -2632,7 +2634,9 @@
     "loading": "Loading…",
     "back": "Back",
     "home": "Home",
-    "menu": "Menu",
+    "menu": "Menu",
+
+
     "pad": "Direction controls",
     "pad_wheel": "Wheel",
     "pad_keys": "Keys in a row",

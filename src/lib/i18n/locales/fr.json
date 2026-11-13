@@ -494,6 +494,7 @@
     "window_controls_style_desc": "Auto suit le système : feux macOS, boutons Windows ou GNOME",
     "window_controls_position": "Position des boutons",
     "window_controls_position_desc": "Côté de la barre de titre où ils se rangent",
+    "window_controls_position_native": "Boutons natifs de macOS : toujours à gauche, comme dans les autres applications",
     "auto": "Auto",
     "left": "Gauche",
     "right": "Droite",
@@ -2624,7 +2625,8 @@
     "tab_sources": "Sources",
     "tab_sound": "Son",
     "tab_controls": "Commandes",
-    "tab_nav": "Navigation",
+    "tab_nav": "Navigation",
+
     "nav_hint_keys": "Les touches pilotent le menu de l'ampli affiché sur la TV.",
     "nav_hint": "La molette pilote le menu de l'ampli affiché sur la TV : un appui pour une direction, un tour pour défiler.",
     "go_net": "Passer sur NET",
@@ -2632,7 +2634,9 @@
     "loading": "Chargement…",
     "back": "Retour",
     "home": "Accueil",
-    "menu": "Menu",
+    "menu": "Menu",
+
+
     "pad": "Commandes de direction",
     "pad_wheel": "Molette",
     "pad_keys": "Touches en ligne",

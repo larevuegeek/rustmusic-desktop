@@ -4771,6 +4771,7 @@ dependencies = [
  "md5",
  "num-traits",
  "num_cpus",
+ "objc2-app-kit",
  "objc2-core-audio",
  "objc2-core-audio-types",
  "objc2-core-foundation",

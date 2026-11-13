@@ -494,6 +494,7 @@
     "window_controls_style_desc": "Auto sigue al sistema: semáforos de macOS, botones de Windows o GNOME",
     "window_controls_position": "Posición de los botones",
     "window_controls_position_desc": "Lado de la barra de título donde se colocan",
+    "window_controls_position_native": "Botones nativos de macOS: siempre a la izquierda, como en otras apps",
     "auto": "Auto",
     "left": "Izquierda",
     "right": "Derecha",
@@ -2624,7 +2625,8 @@
     "tab_sources": "Fuentes",
     "tab_sound": "Sonido",
     "tab_controls": "Controles",
-    "tab_nav": "Navegación",
+    "tab_nav": "Navegación",
+
     "nav_hint_keys": "Las teclas manejan el menú en pantalla del amplificador en la TV.",
     "nav_hint": "La rueda maneja el menú en pantalla del amplificador en la TV: pulsa para una dirección, gira para desplazarte.",
     "go_net": "Pasar a NET",
@@ -2632,7 +2634,9 @@
     "loading": "Cargando…",
     "back": "Atrás",
     "home": "Inicio",
-    "menu": "Menú",
+    "menu": "Menú",
+
+
     "pad": "Controles de dirección",
     "pad_wheel": "Rueda",
     "pad_keys": "Teclas en línea",

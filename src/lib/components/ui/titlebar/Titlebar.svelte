@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { invoke } from "@tauri-apps/api/core";
   import Icon from "@iconify/svelte";
   import { settingsStore } from "#lib/stores/settings/settings.store";
   import { toggleMiniPlayer } from "#lib/stores/ui/miniPlayer.store";
@@ -33,6 +34,15 @@
     if (osDetected === 'macos') return 'macos';
     if (osDetected === 'linux') return 'linux';
     return 'windows';
+  });
+
+  // Sur Mac avec le style macOS : les vrais boutons, à gauche (coins arrondis, fenêtre titrée).
+  let nativeButtons = $derived(osDetected === 'macos' && effectiveStyle === 'macos');
+  $effect(() => {
+    const visible = nativeButtons;
+    invoke('set_native_window_buttons', { visible }).catch(() => {});
+    // Barre démontée (mini-lecteur) : plus de boutons natifs par-dessus.
+    return () => { if (visible) invoke('set_native_window_buttons', { visible: false }).catch(() => {}); };
   });
 
   // Position résolue : 'right' par défaut, 'left' si explicitement demandé
@@ -132,7 +142,7 @@
 
   <!-- Marque. `sidebar` pour les couleurs du bouton, pas pour le fond. Le bouton
        de repli suit le logo, presque collé ; caché sur mobile, où le menu s'ouvre autrement. -->
-  <div data-tauri-drag-region class="sidebar flex items-center gap-1 h-full pl-5 pr-3 shrink-0">
+  <div data-tauri-drag-region class="sidebar flex items-center gap-1 h-full pr-3 shrink-0 {nativeButtons ? 'pl-[88px]' : 'pl-5'}">
     <span class="flex pointer-events-none"><LogoRustMusic width={140} /></span>
     {#if avecSidebar}
       <span class="hidden md:flex">
@@ -155,10 +165,16 @@
     <div data-tauri-drag-region class="flex-1 h-full"></div>
   {/if}
 
-  {#if effectivePosition === 'right'}{@render separateur()}{/if}
+  {#if effectivePosition === 'right' || nativeButtons}{@render separateur()}{/if}
+
+  <!-- ─── Contrôles : boutons natifs à gauche, seul le mini-lecteur reste ici ─── -->
+  {#if nativeButtons}
+    <div class="flex items-center px-4 h-full ml-auto">
+      {@render miniPlayerButton('macos')}
+    </div>
 
   <!-- ─── Contrôles : style macOS (traffic lights) ─── -->
-  {#if effectiveStyle === 'macos'}
+  {:else if effectiveStyle === 'macos'}
     <div
       class="flex items-center gap-2 px-4 h-full"
       class:ml-auto={effectivePosition === 'right'}

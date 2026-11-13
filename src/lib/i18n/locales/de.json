@@ -494,6 +494,7 @@
     "window_controls_style_desc": "Auto folgt dem System: macOS-Ampel, Windows- oder GNOME-Schaltflächen",
     "window_controls_position": "Position der Schaltflächen",
     "window_controls_position_desc": "Seite der Titelleiste, auf der sie sitzen",
+    "window_controls_position_native": "Native macOS-Schaltflächen: immer links, wie in anderen Apps",
     "auto": "Auto",
     "left": "Links",
     "right": "Rechts",
@@ -2624,7 +2625,8 @@
     "tab_sources": "Quellen",
     "tab_sound": "Klang",
     "tab_controls": "Bedienung",
-    "tab_nav": "Navigation",
+    "tab_nav": "Navigation",
+
     "nav_hint_keys": "Die Tasten steuern das Bildschirmmenü des Verstärkers am Fernseher.",
     "nav_hint": "Das Rad steuert das Bildschirmmenü des Verstärkers am Fernseher: drücken für eine Richtung, drehen zum Blättern.",
     "go_net": "Zu NET wechseln",
@@ -2632,7 +2634,9 @@
     "loading": "Wird geladen…",
     "back": "Zurück",
     "home": "Start",
-    "menu": "Menü",
+    "menu": "Menü",
+
+
     "pad": "Richtungstasten",
     "pad_wheel": "Rad",
     "pad_keys": "Tasten in einer Reihe",
