@@ -48,12 +48,7 @@ impl SettingsManager {
     }
 
     pub fn save_config(config: &Config) -> io::Result<()> {
-        let config_path = SettingsManager::get_config_file();
-
-        let file = File::create(config_path)?;
-        serde_json::to_writer(file, config)?;
-
-        Ok(())
+        write_config(&SettingsManager::get_config_file(), config)
     }
 
     /// Config enregistrée, ou les valeurs par défaut si le fichier manque ou ne
@@ -76,5 +71,37 @@ impl SettingsManager {
                 Ok(Config::default())
             }
         }
+    }
+}
+
+/// Écrit la config dans un fichier voisin, le force sur le disque, puis le renomme : un
+/// arrêt brutal (plantage, coupure) laisse l'ancienne config ou la nouvelle, jamais un
+/// fichier tronqué que la lecture suivante remplacerait par les valeurs par défaut.
+fn write_config(path: &Path, config: &Config) -> io::Result<()> {
+    let temporary = path.with_extension("json.tmp");
+    let content = serde_json::to_vec(config)?;
+    {
+        let mut file = File::create(&temporary)?;
+        io::Write::write_all(&mut file, &content)?;
+        file.sync_all()?;
+    }
+    fs::rename(&temporary, path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{write_config, Config};
+
+    #[test]
+    fn saving_replaces_the_file_and_leaves_no_temporary() {
+        let dir = std::env::temp_dir().join(format!("rustmusic-config-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.json");
+        write_config(&path, &Config { volume_initial: 13, device_default: Some("Sortie".into()) }).unwrap();
+        write_config(&path, &Config { volume_initial: 42, device_default: None }).unwrap();
+        let read: Config = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!((read.volume_initial, read.device_default), (42, None));
+        assert!(!dir.join("config.json.tmp").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
