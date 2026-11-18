@@ -1,0 +1,58 @@
+<div class="relative flex-1 min-h-0 flex flex-col border-t border-(--lc-trait) bg-(--lc-panneau)">
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app pb-2"
+         onscroll={|s: ScrollMetrics| Msg::QueueScrolled(s.offset, s.max_offset())}>
+        {#if let Some(in_progress) = &q.now_playing}
+            <div class="flex items-center justify-between px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-(--lc-mu)"><div>{t("mini.now_playing")}</div></div>
+            <div class="flex items-center gap-3 mx-1.5 py-1.5 pl-2 pr-2.5 rounded-[10px] bg-(--lc-encours)">
+                <div class="w-3.5 shrink-0"></div>
+                <div class="w-10 h-10 shrink-0 rounded-md overflow-hidden bg-(--lc-survol)">
+                    <img class="w-full h-full object-cover" src={cx.resources.cover_small(&in_progress.cover)} alt="">
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="truncate text-sm font-semibold text-(--lc-acc)">{in_progress.title}</div>
+                    <div class="truncate text-xs text-(--lc-mu)">{in_progress.artist}</div>
+                </div>
+                <div class="mini-eq flex items-end gap-0.5 h-3 shrink-0">
+                    <div class="mini-eq-lc-1" class:eq-pause={!self.playing()}></div>
+                    <div class="mini-eq-lc-2" class:eq-pause={!self.playing()}></div>
+                    <div class="mini-eq-lc-3" class:eq-pause={!self.playing()}></div>
+                </div>
+            </div>
+        {/if}
+
+        <div class="flex items-center justify-between px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-(--lc-mu)">
+            <div>{q.next_label}</div>
+            {#if q.can_clear}
+                <button class="normal-case tracking-normal text-[11px] font-semibold cursor-pointer text-(--lc-mu) hover:text-(--lc-tx)"
+                        title={t("mini.clear_next_hint")} onclick={Msg::Mini(MiniMsg::ClearUpcoming)}><div>{t("mini.clear_next")}</div></button>
+            {/if}
+        </div>
+
+        {#if q.rows.is_empty()}
+            <p class="m-0 px-4 py-4 text-xs text-(--lc-mu)">{t("mini.queue_empty")}</p>
+        {:else}
+            {#each q.rows as row (row.queue_id.as_str())}
+                <div class="group flex items-center gap-3 mx-1.5 py-1.5 pl-2 pr-2.5 rounded-[10px] cursor-pointer transition-colors hover:bg-(--lc-survol)"
+                     onclick={Msg::Mini(MiniMsg::Play(row.index))}>
+                    <div class="w-3.5 shrink-0 flex justify-center text-(--lc-mu2) opacity-0 group-hover:opacity-100 cursor-grab" title={t("mini.move")}>
+                        <Icon icon="material-symbols-light:drag-indicator" width={16} />
+                    </div>
+                    <div class="w-10 h-10 shrink-0 rounded-md overflow-hidden bg-(--lc-survol)">
+                        <img class="w-full h-full object-cover" src={cx.resources.cover_small(&row.cover)} alt="">
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="truncate text-sm font-semibold text-(--lc-tx)">{row.title}</div>
+                        <div class="truncate text-xs text-(--lc-mu)">{row.artist}</div>
+                    </div>
+                    {#if let Some(duration) = &row.duration}
+                        <div class="font-(--font-mono) text-[11px] tabular-nums text-(--lc-mu) group-hover:hidden">{duration}</div>
+                    {/if}
+                    <button class="flex items-center justify-center hidden group-hover:flex w-6.5 h-6.5 items-center justify-center rounded-md cursor-pointer text-(--lc-mu) hover:bg-(--lc-survol) hover:text-(--lc-tx)"
+                            title={t("mini.remove")} aria-label={t("mini.remove")} onclick={Msg::Mini(MiniMsg::Remove(row.queue_id.clone()))}>
+                        <Icon icon="material-symbols-light:close-rounded" width={16} />
+                    </button>
+                </div>
+            {/each}
+        {/if}
+    </div>
+</div>

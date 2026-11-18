@@ -1,0 +1,38 @@
+<button class="group w-full flex flex-col gap-2.5 min-w-0 text-left cursor-pointer" title={entry.name.as_str()} onclick={entry.open.clone()}>
+    <div class="relative w-full aspect-square mt-2">
+        {#if !entry.covers.is_empty() && entry.albums > 1}
+            <div class="absolute inset-x-4 -top-2 h-6 rounded-t-[10px] bg-(--rg-s2) border border-(--rg-bd) opacity-70 transition-transform duration-300 group-hover:-translate-y-0.5"></div>
+            <div class="absolute inset-x-2 -top-1 h-6 rounded-t-[11px] bg-(--rg-s2) border border-(--rg-bd) transition-transform duration-300 group-hover:-translate-y-px"></div>
+        {/if}
+        <div class="relative w-full h-full rounded-xl overflow-hidden border border-(--rg-bd) group-hover:border-(--rg-bd2) transition-colors duration-200 shadow-[0_6px_18px_-8px_rgb(0_0_0/0.45)]">
+            {#if !entry.covers.is_empty()}
+                {@const covers = &entry.covers}{@include "Mosaic.ui"}
+            {:else}
+                <div class="absolute inset-0 flex items-center justify-center bg-[radial-gradient(ellipse_farthest-corner_at_50%_50%,var(--rg-ambg)_10%,var(--rg-carte)_75%)]">
+                    <div class="w-[58%] aspect-square transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-105">
+                        {@const music = entry.music}{@include "FolderArt.ui"}
+                    </div>
+                </div>
+            {/if}
+            {#if !entry.covers.is_empty() || entry.albums > 1}
+                <div class="absolute left-2 bottom-2 h-6 px-1.5 flex items-center gap-1 rounded-md bg-black/60 text-white text-[11px] font-semibold">
+                    {#if !entry.covers.is_empty()}
+                        <div class="text-amber-300"><Icon icon="material-symbols:folder-rounded" width={14} /></div>
+                    {:else}
+                        <div class="text-amber-300"><Icon icon="material-symbols:album" width={14} /></div>
+                    {/if}
+                    {#if !entry.album_badge.is_empty()}<div>{entry.album_badge}</div>{/if}
+                </div>
+            {/if}
+        </div>
+    </div>
+    <div class="w-full min-w-0 px-0.5">
+        <div class="line-clamp-2 text-sm font-semibold leading-5 text-(--rg-tx)">{entry.name}</div>
+        {#if !entry.tracks.is_empty() || entry.quality.is_some()}
+            <div class="mt-1 flex items-center gap-1.5 min-w-0 text-[12px] text-(--rg-mu)">
+                {#if !entry.tracks.is_empty()}<div class="truncate">{entry.tracks}</div>{/if}
+                {#if let Some(q) = &entry.quality}<QualityBadge tier={q.0} text={q.1.clone()} />{/if}
+            </div>
+        {/if}
+    </div>
+</button>

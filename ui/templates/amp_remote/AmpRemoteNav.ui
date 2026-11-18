@@ -1,0 +1,105 @@
+<div class="flex flex-col gap-3.5">
+    {#if r.on_net}
+        <div class="amp-screen rounded-2xl border border-(--rg-bd) overflow-hidden flex flex-col">
+            <div class="flex items-center gap-1.5 px-1.5 py-1.5 border-b border-(--rg-bd)">
+                <button class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition duration-150 text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-s2) active:scale-[0.96]"
+                        title={t("amp_remote.back")} aria-label={t("amp_remote.back")} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: NavKey::Back }))}>
+                    <Icon icon="material-symbols:arrow-back-rounded" width={18} />
+                </button>
+                <div class="flex-1 min-w-0 leading-[1.2]">
+                    <div class="text-[13px] font-bold truncate">{r.net_title}</div>
+                    {#if !r.net_count.is_empty()}<div class="text-[10.5px] text-(--rg-mu)">{r.net_count}</div>{/if}
+                </div>
+                <button class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition duration-150 text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-s2) active:scale-[0.96]"
+                        title={t("amp_remote.home")} aria-label={t("amp_remote.home")} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: NavKey::Home }))}>
+                    <Icon icon="material-symbols:home-outline-rounded" width={18} />
+                </button>
+            </div>
+            {#if r.net_loading}
+                <p class="m-0 px-3 py-4 text-[12px] text-center text-(--rg-mu)">{t("amp_remote.loading")}</p>
+            {:else}
+                <div class="relative p-1 max-h-60 overflow-y-auto scrollbar-app flex flex-col">
+                    {#each r.net_lines as (i, line) (i)}
+                        {#if line.selected}
+                            <button class="relative w-full h-8 shrink-0 flex items-center gap-2.5 px-2.5 rounded-[9px] text-left cursor-pointer transition-colors bg-(--rg-g)/13 text-(--rg-gtx)"
+                                    style:scroll_initial_target={true} onclick={line.msg.clone()}>
+                                <div class="absolute left-0 top-1.5 bottom-1.5 w-0.75 rounded-r-[3px] bg-(--rg-g)"></div>
+                                <div class="shrink-0 flex"><Icon icon={line.icon} width={16} /></div>
+                                <div class="flex-1 min-w-0 truncate text-[12.5px] font-semibold">{line.text}</div>
+                                {#if line.folder}<div class="shrink-0 flex text-(--rg-mu2)"><Icon icon="material-symbols:chevron-right-rounded" width={15} /></div>{/if}
+                            </button>
+                        {:else}
+                            <button class="relative w-full h-8 shrink-0 flex items-center gap-2.5 px-2.5 rounded-[9px] text-left cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                                    onclick={line.msg.clone()}>
+                                <div class="shrink-0 flex text-(--rg-mu)"><Icon icon={line.icon} width={16} /></div>
+                                <div class="flex-1 min-w-0 truncate text-[12.5px] font-semibold">{line.text}</div>
+                                {#if line.folder}<div class="shrink-0 flex text-(--rg-mu2)"><Icon icon="material-symbols:chevron-right-rounded" width={15} /></div>{/if}
+                            </button>
+                        {/if}
+                    {/each}
+                </div>
+            {/if}
+        </div>
+
+        {#if r.playing}
+            <div class="amp-screen rounded-2xl border border-(--rg-bd) p-2.5 flex flex-col gap-2">
+                <div class="flex items-center gap-2.5">
+                    {#if let Some(cover) = &r.cover}
+                        <img class="w-12 h-12 shrink-0 rounded-[10px] object-cover shadow-[0_4px_12px_rgba(0,0,0,0.35)]" src={karbon_ui::ui::template::ImageSlot::ready(cover.clone())} alt="">
+                    {:else}
+                        <div class="w-12 h-12 shrink-0 flex items-center justify-center rounded-[8px] bg-(--rg-s2) text-(--rg-mu)">
+                            <Icon icon="material-symbols:music-note-rounded" width={22} />
+                        </div>
+                    {/if}
+                    <div class="flex-1 min-w-0 leading-[1.25]">
+                        <div class="text-[13px] font-bold truncate">{r.track}</div>
+                        <div class="text-[11.5px] text-(--rg-mu) truncate">{r.track_line}</div>
+                        {#if !r.time.is_empty()}<div class="text-[11px] tabular-nums text-(--rg-gtx)">{r.time}</div>{/if}
+                    </div>
+                </div>
+                <div class="flex items-center justify-between px-1">
+                    {#each [(Transport::Shuffle, "material-symbols:shuffle-rounded", "amp_remote.shuffle", 18), (Transport::Previous, "material-symbols:skip-previous-rounded", "amp_remote.previous", 22)] as tr (tr.2)}
+                        <button class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer transition duration-150 text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-s2) active:scale-[0.96]"
+                                title={t(tr.2)} aria-label={t(tr.2)} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Transport { action: tr.0 }))}>
+                            <Icon icon={tr.1} width={tr.3} />
+                        </button>
+                    {/each}
+                    <button class="amp-play w-11 h-11 flex items-center justify-center rounded-full cursor-pointer transition"
+                            title={t("amp_remote.play_pause")} aria-label={t("amp_remote.play_pause")}
+                            onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Transport { action: Transport::PlayPause }))}>
+                        {#if r.paused}
+                            <Icon icon="material-symbols:play-arrow-rounded" width={24} />
+                        {:else}
+                            <Icon icon="material-symbols:pause-rounded" width={24} />
+                        {/if}
+                    </button>
+                    {#each [(Transport::Next, "material-symbols:skip-next-rounded", "amp_remote.next", 22), (Transport::Repeat, "material-symbols:repeat-rounded", "amp_remote.repeat", 18)] as tr (tr.2)}
+                        <button class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer transition duration-150 text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-s2) active:scale-[0.96]"
+                                title={t(tr.2)} aria-label={t(tr.2)} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Transport { action: tr.0 }))}>
+                            <Icon icon={tr.1} width={tr.3} />
+                        </button>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+    {:else}
+        <div class="flex flex-col gap-2.5 px-2">
+            {#if r.wheel}
+                <p class="m-0 text-center text-[11.5px] leading-snug text-(--rg-mu)">{t("amp_remote.nav_hint")}</p>
+            {:else}
+                <p class="m-0 text-center text-[11.5px] leading-snug text-(--rg-mu)">{t("amp_remote.nav_hint_keys")}</p>
+            {/if}
+            {#if let Some(go) = &r.go_net}
+                <div class="flex justify-center">
+                    <button class="h-8 px-3.5 flex items-center gap-1.5 rounded-full border border-(--rg-bd) text-[11.5px] font-semibold cursor-pointer text-(--rg-tx2) hover:text-(--rg-gtx) hover:border-(--rg-g)/50 transition duration-150 active:scale-[0.96]"
+                            onclick={go.clone()}>
+                        <Icon icon="material-symbols:lan-outline-rounded" width={15} />
+                        <div>{t("amp_remote.go_net")}</div>
+                    </button>
+                </div>
+            {/if}
+        </div>
+    {/if}
+
+    {@include "AmpRemotePad.ui"}
+</div>

@@ -1,0 +1,49 @@
+<div class="flex flex-col gap-10 animate-pulse" aria-label={t("common.loading")}>
+    <div class="relative overflow-hidden rounded-[20px] border border-black/5 dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.025]
+                grid items-center gap-6 p-6 grid-cols-1
+                @2xl:grid-cols-[160px_minmax(0,1fr)]
+                @3xl:grid-cols-[176px_minmax(0,1fr)_250px]
+                @5xl:grid-cols-[220px_minmax(0,1fr)_260px] @5xl:gap-8 @5xl:p-8
+                @7xl:grid-cols-[260px_minmax(0,1fr)_300px]">
+        <div class="w-36 @2xl:w-full aspect-square rounded-xl bg-neutral-200 dark:bg-white/6"></div>
+        <div class="min-w-0 flex flex-col gap-3">
+            <div class="w-24 h-3 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+            <div class="w-[70%] h-9 rounded-lg bg-neutral-200 dark:bg-white/6"></div>
+            <div class="w-[45%] h-4 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+            <div class="mt-3 w-full h-1.5 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+            <div class="mt-3 flex items-center gap-3">
+                <div class="w-36 h-13 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+                <div class="w-13 h-13 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+                <div class="w-13 h-13 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+            </div>
+        </div>
+        <div class="hidden @3xl:flex @3xl:flex-col gap-3 p-4 rounded-2xl border border-black/5 dark:border-white/[0.06]">
+            <div class="w-20 h-3 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+            {#each [0, 1, 2, 3] as row (row)}
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 shrink-0 rounded-lg bg-neutral-200 dark:bg-white/6"></div>
+                    <div class="flex-1 min-w-0 flex flex-col gap-2">
+                        <div class="w-[80%] h-3.5 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+                        <div class="w-[50%] h-3 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+                    </div>
+                </div>
+            {/each}
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-4">
+        <div class="w-40 h-7 rounded-lg bg-neutral-200 dark:bg-white/6"></div>
+        <div class="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-4 @4xl:gap-5">
+            {#each [0, 1, 2, 3] as card (card)}
+                <div class="min-w-0 flex flex-row items-center gap-4 @4xl:flex-col @4xl:items-stretch @4xl:gap-3">
+                    <div class="w-32 shrink-0 @4xl:w-full aspect-square rounded-xl @4xl:rounded-2xl bg-neutral-200 dark:bg-white/6"></div>
+                    <div class="flex-1 min-w-0 flex flex-col gap-2">
+                        <div class="w-[85%] h-3.5 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+                        <div class="w-[55%] h-3.5 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+                        <div class="w-[40%] h-3 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+                    </div>
+                </div>
+            {/each}
+        </div>
+    </div>
+</div>

@@ -1,0 +1,50 @@
+{#if let Some(m) = &self.views.playlist_menu}
+    <k-popover anchor={m.at.anchor()} menu placement="bottom-start" offset={m.at.offset()} aria-label={m.name.as_str()}
+               onclose={Msg::PlaylistMenu(PlaylistMenuMsg::Close)}
+               class="w-55 py-1.5 bg-(--rg-s2) border border-(--rg-bd) dark:border-[#2a312d] rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx)"
+                onclick={Msg::PlaylistMenu(PlaylistMenuMsg::Play)}>
+            <div class="flex opacity-60"><Icon icon="lucide:play" width={14} /></div><div>{t("playlist.play")}</div>
+        </button>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                onclick={Msg::PlaylistMenu(PlaylistMenuMsg::Edit)}>
+            {#if m.smart}
+                <div class="flex opacity-60"><Icon icon="lucide:sparkles" width={14} /></div><div>{t("playlist.edit_rules")}</div>
+            {:else}
+                <div class="flex opacity-60"><Icon icon="lucide:pen-line" width={14} /></div><div>{t("playlist.edit")}</div>
+            {/if}
+        </button>
+        {#if m.server}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                    onclick={Msg::PlaylistMenu(PlaylistMenuMsg::KeepOffline)}>
+                <div class="flex opacity-60"><Icon icon="material-symbols:download-for-offline-outline-rounded" width={15} /></div><div>{t("servers.offline_keep")}</div>
+            </button>
+        {/if}
+        {#if !m.remote}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                    onclick={Msg::PlaylistMenu(PlaylistMenuMsg::Export)}>
+                <div class="flex opacity-60"><Icon icon="material-symbols:download-rounded" width={15} /></div><div>{t("playlist.export_m3u")}</div>
+            </button>
+        {/if}
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                onclick={Msg::PlaylistMenu(PlaylistMenuMsg::Pin)}>
+            {#if m.pinned}
+                <div class="flex opacity-60"><Icon icon="material-symbols:keep-off-outline-rounded" width={15} /></div><div>{t("sidebar.unpin")}</div>
+            {:else}
+                <div class="flex opacity-60"><Icon icon="material-symbols:keep-outline-rounded" width={15} /></div><div>{t("sidebar.pin")}</div>
+            {/if}
+        </button>
+        <div class="h-px mx-2 my-1 bg-white/8"></div>
+        {#if m.confirm}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-red-400 hover:bg-red-500/10 bg-red-500/10 font-semibold"
+                    onclick={Msg::PlaylistMenu(PlaylistMenuMsg::Delete)}>
+                <div class="flex opacity-60"><Icon icon="material-symbols:cloud-off-outline-rounded" width={14} /></div><div>{t("servers.playlist_delete_confirm")}</div>
+            </button>
+        {:else}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-red-400 hover:bg-red-500/10"
+                    onclick={Msg::PlaylistMenu(PlaylistMenuMsg::Delete)}>
+                <div class="flex opacity-60"><Icon icon="lucide:trash-2" width={14} /></div><div>{t("playlist.delete")}</div>
+            </button>
+        {/if}
+    </k-popover>
+{/if}

@@ -1,0 +1,81 @@
+<div class="flex-1 min-w-0 overflow-auto scrollbar-app pb-30">
+    <div class="flex flex-col" style:min_width={wv.min_width}>
+        <div class="h-10 flex items-center bg-(--rg-champ) border-b border-(--rg-bd) text-[11.5px] font-bold tracking-[0.08em] text-(--rg-mu)">
+            <div class="w-12 shrink-0 flex justify-center">
+                {#if wv.all_selected || wv.some_selected}
+                    <button class="w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"
+                            aria-label={t("workshop.select_all")} onclick={Msg::Tags(TagsMsg::ToggleAll)}>
+                        {#if wv.all_selected}<Icon icon="material-symbols:check-rounded" width={15} />{:else}<Icon icon="material-symbols:remove-rounded" width={15} />{/if}
+                    </button>
+                {:else}
+                    <button class="w-5 h-5 rounded-md border-2 border-(--rg-bd2) cursor-pointer" aria-label={t("workshop.select_all")} onclick={Msg::Tags(TagsMsg::ToggleAll)}><div></div></button>
+                {/if}
+            </div>
+            <div class="w-14 shrink-0 flex justify-center text-(--rg-mu2)"><Icon icon="material-symbols:image-outline-rounded" width={17} /></div>
+            {#each wv.columns as col (col.idx)}
+                <div class="group relative h-full min-w-0 shrink-0 flex items-center px-3" class:justify-end={col.numeric}
+                     style:width={col.width} style:flex_grow={col.grow}>
+                    {#if col.idx == 12}
+                        <div class="truncate uppercase">{col.heading}</div>
+                    {:else}
+                        {#if col.sorted.is_some()}
+                            <button class="min-w-0 flex items-center gap-1 uppercase cursor-pointer transition-colors text-(--rg-gtx)" onclick={Msg::Tags(TagsMsg::Sort(col.idx))}>
+                                <div class="truncate" title={col.label.as_str()}>{col.heading}</div>
+                                {#if col.sorted == Some(true)}<Icon icon="material-symbols:arrow-upward-rounded" width={13} />{:else}<Icon icon="material-symbols:arrow-downward-rounded" width={13} />{/if}
+                            </button>
+                        {:else}
+                            <button class="min-w-0 flex items-center gap-1 uppercase cursor-pointer transition-colors hover:text-(--rg-tx)" onclick={Msg::Tags(TagsMsg::Sort(col.idx))}>
+                                <div class="truncate" title={col.label.as_str()}>{col.heading}</div>
+                            </button>
+                        {/if}
+                        {#if col.menu}
+                            <button class="absolute top-2 right-1 w-6.5 h-6.5 rounded-md flex items-center justify-center cursor-pointer transition bg-(--rg-s2) text-(--rg-tx)"
+                                    title={t("workshop.column_actions")} aria-label={t("workshop.column_actions")} onclick={Msg::Tags(TagsMsg::Menu(None))}>
+                                <Icon icon="material-symbols:more-vert" width={17} />
+                            </button>
+                            {@include "TagWorkshopColumnMenu.ui"}
+                        {:else}
+                            <button class="absolute top-2 right-1 w-6.5 h-6.5 rounded-md flex items-center justify-center cursor-pointer transition bg-(--rg-champ) text-(--rg-mu2) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100"
+                                    title={t("workshop.column_actions")} aria-label={t("workshop.column_actions")} onclick={Msg::Tags(TagsMsg::Menu(Some(col.menu_key())))}>
+                                <Icon icon="material-symbols:more-vert" width={17} />
+                            </button>
+                        {/if}
+                    {/if}
+                </div>
+            {/each}
+            <div class="w-8 shrink-0"></div>
+        </div>
+
+        {#each wv.rows as (k, row) (row.path.as_str())}
+            <div class="rg-tt-rangee relative h-13 flex items-center" class:rg-tt-on={row.on} class:rg-tt-trait={k > 0} class:opacity-45={!row.readable}
+                 onclick={Msg::Tags(TagsMsg::Pick(row.path.clone()))}>
+                <div class="w-12 shrink-0 flex justify-center">
+                    {#if row.on}
+                        <button class="w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"
+                                aria-label={row.file_name.as_str()} aria-pressed="true" onclick={Msg::Tags(TagsMsg::Toggle(row.path.clone()))}><Icon icon="material-symbols:check-rounded" width={15} /></button>
+                    {:else}
+                        <button class="w-5 h-5 rounded-md border-2 border-(--rg-bd2) cursor-pointer" aria-label={row.file_name.as_str()} aria-pressed="false" onclick={Msg::Tags(TagsMsg::Toggle(row.path.clone()))}><div></div></button>
+                    {/if}
+                </div>
+                <div class="w-14 shrink-0 flex justify-center">
+                    <div class="relative w-9 h-9 rounded-[7px] overflow-hidden bg-(--rg-s2) shadow-[0_3px_10px_rgba(0,0,0,0.3)]">
+                        {#if row.cover.is_some()}
+                            <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&row.cover)} alt="">
+                        {:else}
+                            <div class="absolute inset-0 flex items-center justify-center text-(--rg-mu2)"><Icon icon="material-symbols:hide-image-outline-rounded" width={16} /></div>
+                        {/if}
+                    </div>
+                </div>
+                {#each row.cells as cell (cell.idx)}
+                    {@include "TagWorkshopCell.ui"}
+                {/each}
+                <div class="w-8 shrink-0 flex justify-center">
+                    {#if row.modified}<div class="w-1.75 h-1.75 rounded-full bg-(--rg-g)" title={t("workshop.modified")}></div>{/if}
+                </div>
+            </div>
+        {/each}
+        {#if wv.rows.is_empty()}
+            <p class="m-0 px-6 py-16 text-center text-[14px] text-(--rg-mu)">{t("workshop.all_clear")}</p>
+        {/if}
+    </div>
+</div>

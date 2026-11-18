@@ -1,0 +1,22 @@
+{#if r.on}
+    <button class="relative w-full h-full overflow-hidden flex items-center justify-center rounded-full border cursor-pointer transition duration-150 border-(--rg-g)/30 bg-(--rg-s2) text-(--rg-g) active:scale-[0.96]"
+            title={t("amp_remote.hold_power")} aria-label={t("amp_remote.power_off")} aria-pressed="true"
+            onpress={|p: bool| Msg::AmpRemote(AmpRemoteMsg::Power(p))} onclick={Msg::AmpRemote(AmpRemoteMsg::PowerClick)}>
+        <div class="amp-ring absolute inset-0 rounded-full bg-[#e2675a]" class:amp-ring-on={r.holding}></div>
+        {#if r.holding}
+            <div class="relative flex text-white"><Icon icon="material-symbols:power-settings-new-rounded" width={21} /></div>
+        {:else}
+            <div class="relative flex"><Icon icon="material-symbols:power-settings-new-rounded" width={21} /></div>
+        {/if}
+    </button>
+{:else if r.connected}
+    <button class="relative w-full h-full flex items-center justify-center rounded-full border cursor-pointer transition duration-150 border-(--rg-bd) bg-(--rg-s2) text-(--rg-mu) hover:text-(--rg-tx) active:scale-[0.96]"
+            title={t("amp_remote.power_on")} aria-label={t("amp_remote.power_on")} aria-pressed="false"
+            onclick={Msg::AmpRemote(AmpRemoteMsg::PowerClick)}>
+        <Icon icon="material-symbols:power-settings-new-rounded" width={21} />
+    </button>
+{:else}
+    <div class="relative w-full h-full flex items-center justify-center rounded-full border opacity-40 border-(--rg-bd) bg-(--rg-s2) text-(--rg-mu)" aria-label={t("amp_remote.power_on")}>
+        <Icon icon="material-symbols:power-settings-new-rounded" width={21} />
+    </div>
+{/if}

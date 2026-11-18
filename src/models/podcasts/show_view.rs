@@ -1,0 +1,25 @@
+use crate::models::podcasts::*;
+
+pub struct ShowView {
+    pub title: String,
+    pub title_long: bool,
+    pub author: Option<String>,
+    pub cover: Option<String>,
+    pub episodes_n: String,
+    pub unplayed: Option<String>,
+    pub latest: Option<String>,
+    pub to_listen: Option<i64>,
+    pub resume: Option<(String, f32, String, bool)>,
+    pub pinned: bool,
+    pub auto_download: bool,
+    pub has_unplayed: bool,
+    pub description: Option<String>,
+    pub description_open: bool,
+    pub months: Vec<(String, Vec<EpisodeRow>)>,
+    pub empty: bool,
+    pub older: bool,
+    pub unplayed_only: bool,
+    pub verification: bool,
+    pub menu: bool,
+    pub confirm: bool,
+}

@@ -1,0 +1,16 @@
+pub struct EpisodeRow {
+    pub id: i64,
+    pub new_one: bool,
+    pub date: String,
+    pub season: Option<String>,
+    pub progress: Option<(f32, String)>,
+    pub duration: String,
+    pub played: bool,
+    pub downloaded: bool,
+    pub title: String,
+    pub summary: Option<String>,
+    pub open: Option<Option<String>>,
+    pub playback: Option<bool>,
+    pub download: bool,
+    pub menu: bool,
+}

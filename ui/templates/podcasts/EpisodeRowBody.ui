@@ -1,0 +1,89 @@
+<div class="flex items-start gap-4">
+    <div class="flex-1 min-w-0">
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-(--rg-mu)">
+            {#if e.new_one}
+                <div class="h-5 px-1.5 inline-flex items-center rounded-md text-[10.5px] font-bold uppercase tracking-wide bg-(--rg-g) text-(--rg-on-g)">{t("podcasts.new_badge")}</div>
+            {/if}
+            <div class="font-semibold text-(--rg-tx2)">{e.date}</div>
+            {#if let Some(s) = &e.season}<div>·</div><div>{s}</div>{/if}
+            {#if e.progress.is_some()}
+                {#if let Some(p) = &e.progress}
+                    <div>·</div>
+                    <div class="inline-flex items-center gap-2">
+                        <div class="w-16 h-1 rounded-full bg-(--rg-s2) overflow-hidden"><div class="h-full rounded-full bg-violet-500" style:width={Length::Percent(p.0)}></div></div>
+                        <div class="font-semibold text-violet-600 dark:text-violet-300">{p.1}</div>
+                    </div>
+                {/if}
+            {:else if !e.duration.is_empty()}
+                <div>·</div><div>{e.duration}</div>
+            {/if}
+            {#if e.played}
+                <div>·</div>
+                <div class="inline-flex items-center gap-1 font-semibold text-(--rg-gtx)"><Icon icon="material-symbols:check-circle-rounded" width={15} /><div>{t("podcasts.played")}</div></div>
+            {/if}
+            {#if e.downloaded}
+                <div class="inline-flex items-center text-(--rg-mu)" title={t("podcasts.downloaded")}><Icon icon="material-symbols:download-done-rounded" width={16} /></div>
+            {/if}
+        </div>
+        <button class="mt-1 block w-full text-left cursor-pointer" onclick={Msg::Show(ShowMsg::Expand(e.id))}>
+            {#if e.playback.is_some()}
+                <div class="text-[16px] font-bold leading-snug line-clamp-2 text-violet-600 dark:text-violet-300">{e.title}</div>
+            {:else if e.played}
+                <div class="text-[16px] font-bold leading-snug line-clamp-2 text-(--rg-mu)">{e.title}</div>
+            {:else}
+                <div class="text-[16px] font-bold leading-snug line-clamp-2 text-(--rg-tx)">{e.title}</div>
+            {/if}
+            {#if e.open.is_none()}
+                {#if let Some(s) = &e.summary}<div class="mt-1 text-[13.5px] leading-relaxed text-(--rg-mu) line-clamp-2">{s}</div>{/if}
+            {/if}
+        </button>
+        {#if let Some(d) = &e.open}
+            {#if d.is_none()}
+                <div class="mt-2 text-(--rg-mu)"><Spinner width={18.} /></div>
+            {:else}
+                {#if let Some(text) = &d}<p class="m-0 mt-2 max-w-170 text-[13.5px] leading-relaxed text-(--rg-tx2)">{text}</p>{/if}
+            {/if}
+        {/if}
+    </div>
+    <div class="shrink-0 self-center flex items-center gap-1">
+        {#if e.download}
+            <div class="w-9 h-9 flex items-center justify-center text-(--rg-mu)" title={t("podcasts.downloading")}><Spinner width={18.} /></div>
+        {:else if !e.downloaded}
+            <button class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition text-(--rg-mu) opacity-0 group-hover:opacity-100 hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                    title={t("podcasts.download")} aria-label={t("podcasts.download")} onclick={Msg::Show(ShowMsg::Download(e.id))}>
+                <Icon icon="material-symbols:download-rounded" width={20} />
+            </button>
+        {/if}
+        <div class="relative">
+            <button id={ElementId::named(&e.menu_id())} class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100"
+                    title={t("common.menu")} aria-label={t("common.menu")} onclick={Msg::Show(ShowMsg::EpisodeMenu(e.id))}>
+                <Icon icon="material-symbols:more-horiz" width={20} />
+            </button>
+            {#if e.menu}
+                <k-popover anchor={Anchor::Element(ElementId::named(&e.menu_id()))} menu placement="bottom-end" offset="6" aria-label={t("common.menu")} onclose={Msg::CloseMenu} class="rg-menu w-64">
+                    {#if e.played}
+                        <MenuItem icon="material-symbols:remove-done-rounded" onclick={Msg::Show(ShowMsg::TogglePlayed(e.id))}>{t("podcasts.mark_unplayed")}</MenuItem>
+                    {:else}
+                        <MenuItem icon="material-symbols:done-all-rounded" onclick={Msg::Show(ShowMsg::TogglePlayed(e.id))}>{t("podcasts.mark_played")}</MenuItem>
+                    {/if}
+                    {#if e.downloaded}
+                        <MenuItem icon="material-symbols:delete-outline-rounded" danger onclick={Msg::Show(ShowMsg::DeleteDownload(e.id))}>{t("podcasts.delete_download")}</MenuItem>
+                    {:else if !e.download}
+                        <MenuItem icon="material-symbols:download-rounded" onclick={Msg::Show(ShowMsg::Download(e.id))}>{t("podcasts.download")}</MenuItem>
+                    {/if}
+                </k-popover>
+            {/if}
+        </div>
+        {#if e.playback.is_some()}
+            <button class="ml-1 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition bg-violet-600 text-white shadow-[0_6px_18px_rgba(139,92,246,0.4)]"
+                    title={t("podcasts.play")} onclick={Msg::Show(ShowMsg::Play(e.id))}>
+                {#if e.playback == Some(true)}<Icon icon="material-symbols:pause-rounded" width={24} />{:else}<Icon icon="material-symbols:play-arrow-rounded" width={24} />{/if}
+            </button>
+        {:else}
+            <button class="ml-1 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition border border-(--rg-bd2) text-(--rg-tx) group-hover:bg-violet-600 group-hover:border-violet-600 group-hover:text-white"
+                    title={t("podcasts.play")} onclick={Msg::Show(ShowMsg::Play(e.id))}>
+                <Icon icon="material-symbols:play-arrow-rounded" width={24} />
+            </button>
+        {/if}
+    </div>
+</div>

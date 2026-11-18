@@ -1,0 +1,109 @@
+<div class="flex flex-col min-h-0 max-h-[calc(88vh_-_69px)]">
+    <div class="min-h-0 flex max-h-[calc(88vh_-_138px)]">
+        <div class="shrink-0 w-64 flex flex-col gap-3.5 p-4 overflow-y-auto scrollbar-none border-r border-(--rg-bd) bg-(--rg-creux)">
+            <div class="relative aspect-square rounded-2xl overflow-hidden shrink-0 border border-(--rg-bd) bg-(--rg-s2)">
+                <div class="w-full h-full flex flex-col items-center justify-center gap-2 px-3 cursor-pointer transition-colors text-center text-(--rg-mu) hover:text-(--rg-g) hover:bg-(--rg-gbg)" onclick={Msg::Noop}>
+                    <Icon icon="lucide:image-plus" width={26} /><div class="text-[11px] font-semibold leading-tight">{t("tags.common_cover")}</div>
+                </div>
+            </div>
+            <div class="shrink-0">
+                <div class="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">
+                    <div>{t("tags.selection")}</div><div class="px-1.5 rounded-md font-mono text-[10px] tracking-normal tabular-nums bg-(--rg-s2) text-(--rg-tx2)">{b.file_count()}</div>
+                </div>
+                <div class="max-h-52 overflow-y-auto scrollbar-none flex flex-col gap-0.5">
+                    {#each b.paths as (i, p) (i)}
+                        <div class="flex items-baseline gap-1.5 px-2 py-1 rounded-lg text-[11.5px] text-(--rg-tx2) hover:bg-(--rg-s2)" title={p.as_str()}>
+                            {#if b.numbering}<div class="shrink-0 w-4 text-right tabular-nums font-semibold text-(--rg-g)">{i + 1}</div>{/if}
+                            <div class="min-w-0 truncate">{BatchEditor::file_name(p)}</div>
+                        </div>
+                    {/each}
+                </div>
+                {#if b.numbering}
+                    <button class="mt-2 w-full flex items-center justify-center gap-1.5 px-2 h-8 rounded-xl border text-[12px] font-semibold cursor-pointer transition-colors bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)"
+                            onclick={Msg::BatchEditor(BatchEditorMsg::Numbering)}><Icon icon="lucide:check" width={12} /><div>{t("tags.number_tracks")}</div></button>
+                {:else}
+                    <button class="mt-2 w-full flex items-center justify-center gap-1.5 px-2 h-8 rounded-xl border text-[12px] font-semibold cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:bg-(--rg-s2)"
+                            onclick={Msg::BatchEditor(BatchEditorMsg::Numbering)}><Icon icon="lucide:list-ordered" width={12} /><div>{t("tags.number_tracks")}</div></button>
+                {/if}
+            </div>
+        </div>
+        <div class="flex-1 min-w-0 min-h-0 overflow-y-auto scrollbar-none px-5 py-4 flex flex-col gap-5">
+            {#if b.loading}
+                {#each [2usize, 4, 2] as (g, rows) (g)}
+                    <div class="flex flex-col gap-2">
+                        <div class="h-2 w-20 rounded bg-(--rg-s2) animate-pulse"></div>
+                        <div class="flex flex-col gap-1.5">{#each (0..rows).collect::<Vec<_>>() as k (k)}<div class="h-13 rounded-xl animate-pulse bg-(--rg-champ) border border-(--rg-bd)"></div>{/each}</div>
+                    </div>
+                {/each}
+            {:else}
+                <div>
+                    {@const gt = t("tags.section_track")}{@include "TagEditorGroupTitle.ui"}
+                    <div class="flex flex-col gap-1.5">{#each [(0usize, true, false), (1, false, false)] as (k, fd) (k)}{@include "TagBatchEditorField.ui"}{/each}</div>
+                </div>
+                <div>
+                    {@const gt = t("tags.section_album")}{@include "TagEditorGroupTitle.ui"}
+                    <div class="flex flex-col gap-1.5">
+                        {#each [(2usize, false, false), (3, false, false)] as (k, fd) (k)}{@include "TagBatchEditorField.ui"}{/each}
+                        <div class="grid grid-cols-3 gap-1.5">
+                            {@const fd = (4usize, false, false)}{@include "TagBatchEditorField.ui"}
+                            <div class="col-span-2">{@const fd = (5usize, false, false)}{@include "TagBatchEditorField.ui"}</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1.5">{#each [(10usize, false, false), (11, false, false)] as (k, fd) (k)}{@include "TagBatchEditorField.ui"}{/each}</div>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-(--rg-creux) border border-(--rg-bd) text-[10px] leading-tight text-(--rg-mu)">
+                                <div class="flex shrink-0"><Icon icon="lucide:info" width={12} /></div><div class="min-w-0">{t("tags.track_number_per_file")}</div>
+                            </div>
+                            {@const fd = (9usize, false, false)}{@include "TagBatchEditorField.ui"}
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    {@const gt = t("tags.section_extra")}{@include "TagEditorGroupTitle.ui"}
+                    <div class="flex flex-col gap-1.5">{#each [(6usize, false, false), (7, false, true)] as (k, fd) (k)}{@include "TagBatchEditorField.ui"}{/each}</div>
+                </div>
+            {/if}
+        </div>
+    </div>
+    {#if let Some(err) = &b.error}
+        <div class="shrink-0 flex items-start gap-2 px-6 py-2.5 bg-red-500/8 border-t border-red-500/20 text-red-400 text-xs">
+            <div class="flex shrink-0 mt-px"><Icon icon="lucide:alert-triangle" width={14} /></div><div class="min-w-0">{err}</div>
+        </div>
+    {/if}
+    {#if b.erasing() > 0}
+        <div class="shrink-0 flex items-start gap-2 px-5 py-2 bg-(--rg-ambg) border-t border-(--rg-ambd) text-(--rg-am) text-[11px] font-medium">
+            <div class="flex shrink-0 mt-0.5"><Icon icon="lucide:triangle-alert" width={13} /></div>
+            <div class="min-w-0">{b.erase_warning()}</div>
+        </div>
+    {/if}
+    {#if b.confirming && b.dirty()}
+        <div class="shrink-0 flex items-center gap-3 px-6 py-2.5 bg-(--rg-ambg) border-t border-(--rg-ambd)">
+            <div class="flex shrink-0 text-(--rg-am)"><Icon icon="lucide:triangle-alert" width={15} /></div>
+            <div class="flex-1 min-w-0 text-[12px] font-medium text-(--rg-amtx)">{t("tags.unsaved")}</div>
+            <button class="px-3.5 h-8 flex items-center rounded-xl text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-amtx) hover:bg-(--rg-am)/15" onclick={Msg::BatchEditor(BatchEditorMsg::Discard)}><div>{t("tags.discard")}</div></button>
+            <button class="flex items-center gap-1.5 px-3.5 h-8 rounded-xl text-[12px] font-bold cursor-pointer transition bg-(--rg-am) text-(--rg-ambg) hover:brightness-110" onclick={Msg::BatchEditor(BatchEditorMsg::KeepEditing)}><div>{t("tags.keep_editing")}</div></button>
+        </div>
+    {/if}
+    <div class="shrink-0 flex items-center gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+        <div class="flex-1 min-w-0 flex items-center gap-2">
+            {#if b.dirty()}
+                <div class="flex items-center gap-1.5 text-[12px] font-medium text-(--rg-tx2)">
+                    <div class="w-1.5 h-1.5 rounded-full bg-(--rg-g) shadow-[0_0_6px_rgba(34,197,94,1)]"></div>
+                    {#if let Some(changed) = b.changed_label()}<div>{changed}</div>{/if}
+                </div>
+                <button class="text-[12px] cursor-pointer underline underline-offset-2 text-(--rg-mu) hover:text-(--rg-tx) transition-colors" onclick={Msg::BatchEditor(BatchEditorMsg::RevertAll)}><div>{t("tags.reset_all")}</div></button>
+            {:else}
+                <div class="text-[12px] text-(--rg-mu)">{t("tags.no_change")}</div>
+            {/if}
+            <div class="flex text-(--rg-mu2) cursor-help hover:text-(--rg-tx2) transition-colors" title={t("tags.batch_hint")}><Icon icon="lucide:info" width={12} /></div>
+        </div>
+        <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)" onclick={Msg::BatchEditor(BatchEditorMsg::Close)}><div>{t("profil.cancel")}</div></button>
+        {#if b.dirty() && !b.busy}
+            <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition hover:brightness-110 bg-(--rg-g) text-(--rg-on-g)" onclick={Msg::BatchEditor(BatchEditorMsg::Submit)}><Icon icon="lucide:check" width={17} /><div>{b.apply_label()}</div></button>
+        {:else}
+            <div class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold flex items-center gap-2 bg-(--rg-g) text-(--rg-on-g) opacity-40">
+                {#if b.busy}<div class="flex animate-spin"><Icon icon="lucide:loader-2" width={17} /></div>{:else}<Icon icon="lucide:check" width={17} />{/if}
+                <div>{b.apply_label()}</div>
+            </div>
+        {/if}
+    </div>
+</div>

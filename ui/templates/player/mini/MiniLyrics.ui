@@ -1,0 +1,33 @@
+<div class="relative flex-1 min-h-0 flex flex-col border-t border-(--lc-trait) bg-(--lc-panneau)">
+    {#each [(&self.views.lyrics, self.lyrics_active())] as ly (ly.0.path.as_deref().unwrap_or(""))}
+        <div class="mini-paroles relative flex-1 min-h-0 overflow-y-auto scrollbar-app">
+            {#if ly.0.status == LyricsStatus::Loading || ly.0.status == LyricsStatus::Idle}
+                <p class="m-0 py-24 text-center text-xs text-(--lc-mu)">{t("mini.lyrics_loading")}</p>
+            {:else if !ly.0.lines.is_empty()}
+                <div class="h-27.5"></div>
+                {#each ly.0.lines as (i, line) (i)}
+                    {#if ly.1 == Some(i)}
+                        <div class="block w-full text-left px-5 py-1.25 text-[17px] font-bold leading-[1.35] origin-left cursor-pointer transition-[color,transform] duration-250 hover:text-(--lc-tx2) text-(--lc-tx) scale-104 scroll-mt-[120px]"
+                             style:scroll_into_view={true} title={t("mini.jump_line")} onclick={Msg::Seek(line.0 / 1000.)}>{if line.1.is_empty() { "♪".to_string() } else { line.1.clone() }}</div>
+                    {:else if ly.1.is_some_and(|a| i < a)}
+                        <div class="block w-full text-left px-5 py-1.25 text-[17px] font-bold leading-[1.35] origin-left cursor-pointer transition-[color,transform] duration-250 hover:text-(--lc-tx2) text-(--lc-ly-passe)"
+                             title={t("mini.jump_line")} onclick={Msg::Seek(line.0 / 1000.)}>{if line.1.is_empty() { "♪".to_string() } else { line.1.clone() }}</div>
+                    {:else}
+                        <div class="block w-full text-left px-5 py-1.25 text-[17px] font-bold leading-[1.35] origin-left cursor-pointer transition-[color,transform] duration-250 hover:text-(--lc-tx2) text-(--lc-ly)"
+                             title={t("mini.jump_line")} onclick={Msg::Seek(line.0 / 1000.)}>{if line.1.is_empty() { "♪".to_string() } else { line.1.clone() }}</div>
+                    {/if}
+                {/each}
+                <div class="h-27.5"></div>
+            {:else}
+                {#if let Some(text) = ly.0.plain_text()}
+                    <p class="m-0 px-5 py-4 text-sm leading-relaxed whitespace-pre-wrap text-(--lc-tx2)">{text}</p>
+                {:else}
+                    <p class="m-0 py-24 text-center text-xs text-(--lc-mu)">{t("mini.lyrics_empty")}</p>
+                {/if}
+            {/if}
+        </div>
+        {#if ly.0.status == LyricsStatus::Ready}
+            <div class="shrink-0 h-6.5 flex items-center px-4 text-[10px] text-(--lc-mu2) border-t border-(--lc-trait)">{self.mini_lyrics_footer()}</div>
+        {/if}
+    {/each}
+</div>

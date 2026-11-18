@@ -1,0 +1,35 @@
+<div class="flex flex-col gap-4 p-4">
+    <div class="grid grid-cols-2 gap-3" role="radiogroup">
+        {#each self.output_tiles() as tile (tile.title.as_str())}
+            {#if tile.selected}
+                <div class="min-w-0 flex flex-col gap-1.5 px-4 py-3.5 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-g) bg-(--rg-creux-on)" role="radio" aria-checked="true" onclick={tile.msg.clone()}>
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="text-[15px] font-semibold leading-[1.2] text-(--rg-tx)">{tile.title}</div>
+                        <RadioCheck checked={true} />
+                    </div>
+                    <p class="m-0 text-[13px] leading-[1.4] text-(--rg-mu)">{@const text = &tile.desc}{@include "../SettingsHelpText.ui"}</p>
+                </div>
+            {:else}
+                <div class="min-w-0 flex flex-col gap-1.5 px-4 py-3.5 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-bd) bg-(--rg-creux) hover:border-(--rg-bd2)" role="radio" aria-checked="false" onclick={tile.msg.clone()}>
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="text-[15px] font-semibold leading-[1.2] text-(--rg-tx)">{tile.title}</div>
+                        <RadioCheck checked={false} />
+                    </div>
+                    <p class="m-0 text-[13px] leading-[1.4] text-(--rg-mu)">{@const text = &tile.desc}{@include "../SettingsHelpText.ui"}</p>
+                </div>
+            {/if}
+        {/each}
+    </div>
+    <button class="self-start flex items-center gap-1.5 px-1 text-[13px] font-semibold text-(--rg-gtx) hover:underline cursor-pointer"
+            onclick={Msg::Go(Route::Settings(SettingsPage::Guide))}>
+        <Icon icon="material-symbols:school-outline-rounded" width={17} />
+        <div>{t("settings.output_mode_learn")}</div>
+        <div>→</div>
+    </button>
+    {#if self.wasapi_exclusive()}
+        <div class="flex gap-2.5 px-3.5 py-3 rounded-[10px] border text-[13px] leading-normal bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-amtx)">
+            <div class="shrink-0 text-(--rg-am)"><Icon icon="material-symbols:warning-outline-rounded" width={18} /></div>
+            <p class="m-0 flex-1 min-w-0">{t("settings.output_exclusive_warning")}</p>
+        </div>
+    {/if}
+</div>

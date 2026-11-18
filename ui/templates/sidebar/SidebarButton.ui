@@ -1,0 +1,6 @@
+<button class="relative w-7.5 h-7.5 shrink-0 rounded-lg flex items-center justify-center cursor-pointer
+               text-(--sb-mu) hover:bg-(--sb-s2) hover:text-(--sb-tx) transition-colors"
+        onclick={onclick} title={self.label.as_str()} aria-label={self.label.as_str()}>
+    <Icon icon={self.icon} width={self.size} />
+    <slot />
+</button>

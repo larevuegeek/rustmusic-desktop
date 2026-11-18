@@ -1,0 +1,17 @@
+<div class="flex-1 min-w-0 leading-[1.2]">
+    <div class="flex items-center gap-2 min-w-0 text-[15px] font-semibold text-(--rg-tx)">
+        <div class="truncate">{o.name}</div>
+        {#if o.active}
+            {@const badge = (t("settings.audio_devices_active_badge"), "green")}<SettingsBadge text={badge.0.clone()} tone={badge.1.to_string()} />
+        {:else if o.default_value}
+            {@const badge = (self.default_os_label(), "neutral")}<SettingsBadge text={badge.0.clone()} tone={badge.1.to_string()} />
+        {/if}
+    </div>
+    {#if !o.detail.is_empty()}<p class="m-0 mt-0.75 text-[13px] text-(--rg-mu) truncate">{o.detail}</p>{/if}
+</div>
+{#if let Some(badge) = &o.tier}<SettingsBadge text={badge.0.clone()} tone={badge.1.to_string()} />{/if}
+<div class="shrink-0 flex gap-1.5 font-mono text-xs text-(--rg-mu)">
+    {#each o.specs as spec (spec.as_str())}
+        <div class="px-1.75 py-0.75 rounded-[5px] whitespace-nowrap bg-(--rg-creux) border border-(--rg-line)">{spec}</div>
+    {/each}
+</div>

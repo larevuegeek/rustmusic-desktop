@@ -1,0 +1,25 @@
+{#if row.state == 0}
+    <div class="flex shrink-0 cursor-pointer" aria-label={tag_label(row.key)} onclick={Msg::Lookup(LookupMsg::Toggle(row.key))}>
+        {@const on = lk.is_checked(row.key)}{@include "../shared/inputs/Checkbox.ui"}
+    </div>
+{:else}
+    <div class="shrink-0 w-4 flex items-center justify-center text-neutral-600"><Icon icon={if row.state == 1 { "lucide:check" } else { "lucide:minus" }} width={11} /></div>
+{/if}
+<div class="shrink-0 w-24 text-[11px] truncate text-neutral-300">{tag_label(row.key)}</div>
+{#if row.from.is_empty()}
+    <div class="flex-1 min-w-0 text-[12px] truncate italic text-neutral-600">{t("workshop.was_empty")}</div>
+{:else}
+    <div class="flex-1 min-w-0 text-[12px] truncate text-neutral-300" title={row.from.clone()}>{row.from.clone()}</div>
+{/if}
+{#if row.state == 0}
+    <div class="flex shrink-0 text-neutral-600"><Icon icon="lucide:arrow-right" width={11} /></div>
+{:else}
+    <div class="shrink-0 w-[11px]"></div>
+{/if}
+{#if row.state == 0}
+    <div class="flex-1 min-w-0 text-[12px] truncate font-medium text-emerald-400" title={row.to.clone()}>{row.to.clone()}</div>
+{:else if row.state == 1}
+    <div class="flex-1 min-w-0 text-[12px] truncate text-neutral-500" title={row.to.clone()}>{row.to.clone()}</div>
+{:else}
+    <div class="flex-1 min-w-0 text-[12px] truncate italic text-neutral-600">{t("source.not_provided")}</div>
+{/if}

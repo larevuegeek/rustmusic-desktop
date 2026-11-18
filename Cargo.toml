@@ -1,0 +1,136 @@
+[package]
+name = "rustmusic"
+version = "0.5.0"
+description = "Audiophile-grade desktop music player with native DSD playback, multichannel SACD support, DLNA server, synced lyrics, and OS media controls."
+authors = ["LaRevueGeeK <contact@rustmusic.dev>"]
+edition = "2021"
+license = "GPL-3.0-only"
+homepage = "https://rustmusic.dev"
+repository = "https://github.com/larevuegeek/rustmusic-desktop"
+readme = "README.md"
+keywords = ["music-player", "dsd", "audiophile", "native-ui", "hi-fi"]
+categories = ["multimedia::audio"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "rustmusic_lib"
+crate-type = ["rlib"]
+
+[dependencies]
+# Interface native : fenêtres, rendu, saisie et accessibilité par les API du système.
+# Pour travailler sur karbon-ui en même temps : `.cargo/config.toml` (ignoré par Git) avec
+#   [patch.crates-io]
+#   karbon-ui = { path = "../karbon-ui" }
+#   karbon-ui-macros = { path = "../karbon-ui/crates/ui-macros" }
+#   karbon-updater = { path = "../karbon-ui/crates/updater" }
+karbon-ui = "0.3.13"
+# Mises à jour automatiques : même serveur, même clé et mêmes paquets que la 0.4.4.
+karbon-updater = "0.3.13"
+# Allocateur plus rapide que le tas de Windows : la construction des vues alloue beaucoup
+# de petits objets (essai de fluidité, accord du propriétaire le 2026-11-09).
+mimalloc = { version = "0.1", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.151"
+base64 = "0.23.1"
+# `pulseaudio` : sous Linux, CPAL passe par le serveur son (PipeWire via
+# pipewire-pulse, ou PulseAudio) et liste ses vraies sorties. Sans lui, il
+# ouvrait les PCM ALSA bruts (`hw:`), occupés dès qu'une autre appli joue.
+# Client Rust pur, limité à Linux/BSD par CPAL : rien de plus sous Windows/macOS.
+cpal = { version = "0.18.2", features = ["pulseaudio"] }
+# 0.6 : flac/wav/vorbis/pcm/ogg sont dans les features par défaut ; isomp4 ajoute
+# le conteneur MP4/M4A (AAC et ALAC), aiff le conteneur AIFF.
+symphonia = { version = "0.6.1", features = ["mp3", "flac", "wav", "vorbis", "aac", "isomp4", "aiff", "alac"] }
+# Opus : absent de Symphonia ; libopus (référence) compilé avec le projet — cmake requis au build.
+symphonia-adapter-libopus = "0.3"
+# Magic cookie ALAC : la profondeur d'un ALAC n'est déclarée que là (même version que Symphonia).
+symphonia-common = "0.6"
+rubato = "5.0.1"
+lazy_static = "1.5.1"
+log = "0.4.34"
+simplelog = "0.12"
+# Déjà dans l'arbre via simplelog ; en dépendance directe pour la macro
+# `format_description!`, qui vérifie le format d'horodatage à la compilation.
+time = { version = "0.3", features = ["macros", "local-offset"] }
+rb = "0.4.1"
+arrayvec = "0.7.8"
+num-traits = "0.2.19"
+anyhow = "1.0.104"
+md5 = "0.8.1"
+# NB: rester aligné sur la version qu'utilise rubato (rubato 5 attend les traits 5.x)
+audioadapter-buffers = "5.2.0"
+sqlx = { version = "0.9.0", features = [
+    "runtime-tokio",      # Runtime async
+    "sqlite",             # Driver SQLite
+    "macros",             # Pour query!() macro
+    "chrono"
+] }
+tokio = { version = "1.53.2", features = ["full"] }
+dirs = "7.0.0"
+uuid = { version = "1.27.0", features = ["v4", "serde"] }
+unidecode = "0.3.0"
+chrono = { version = "0.4.45", features = ["serde"] }
+ringbuf = "0.5.3"
+regex = "1.13.1"
+rayon = "1.12.0"
+reqwest = { version = "0.13.5", features = ["json"] }
+urlencoding = "2"
+image = "0.25.10"
+fast_image_resize = { version = "6.1", default-features = false, features = ["image"] }
+num_cpus = "1.17.0"
+axum = "0.8"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.7.1", features = ["fs"] }
+# Choix de l'interface d'envoi multicast (recherche des lecteurs réseau). Déjà tiré par tokio : aucun code en plus.
+socket2 = "0.6.5"
+# AirPlay : AES-128 du flux et RSA-OAEP de sa clé. Déjà compilé pour le HTTPS (rustls),
+# mêmes fonctions activées : aucun code en plus.
+aws-lc-rs = { version = "1.18.1", default-features = false, features = ["aws-lc-sys", "prebuilt-nasm"] }
+async-trait = "0.1"
+souvlaki = "0.8"
+arboard = { version = "3.7.0", features = ["wayland-data-control"] }
+
+# WASAPI exclusive mode (Windows uniquement) — bit-perfect, bypass mixer
+# Windows. Activable via Réglages → Audio → "WASAPI exclusive". Sur les
+# autres OS ce crate n'est pas compilé.
+[target.'cfg(target_os = "windows")'.dependencies]
+wasapi = "0.25"
+# Même version que celle de `wasapi` : bus de l'adaptateur d'une sortie (USB, HDMI…).
+windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties", "Win32_System_Power", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
+
+# CoreAudio direct pour le DoP bit-perfect sur macOS. On ne réimplémente PAS
+# le stream (CPAL suffit : son unité HAL règle déjà le rate nominal du device et
+# ne rééchantillonne pas) ; ces crates servent au *hors-bande* que CPAL n'expose
+# pas : énumération des AudioDeviceID, rates nominaux disponibles, et surtout
+# le **hog mode** (accès exclusif, équivalent macOS du WASAPI exclusive).
+# Versions alignées sur celles que CPAL 0.18 tire déjà → aucun crate en plus.
+# Liste des cartes réseau (getifaddrs) pour chercher les lecteurs réseau. Déjà tiré par d'autres crates.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.190"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware"] }
+objc2-core-audio-types = { version = "0.3", default-features = false, features = ["std", "CoreAudioBaseTypes"] }
+objc2-core-foundation = "0.3"
+# Boutons de fenêtre natifs, montrés ou masqués selon le style choisi.
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSResponder", "NSView", "NSControl", "NSButton", "NSWindow"] }
+
+# ALSA direct (hw:) pour le DoP bit-perfect sur Linux (bypass PipeWire/Pulse).
+# Nécessite libasound2-dev au build.
+[target.'cfg(target_os = "linux")'.dependencies]
+# Même version que celle de CPAL : `alsa-sys` lie libasound et ne peut figurer
+# qu'une fois dans l'arbre. À monter en même temps que CPAL.
+alsa = "0.11"
+# Réservation de carte audio via org.freedesktop.ReserveDevice1 (D-Bus) pour
+# que PipeWire/Pulse libère le `hw:` avant le DoP exclusif. Version alignée sur
+# l'arbre existant (contrôles média).
+zbus = "5"
+
+# Icône et informations de version de l'exécutable Windows (build.rs) : compile la
+# ressource avec `rc.exe` du SDK Windows, que Tauri appelait avant.
+[build-dependencies]
+embed-resource = "3"
+
+[profile.release]
+strip = false
+lto = true

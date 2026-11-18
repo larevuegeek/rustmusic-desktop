@@ -1,0 +1,11 @@
+<div class="flex shrink-0">
+{#if self.on}
+    <div class="relative w-11 h-6.5 rounded-full shrink-0 transition-colors duration-150 bg-(--rg-g)" role="switch" aria-checked="true">
+        <div class="absolute top-0.75 left-0.75 w-5 h-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] transition-transform duration-150 translate-x-4.5"></div>
+    </div>
+{:else}
+    <div class="relative w-11 h-6.5 rounded-full shrink-0 transition-colors duration-150 bg-(--rg-off)" role="switch" aria-checked="false">
+        <div class="absolute top-0.75 left-0.75 w-5 h-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] transition-transform duration-150"></div>
+    </div>
+{/if}
+</div>

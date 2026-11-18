@@ -1,0 +1,229 @@
+<div class="h-full">
+{#each self.views.genre.iter() as page (page.name.as_str())}
+{#if page.error}
+    <div class="flex flex-col items-center justify-center gap-3 h-full text-(--rg-mu)">
+        {#if page.composer}
+            <Icon icon="material-symbols:music-note-rounded" width={34} />
+            <p class="text-sm m-0">{t("composers_view.error")}</p>
+            <button class="text-sm font-semibold text-(--rg-gtx) hover:underline cursor-pointer" onclick={Msg::Go(Route::Library(Section::Artists))}><div>{t("composers_view.back")}</div></button>
+        {:else if page.period.is_some()}
+            <Icon icon="material-symbols:calendar-month-outline-rounded" width={34} />
+            <p class="text-sm m-0">{t("period_view.error")}</p>
+            <button class="text-sm font-semibold text-(--rg-gtx) hover:underline cursor-pointer" onclick={Msg::Go(Route::Library(Section::Years))}><div>{t("period_view.back")}</div></button>
+        {:else}
+            <Icon icon="material-symbols:sell-outline-rounded" width={34} />
+            <p class="text-sm m-0">{t("genre_view.error")}</p>
+            <button class="text-sm font-semibold text-(--rg-gtx) hover:underline cursor-pointer" onclick={Msg::Go(Route::Library(Section::Genres))}><div>{t("genre_view.back")}</div></button>
+        {/if}
+    </div>
+{:else if !page.loading && page.tracks.is_empty()}
+    <div class="flex items-center justify-center h-full text-(--rg-mu)"><Spinner width={26.} /></div>
+{:else}
+{#if let Some(gv) = self.genre_view()}
+<div class="relative h-full overflow-y-auto scrollbar-app"
+     onscroll={|s: ScrollMetrics| Msg::Genre(GenreMsg::Scrolled(s.offset, s.max_offset()))}>
+    <div class="album-lueur absolute inset-x-0 top-0 h-115 pointer-events-none" style:--h={gv.tint.0} style:--s={gv.tint.1}></div>
+
+    <div class="@container relative max-w-350 px-4 md:px-8 pb-24" style:margin_top={-self.export_offset}>
+        <div class="z-20 h-15 -mx-4 md:-mx-8 px-4 md:px-8 flex items-center gap-3 border-b border-transparent">
+            <button class="h-8.5 pl-2 pr-3 shrink-0 flex items-center gap-1.5 rounded-[9px] text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                    onclick={Msg::Go(if gv.composer { Route::Library(Section::Artists) } else if gv.period.is_some() { Route::Library(Section::Years) } else { Route::Library(Section::Genres) })}>
+                <Icon icon="material-symbols:arrow-back-rounded" width={20} />
+                <div>{gv.back}</div>
+            </button>
+            <div class="flex-1"></div>
+            {@include "../tracks/SelectionButtons.ui"}
+            {@include "../shared/inputs/ViewSwitch.ui"}
+        </div>
+
+        <div class="relative flex flex-wrap items-end gap-8 pt-3 pb-7">
+            {#if gv.composer}
+            <div class="relative w-55 h-55 shrink-0 rounded-full overflow-hidden bg-(--rg-s2) shadow-[0_24px_60px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
+                {#if gv.portrait.is_some()}
+                    <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&gv.portrait)} alt="">
+                {:else}
+                    <div class="avatar-artiste w-full h-full rounded-full flex items-center justify-center font-bold tracking-[-0.02em] text-[80px]" style:--h={gv.avatar.1}>{gv.avatar.0}</div>
+                {/if}
+            </div>
+            {:else}
+            <div class="relative w-55 h-55 shrink-0 rounded-[14px] overflow-hidden grid grid-cols-2 grid-rows-2 gap-0.5 bg-(--rg-bg)
+                        shadow-[0_24px_60px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
+                {#each gv.covers.iter().zip(gv.tiles.iter()) as (k, pair) (k)}
+                    {#if pair.0.is_some()}
+                        <img class="w-full aspect-square object-cover" src={cx.resources.cover_opt(pair.0)} alt="">
+                    {:else}
+                        <div class="w-full aspect-square" style:background_layers={pair.1.clone()}></div>
+                    {/if}
+                {/each}
+                {#if let Some(ph) = &gv.period}
+                    <div class="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent pointer-events-none"></div>
+                    <div class="absolute left-4 bottom-3 text-white font-extrabold leading-none tracking-[-0.03em] text-[44px]">{ph.big}</div>
+                {/if}
+                {#if gv.period.is_none() && gv.covers.iter().all(|c| c.is_none())}
+                    <div class="absolute inset-0 flex items-center justify-center text-white/85"><Icon icon={gv.icon} width={64} /></div>
+                {/if}
+                <div class="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-black/5 dark:ring-white/6 pointer-events-none"></div>
+            </div>
+            {/if}
+
+            <div class="flex-[1_1_320px] min-w-0 flex flex-col gap-3">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-[0.1em] uppercase text-(--rg-tx2)">
+                    {#if gv.composer}
+                        <div class="text-(--rg-g)"><Icon icon="material-symbols:music-note-rounded" width={15} /></div>
+                    {:else}
+                        <div class="w-5 h-0.75 rounded-full" style:background_color={gv.color}></div>
+                    {/if}
+                    <div>{gv.kicker}</div>
+                </div>
+                {#if gv.period.is_some()}
+                    <h1 class="m-0 font-extrabold leading-none tracking-[-0.03em] text-(--rg-tx) text-[72px]">{gv.name}</h1>
+                {:else if gv.name_long}
+                    <h1 class="m-0 font-extrabold leading-[1.12] tracking-[-0.03em] line-clamp-2 text-(--rg-tx) text-[56px]" title={gv.name.as_str()}>{gv.name}</h1>
+                {:else}
+                    <h1 class="m-0 font-extrabold leading-[1.12] tracking-[-0.03em] line-clamp-2 text-(--rg-tx) text-[72px]" title={gv.name.as_str()}>{gv.name}</h1>
+                {/if}
+
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[15px] text-(--rg-mu)">
+                    {#if let Some(a) = &gv.albums_n}
+                        <div class="flex gap-1"><div class="font-bold text-(--rg-tx)">{a.0}</div><div>{a.1}</div></div>
+                        <div class="text-(--rg-mu2)">·</div>
+                    {/if}
+                    <div class="flex gap-1"><div class="font-bold text-(--rg-tx)">{gv.tracks_n.0}</div><div>{gv.tracks_n.1}</div></div>
+                    {#if let Some(a) = &gv.artists_n}
+                        <div class="text-(--rg-mu2)">·</div>
+                        <div class="flex gap-1"><div class="font-bold text-(--rg-tx)">{a.0}</div><div>{a.1}</div></div>
+                    {/if}
+                    {#if !gv.duration.is_empty()}<div class="text-(--rg-mu2)">·</div><div>{gv.duration}</div>{/if}
+                    {#if let Some(p) = &gv.year_span}<div class="text-(--rg-mu2)">·</div><div>{p}</div>{/if}
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5 mt-2">
+                    <PlayButton large label={t("artist_view.play_all")} onclick={Msg::Genre(GenreMsg::PlayAll)} />
+                    <RoundButton icon="material-symbols:shuffle-rounded" title={t("album_view.shuffle")} disabled={!gv.has_tracks} onclick={Msg::Genre(GenreMsg::Shuffle)} />
+                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} onclick={Msg::Noop} />
+                    {#if gv.composer}
+                        <div class="flex flex-wrap gap-1.5 ml-1.5">
+                            {#if let Some(a) = &gv.artist_page}
+                                <ChipLink label={t("composers_view.artist_page")} title={a.1.clone()} onclick={Msg::Go(Route::Artist(a.0.clone()))} />
+                            {/if}
+                            {#each gv.artists.iter().take(3) as a (a.id.as_str())}
+                                <ChipLink label={a.name.clone()} title={t("composers_view.performer_title")} onclick={Msg::Go(Route::Artist(a.id.clone()))} />
+                            {/each}
+                        </div>
+                    {:else if !gv.top_artists.is_empty()}
+                        <div class="flex flex-wrap gap-1.5 ml-1.5">
+                            {#each gv.top_artists as a (a.0.as_str())}
+                                <ChipLink label={a.1.clone()} title={t("genre_view.artist_title")} onclick={Msg::Go(Route::Artist(a.0.clone()))} />
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        </div>
+
+        {#if let Some(ph) = &gv.period}
+            <div class="pb-6">
+                {@const chip_msg = |d: i64, y: Option<i64>| { let _ = d; Msg::Genre(GenreMsg::Year(y)) }}
+                {@include "../years/YearChips.ui"}
+            </div>
+        {/if}
+
+        <div class="flex flex-wrap items-center gap-2.5 pb-4 border-t border-(--rg-line) pt-5">
+            {#if gv.composer}
+                <div class="relative shrink-0 flex h-9.5 p-0.75 rounded-[11px] border bg-(--rg-carte) border-(--rg-bd)" role="radiogroup" aria-label={t("period_view.explore")}>
+                    {#each gv.tabs.iter().zip(gv.mode_counts.iter()) as (k, pair) (k)}
+                        {#if pair.0.active}
+                            <button role="radio" aria-checked="true" class="relative z-1 flex items-center gap-2 h-full px-3 rounded-[8px] border text-[13px] font-semibold whitespace-nowrap cursor-pointer
+                                           bg-(--rg-gbg) border-(--rg-gbd) shadow-[0_1px_6px_rgba(0,0,0,0.12)] text-(--rg-gtx)" title={pair.0.label.as_str()} onclick={pair.0.msg.clone()}>
+                                <Icon icon={pair.0.icon.as_str()} width={18} />
+                                <div>{pair.0.label}</div>
+                                <div class="min-w-6 px-1.5 py-px rounded-full text-[11px] font-bold tabular-nums text-center bg-(--rg-g) text-(--rg-on-g)">{pair.1}</div>
+                            </button>
+                        {:else}
+                            <button role="radio" aria-checked="false" class="relative z-1 flex items-center gap-2 h-full px-3 rounded-[8px] border border-transparent text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors
+                                           text-(--rg-mu) hover:text-(--rg-tx)" title={pair.0.label.as_str()} onclick={pair.0.msg.clone()}>
+                                <Icon icon={pair.0.icon.as_str()} width={18} />
+                                <div>{pair.0.label}</div>
+                                <div class="min-w-6 px-1.5 py-px rounded-full text-[11px] font-bold tabular-nums text-center bg-(--rg-s2) text-(--rg-mu)">{pair.1}</div>
+                            </button>
+                        {/if}
+                    {/each}
+                </div>
+            {:else}
+                <SegmentedControl label={t("period_view.explore")} options={gv.tabs.clone()} />
+            {/if}
+            <div class="flex-1"></div>
+            {#if gv.view == "albums" && !gv.composer}
+                <SegmentedControl subtle label={t("common.sort")} options={gv.album_sorts.clone()} />
+            {:else if gv.view == "morceaux"}
+                <div class="flex shrink-0 p-0.75 rounded-[10px] border bg-(--rg-carte) border-(--rg-bd)" role="radiogroup" aria-label={t("common.sort")}>
+                    {#each gv.sorts as s (s.key)}
+                        {#if s.active}
+                            <button role="radio" aria-checked="true" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer whitespace-nowrap h-7 px-3 bg-(--rg-s2) text-(--rg-tx)"
+                                    onclick={Msg::Genre(GenreMsg::Sort(s.key.to_string()))}>
+                                <div>{s.label}</div>
+                                {#if let Some(a) = &s.arrow}<Icon icon={*a} width={14} />{/if}
+                            </button>
+                        {:else}
+                            <button role="radio" aria-checked="false" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer whitespace-nowrap h-7 px-3 text-(--rg-mu) hover:text-(--rg-tx)"
+                                    onclick={Msg::Genre(GenreMsg::Sort(s.key.to_string()))}>
+                                <div>{s.label}</div>
+                            </button>
+                        {/if}
+                    {/each}
+                </div>
+                {#if self.views.view_mode == ViewMode::List}
+                    <ToolbarButton icon="material-symbols:view-column-outline-rounded" label={t("album_view.columns")} title={t("tracks_view.columns")} onclick={Msg::Columns(ColumnsMsg::Open)} />
+                {/if}
+            {/if}
+        </div>
+
+        {#if gv.view == "albums"}
+            {#if gv.albums.is_empty()}
+                <p class="m-0 py-10 text-center text-sm text-(--rg-mu)">{gv.empty}</p>
+            {:else}
+                {#if self.views.view_mode == ViewMode::Grid}
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x-4.5 gap-y-6">
+                        {#each gv.albums as album (album.id.as_str())}<div class="min-w-0">{@include "../albums/AlbumCard.ui"}</div>{/each}
+                    </div>
+                {:else}
+                    <div class="flex flex-col">
+                        {#each gv.albums as (i, album) (album.id.as_str())}{@include "../albums/AlbumRow.ui"}{/each}
+                    </div>
+                {/if}
+            {/if}
+        {:else if gv.view == "artistes"}
+            <p class="m-0 -mt-2 mb-4 text-[13px] text-(--rg-mu)">{gv.artists_desc}</p>
+            {#if self.views.view_mode == ViewMode::Grid}
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x-4.5 gap-y-6">
+                    {#each gv.artists as artist (artist.id.as_str())}<div class="min-w-0">{@include "../artists/ArtistCard.ui"}</div>{/each}
+                </div>
+            {:else}
+                <div class="flex flex-col">
+                    {#each gv.artists as (i, artist) (artist.id.as_str())}{@include "../artists/ArtistRow.ui"}{/each}
+                </div>
+            {/if}
+        {:else}
+            <section>
+                {#if !gv.loading}
+                    <div class="flex justify-center py-10 text-(--rg-mu)"><Spinner width={22.} /></div>
+                {:else if !gv.has_tracks}
+                    <p class="m-0 py-10 text-center text-sm text-(--rg-mu)">{gv.empty}</p>
+                {:else if self.views.view_mode == ViewMode::Grid}
+                    <div class="grid grid-cols-2 gap-x-7 gap-y-0.5 @max-[900px]:grid-cols-1">
+                        {#each gv.tracks as track (track.i)}<div class="min-w-0">{@include "../albums/AlbumTrackRow.ui"}</div>{/each}
+                    </div>
+                {:else}
+                    {#if let Some(table) = &gv.table}
+                        {@include "../tracks/TrackTableHead.ui"}
+                        {@include "../tracks/TrackRows.ui"}
+                    {/if}
+                {/if}
+            </section>
+        {/if}
+    </div>
+</div>
+{/if}
+{/if}
+{/each}
+</div>

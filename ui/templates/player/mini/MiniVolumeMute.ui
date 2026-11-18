@@ -1,0 +1,15 @@
+{#if muted}
+    <button class="w-8 h-8 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors hover:bg-(--lc-survol) text-red-400/85"
+            title={t("player.unmute")} aria-label={t("player.unmute")} onclick={Msg::Mini(MiniMsg::Mute)}>
+        <Icon icon="material-symbols:volume-off-rounded" width={20} />
+    </button>
+{:else}
+    <button class="w-8 h-8 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors hover:bg-(--lc-survol) text-(--lc-ic-fort)"
+            title={t("player.mute")} aria-label={t("player.mute")} onclick={Msg::Mini(MiniMsg::Mute)}>
+        {#if self.volume_low()}
+            <Icon icon="material-symbols:volume-down-rounded" width={20} />
+        {:else}
+            <Icon icon="material-symbols:volume-up-rounded" width={20} />
+        {/if}
+    </button>
+{/if}

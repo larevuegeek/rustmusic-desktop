@@ -1,0 +1,11 @@
+{#if pill.1 == 0}
+    <div class="px-2 py-1 rounded-md border font-mono text-xs font-semibold tabular-nums bg-(--rg-creux) border-(--rg-bd) text-(--rg-gtx)">{pill.0.clone()}</div>
+{:else if pill.1 == 1}
+    <div class="px-2 py-1 rounded-md border font-mono text-xs font-semibold tabular-nums bg-(--rg-creux) border-(--rg-bd) text-sky-400">{pill.0.clone()}</div>
+{:else if pill.1 == 3}
+    <div class="px-2 py-1 rounded-md border font-mono text-xs font-semibold tabular-nums bg-(--rg-creux) border-(--rg-bd) text-purple-300">{pill.0.clone()}</div>
+{:else if pill.1 == 4}
+    <div class="px-2 py-1 rounded-md border font-mono text-xs font-semibold tabular-nums bg-(--rg-creux) border-(--rg-bd) text-(--rg-am)">{pill.0.clone()}</div>
+{:else}
+    <div class="px-2 py-1 rounded-md border font-mono text-xs font-semibold tabular-nums bg-(--rg-creux) border-(--rg-bd) text-(--rg-mu)">{pill.0.clone()}</div>
+{/if}

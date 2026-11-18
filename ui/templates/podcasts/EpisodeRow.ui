@@ -1,0 +1,5 @@
+{#if e.playback.is_some()}
+    <div class="group relative rounded-2xl px-4 py-3.5 -mx-4 transition-colors bg-violet-500/8 ring-1 ring-inset ring-violet-500/25">{@include "EpisodeRowBody.ui"}</div>
+{:else}
+    <div class="group relative rounded-2xl px-4 py-3.5 -mx-4 transition-colors hover:bg-(--rg-hover)">{@include "EpisodeRowBody.ui"}</div>
+{/if}

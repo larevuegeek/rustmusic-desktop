@@ -1,0 +1,13 @@
+/* Palette « réglages » d'app.css (`.dark`, puis `:root[data-contrast="high"].dark` pour le
+   texte), partagée par les pages de bibliothèque, les menus et les réglages. Les valeurs
+   déjà posées par theme.css (carte, s2, bordures, vert, ambre) ne sont pas répétées. */
+:root {
+    --rg-bg: #0b0d0c; --rg-aside: #0b0d0c; --rg-aside-bd: #161a18;
+    --rg-champ: #131715; --rg-hover: #161b18; --rg-line: #1a1f1c;
+    --rg-tx2: #dde3e0; --rg-nav: #ffffff; --rg-sous: #c8d0cc;
+    --rg-mu2: #9aa39e; --rg-ph: #a3aca7;
+    --rg-gbg: #12301d; --rg-gbd: #1c4a2c;
+    --rg-ver: #111412; --rg-verbd: #1c211e;
+    --rg-creux: #0f1211; --rg-creux-on: #0f1a14;
+    --rg-amtx: #f3d6a6;
+}

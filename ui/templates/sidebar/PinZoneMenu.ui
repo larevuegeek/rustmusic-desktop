@@ -1,0 +1,42 @@
+{#each [PinKind::Album, PinKind::Artist] as kind (kind as usize)}
+    {#if self.sidebar_zone_open(kind)}
+        <k-popover anchor={kind.anchor()} menu placement="bottom-end" offset="4"
+                   aria-label={t(if kind == PinKind::Album { "sidebar.pinned_albums" } else { "sidebar.pinned_artists" })}
+                   onclose={Msg::CloseMenu}
+                   class="w-62 py-1.5
+                          bg-(--rg-carte) dark:bg-(--rg-s2)
+                          border border-(--rg-bd) dark:border-[#2a312d]
+                          rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)]
+                          overflow-hidden">
+            <button role="menuitem"
+                    class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default
+                           text-(--rg-tx) enabled:hover:bg-green-500/15 enabled:hover:text-green-400"
+                    onclick={Msg::Sidebar(SidebarMsg::PinPlaying(kind))} disabled={self.sidebar_pin_playing_disabled(kind)}
+                    title={self.sidebar_playing_title(kind)}>
+                <div class="flex opacity-60 shrink-0"><Icon icon="material-symbols:keep-outline-rounded" width={15} /></div>
+                <div class="truncate">{t(if kind == PinKind::Album { "sidebar.pin_playing_album" } else { "sidebar.pin_playing_artist" })}</div>
+            </button>
+            <button role="menuitem"
+                    class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default
+                           text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                    onclick={Msg::Sidebar(SidebarMsg::Browse(kind))}>
+                {#if kind == PinKind::Album}
+                    <div class="flex opacity-60 shrink-0"><Icon icon="material-symbols:album-rounded" width={15} /></div>
+                    <div>{t("sidebar.browse_albums")}</div>
+                {:else}
+                    <div class="flex opacity-60 shrink-0"><Icon icon="material-symbols:mic-external-on-rounded" width={15} /></div>
+                    <div>{t("sidebar.browse_artists")}</div>
+                {/if}
+            </button>
+            <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8" role="separator"></div>
+            <button role="menuitem"
+                    class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default
+                           text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                    onclick={Msg::Sidebar(SidebarMsg::HideSection(kind))}>
+                <div class="flex opacity-60 shrink-0"><Icon icon="lucide:eye-off" width={14} /></div>
+                <div>{t("sidebar.hide_section")}</div>
+            </button>
+            <div class="px-3.5 pb-1.5 text-[11px] leading-snug text-(--rg-mu)">{t("sidebar.hide_section_note")}</div>
+        </k-popover>
+    {/if}
+{/each}

@@ -1,0 +1,30 @@
+{#each group as (i, a) (i)}
+    <button class="group/a w-full flex items-center gap-3 p-2 rounded-[10px] text-left cursor-pointer transition-colors hover:bg-(--rg-s2) dark:hover:bg-white/5"
+            role="menuitem" onclick={a.msg.clone()}>
+        {#if a.alert}
+            <div class="w-8.5 h-8.5 shrink-0 rounded-[9px] border flex items-center justify-center transition-colors bg-(--rg-s2) border-(--rg-bd) dark:bg-[#232a26] dark:border-[#2b332f] group-hover/a:bg-(--rg-gbg) group-hover/a:border-(--rg-gbd) text-(--rg-am)">
+                <Icon icon={a.icon} width={18} />
+            </div>
+        {:else if a.busy}
+            <div class="w-8.5 h-8.5 shrink-0 rounded-[9px] border flex items-center justify-center transition-colors bg-(--rg-s2) border-(--rg-bd) dark:bg-[#232a26] dark:border-[#2b332f] group-hover/a:bg-(--rg-gbg) group-hover/a:border-(--rg-gbd) text-(--rg-tx2) group-hover/a:text-(--rg-g)">
+                <Spinner width={18.} />
+            </div>
+        {:else}
+            <div class="w-8.5 h-8.5 shrink-0 rounded-[9px] border flex items-center justify-center transition-colors bg-(--rg-s2) border-(--rg-bd) dark:bg-[#232a26] dark:border-[#2b332f] group-hover/a:bg-(--rg-gbg) group-hover/a:border-(--rg-gbd) text-(--rg-tx2) group-hover/a:text-(--rg-g)">
+                <Icon icon={a.icon} width={18} />
+            </div>
+        {/if}
+        <div class="flex-1 min-w-0">
+            <div class="block text-[13px] font-semibold text-(--rg-tx)">{a.title}</div>
+            <div class="block mt-0.5 truncate text-[11.5px] text-(--rg-mu)">{a.sub}</div>
+        </div>
+        {#if a.arrow}
+            <div class="flex shrink-0 text-(--rg-mu2) transition-transform group-hover/a:translate-x-0.5 group-hover/a:text-(--rg-tx2)">
+                <Icon icon="material-symbols:arrow-forward-rounded" width={16} />
+            </div>
+        {/if}
+        {#if let Some(n) = &a.count}
+            <div class="shrink-0 px-1.75 py-0.5 rounded-[9px] font-mono text-[11px] font-bold bg-(--rg-ambg) text-(--rg-am)">{n}</div>
+        {/if}
+    </button>
+{/each}

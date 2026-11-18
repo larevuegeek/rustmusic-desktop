@@ -1,0 +1,11 @@
+{#if r.mini}
+    <div class="amp-panel w-[340px] overflow-y-auto scrollbar-app rounded-[22px] border border-(--rg-bd) text-(--rg-tx) p-2 flex flex-col gap-2"
+         style:max_height={r.panel_max} aria-label={t("amp_remote.panel")}>
+        {@include "AmpRemoteMini.ui"}
+    </div>
+{:else}
+    <div class="amp-panel w-[340px] overflow-y-auto scrollbar-app rounded-[22px] border border-(--rg-bd) text-(--rg-tx) p-3 flex flex-col gap-2.5"
+         style:max_height={r.panel_max} aria-label={t("amp_remote.panel")}>
+        {@include "AmpRemoteFull.ui"}
+    </div>
+{/if}

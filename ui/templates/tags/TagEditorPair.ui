@@ -1,0 +1,15 @@
+<div class="group relative rounded-xl overflow-hidden transition-colors duration-150 bg-(--rg-champ) border border-(--rg-bd) hover:border-(--rg-bd2)">
+    {#if e.is_dirty(pr.1) || e.is_dirty(pr.2)}<div class="absolute left-0 inset-y-0 w-0.75 bg-(--rg-g)"></div>{/if}
+    <div class="px-3.5 py-2">
+        <div class="text-[10px] font-bold uppercase tracking-[0.1em] leading-none text-(--rg-mu)">{pr.0.clone()}</div>
+        <div class="flex items-baseline gap-1.5 mt-1.5">
+            <input class="w-7 border-0 p-0 bg-transparent text-[13px] tabular-nums leading-tight text-right outline-none text-(--rg-tx) placeholder:text-(--rg-ph)"
+                   type="text" value={e.form[pr.1].as_str()} placeholder="—" aria-label={pr.0.clone()}
+                   oninput={{ let k = pr.1; move |v: String| Msg::TagEditor(TagEditorMsg::Field(k, v)) }}>
+            <div class="text-(--rg-mu2) text-[13px]">/</div>
+            <input class="w-7 border-0 p-0 bg-transparent text-[13px] tabular-nums leading-tight outline-none text-(--rg-mu) placeholder:text-(--rg-ph)"
+                   type="text" value={e.form[pr.2].as_str()} placeholder="—" aria-label={pr.0.clone()}
+                   oninput={{ let k = pr.2; move |v: String| Msg::TagEditor(TagEditorMsg::Field(k, v)) }}>
+        </div>
+    </div>
+</div>

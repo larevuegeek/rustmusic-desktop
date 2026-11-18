@@ -1,0 +1,104 @@
+{#if let Some(popin) = &self.views.popin}
+    <div class="absolute inset-0 z-50 flex items-center justify-center animate-[popin-fade-in_150ms_linear]"
+         data-exit="popin-fade-out 150ms linear">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default" onclick={Msg::ClosePopin}></div>
+        <div class="relative flex flex-col w-full mx-4 max-h-[88vh] rounded-2xl overflow-hidden text-(--rg-tx) bg-(--rg-carte) border border-(--rg-bd) dark:border-[#2a312d] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] animate-[popin-scale-in_180ms_cubic-bezier(0.33,1,0.68,1)]"
+             data-exit="popin-scale-out 180ms cubic-bezier(0.33, 1, 0.68, 1)"
+             style:max_width={popin.max_width()} aria-label={popin.title.as_str()}>
+            {#if !popin.bare}
+            <div class="rg-popin-tete shrink-0 px-6 pt-5 pb-4 border-b border-(--rg-bd)">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0 text-[17px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">
+                        {#if let Some(icon) = &popin.icon}
+                            <div class="shrink-0 w-8 h-8 rounded-[9px] flex items-center justify-center bg-(--rg-gbg) text-(--rg-g) border border-(--rg-gbd)">
+                                <Icon icon={*icon} width={15} />
+                            </div>
+                        {/if}
+                        <h3 class="m-0 truncate text-[17px] font-extrabold">{popin.title}</h3>
+                    </div>
+                    <button class="shrink-0 -mr-1.5 w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-hover) transition-colors"
+                            aria-label={t("common.close")} onclick={Msg::ClosePopin}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+            {/if}
+            {#if popin.is_artist_check()}
+                {@const ac = &self.views.artist_check}
+                <div class="min-h-0 flex flex-col">{@include "../artists/ArtistCheck.ui"}</div>
+            {/if}
+            {#if let Some(cl) = &popin.clean()}
+                <div class="min-h-0 flex flex-col">{@include "../tags/TagClean.ui"}</div>
+            {/if}
+            {#if let Some(so) = &popin.source()}
+                <div class="min-h-0 flex flex-col">{@include "../tags/TagSource.ui"}</div>
+            {/if}
+            {#if let Some(b) = &popin.batch_edit()}
+                <div class="min-h-0 flex flex-col">{@include "../tags/TagBatchEditor.ui"}</div>
+            {/if}
+            {#if let Some(rn) = &popin.rename()}
+                <div class="min-h-0 flex flex-col">{@include "../tags/TagRename.ui"}</div>
+            {/if}
+            {#if let Some(hs) = &popin.history()}
+                <div class="min-h-0 flex flex-col">{@include "../tags/TagHistory.ui"}</div>
+            {/if}
+            {#if let Some(e) = &popin.tag_edit()}
+                <div class="min-h-0 flex flex-col">{@include "../tags/TagEditor.ui"}</div>
+            {/if}
+            {#if let Some(f) = &popin.smart()}
+                <div class="min-h-0 flex flex-col">{@include "../playlists/PlaylistSmart.ui"}</div>
+            {/if}
+            {#if let Some(pp) = &popin.podcast_preview()}
+                <div class="min-h-0 flex flex-col">{@include "../podcasts/PodcastPreview.ui"}</div>
+            {/if}
+            {#if popin.is_whats_new()}
+                <div class="min-h-0 flex flex-col">{@include "../updates/WhatsNewPopin.ui"}</div>
+            {/if}
+            {#if !popin.flush}
+            <div class="min-h-0 overflow-y-auto scrollbar-none px-6 pb-6 pt-4">
+                {#if let Some(c) = &popin.confirmation()}
+                    <div class="flex items-start gap-3.5">
+                        {#if c.3}
+                            <div class="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border bg-red-500/8 border-red-500/25 text-red-400">
+                                <Icon icon="material-symbols:warning-outline-rounded" width={20} />
+                            </div>
+                        {:else}
+                            <div class="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+                                <Icon icon="material-symbols:help-outline-rounded" width={20} />
+                            </div>
+                        {/if}
+                        <p class="m-0 flex-1 min-w-0 pt-2 text-sm leading-relaxed text-(--rg-tx2)">{c.0}</p>
+                    </div>
+                {/if}
+                {#if let Some(f) = &popin.playlist_form()}{@include "../playlists/PlaylistForm.ui"}{/if}
+                {#if let Some(sf) = &popin.add_server()}{@include "../servers/ServerForm.ui"}{/if}
+                {#if let Some(sv) = &popin.server_folders()}{@include "../servers/ServerFolders.ui"}{/if}
+                {#if let Some(lf) = &popin.library_form()}{@include "../library/LibraryForm.ui"}{/if}
+            </div>
+            {/if}
+            {#if let Some(c) = &popin.confirmation()}
+                <div class="shrink-0 flex items-center gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+                    <div class="flex-1 min-w-0"></div>
+                    <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                            onclick={Msg::ClosePopin}><div>{c.2}</div></button>
+                    {#if c.3}
+                        <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition hover:brightness-110 bg-red-600 text-white"
+                                onclick={Msg::PopinConfirm}>
+                            <Icon icon="material-symbols:delete-outline-rounded" width={17} />
+                            <div>{c.1}</div>
+                        </button>
+                    {:else}
+                        <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition hover:brightness-110 bg-(--rg-g) text-(--rg-on-g)"
+                                onclick={Msg::PopinConfirm}>
+                            <Icon icon="material-symbols:check-rounded" width={17} />
+                            <div>{c.1}</div>
+                        </button>
+                    {/if}
+                </div>
+            {/if}
+            {#if let Some(f) = &popin.playlist_form()}{@include "../playlists/PlaylistFormFooter.ui"}{/if}
+            {#if let Some(lf) = &popin.library_form()}{@include "../library/LibraryFormFooter.ui"}{/if}
+            {#if let Some(ft) = &popin.server_form_footer()}{@include "../servers/ServerFormFooter.ui"}{/if}
+        </div>
+    </div>
+{/if}

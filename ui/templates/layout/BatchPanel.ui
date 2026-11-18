@@ -1,0 +1,64 @@
+{#if let Some(b) = &self.views.batch}
+    <div class="absolute right-4 bottom-38 z-40 w-80 rounded-xl overflow-hidden bg-neutral-900 ring-1 ring-white/10 shadow-2xl shadow-black/60">
+        <div class="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-neutral-200/60 dark:border-white/8">
+            {#if b.running}
+                <div class="shrink-0 flex animate-spin text-emerald-500"><Icon icon="lucide:loader-circle" width={14} /></div>
+            {:else if b.has_failures()}
+                <div class="shrink-0 flex text-amber-500"><Icon icon="lucide:triangle-alert" width={14} /></div>
+            {:else}
+                <div class="shrink-0 flex text-emerald-500"><Icon icon="lucide:check" width={14} /></div>
+            {/if}
+            <div class="flex-1 min-w-0 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">{b.label}</div>
+            {#if !b.running}
+                <button class="shrink-0 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-colors text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-white/8"
+                        aria-label={t("batch.close")} onclick={Msg::BatchDismiss}>
+                    <Icon icon="lucide:x" width={13} />
+                </button>
+            {/if}
+        </div>
+        <div class="px-3.5 py-3">
+            {#if b.running}
+                <div class="flex items-baseline justify-between mb-1.5">
+                    <div class="text-[11px] tabular-nums text-neutral-300">{b.counter()}</div>
+                    {#if b.failed > 0}<div class="text-[11px] text-amber-500">{batch_failures_label(b.failed)}</div>{/if}
+                </div>
+                <div class="h-1.5 rounded-full overflow-hidden bg-white/10">
+                    <div class="h-full rounded-full bg-emerald-500 transition-[width] duration-200" style:width={Length::Percent(b.percent())}></div>
+                </div>
+                {#if !b.current.is_empty()}<p class="m-0 mt-2 text-[10px] truncate text-neutral-500">{batch_file_name(&b.current)}</p>{/if}
+                <div class="mt-2.5 flex justify-end">
+                    {#if b.cancelling}
+                        <div class="px-2.5 h-7 flex items-center rounded-lg text-[12px] text-neutral-300 opacity-50">{t("batch.cancelling")}</div>
+                    {:else}
+                        <button class="flex items-center justify-center px-2.5 h-7 rounded-lg text-[12px] cursor-pointer transition-colors text-neutral-300 hover:bg-white/8" onclick={Msg::BatchCancel}>
+                            <div>{t("batch.cancel")}</div>
+                        </button>
+                    {/if}
+                </div>
+            {/if}
+            {#if let Some(r) = b.report_view()}
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                    <div class="text-emerald-400">{r.succeeded}</div>
+                    {#if let Some(failed) = &r.failed}
+                        <div class="text-neutral-600">·</div>
+                        <div class="text-red-500">{failed}</div>
+                    {/if}
+                    {#if let Some(skipped) = &r.skipped}
+                        <div class="text-neutral-600">·</div>
+                        <div class="text-neutral-400">{skipped}</div>
+                    {/if}
+                </div>
+                {#if !r.failures.is_empty()}
+                    <div class="mt-2 max-h-40 overflow-y-auto flex flex-col gap-1">
+                        {#each r.failures as failure (failure.path.as_str())}
+                            <div class="px-2 py-1.5 rounded-lg bg-red-500/8" title={failure.path.as_str()}>
+                                <p class="m-0 text-[11px] truncate text-neutral-700 dark:text-neutral-200">{failure.file}</p>
+                                <p class="m-0 text-[10px] text-red-500 leading-snug">{failure.message}</p>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            {/if}
+        </div>
+    </div>
+{/if}

@@ -1,0 +1,81 @@
+<div class="w-80 shrink-0 overflow-y-auto scrollbar-app border-l border-(--rg-bd) bg-(--rg-creux) px-5 pt-5 pb-32">
+    {#if let Some(ins) = &wv.inspector}
+        <div class="flex items-center gap-3.5 pb-4.5 border-b border-(--rg-bd)">
+            <div class="relative w-18 h-18 shrink-0 rounded-xl overflow-hidden bg-(--rg-s2) shadow-[0_8px_22px_rgba(0,0,0,0.4)]" title={t("workshop.set_cover_hint")}>
+                {#if ins.cover.is_some()}
+                    <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&ins.cover)} alt="">
+                {:else}
+                    <div class="absolute inset-0 flex items-center justify-center text-(--rg-mu2)"><Icon icon="material-symbols:hide-image-outline-rounded" width={26} /></div>
+                {/if}
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="m-0 text-[16px] font-extrabold tracking-[-0.01em] truncate text-(--rg-tx)">{ins.title}</p>
+                <p class="m-0 mt-1 text-[12.5px] leading-[1.45] text-(--rg-mu) truncate">{ins.sub}</p>
+                <p class="m-0 text-[12.5px] leading-[1.45] text-(--rg-mu)">{ins.cover_state}</p>
+            </div>
+        </div>
+
+        {#each ins.groups as (gi, group) (gi)}
+            <div class="pt-4.5 pb-1">
+                <h4 class="m-0 mb-3 text-[11px] font-bold tracking-widest uppercase text-(--rg-mu)">{group.0}</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    {#each group.1 as field (field.idx)}
+                        <div class="min-w-0" class:col-span-2={!field.half}>
+                            <div class="group relative rounded-xl overflow-hidden transition-colors duration-150 bg-(--rg-champ) border border-(--rg-bd) hover:border-(--rg-bd2)">
+                                {#if field.dirty}<div class="absolute left-0 inset-y-0 w-0.75 bg-(--rg-g)"></div>{/if}
+                                <div class="px-3.5 py-2">
+                                    <div class="text-[10px] font-bold uppercase tracking-[0.1em] leading-none text-(--rg-mu)">{field.label}</div>
+                                    {#if field.locked}
+                                        <div class="mt-1.5 flex items-center gap-2 text-[13px] leading-tight text-(--rg-mu)">
+                                            {#if field.idx == 0}
+                                                <div class="flex-1 min-w-0 truncate">{t("workshop.per_track_short")}</div>
+                                                <button class="shrink-0 -my-1 h-6.5 px-2 rounded-md flex items-center gap-1 text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-gtx) hover:bg-(--rg-gbg)"
+                                                        onclick={Msg::Tags(TagsMsg::Number)}>
+                                                    <Icon icon="material-symbols:format-list-numbered-rounded" width={15} /><div>{t("workshop.number_short")}</div>
+                                                </button>
+                                            {:else}
+                                                <div class="flex-1 min-w-0 truncate">{t("workshop.per_track")}</div>
+                                            {/if}
+                                        </div>
+                                    {:else}
+                                        <input class="w-full mt-1.5 p-0 border-0 bg-transparent leading-tight outline-0 text-[13px] text-(--rg-tx) placeholder:text-(--rg-ph)"
+                                               type="text" value={field.value.as_str()} placeholder={field.placeholder.as_str()} aria-label={field.label.as_str()}
+                                               oninput={{ let i = field.idx; move |v: String| Msg::Tags(TagsMsg::InspectorDraft(i, v)) }}
+                                               onchange={Msg::Tags(TagsMsg::InspectorApply(field.idx))}>
+                                    {/if}
+                                    {#if field.missing}
+                                        <div class="mt-1 flex items-center gap-1 text-[10px] font-medium text-(--rg-am)">
+                                            <Icon icon="lucide:triangle-alert" width={10} /><div>{t("workshop.missing")}</div>
+                                        </div>
+                                    {/if}
+                                </div>
+                                {#if field.dirty}
+                                    <button class="absolute right-2 top-3 w-6 h-6 rounded-lg cursor-pointer flex items-center justify-center transition-colors text-(--rg-mu2) hover:text-(--rg-g) hover:bg-(--rg-gbg)"
+                                            title={t("tags.revert")} aria-label={t("tags.revert")} onclick={Msg::Tags(TagsMsg::Revert(field.idx))}>
+                                        <Icon icon="lucide:rotate-ccw" width={12} />
+                                    </button>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
+                    {#if gi == 1 && !ins.genres.is_empty()}
+                        <div class="col-span-2 flex flex-wrap gap-1.5 -mt-1">
+                            {#each ins.genres as genre (genre.as_str())}
+                                <button class="flex items-center justify-center h-6.5 px-2.5 rounded-full border border-(--rg-bd) text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-mu) hover:border-(--rg-gbd) hover:bg-(--rg-gbg) hover:text-(--rg-gtx)"
+                                        onclick={Msg::Tags(TagsMsg::Genre(genre.clone()))}><div>{genre}</div></button>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        {/each}
+
+        <div class="mt-4.5 flex flex-wrap gap-1 text-[12.5px] leading-normal text-(--rg-mu)">
+            <div>{ins.applies.0.trim_end()}</div>
+            {#if !ins.applies.1.is_empty()}<div class="font-bold text-(--rg-tx2)">{ins.applies.1}</div><div>{ins.applies.2.trim_start()}</div>{/if}
+        </div>
+    {/if}
+    {#if wv.inspector.is_none()}
+        <p class="m-0 px-2.5 py-16 text-center text-[14px] leading-relaxed text-(--rg-mu)">{t("workshop.select_to_edit")}</p>
+    {/if}
+</div>

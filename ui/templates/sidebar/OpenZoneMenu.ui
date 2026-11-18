@@ -1,0 +1,39 @@
+{#if self.open(Menu::Open)}
+    <k-popover anchor="sidebar.ouvrir" placement="bottom-end" offset="4" cross-offset="16"
+               aria-label={t("nav.open")} onclose={Msg::CloseMenu}
+               class="w-66 p-1.5
+                      bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl
+                      border border-neutral-200/80 dark:border-white/10
+                      rounded-2xl overflow-hidden
+                      shadow-xl shadow-black/10 dark:shadow-2xl dark:shadow-black/50 menu">
+        {@include "LibraryTabsOptions.ui"}
+
+        <div class="h-px mx-2 my-1.5 bg-neutral-200/80 dark:bg-white/8" role="separator"></div>
+
+        <button class="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl cursor-pointer text-left transition-colors
+                       hover:bg-neutral-100 dark:hover:bg-white/5 dark:focus-visible:bg-white/5"
+                onclick={Msg::HideOpen}>
+            <div class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center
+                        bg-neutral-100 dark:bg-white/5 border border-neutral-200/80 dark:border-white/8
+                        text-neutral-500 dark:text-neutral-400">
+                <Icon icon="lucide:eye-off" width={13} />
+            </div>
+            <span class="flex-1 text-[13px] text-neutral-700 dark:text-neutral-200">{t("sidebar.hide_open_buttons")}</span>
+        </button>
+        <div class="px-2.5 pt-1 pb-2 text-[11px] leading-snug text-neutral-400 dark:text-neutral-500">{t("sidebar.hide_open_buttons_note")}</div>
+
+        <div class="h-px mx-2 mb-1.5 bg-neutral-200/80 dark:bg-white/8" role="separator"></div>
+
+        <button class="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl cursor-pointer text-left transition-colors
+                       hover:bg-neutral-100 dark:hover:bg-white/5 dark:focus-visible:bg-white/5"
+                onclick={Msg::Go(Route::Settings(SettingsPage::Appearance))}>
+            <div class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center
+                        bg-neutral-100 dark:bg-white/5 border border-neutral-200/80 dark:border-white/8
+                        text-neutral-500 dark:text-neutral-400">
+                <Icon icon="lucide:sliders-horizontal" width={13} />
+            </div>
+            <span class="flex-1 text-[13px] text-neutral-700 dark:text-neutral-200">{t("playlist.display_settings")}</span>
+            <div class="flex text-neutral-300 dark:text-neutral-600 shrink-0"><Icon icon="lucide:chevron-right" width={13} /></div>
+        </button>
+    </k-popover>
+{/if}

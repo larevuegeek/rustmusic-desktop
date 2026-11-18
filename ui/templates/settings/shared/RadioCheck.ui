@@ -1,0 +1,9 @@
+<div class="flex shrink-0">
+{#if self.checked}
+    <div class="shrink-0 w-5 h-5 rounded-full flex items-center justify-center border-[1.5px] bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)">
+        <Icon icon="material-symbols:check-rounded" width={14} />
+    </div>
+{:else}
+    <div class="shrink-0 w-5 h-5 rounded-full border-[1.5px] border-(--rg-bd2)"></div>
+{/if}
+</div>

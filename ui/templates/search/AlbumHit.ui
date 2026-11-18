@@ -1,0 +1,11 @@
+<button class="group w-full min-w-0 p-2.5 -m-2.5 rounded-2xl text-left cursor-pointer transition-colors hover:bg-(--rg-hover)" onclick={Msg::SearchPage(SearchMsg::Open(r.n))}>
+    <div class="relative w-full aspect-square rounded-xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.18)] bg-(--rg-s2)">
+        {#if r.cover.is_some()}
+            <img class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" src={cx.resources.cover_opt(&r.cover)} alt="">
+        {:else}
+            <div class="w-full h-full flex items-center justify-center text-(--rg-mu)"><Icon icon="material-symbols:album-outline" width={40} /></div>
+        {/if}
+    </div>
+    <div class="w-full mt-2.5 text-[14px] font-semibold truncate text-(--rg-tx)" title={r.title.as_str()}>{r.title}</div>
+    {#if !r.subtitle.is_empty()}<div class="w-full text-[12.5px] truncate text-(--rg-mu)">{r.subtitle}</div>{/if}
+</button>

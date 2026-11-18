@@ -1,0 +1,46 @@
+<div class="relative" class:flex-none={self.sidebar_collapsed} class:flex-1={!self.sidebar_collapsed}
+     class:min-w-0={!self.sidebar_collapsed}>
+    <button id="sidebar.bibliotheque"
+            class="flex items-center gap-2.5 rounded-xl cursor-pointer transition-colors
+                   bg-(--sb-s1) border border-(--sb-bd) hover:border-(--sb-bd2)"
+            class:w-full={!self.sidebar_collapsed} class:p-1.75={self.sidebar_collapsed} class:py-2={!self.sidebar_collapsed}
+            class:pr-1.5={!self.sidebar_collapsed} class:pl-2={!self.sidebar_collapsed}
+            onclick={Msg::Menu(Menu::Library)}
+            title={t("library_head.switch")} aria-label={t("library_head.switch")}
+            aria-haspopup="dialog" aria-expanded={self.open(Menu::Library)}>
+        <div class="relative w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)">
+            <Icon icon="material-symbols:hard-drive-outline" width={20} thick />
+        </div>
+        {#if !self.sidebar_collapsed}
+            <div class="flex-1 flex flex-col gap-px min-w-0 text-left">
+                <div class="text-sm font-bold truncate text-(--sb-tx)">{vm.current_library[0].name}</div>
+                <div class="text-xs truncate text-(--sb-mu)">{vm.library_summary}</div>
+            </div>
+            <div class="shrink-0 text-(--sb-tx2)"><Icon icon="material-symbols:unfold-more-rounded" width={18} /></div>
+        {/if}
+    </button>
+</div>
+
+{#if self.open(Menu::Library) && self.sidebar_collapsed}
+    <k-popover id="sidebar.bibliotheque.menu" anchor="sidebar.bibliotheque" placement="right-start" offset="8"
+               aria-label={t("selector.libraries")} onclose={Msg::CloseMenu}
+               class="rounded-xl border overflow-hidden bg-white/98 dark:bg-neutral-900/98 backdrop-blur-xl
+                      border-neutral-200/60 dark:border-white/8 shadow-xl shadow-black/10 dark:shadow-black/40
+                      p-0 w-[272px] menu">
+        {@include "LibraryMenu.ui"}
+    </k-popover>
+{:else if self.open(Menu::Library)}
+    <k-popover anchor="sidebar.bibliotheque" placement="bottom-start" offset="6" match-width
+               aria-label={t("selector.libraries")} onclose={Msg::CloseMenu}
+               class="rounded-xl border overflow-hidden bg-white/98 dark:bg-neutral-900/98 backdrop-blur-xl
+                      border-neutral-200/60 dark:border-white/8 shadow-xl shadow-black/10 dark:shadow-black/40
+                      p-0 w-[248px] menu">
+        {@include "LibraryMenu.ui"}
+    </k-popover>
+{:else if let Some(m) = self.sidebar_manage_menu()}
+    <k-popover anchor="sidebar.bibliotheque" menu placement="right-start" offset="10" aria-label={t("library_head.manage")}
+               onclose={Msg::CloseMenu}
+               class="rg-menu w-85 p-0 overflow-hidden rounded-2xl text-(--rg-tx) bg-linear-to-b from-[#1c2220] to-[#161a18] animate-[popin-scale-in_160ms_cubic-bezier(0.33,1,0.68,1)]">
+        {@include "LibraryManageMenu.ui"}
+    </k-popover>
+{/if}

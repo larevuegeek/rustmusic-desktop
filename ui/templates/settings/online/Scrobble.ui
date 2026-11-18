@@ -1,0 +1,88 @@
+{#if r.custom() == "lb-account"}
+    {#if let Some(av) = &self.scrobble_account(false)}{@include "Account.ui"}{/if}
+{:else if r.custom() == "lf-account"}
+    {#if let Some(av) = &self.scrobble_account(true)}{@include "Account.ui"}{/if}
+{:else if r.custom() == "lb-connect"}
+    {@const s = &self.views.settings.scrobble}
+    <div class="flex flex-col gap-3 px-5 py-4">
+        <div>
+            <p class="m-0 text-[15px] font-semibold text-(--rg-tx)">{t("scrobble.connect_title")}</p>
+            <p class="m-0 mt-0.75 text-[13px] text-(--rg-mu)">{t("scrobble.connect_desc")}</p>
+            <button class="text-[13px] font-semibold text-(--rg-gtx) hover:underline cursor-pointer"
+                    onclick={Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::Open("https://listenbrainz.org/settings/".into())))}>
+                <div>{t("scrobble.get_token")}</div>
+            </button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <div class="flex-1 min-w-60">
+                <input class="w-full h-11 px-4 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2) font-mono text-[13px]"
+                       type="password" value={s.lb_token.as_str()} placeholder={t("scrobble.token_placeholder")} aria-label={t("scrobble.token_placeholder")}
+                       oninput={|v: String| Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LbToken(v)))}
+                       onchange={Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LbConnect))}>
+            </div>
+            <GhostButton g={Some(Ghost::new("material-symbols:link-rounded", t("scrobble.connect"), Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LbConnect))).busy(s.lb_busy).disabled(s.lb_token.trim().is_empty()))} />
+        </div>
+        {#if let Some(error) = &s.lb_error}
+            <div class="flex items-center gap-1.5 text-xs text-red-400"><Icon icon="material-symbols:error-outline-rounded" width={15} /><div>{error}</div></div>
+        {/if}
+    </div>
+{:else if r.custom() == "lf-wait"}
+    <div class="flex items-center gap-3.5 px-5 py-4">
+        <div class="shrink-0 flex animate-spin text-(--rg-gtx)"><Icon icon="material-symbols:progress-activity" width={22} /></div>
+        <div class="flex-1 min-w-0">
+            <p class="m-0 text-[15px] font-semibold text-(--rg-tx)">{t("lastfm.waiting_title")}</p>
+            <p class="m-0 mt-0.5 text-[12.5px] text-(--rg-mu)">{t("lastfm.waiting_desc")}</p>
+        </div>
+        <GhostButton g={Some(Ghost::new("material-symbols:open-in-new-rounded", t("lastfm.reopen"), Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LfReopen))))} />
+        <GhostButton g={Some(Ghost::new("", t("common.cancel"), Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LfCancel))))} />
+    </div>
+{:else if r.custom() == "lf-connect"}
+    {@const s = &self.views.settings.scrobble}
+    <div class="flex flex-col gap-3 px-5 py-4">
+        <div>
+            <p class="m-0 text-[15px] font-semibold text-(--rg-tx)">{t("lastfm.connect_title")}</p>
+            <p class="m-0 mt-0.75 text-[13px] text-(--rg-mu)">{t("lastfm.connect_desc")}</p>
+        </div>
+        {#if s.lf_with_key()}
+            <div class="rounded-xl border border-(--rg-bd) bg-(--rg-s2)/50 px-4 py-3 flex flex-col gap-2.5">
+                {#if !s.lf_builtin}<p class="m-0 text-[13px] font-medium text-(--rg-tx2)">{t("lastfm.no_builtin")}</p>{/if}
+                <div class="flex flex-col gap-1 text-[13px] text-(--rg-mu)">
+                    <div class="flex flex-wrap gap-1">
+                        <div class="w-4 text-(--rg-mu2)">1.</div>
+                        <button class="font-semibold text-(--rg-gtx) hover:underline cursor-pointer"
+                                onclick={Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::Open("https://www.last.fm/api/account/create".into())))}>
+                            <div>{t("lastfm.step_create")}</div>
+                        </button>
+                        <div>{t("lastfm.step_create_hint")}</div>
+                    </div>
+                    <div class="flex gap-1"><div class="w-4 text-(--rg-mu2)">2.</div><div class="flex-1 min-w-0">{t("lastfm.step_paste")}</div></div>
+                    <div class="flex gap-1"><div class="w-4 text-(--rg-mu2)">3.</div><div class="flex-1 min-w-0">{t("lastfm.step_connect")}</div></div>
+                </div>
+                <div class="flex flex-wrap gap-2.5">
+                    <div class="flex-1 min-w-52">
+                        <input class="w-full h-11 px-4 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2) font-mono text-[13px]"
+                               type="text" value={s.lf_key.as_str()} placeholder={t("lastfm.api_key")} aria-label={t("lastfm.api_key")}
+                               oninput={|v: String| Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LfKey(v)))}>
+                    </div>
+                    <div class="flex-1 min-w-52">
+                        <input class="w-full h-11 px-4 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2) font-mono text-[13px]"
+                               type="password" value={s.lf_secret.as_str()} placeholder={t("lastfm.api_secret")} aria-label={t("lastfm.api_secret")}
+                               oninput={|v: String| Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LfSecret(v)))}
+                               onchange={Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LfConnect))}>
+                    </div>
+                </div>
+            </div>
+        {/if}
+        <div class="flex flex-wrap items-center gap-2.5">
+            <GhostButton g={Some(Ghost::new("material-symbols:link-rounded", t("lastfm.connect"), Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LfConnect))).busy(s.lf_busy).disabled(!s.lf_ready()))} />
+            {#if s.lf_builtin}
+                <button class="text-[13px] font-semibold text-(--rg-gtx) hover:underline cursor-pointer" onclick={Msg::Settings(SettingsMsg::Scrobble(ScrobbleMsg::LfOwn))}>
+                    {#if s.lf_own}<div>{t("lastfm.use_builtin")}</div>{:else}<div>{t("lastfm.use_own_key")}</div>{/if}
+                </button>
+            {/if}
+        </div>
+        {#if let Some(error) = &s.lf_error}
+            <div class="flex items-center gap-1.5 text-xs text-red-400"><Icon icon="material-symbols:error-outline-rounded" width={15} /><div>{error}</div></div>
+        {/if}
+    </div>
+{/if}

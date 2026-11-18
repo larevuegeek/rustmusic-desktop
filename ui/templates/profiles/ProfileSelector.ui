@@ -1,0 +1,57 @@
+<button id="header.profil"
+        class="group flex items-center gap-2 rounded-full border py-1 pl-1 pr-2.5
+               transition backdrop-blur-md cursor-pointer
+               bg-white border-(--c-bord) hover:border-(--c-bord2)
+               dark:bg-neutral-900/60 dark:border-white/10 dark:hover:bg-neutral-900/75 dark:hover:border-white/20"
+        onclick={Msg::Menu(Menu::Profile)} aria-label={t("profil.menu_aria")}
+        aria-haspopup="menu" aria-expanded={self.open(Menu::Profile)}>
+    <div class="relative grid place-items-center w-7.5 h-7.5 rounded-full overflow-hidden text-[11px] font-bold text-white bg-(--profil)">{vm.initial}</div>
+    <div class="hidden lg:block text-sm font-medium text-neutral-900 dark:text-neutral-100 max-w-24 truncate">{vm.first_name}</div>
+    <svg class="w-3.5 h-3.5 text-neutral-400 transition-transform duration-200" class:rotate-180={self.open(Menu::Profile)}
+         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="m6 9 6 6 6-6"/>
+    </svg>
+</button>
+
+{#if self.open(Menu::Profile)}
+    <k-popover anchor="header.profil" menu placement="bottom-end" offset="8"
+               aria-label={t("profil.menu_aria")} onclose={Msg::CloseMenu}
+               class="menu p-0 w-56 rounded-xl border overflow-hidden
+                      bg-white/98 dark:bg-neutral-900/98 backdrop-blur-xl
+                      border-neutral-200/60 dark:border-white/8
+                      shadow-xl shadow-black/10 dark:shadow-black/40">
+        <div class="px-4 py-3 border-b border-neutral-200/60 dark:border-white/6">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold text-white bg-(--profil)">{vm.initial}</div>
+                <div class="min-w-0">
+                    <div class="text-[13px] font-medium text-neutral-800 dark:text-neutral-200 truncate">{vm.first_name}</div>
+                    <div class="text-[10px] text-neutral-400 dark:text-neutral-500">{t("profil.user")}</div>
+                </div>
+            </div>
+        </div>
+        <div class="py-1 px-1">
+            {#each [("lucide:users", t("menu.change_profil"), Msg::Profiles(ProfileMsg::Open)), ("lucide:bar-chart-3", t("stats.title"), Msg::Go(Route::Stats)), ("lucide:settings", t("menu.settings"), Msg::Go(Route::Settings(SettingsPage::General))), ("lucide:message-circle", t("menu.feedback"), Msg::Go(Route::Feedback)), ("lucide:info", t("menu.about"), Msg::Go(Route::Settings(SettingsPage::About)))] as item (item.0)}
+                <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left cursor-pointer
+                               text-[13px] text-neutral-700 dark:text-neutral-300
+                               hover:bg-neutral-100/80 dark:hover:bg-white/5
+                               transition-colors duration-100"
+                        role="menuitem" onclick={item.2.clone()}>
+                    <div class="flex shrink-0 text-neutral-400 dark:text-neutral-500"><Icon icon={item.0} width={15} /></div>
+                    {item.1}
+                </button>
+            {/each}
+        </div>
+        <div class="h-px mx-3 bg-neutral-200/60 dark:bg-white/6" role="separator"></div>
+        <div class="py-1 px-1">
+            <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left cursor-pointer
+                           text-[13px] text-red-500/70 dark:text-red-400/70
+                           hover:bg-red-500/8 dark:hover:bg-red-500/10
+                           hover:text-red-500 dark:hover:text-red-400
+                           transition-colors duration-100"
+                    role="menuitem" onclick={Msg::Quit}>
+                <div class="flex shrink-0"><Icon icon="lucide:log-out" width={15} /></div>
+                {t("menu.quit")}
+            </button>
+        </div>
+    </k-popover>
+{/if}

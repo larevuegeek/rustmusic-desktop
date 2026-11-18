@@ -1,0 +1,67 @@
+<div class="px-5 py-4 flex flex-col gap-3">
+    <div class="flex items-center gap-3.5">
+        {#if s.server.enabled}
+            <div class="relative w-10 h-10 shrink-0 rounded-xl flex items-center justify-center border bg-sky-500/12 border-sky-500/30 text-sky-300">
+                <Icon icon="material-symbols:cloud-outline-rounded" width={22} />
+            </div>
+        {:else}
+            <div class="relative w-10 h-10 shrink-0 rounded-xl flex items-center justify-center border bg-sky-500/12 border-sky-500/30 text-sky-300 opacity-45">
+                <Icon icon="material-symbols:cloud-outline-rounded" width={22} />
+            </div>
+        {/if}
+        <div class="flex-1 min-w-0">
+            {#if s.server.enabled}
+                <p class="m-0 text-[15px] font-semibold truncate text-(--rg-tx)">{s.server.name}</p>
+            {:else}
+                <p class="m-0 text-[15px] font-semibold truncate text-(--rg-mu)">{s.server.name}</p>
+            {/if}
+            <div class="mt-0.5 flex items-center gap-1.5 min-w-0 text-[12.5px] text-(--rg-mu)" title={server_describe(s)}>
+                {#if s.server.enabled}
+                    {#if let Some(online) = self.server_online(s.server.id)}
+                        {#if online}
+                            <div class="shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.7)]" title={t("servers.online")}></div>
+                        {:else}
+                            <div class="shrink-0 w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.7)]" title={t("servers.offline")}></div>
+                        {/if}
+                    {/if}
+                {/if}
+                <div class="truncate">{server_describe(s)}</div>
+            </div>
+        </div>
+        {#if s.server.enabled && s.server.kind != "dlna"}
+            <div class="relative shrink-0" title={t("servers.quality_hint")}>
+                <select class="h-9.5 pl-3.5 pr-9 rounded-[10px] cursor-pointer bg-(--rg-s2) border border-(--rg-off) hover:border-(--rg-bd2) text-sm font-semibold text-(--rg-tx) transition-colors"
+                        value={Some(server_quality_of(s))} aria-label={t("servers.quality")}
+                        onchange={{ let id = s.server.id; move |i: u64| Msg::Settings(SettingsMsg::Server(ServerMsg::Quality(id, i))) }}>
+                    {#each server_quality_labels() as (i, label) (i)}<option value={i as u64}>{label}</option>{/each}
+                </select>
+            </div>
+        {/if}
+        <div class="shrink-0 flex cursor-pointer" onclick={Msg::Settings(SettingsMsg::Server(ServerMsg::Enabled(s.server.id)))}>
+            <ToggleSwitch on={s.server.enabled} />
+        </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-1.5 pl-13.5">
+        {#each s.libraries as l (l.id)}
+            <div class="h-7 px-2.5 flex items-center gap-1.5 rounded-full text-[12.5px] font-medium bg-(--rg-s2) text-(--rg-tx2)">
+                <div class="flex text-(--rg-mu)"><Icon icon="material-symbols:cloud-outline-rounded" width={14} /></div>
+                <div>{l.name}</div>
+                <div class="text-(--rg-mu)">{l.tracks_suffix()}</div>
+            </div>
+        {/each}
+        <div class="flex-1"></div>
+        {#if s.server.enabled}<div class="text-[12px] text-(--rg-mu)">{server_synced(s)}</div>{/if}
+        {#each self.server_buttons(s) as g (g.label.as_str())}<GhostButton g={Some(g.clone())} />{/each}
+    </div>
+    {#if s.server.enabled && s.server.kind != "dlna"}
+        <div class="flex items-center gap-3 pl-13.5">
+            <div class="flex-1 min-w-0">
+                <p class="m-0 text-[13px] font-medium text-(--rg-tx)">{t("servers.pin_playlists")}</p>
+                <p class="m-0 text-xs text-(--rg-mu)">{t("servers.pin_playlists_hint")}</p>
+            </div>
+            <div class="shrink-0 flex cursor-pointer" onclick={Msg::Settings(SettingsMsg::Server(ServerMsg::PinPlaylists(s.server.id)))}>
+                <ToggleSwitch on={s.server.pin_playlists} />
+            </div>
+        </div>
+    {/if}
+</div>

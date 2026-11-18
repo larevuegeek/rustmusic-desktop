@@ -1,0 +1,134 @@
+<div class="lecteur mini-lecteur fixed inset-0 flex flex-col overflow-hidden select-none">
+    <div class="shrink-0">
+        <div class="h-8.5 flex items-center gap-0.5 pl-3 pr-1.5">
+            <div data-drag-region class="flex-1 h-full flex items-center gap-1 cursor-grab">
+                <div class="flex shrink-0 text-(--lc-ic) opacity-60 pointer-events-none"><Icon icon="material-symbols-light:drag-indicator" width={16} /></div>
+                <div class="flex pointer-events-none w-26 h-4">
+                    <div class="origin-top-left scale-[0.743]">{@include "../../shared/display/LogoRustMusic.ui"}</div>
+                </div>
+            </div>
+            {#if self.views.mini.pinned}
+                <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-(--lc-ic) hover:bg-(--lc-survol) hover:text-(--lc-tx) text-(--lc-acc)! hover:text-(--lc-acc)!"
+                        title={t("mini.pin")} aria-label={t("mini.pin")} aria-pressed="true" onclick={Msg::Mini(MiniMsg::Pin)}>
+                    <Icon icon="material-symbols:keep" width={17} />
+                </button>
+            {:else}
+                <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-(--lc-ic) hover:bg-(--lc-survol) hover:text-(--lc-tx)"
+                        title={t("mini.pin")} aria-label={t("mini.pin")} aria-pressed="false" onclick={Msg::Mini(MiniMsg::Pin)}>
+                    <Icon icon="material-symbols-light:keep-outline" width={17} />
+                </button>
+            {/if}
+            <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-(--lc-ic) hover:bg-(--lc-survol) hover:text-(--lc-tx)"
+                    title={t("mini.micro")} aria-label={t("mini.micro")} onclick={Msg::Mini(MiniMsg::Micro)}>
+                <Icon icon="ph:picture-in-picture" width={17} />
+            </button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-(--lc-ic) hover:bg-(--lc-survol) hover:text-(--lc-tx)"
+                    title={t("mini.restore")} aria-label={t("mini.restore")} onclick={Msg::Mini(MiniMsg::Restore)}>
+                <Icon icon="material-symbols-light:open-in-full-rounded" width={17} />
+            </button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-(--lc-ic) hover:bg-(--lc-survol) hover:text-(--lc-tx) hover:bg-[#c42b1c]! hover:text-white!"
+                    title={t("common.close")} aria-label={t("common.close")} onclick={Msg::Mini(MiniMsg::Close)}>
+                <Icon icon="material-symbols-light:close-rounded" width={18} />
+            </button>
+        </div>
+
+        <div class="flex items-center gap-3.5 px-4 pt-1">
+            <div class="lecteur-pochette w-21 h-21 shrink-0 rounded-[10px] overflow-hidden">
+                {#if self.has_track()}
+                    <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&vm.details.cover_path)} alt="">
+                {:else}
+                    <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&None)} alt="">
+                {/if}
+            </div>
+            <div class="min-w-0 flex-1 flex flex-col gap-0.75">
+                {#if self.has_track()}
+                    <div class="truncate text-lg font-extrabold tracking-[-0.01em] text-(--lc-tx)" title={vm.details.title.as_str()}>{vm.details.title}</div>
+                    {#if !vm.details.artist_name.is_empty()}<div class="truncate text-sm font-medium text-(--lc-acc)">{vm.details.artist_name}</div>{/if}
+                    {@const fq = (self.mini_format(), self.mini_quality())}
+                    {#if fq.0.is_some() || !fq.1.is_empty()}
+                        <div class="mt-1.25 flex items-center gap-2 min-w-0 font-(--font-mono) text-[10px] text-(--lc-tx2)">
+                            {#if let Some(format) = &fq.0}<div class="px-1.75 py-0.5 rounded-[5px] font-medium tracking-[0.05em] bg-(--lc-fmt-bg) text-(--lc-fmt-tx)">{format}</div>{/if}
+                            {#if !fq.1.is_empty()}<div class="whitespace-nowrap">{fq.1}</div>{/if}
+                            {#if let Some(chain_item) = &self.mini_chain()}
+                                <div class="flex items-center gap-1.25 min-w-0 whitespace-nowrap">
+                                    <div class="w-1.25 h-1.25 shrink-0 rounded-full bg-(--mini-point)" style:--mini-point={chain_item.dot}></div>
+                                    <div class="truncate">{chain_item.label}</div>
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
+                {:else}
+                    <div class="truncate text-lg font-extrabold tracking-[-0.01em] text-(--lc-tx)">{t("player.no_track")}</div>
+                {/if}
+            </div>
+            {#if self.has_track() && !self.mini_episode()}
+                {#if self.mini_liked()}
+                    <button class="self-start w-8 h-8 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors hover:bg-(--lc-survol) text-[#ff7a88]"
+                            title={t("player.like")} aria-label={t("player.like")} aria-pressed="true" onclick={Msg::Like(vm.details.path.clone())}>
+                        <Icon icon="material-symbols:favorite-rounded" width={20} />
+                    </button>
+                {:else}
+                    <button class="self-start w-8 h-8 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors hover:bg-(--lc-survol) text-(--lc-ic) hover:text-(--lc-tx)"
+                            title={t("player.like")} aria-label={t("player.like")} aria-pressed="false" onclick={Msg::Like(vm.details.path.clone())}>
+                        <Icon icon="material-symbols-light:favorite-outline-rounded" width={20} />
+                    </button>
+                {/if}
+            {/if}
+        </div>
+
+        <div class="flex items-center gap-3 px-4 pt-3">
+            <div class="flex items-center gap-0.5 shrink-0">
+                <button class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                        title={t("player.prev")} aria-label={t("player.prev")} onclick={Msg::Previous}>
+                    <Icon icon="material-symbols:skip-previous-rounded" width={28} />
+                </button>
+                <button class="lecteur-lecture relative w-11.5 h-11.5 flex items-center justify-center rounded-full cursor-pointer transition-transform hover:scale-105 active:scale-95 bg-(--lc-play) text-(--lc-play-tx)"
+                        title={if self.playing() {t("player.pause")} else {t("player.play")}} aria-label={if self.playing() {t("player.pause")} else {t("player.play")}}
+                        onclick={Msg::TogglePlay}>
+                    {#if self.playing()}<Icon icon="material-symbols:pause-rounded" width={28} />{:else}<Icon icon="material-symbols:play-arrow-rounded" width={28} />{/if}
+                </button>
+                <button class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                        title={t("player.next")} aria-label={t("player.next")} onclick={Msg::Next}>
+                    <Icon icon="material-symbols:skip-next-rounded" width={28} />
+                </button>
+            </div>
+            <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+                {@include "../PlayerProgressBar.ui"}
+                <div class="flex justify-between font-(--font-mono) text-[10px] tabular-nums text-(--lc-mu)">
+                    <div>{vm.position_label}</div><div>{vm.duration_label}</div>
+                </div>
+            </div>
+            {@const above = false}{@include "MiniVolume.ui"}
+        </div>
+
+        <div class="grid grid-cols-2 gap-1 mx-3 mt-3.5 mb-3 p-0.75 rounded-[11px] border bg-(--lc-seg) border-(--lc-seg-bd)" role="tablist">
+            {#each [(MiniTab::Queue, "material-symbols-light:queue-music-rounded", t("mini.queue_tab")), (MiniTab::Lyrics, "material-symbols-light:lyrics-outline-rounded", t("mini.lyrics"))] as o (o.1)}
+                {#if self.views.mini.tab == Some(o.0)}
+                    <button role="tab" aria-selected="true" class="h-8 flex items-center justify-center gap-1.75 rounded-lg text-[13px] font-semibold cursor-pointer transition-colors bg-(--lc-seg-on) text-(--lc-tx) shadow-[0_1px_2px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                            onclick={Msg::Mini(MiniMsg::Tab(o.0))}>
+                        <div class="flex text-(--lc-acc)"><Icon icon={o.1} width={18} /></div>
+                        <div>{o.2}</div>
+                        {#if o.0 == MiniTab::Queue && self.mini_queue_count() > 0}
+                            <div class="px-1.5 py-px rounded-lg font-(--font-mono) text-[10px] bg-(--lc-survol) text-(--lc-tx2)">{self.mini_queue_count()}</div>
+                        {/if}
+                    </button>
+                {:else}
+                    <button role="tab" aria-selected="false" class="h-8 flex items-center justify-center gap-1.75 rounded-lg text-[13px] font-semibold cursor-pointer transition-colors text-(--lc-tx2) hover:text-(--lc-tx)"
+                            onclick={Msg::Mini(MiniMsg::Tab(o.0))}>
+                        <div class="flex"><Icon icon={o.1} width={18} /></div>
+                        <div>{o.2}</div>
+                        {#if o.0 == MiniTab::Queue && self.mini_queue_count() > 0}
+                            <div class="px-1.5 py-px rounded-lg font-(--font-mono) text-[10px] bg-(--lc-survol) text-(--lc-tx2)">{self.mini_queue_count()}</div>
+                        {/if}
+                    </button>
+                {/if}
+            {/each}
+        </div>
+    </div>
+
+    {#if let Some(q) = self.mini_queue()}
+        {@include "MiniQueue.ui"}
+    {:else if self.views.mini.tab == Some(MiniTab::Lyrics)}
+        {@include "MiniLyrics.ui"}
+    {/if}
+</div>

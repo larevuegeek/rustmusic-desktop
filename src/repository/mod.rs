@@ -1,0 +1,13 @@
+pub mod batch;
+pub mod artist;
+pub mod library;
+pub mod audio_lyrics;
+pub mod profile;
+pub mod playlist;
+pub mod queue;
+pub mod recent;
+pub mod settings;
+pub mod podcast;
+pub mod radio;
+pub mod server;
+pub mod scrobble;

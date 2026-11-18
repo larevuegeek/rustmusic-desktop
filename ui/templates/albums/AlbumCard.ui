@@ -1,0 +1,39 @@
+<button class="card-album group relative w-full flex flex-col gap-2.5 min-w-0 text-left cursor-pointer"
+        onclick={album.open.clone()} oncontextmenu={{{ let (id, title, artist_name) = (album.id.clone(), album.title.clone(), album.artist.clone()); move |r: ContextMenuRequest| Msg::CollOpen(TrackMenuAt::from_request(&r), title.clone(), CollectionSource::Album { id: id.clone(), artist: Some(artist_name.clone()) }) }}}>
+    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden bg-(--rg-s2) shadow-[0_12px_18px_-10px_rgba(0,0,0,0.35)] dark:shadow-[0_12px_20px_-10px_rgba(0,0,0,0.7)]">
+        {#if album.cover.is_some()}
+            <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&album.cover)} alt="">
+        {:else}
+            <div class="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-xs font-semibold text-(--rg-mu)
+                        bg-(--rg-s2) shadow-[inset_0_0_0_1px_var(--rg-bd)] rounded-[10px]">
+                <Icon icon="material-symbols:image-search-rounded" width={28} />
+                <div>{t("albums_view.missing_cover")}</div>
+            </div>
+        {/if}
+
+        <div class="absolute inset-0 bg-linear-to-b from-transparent from-50% to-black/55 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"></div>
+
+        {#if let Some(hires) = &album.hires}
+            <div class="absolute left-2 top-2 z-2 px-1.5 py-0.5 rounded-[5px] text-[10px] font-bold tracking-[0.03em] bg-black/65 text-[#f3d38a]">{hires}</div>
+        {/if}
+        <button class="absolute right-2 top-2 z-2 w-7.5 h-7.5 rounded-lg flex items-center justify-center cursor-pointer
+                       bg-black/55 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/75"
+                id={ElementId::named(&album.more_id())}
+                title={t("albums_view.more")} aria-label={t("albums_view.more")} onclick={Msg::CollOpen(TrackMenuAt::Named(album.more_id()), album.title.clone(), CollectionSource::Album { id: album.id.clone(), artist: Some(album.artist.clone()) })}>
+            <Icon icon="material-symbols:more-horiz" width={18} />
+        </button>
+        <button class="absolute right-2.5 bottom-2.5 z-2 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer
+                       bg-(--rg-g) text-(--rg-on-g) shadow-[0_6px_16px_rgba(0,0,0,0.5)]
+                       opacity-0 translate-y-1.5 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-150 hover:scale-105"
+                title={t("albums_view.play")} aria-label={t_with("albums_view.play_named", &[("name", &album.title)])} onclick={Msg::Albums(AlbumsMsg::Play(album.id.clone()))}>
+            <Icon icon="material-symbols:play-arrow-rounded" width={28} />
+        </button>
+    </div>
+
+    <div class="w-full text-[15px] font-bold leading-[1.3] line-clamp-2 text-(--rg-tx)" title={album.title.as_str()}>{album.title}</div>
+    <div class="w-full -mt-1.5 flex items-center gap-1.5 min-w-0 text-[13px] text-(--rg-mu)">
+        <div class="truncate text-(--rg-tx2)">{album.artist}</div>
+        {#if !album.year.is_empty()}<div class="shrink-0">· {album.year}</div>{/if}
+    </div>
+    <div class="-mt-2 text-xs text-(--rg-mu2)">{album.tracks}</div>
+</button>

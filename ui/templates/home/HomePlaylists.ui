@@ -1,0 +1,42 @@
+{#if !vm.home_playlists.is_empty()}
+{@const c = self.carousel("home.playlists", String::new(), String::new(), vm.home_playlists.clone())}
+<section class="flex flex-col gap-4">
+    <div class="flex items-start justify-between gap-4">
+        <h2 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">{t("playlists_view.home_title")}</h2>
+        <span class="hidden @3xl:inline flex-1 text-sm text-neutral-500 dark:text-[#9aa39e] mt-[9.5px] whitespace-nowrap">{t("playlists_view.home_desc")}</span>
+        <button class="shrink-0 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline mt-[9.5px]"
+                onclick={Msg::Go(Route::Playlists)}><div>{t("playlists_view.all")}</div></button>
+    </div>
+    <div class="relative">
+        {#each [c.view] as view (view)}
+        <div class="flex overflow-x-auto [scrollbar-width:none] gap-4 @4xl:gap-5 pt-1.5 pb-2
+                    [mask-image:linear-gradient(to_right,#000_95%,transparent)]"
+             onscroll={{ let id = c.id; move |s: ScrollMetrics| Msg::CarouselScrolled(id, CarouselGeometry::of(s)) }}
+             onscrollrange={{ let id = c.id; move |s: ScrollMetrics| Msg::CarouselScrolled(id, CarouselGeometry::of(s)) }}
+             style:scroll_request={c.request}>
+            {#each c.items as p (p.key.as_str())}
+                <div class="w-40 @4xl:w-44 shrink-0">
+                    <PlaylistCard playlist={Some(p.clone())} />
+                </div>
+            {/each}
+        </div>
+        {/each}
+        {#if c.back}
+            <button class="absolute z-10 w-10 h-10 -mt-5 rounded-full flex items-center justify-center cursor-pointer transition duration-200
+                           bg-white text-neutral-800 shadow-[0_6px_18px_rgba(0,0,0,0.22)] ring-1 ring-black/8 hover:scale-105
+                           dark:bg-[#1c211e] dark:text-white dark:ring-white/12 dark:shadow-[0_6px_18px_rgba(0,0,0,0.6)] left-1 top-[80px]"
+                    onclick={Msg::Slide(c.id, false, c.total)} aria-label={t("common.previous")} title={t("common.previous")}>
+                <Icon icon="material-symbols:chevron-left-rounded" width={26} />
+            </button>
+        {/if}
+        {#if c.forward}
+            <button class="absolute z-10 w-10 h-10 -mt-5 rounded-full flex items-center justify-center cursor-pointer transition duration-200
+                           bg-white text-neutral-800 shadow-[0_6px_18px_rgba(0,0,0,0.22)] ring-1 ring-black/8 hover:scale-105
+                           dark:bg-[#1c211e] dark:text-white dark:ring-white/12 dark:shadow-[0_6px_18px_rgba(0,0,0,0.6)] right-1 top-[80px]"
+                    onclick={Msg::Slide(c.id, true, c.total)} aria-label={t("common.next")} title={t("common.next")}>
+                <Icon icon="material-symbols:chevron-right-rounded" width={26} />
+            </button>
+        {/if}
+    </div>
+</section>
+{/if}

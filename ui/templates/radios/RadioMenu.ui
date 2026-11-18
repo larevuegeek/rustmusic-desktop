@@ -1,0 +1,45 @@
+{#if let Some(m) = &self.views.radio_menu}
+    <k-popover anchor={m.at.anchor()} menu placement="bottom-start" offset="0" aria-label={m.name.as_str()}
+               onclose={Msg::Radios(RadiosMsg::MenuClose)}
+               class="w-57.5 py-1.5 bg-(--rg-s2) border border-(--rg-bd) dark:border-[#2a312d] rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] hover:text-rose-300 transition-colors"
+                onclick={Msg::Radios(RadiosMsg::MenuPlay)}>
+            <div class="flex opacity-60"><Icon icon="material-symbols:play-arrow-rounded" width={18} /></div><div>{t("radios.listen")}</div>
+        </button>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                onclick={Msg::Radios(RadiosMsg::MenuFavorite)}>
+            {#if m.favorite}
+                <div class="flex text-amber-300"><Icon icon="material-symbols:star-rounded" width={17} /></div><div>{t("radios.unfavorite")}</div>
+            {:else}
+                <div class="flex opacity-60"><Icon icon="material-symbols:star-outline-rounded" width={17} /></div><div>{t("radios.favorite")}</div>
+            {/if}
+        </button>
+        {#if m.has_variants()}
+            <div class="h-px mx-2 my-1 bg-white/8"></div>
+            <p class="m-0 px-3.5 pt-1.5 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-(--rg-mu)">{t("radios.stream_quality")}</p>
+            {#each m.variants as (k, v) (k)}
+                <button role="menuitemradio" aria-checked={v.stream_url == m.current} class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                        class:font-semibold={v.stream_url == m.current} onclick={Msg::Radios(RadiosMsg::MenuVariant(k))}>
+                    {#if v.stream_url == m.current}
+                        <div class="flex text-rose-300"><Icon icon="material-symbols:check-rounded" width={17} /></div>
+                    {:else}
+                        <div class="flex opacity-60"><Icon icon="material-symbols:graphic-eq-rounded" width={17} /></div>
+                    {/if}
+                    <div class="flex-1 min-w-0 truncate">{radio_variant_label(v)}</div>
+                    {#if v.reduced_quality}<div class="text-[11px] text-amber-400">{t("radios.reduced_short")}</div>{/if}
+                </button>
+            {/each}
+        {/if}
+        <div class="h-px mx-2 my-1 bg-white/8"></div>
+        {#if m.homepage.is_some()}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                    onclick={Msg::Radios(RadiosMsg::MenuSite)}>
+                <div class="flex opacity-60"><Icon icon="material-symbols:language" width={17} /></div><div>{t("radios.website")}</div>
+            </button>
+        {/if}
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                onclick={Msg::Radios(RadiosMsg::MenuClose)}>
+            <div class="flex opacity-60"><Icon icon="material-symbols:content-copy-outline-rounded" width={16} /></div><div>{t("radios.copy_stream")}</div>
+        </button>
+    </k-popover>
+{/if}

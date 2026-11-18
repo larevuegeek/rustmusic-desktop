@@ -1,0 +1,76 @@
+{#each row.cells as (i, cell) (cell.key.as_str())}
+    {#if cell.widget == Widget::Index}
+        {#if self.selecting()}
+        <div class="relative shrink-0 flex items-center justify-center h-full" style:width={crate::mapper::tracks::column_width(i, cell.width)}>
+            {@const checked = self.selected(row.n)}{@include "TrackSelectionCheck.ui"}
+        </div>
+        {:else}
+        <div class="relative shrink-0 flex items-center justify-center h-full" style:width={crate::mapper::tracks::column_width(i, cell.width)}>
+            {#if row.in_progress}
+                <div class="mini-eq flex items-end gap-0.5 h-3.5 group-hover:hidden">
+                    <div class="mini-eq-1" class:eq-pause={!row.played}></div>
+                    <div class="mini-eq-2" class:eq-pause={!row.played}></div>
+                    <div class="mini-eq-3" class:eq-pause={!row.played}></div>
+                </div>
+            {:else}
+                <div class="text-[13px] tabular-nums text-(--rg-mu2) group-hover:opacity-0">{row.number}</div>
+            {/if}
+            <button class="absolute inset-0 hidden group-hover:flex items-center justify-center cursor-pointer text-(--rg-tx)"
+                    title={t("tracks_view.play")} aria-label={t("tracks_view.play")} onclick={Msg::Row(RowMsg::Play(row.n))}>
+                <Icon icon="material-symbols:play-arrow-rounded" width={24} />
+            </button>
+        </div>
+        {/if}
+    {:else if cell.widget == Widget::Cover && table.detailed}
+        <div class="shrink-0 rounded-md overflow-hidden shadow-[0_3px_10px_rgba(0,0,0,0.35)] h-17" style:width={crate::mapper::tracks::column_width(i, cell.width)}>
+            {@include "TrackCover.ui"}
+        </div>
+    {:else if cell.widget == Widget::Cover}
+        <div class="shrink-0 rounded-md overflow-hidden shadow-[0_3px_10px_rgba(0,0,0,0.35)] h-10" style:width={crate::mapper::tracks::column_width(i, cell.width)}>
+            {@include "TrackCover.ui"}
+        </div>
+    {:else if cell.widget == Widget::Title && cell.flexible}
+        <div class="flex-1 min-w-0" style:min_width={cell.min_width}>{@include "TrackTitle.ui"}</div>
+    {:else if cell.widget == Widget::Title}
+        <div class="shrink-0 min-w-0" style:width={crate::mapper::tracks::column_width(i, cell.width)}>{@include "TrackTitle.ui"}</div>
+    {:else if cell.widget == Widget::Quality}
+        <div class="shrink-0 flex items-center gap-1.5 whitespace-nowrap overflow-hidden" style:width={crate::mapper::tracks::column_width(i, cell.width)}>
+            {@include "TierBadge.ui"}
+            <div class="text-xs text-(--rg-mu2) truncate">{row.short}</div>
+        </div>
+    {:else if cell.widget == Widget::Rating}
+        <div class="shrink-0 flex" style:width={crate::mapper::tracks::column_width(i, cell.width)}>{@include "StarRating.ui"}</div>
+    {:else if cell.widget == Widget::Album}
+        <div class="shrink-0 truncate text-sm text-(--rg-mu)" style:width={crate::mapper::tracks::column_width(i, cell.width)} title={row.album.as_str()}>
+            {#if let Some(route) = &row.album_route}
+                <div class="truncate text-(--rg-tx2) hover:text-(--rg-tx) hover:underline underline-offset-2 cursor-pointer" onclick={Msg::Go(route.clone())}>{row.album}</div>
+            {/if}
+            {#if row.album_route.is_none()}<div class="truncate">{row.album}</div>{/if}
+        </div>
+    {:else if cell.right}
+        <div class="shrink-0 text-right text-[13px] tabular-nums text-(--rg-mu)" style:width={crate::mapper::tracks::column_width(i, cell.width)}>{cell.text}</div>
+    {:else}
+        <div class="shrink-0 truncate text-[13px] text-(--rg-mu)" style:width={crate::mapper::tracks::column_width(i, cell.width)} title={cell.text.as_str()}>{cell.text}</div>
+    {/if}
+{/each}
+{#if table.filler}
+    <div class="flex-1 min-w-0"></div>
+{/if}
+{#if row.liked}
+    <button class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-pointer transition-colors hover:bg-(--rg-s2) text-(--rg-g)"
+            title={t("tracks_view.like")} aria-label={t("tracks_view.like")} aria-pressed="true" onclick={Msg::Row(RowMsg::Like(row.n))}>
+        <Icon icon="material-symbols:favorite-rounded" width={19} />
+    </button>
+{:else}
+    <button class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)
+                   opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            title={t("tracks_view.like")} aria-label={t("tracks_view.like")} aria-pressed="false" onclick={Msg::Row(RowMsg::Like(row.n))}>
+        <Icon icon="material-symbols:favorite-outline-rounded" width={19} />
+    </button>
+{/if}
+<button class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)
+               opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        id={ElementId::named(&row.more_id())}
+        title={t("tracks_view.more")} aria-label={t("tracks_view.more")} onclick={Msg::Row(RowMsg::Menu(row.n, TrackMenuAt::Named(row.more_id())))}>
+    <Icon icon="material-symbols:more-horiz" width={19} />
+</button>

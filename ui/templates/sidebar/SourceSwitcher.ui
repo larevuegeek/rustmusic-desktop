@@ -1,0 +1,44 @@
+<button id="sidebar.source"
+        class="flex items-center gap-2.5 rounded-xl cursor-pointer transition-colors bg-(--sb-s1) border border-(--sb-bd) hover:border-(--sb-bd2)"
+        class:p-1.75={self.sidebar_collapsed} class:w-full={!self.sidebar_collapsed} class:py-1.5={!self.sidebar_collapsed}
+        class:pr-2.5={!self.sidebar_collapsed} class:pl-1.5={!self.sidebar_collapsed}
+        onclick={Msg::Menu(Menu::Source)}
+        title={t("sources.change")} aria-label={t("sources.change")}
+        aria-haspopup="listbox" aria-expanded={self.open(Menu::Source)}>
+    {#if vm.current_source.tint == "serveur"}
+        <div class="relative w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-sky-500/12 text-sky-600 dark:text-sky-300">
+            <Icon icon={vm.current_source.icon} width={20} thick />
+        </div>
+    {:else if vm.current_source.tint == "toutes"}
+        <div class="relative w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-violet-500/12 text-violet-600 dark:text-violet-300">
+            <Icon icon={vm.current_source.icon} width={20} thick />
+        </div>
+    {:else}
+        <div class="relative w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)">
+            <Icon icon={vm.current_source.icon} width={20} thick />
+        </div>
+    {/if}
+    {#if !self.sidebar_collapsed}
+        <div class="flex-1 flex flex-col gap-px min-w-0 text-left">
+            <div class="text-[10.5px] font-bold uppercase tracking-[.1em] text-(--sb-hd)">{t("sources.label")}</div>
+            <div class="text-sm font-bold truncate text-(--sb-tx)">{vm.current_source.name}</div>
+        </div>
+        <div class="shrink-0 text-(--sb-tx2)"><Icon icon="material-symbols:unfold-more-rounded" width={18} /></div>
+    {/if}
+</button>
+
+{#if self.open(Menu::Source) && self.sidebar_collapsed}
+    <k-popover id="sidebar.source.menu" anchor="sidebar.source" listbox placement="right-start" offset="8"
+               aria-label={t("sources.label")} onclose={Msg::CloseMenu}
+               class="p-1.5 flex flex-col gap-0.5 rounded-2xl border shadow-xl shadow-black/10 dark:shadow-black/40
+                      bg-white/98 dark:bg-neutral-900/98 backdrop-blur-xl border-neutral-200/60 dark:border-white/8 w-[300px] menu">
+        {@include "SourceMenu.ui"}
+    </k-popover>
+{:else if self.open(Menu::Source)}
+    <k-popover anchor="sidebar.source" listbox placement="bottom-start" offset="6"
+               aria-label={t("sources.label")} onclose={Msg::CloseMenu}
+               class="p-1.5 flex flex-col gap-0.5 rounded-2xl border shadow-xl shadow-black/10 dark:shadow-black/40
+                      bg-white/98 dark:bg-neutral-900/98 backdrop-blur-xl border-neutral-200/60 dark:border-white/8 w-[300px] menu">
+        {@include "SourceMenu.ui"}
+    </k-popover>
+{/if}

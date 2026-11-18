@@ -1,0 +1,90 @@
+{#if self.sidebar_collapsed}
+    <div class="shrink-0 w-full flex flex-col items-center gap-1 pt-2.5 border-t border-(--sb-sep) animate-[sidebar-in_320ms_cubic-bezier(0.32,0.72,0,1)]">
+        <button class="relative shrink-0 flex items-center justify-center cursor-pointer transition-colors
+                       text-(--sb-mu) enabled:hover:bg-(--sb-s2) enabled:hover:text-(--sb-tx) disabled:cursor-default
+                       w-12 h-12 rounded-lg"
+                onclick={Msg::LibraryFolders(LibraryFoldersMsg::Open)} aria-label={t("sidebar.library_folders")} title={t("sidebar.library_folders")}>
+            <Icon icon="material-symbols:folder-open-outline-rounded" width={22} />
+        </button>
+        <button id="sidebar.footer.rescan"
+                class="relative shrink-0 flex items-center justify-center cursor-pointer transition-colors
+                       text-(--sb-mu) enabled:hover:bg-(--sb-s2) enabled:hover:text-(--sb-tx) disabled:cursor-default
+                       w-12 h-12 rounded-lg"
+                onclick={Msg::Rescan}
+                aria-label={t_with("sidebar.rescan_title_named", &[("name", &vm.scan)])}
+                title={t_with("sidebar.rescan_title_named", &[("name", &vm.scan)])}>
+            <Icon icon="material-symbols:refresh-rounded" width={22} />
+            <div class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full ring-2 ring-(--sb-bg) pointer-events-none bg-(--sb-point)"
+                 aria-hidden="true"></div>
+        </button>
+        <button id="sidebar.footer.profil" class="mt-1 cursor-pointer rounded-full flex" onclick={Msg::Profiles(ProfileMsg::Open)}
+                aria-label={t_with("sidebar.profile_title", &[("name", &vm.first_name)])} title={t_with("sidebar.profile_title", &[("name", &vm.first_name)])}>
+            <div class="sb-avatar w-8.5 h-8.5 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-sm font-extrabold text-white">{vm.initial}</div>
+        </button>
+    </div>
+{:else}
+<div class="shrink-0 -mt-7 relative z-10 flex flex-col items-center pointer-events-none animate-[sidebar-in_320ms_cubic-bezier(0.32,0.72,0,1)]">
+    <button id="sidebar.footer.tab"
+            class="pointer-events-auto relative z-10 -mb-px w-10 h-4 flex items-center justify-center rounded-t-lg cursor-pointer
+                   bg-(--sb-pied) border border-b-0 border-(--sb-piedbd) text-(--sb-mu) hover:text-(--sb-tx) transition-colors"
+            onclick={Msg::ToggleFooter}
+            title={if self.footer_collapsed {t("sidebar.footer_expand")} else {t("sidebar.footer_collapse")}}
+            aria-label={if self.footer_collapsed {t("sidebar.footer_expand")} else {t("sidebar.footer_collapse")}}
+            aria-expanded={!self.footer_collapsed}>
+        <Icon icon={if self.footer_collapsed {"material-symbols:keyboard-arrow-up-rounded"} else {"material-symbols:keyboard-arrow-down-rounded"}} width={16} />
+    </button>
+
+    <div class="sb-pied-carte pointer-events-auto relative overflow-hidden w-full flex flex-col rounded-[14px] border border-(--sb-piedbd)">
+        {#if self.footer_collapsed}
+            <button class="flex items-center gap-2 py-1.5 pl-2 pr-2.5 min-w-0 text-left cursor-pointer"
+                    onclick={Msg::ToggleFooter} title={t("sidebar.footer_expand")}>
+                <div class="sb-avatar w-6 h-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-[11px] font-extrabold text-white">{vm.initial}</div>
+                <b class="text-[13px] font-bold truncate text-(--sb-tx) shrink-0 max-w-[40%]">{vm.first_name}</b>
+                <div class="sb-point w-1.5 h-1.5 rounded-full shrink-0 text-(--sb-point)" aria-hidden="true"></div>
+                <small class="min-w-0 text-xs truncate tabular-nums text-(--sb-mu)">{vm.scan}</small>
+            </button>
+        {:else}
+            <div>
+                <div class="flex items-center gap-2.5 pt-2 pb-1.5 pl-2 pr-1.5">
+                    <button class="group flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer"
+                            onclick={Msg::Profiles(ProfileMsg::Open)} title={t_with("sidebar.profile_title", &[("name", &vm.first_name)])}>
+                        <div class="sb-avatar w-8.5 h-8.5 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-sm font-extrabold text-white">{vm.initial}</div>
+                        <div class="flex flex-col gap-px min-w-0">
+                            <div class="text-sm font-bold truncate text-(--sb-tx) group-hover:underline underline-offset-2 decoration-(--sb-mu)">{vm.first_name}</div>
+                            <div class="text-xs truncate text-(--sb-mu)">{t("sidebar.profile_active")}</div>
+                        </div>
+                    </button>
+                    <button class="relative shrink-0 flex items-center justify-center cursor-pointer transition-colors
+                                   text-(--sb-mu) enabled:hover:bg-(--sb-s2) enabled:hover:text-(--sb-tx) disabled:cursor-default
+                                   w-7 h-7 rounded-md text-(--sb-tx2)"
+                            onclick={Msg::Go(Route::Settings(SettingsPage::General))} aria-label={t("sidebar.settings")} title={t("sidebar.settings")}>
+                        <Icon icon="material-symbols:settings-outline-rounded" width={17} />
+                    </button>
+                </div>
+                <div class="flex items-center gap-2.5 py-1 pl-2 pr-1.5 border-t border-(--sb-piedbd)">
+                    <div class="w-8.5 shrink-0 flex justify-center">
+                        <div class="sb-point w-1.5 h-1.5 rounded-full text-(--sb-point)"></div>
+                    </div>
+                    <small class="flex-1 min-w-0 text-xs truncate tabular-nums text-(--sb-mu)">{vm.scan}</small>
+                    <div class="flex items-center gap-0.5 shrink-0">
+                        <button class="relative shrink-0 flex items-center justify-center cursor-pointer transition-colors
+                                       text-(--sb-mu) enabled:hover:bg-(--sb-s2) enabled:hover:text-(--sb-tx) disabled:cursor-default
+                                       w-7 h-7 rounded-md text-(--sb-tx2)"
+                                onclick={Msg::LibraryFolders(LibraryFoldersMsg::Open)} aria-label={t("sidebar.library_folders")} title={t("sidebar.library_folders")}>
+                            <Icon icon="material-symbols:folder-open-outline-rounded" width={17} />
+                        </button>
+                        <button class="relative shrink-0 flex items-center justify-center cursor-pointer transition-colors
+                                       text-(--sb-mu) enabled:hover:bg-(--sb-s2) enabled:hover:text-(--sb-tx) disabled:cursor-default
+                                       w-7 h-7 rounded-md text-(--sb-tx2)"
+                                onclick={Msg::Rescan}
+                                aria-label={t_with("sidebar.rescan_title_named", &[("name", &vm.scan)])}
+                                title={t_with("sidebar.rescan_title_named", &[("name", &vm.scan)])}>
+                            <Icon icon="material-symbols:refresh-rounded" width={17} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        {/if}
+    </div>
+</div>
+{/if}

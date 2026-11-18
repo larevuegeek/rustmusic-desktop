@@ -1,0 +1,49 @@
+<div class="flex shrink-0">
+{#if self.subtle}
+    <div class="shrink-0 flex p-0.75 rounded-[10px] border bg-(--rg-carte) border-(--rg-bd)" role="radiogroup" aria-label={self.label.as_str()}>
+        {#each self.options as (i, o) (i)}
+            {#if o.active && o.icon_only}
+                <button role="radio" aria-checked="true" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer transition-colors whitespace-nowrap w-8 h-7 bg-(--rg-s2) text-(--rg-tx)"
+                        title={o.label.as_str()} aria-label={o.label.as_str()} onclick={o.msg.clone()}>
+                    <Icon icon={o.icon.as_str()} width={18} />
+                </button>
+            {:else if o.icon_only}
+                <button role="radio" aria-checked="false" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer transition-colors whitespace-nowrap w-8 h-7 text-(--rg-mu) hover:text-(--rg-tx)"
+                        title={o.label.as_str()} aria-label={o.label.as_str()} onclick={o.msg.clone()}>
+                    <Icon icon={o.icon.as_str()} width={18} />
+                </button>
+            {:else if o.active}
+                <button role="radio" aria-checked="true" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer transition-colors whitespace-nowrap h-7 px-3 bg-(--rg-s2) text-(--rg-tx)"
+                        onclick={o.msg.clone()}>
+                    {#if !o.icon.is_empty()}<Icon icon={o.icon.as_str()} width={18} />{/if}
+                    <div class="w-auto">{o.label}</div>
+                </button>
+            {:else}
+                <button role="radio" aria-checked="false" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer transition-colors whitespace-nowrap h-7 px-3 text-(--rg-mu) hover:text-(--rg-tx)"
+                        onclick={o.msg.clone()}>
+                    {#if !o.icon.is_empty()}<Icon icon={o.icon.as_str()} width={18} />{/if}
+                    <div class="w-auto">{o.label}</div>
+                </button>
+            {/if}
+        {/each}
+    </div>
+{:else}
+    <div class="shrink-0 flex p-0.75 rounded-[10px] border bg-(--rg-s2) border-(--rg-off)" role="radiogroup" aria-label={self.label.as_str()}>
+        {#each self.options as (i, o) (i)}
+            {#if o.active}
+                <button role="radio" aria-checked="true" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer transition-colors whitespace-nowrap h-8 px-3.5 bg-(--rg-tx) text-(--rg-bg)"
+                        onclick={o.msg.clone()}>
+                    {#if !o.icon.is_empty()}<Icon icon={o.icon.as_str()} width={18} />{/if}
+                    <div class="w-auto">{o.label}</div>
+                </button>
+            {:else}
+                <button role="radio" aria-checked="false" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer transition-colors whitespace-nowrap h-8 px-3.5 text-(--rg-mu) hover:text-(--rg-tx)"
+                        onclick={o.msg.clone()}>
+                    {#if !o.icon.is_empty()}<Icon icon={o.icon.as_str()} width={18} />{/if}
+                    <div class="w-auto">{o.label}</div>
+                </button>
+            {/if}
+        {/each}
+    </div>
+{/if}
+</div>

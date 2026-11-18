@@ -1,0 +1,20 @@
+<div class="relative">
+    <button id={id}
+            class="h-8.5 pl-3 pr-2.5 flex items-center gap-1.5 rounded-[10px] border text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors
+                   bg-(--rg-carte) border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+            title={self.label.as_str()} aria-expanded={self.open} aria-haspopup="menu"
+            onclick={Msg::Menu(Menu::Popup(id))}>
+        {#if !self.icon.is_empty()}<Icon icon={self.icon.as_str()} width={18} />{/if}
+        <div class="w-auto">{self.label}</div>
+        <Icon icon={indicator.as_str()} width={17} />
+    </button>
+    {#if self.open}
+        <k-popover anchor={Anchor::Element(ElementId::named(id))} menu placement="bottom-end" offset="8"
+                   aria-label={self.label.as_str()} onclose={Msg::CloseMenu} class="rg-menu w-55">
+            {#each self.options as (i, o) (i)}
+                <MenuItem icon={o.icon.as_str()} active={o.active} onclick={o.msg.clone()}>{o.label}</MenuItem>
+            {/each}
+            <slot name="fin" />
+        </k-popover>
+    {/if}
+</div>

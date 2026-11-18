@@ -1,0 +1,80 @@
+{@const pv = self.playlists_view()}
+<div class="biblio-maquette flex flex-col h-full">
+    <div class="shrink-0 flex flex-wrap items-center gap-x-5 gap-y-4 px-4 md:pl-8 md:pr-14 pt-6 pb-4">
+        <div class="w-16 h-16 shrink-0 rounded-2xl border flex items-center justify-center text-(--rg-g) bg-(--rg-gbg) border-(--rg-gbd)
+                    dark:bg-linear-145 dark:from-[#15402a] dark:to-[#0e2519]">
+            <Icon icon="material-symbols:queue-music-rounded" width={30} />
+        </div>
+        <div class="flex-[1_1_240px] min-w-60">
+            <p class="m-0 text-xs font-bold uppercase tracking-widest text-(--rg-mu)">{t("playlists_view.kicker")}</p>
+            <h1 class="m-0 mt-0.5 mb-1.5 text-[34px] font-extrabold tracking-[-0.02em] leading-tight text-(--rg-tx)">{t("nav.playlists")}</h1>
+            <div class="flex flex-wrap items-baseline gap-x-4.5 gap-y-1.5 text-sm text-(--rg-mu)">
+                <div class="flex gap-1"><div class="font-bold text-(--rg-tx)">{pv.count.0}</div><div>{pv.count.1}</div></div>
+                <div class="flex gap-1"><div class="font-bold text-(--rg-tx)">{pv.pinned.0}</div><div>{pv.pinned.1}</div></div>
+            </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            {#if !pv.remote}
+                <button class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border cursor-pointer text-sm font-semibold transition-colors border-(--rg-bd2) text-(--rg-tx) hover:border-(--rg-gbd) hover:text-(--rg-gtx)"
+                        title={t("playlists_view.import_m3u_hint")} onclick={Msg::Noop}>
+                    <Icon icon="material-symbols:upload-file-outline-rounded" width={18} /><div>{t("playlists_view.import_m3u_short")}</div>
+                </button>
+            {/if}
+            <button class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border cursor-pointer text-sm font-semibold transition-colors border-(--rg-bd2) text-(--rg-tx) hover:border-(--rg-gbd) hover:text-(--rg-gtx)"
+                    onclick={Msg::Smart(SmartMsg::Open(None, false))}>
+                <Icon icon="material-symbols:auto-awesome-outline-rounded" width={18} /><div>{t("playlists_view.new_smart")}</div>
+            </button>
+            <button class="h-10 px-4 inline-flex items-center gap-2 rounded-xl cursor-pointer text-sm font-bold bg-(--rg-g) text-(--rg-on-g) hover:brightness-110 transition"
+                    onclick={Msg::PlaylistForm(PlaylistFormMsg::New(None))}>
+                <Icon icon="material-symbols:add-rounded" width={20} /><div>{t("playlist.new")}</div>
+            </button>
+        </div>
+    </div>
+
+    <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3 border-t border-(--rg-line)">
+        <div class="flex flex-wrap items-center gap-2.5">
+            <SearchField class="w-65 @max-4xl:flex-1 min-w-36" value={self.views.playlists.search.clone()} placeholder={pv.placeholder.clone()}
+                         clear_label={t("genres_view.clear_filters")} field={Field::PlaylistsSearch} />
+            <SegmentedControl subtle label={t("playlists_view.kind")} options={pv.kinds.clone()} />
+            <div class="flex-1"></div>
+            <MenuSelect anchor="playlists.sort" open={self.popup("playlists.sort")} label={pv.sort_label.clone()} icon={pv.sort_icon} options={pv.sorts.clone()} />
+            <ToolbarButton icon="material-symbols:select-check-box-rounded" label={t("albums_view.select")} title={t("albums_view.select")} pressed={self.selecting()} onclick={Msg::Selection(SelectionMsg::Toggle)} />
+            <SegmentedControl subtle label={t("albums_view.grid_or_list")} options={pv.views.clone()} />
+        </div>
+    </div>
+
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pt-2 pb-16">
+        {#if pv.no_match}
+            <EmptyResult message={t("playlists_view.no_match")} clear_label={t("genres_view.clear_filters")} onclear={Some(Msg::Playlists(PlaylistsMsg::ClearFilters))} />
+        {:else}
+            {#if self.views.view_mode == ViewMode::Grid}
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-x-5 gap-y-6 pt-2">
+                    {#each pv.shortcuts as p (p.key.as_str())}{@include "PlaylistTile.ui"}{/each}
+                    {#each pv.groups as (k, g) (k)}
+                        {#if let Some(title) = &g.0}
+                            <div class="col-span-full mt-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">
+                                <Icon icon={title.1} width={15} /><div>{title.0}</div>
+                            </div>
+                        {/if}
+                        {#each g.1 as p (p.key.as_str())}{@include "PlaylistTile.ui"}{/each}
+                    {/each}
+                </div>
+            {:else}
+                <div class="flex flex-col">
+                    {#each pv.shortcuts as p (p.key.as_str())}{@include "PlaylistTile.ui"}{/each}
+                    {#each pv.groups as (k, g) (k)}
+                        {#if let Some(title) = &g.0}
+                            <div class="mt-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">
+                                <Icon icon={title.1} width={15} /><div>{title.0}</div>
+                            </div>
+                        {/if}
+                        {#each g.1 as p (p.key.as_str())}{@include "PlaylistTile.ui"}{/each}
+                    {/each}
+                </div>
+            {/if}
+            {#if pv.empty}
+                <p class="m-0 mt-8 max-w-md text-sm leading-relaxed text-(--rg-mu)">{t("playlists_view.empty_desc")}</p>
+            {/if}
+        {/if}
+    </div>
+</div>

@@ -1,0 +1,23 @@
+<button class="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2 text-left cursor-pointer" onclick={Msg::ChooseOutput(i)}>
+    {#if i == vm.output}
+        <div class="flex shrink-0 text-(--rg-g)"><Icon icon={s.icon} width={20} /></div>
+    {:else}
+        <div class="flex shrink-0 text-(--lc-mu)"><Icon icon={s.icon} width={20} /></div>
+    {/if}
+    <div class="min-w-0 flex-1 leading-[1.2]">
+        <div class="block truncate text-[13px] font-semibold">{s.label}</div>
+        <div class="block truncate text-[11px] text-(--lc-mu)">{s.detail}</div>
+    </div>
+    {#if s.hires}
+        <div class="shrink-0 inline-flex items-center px-1.75 py-0.5 rounded-[5px] border text-[11px] font-bold leading-[1.2] whitespace-nowrap
+                    bg-(--rg-ambg) text-(--rg-am) border-(--rg-ambd)">{t("settings.audio_devices_rate_hires")}</div>
+    {:else}
+        <div class="shrink-0 inline-flex items-center px-1.75 py-0.5 rounded-[5px] border text-[11px] font-bold leading-[1.2] whitespace-nowrap
+                    bg-(--rg-s2) text-[#b0b9b4] border-(--rg-bd2)">{t("settings.audio_devices_rate_cd")}</div>
+    {/if}
+    <div class="flex shrink-0 text-(--rg-g)" class:opacity-0={i != vm.output}><Icon icon="material-symbols-light:check-rounded" width={20} /></div>
+</button>
+<button class="shrink-0 w-8 flex items-center justify-center rounded-r-[10px] cursor-pointer text-(--lc-mu) hover:text-(--lc-tx)"
+        onclick={Msg::Go(Route::Settings(SettingsPage::Audio))} title={t("settings.audio_devices_details_action")} aria-label={t("settings.audio_devices_details_action")}>
+    <Icon icon="material-symbols-light:info-outline-rounded" width={18} />
+</button>

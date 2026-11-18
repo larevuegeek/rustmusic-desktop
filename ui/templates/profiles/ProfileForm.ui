@@ -1,0 +1,146 @@
+<div class="w-full max-w-lg">
+    <div class="relative rounded-3xl border border-(--rg-bd) dark:border-white/8 bg-(--rg-carte) dark:bg-white/3 backdrop-blur-2xl shadow-[0_8px_64px_rgba(0,0,0,0.6)] overflow-hidden">
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-40 rounded-full blur-[80px] opacity-25 pointer-events-none transition-all duration-500"
+             style:background_color={hex(ps.color_hex())}></div>
+
+        <button class="absolute top-5 left-6 z-10 text-(--rg-mu) hover:text-(--rg-tx2) transition-all duration-200 cursor-pointer flex items-center gap-1.5 text-xs font-medium hover:gap-2"
+                onclick={Msg::Profiles(ProfileMsg::Back)}>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+            <div>{t("profil.back")}</div>
+        </button>
+
+        <div class="relative flex flex-col items-center gap-5 pt-14 pb-8 px-8">
+            <div class="relative w-28 h-28">
+                <div class="absolute inset-0 rounded-2xl blur-2xl opacity-40 scale-125 transition-all duration-500" style:background_color={hex(ps.color_hex())}></div>
+                <div class="relative transition-all duration-300">
+                    <div class="relative flex items-center justify-center shrink-0 overflow-hidden w-28 h-28 rounded-2xl text-5xl font-black ring-2 ring-white/15 shadow-2xl text-(--rg-tx)">
+                        {#if let Some(img) = &ps.avatar}
+                            <img class="w-full h-full object-cover" src={cx.resources.cover(img)} alt="">
+                        {/if}
+                        {#if ps.avatar.is_none()}<div>{profile_initials(if ps.name.is_empty() { "?" } else { ps.name.as_str() })}</div>{/if}
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center justify-center gap-2">
+                <button class="h-8 px-3 flex items-center gap-1.5 rounded-lg border text-[13px] font-semibold cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+                        onclick={Msg::Noop}>
+                    <Icon icon="material-symbols:add-photo-alternate-outline-rounded" width={17} />
+                    <div>{t(if ps.avatar.is_some() { "profil.avatar_change" } else { "profil.avatar_choose" })}</div>
+                </button>
+                {#if ps.avatar.is_some()}
+                    <button class="h-8 px-3 flex items-center gap-1.5 rounded-lg text-[13px] font-semibold cursor-pointer text-(--rg-mu) hover:text-(--rg-tx)"
+                            onclick={Msg::Profiles(ProfileMsg::RemoveAvatar)}>
+                        <Icon icon="material-symbols:close-rounded" width={17} /><div>{t("profil.avatar_remove")}</div>
+                    </button>
+                {/if}
+            </div>
+            <div class="flex flex-col items-center gap-1 text-center">
+                <h2 class="m-0 text-2xl font-bold text-(--rg-tx) tracking-tight">{t(if ps.mode == ProfileMode::Create { "profil.new_profil" } else { "profil.edit_profil" })}</h2>
+                <p class="m-0 text-xs text-(--rg-mu)">{t(if ps.mode == ProfileMode::Create { "profil.create_desc" } else { "profil.edit_desc" })}</p>
+            </div>
+        </div>
+
+        <div class="mx-8 h-px bg-linear-to-r from-transparent via-(--rg-bd) to-transparent"></div>
+
+        <div class="px-10 pb-10 pt-8 flex flex-col gap-8">
+            <div class="flex flex-col gap-2">
+                <div class="text-[11px] font-semibold uppercase tracking-widest text-(--rg-mu) mb-1">{t("profil.name_label")}</div>
+                {#if ps.error.is_some()}
+                    <input class="w-full rounded-xl px-5 py-3.5 text-sm font-medium bg-(--rg-champ) dark:bg-white/6 border text-(--rg-tx) placeholder:text-(--rg-mu2) outline-none transition-all duration-200 border-red-400/50"
+                           type="text" value={ps.name.as_str()} placeholder={t("profil.name_placeholder")} aria-label={t("profil.name_label")}
+                           oninput={|v: String| Msg::Profiles(ProfileMsg::Name(v))} onchange={Msg::Profiles(ProfileMsg::Submit)}>
+                {:else if ps.name.is_empty()}
+                    <input class="w-full rounded-xl px-5 py-3.5 text-sm font-medium bg-(--rg-champ) dark:bg-white/6 border border-(--rg-bd) dark:border-white/8 text-(--rg-tx) placeholder:text-(--rg-mu2) outline-none transition-all duration-200 hover:border-(--rg-bd2) dark:hover:border-white/12"
+                           type="text" value={ps.name.as_str()} placeholder={t("profil.name_placeholder")} aria-label={t("profil.name_label")}
+                           oninput={|v: String| Msg::Profiles(ProfileMsg::Name(v))} onchange={Msg::Profiles(ProfileMsg::Submit)}>
+                {:else}
+                    <input class="w-full rounded-xl px-5 py-3.5 text-sm font-medium bg-(--rg-champ) dark:bg-white/6 border text-(--rg-tx) placeholder:text-(--rg-mu2) outline-none transition-all duration-200"
+                           style:border_color={Color { alpha: 48, ..hex(ps.color_hex()) }}
+                           type="text" value={ps.name.as_str()} placeholder={t("profil.name_placeholder")} aria-label={t("profil.name_label")}
+                           oninput={|v: String| Msg::Profiles(ProfileMsg::Name(v))} onchange={Msg::Profiles(ProfileMsg::Submit)}>
+                {/if}
+                {#if let Some(e) = &ps.error}
+                    <div class="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400/90 pt-0.5">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 8v4m0 4h.01" stroke-linecap="round" /></svg>
+                        <div>{t(e)}</div>
+                    </div>
+                {/if}
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <div class="text-[11px] font-semibold uppercase tracking-widest text-(--rg-mu) mb-4">{t("profil.color_label")}</div>
+                <div class="flex items-center gap-2.5">
+                    {#each profile_palette() as (i, c) (i)}
+                        {#if i == ps.color}
+                            <button class="pf-pastille-on w-7 h-7 shrink-0 rounded-full cursor-pointer transition-all duration-200 scale-110"
+                                    style:background_color={hex(c)} style:--pf={Color { alpha: 128, ..hex(c) }}
+                                    aria-label={t_with("forms.color_aria", &[("color", c)])} onclick={Msg::Profiles(ProfileMsg::Color(i))}><div></div></button>
+                        {:else}
+                            <button class="w-7 h-7 shrink-0 rounded-full cursor-pointer transition-all duration-200 hover:scale-105 opacity-50 hover:opacity-100"
+                                    style:background_color={hex(c)}
+                                    aria-label={t_with("forms.color_aria", &[("color", c)])} onclick={Msg::Profiles(ProfileMsg::Color(i))}><div></div></button>
+                        {/if}
+                    {/each}
+                </div>
+            </div>
+
+            <div class="h-px" style:background_layers={profile_rule(ps.color_hex())}></div>
+
+            <div class="flex items-center justify-between pt-1">
+                <div class="flex">
+                    {#if profile_can_delete(ps)}
+                        {#if !ps.delete_confirm}
+                            <button class="flex items-center gap-1.5 text-sm text-red-600/60 hover:text-red-600 dark:text-red-400/40 dark:hover:text-red-400 transition-colors cursor-pointer"
+                                    onclick={Msg::Profiles(ProfileMsg::DeleteAsk)}>
+                                <Icon icon="material-symbols:delete-outline-rounded" width={14} /><div>{t("common.delete")}</div>
+                            </button>
+                        {:else}
+                            <div class="text-xs text-red-600/70 dark:text-red-400/60">{t("profil.confirm_below")}</div>
+                        {/if}
+                    {/if}
+                </div>
+                <div class="flex items-center gap-4">
+                    <button class="text-sm font-medium text-(--rg-mu) hover:text-(--rg-tx2) transition-colors cursor-pointer"
+                            onclick={Msg::Profiles(ProfileMsg::Back)}><div>{t("common.cancel")}</div></button>
+                    <button class="flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold text-white transition-all duration-200 cursor-pointer hover:brightness-110 active:scale-95"
+                            style:background_color={hex(ps.color_hex())} onclick={Msg::Profiles(ProfileMsg::Submit)}>
+                        {#if ps.busy}
+                            <div class="flex animate-spin"><Icon icon="lucide:loader-2" width={16} /></div>
+                            <div>{t(if ps.mode == ProfileMode::Create { "forms.creating" } else { "forms.saving" })}</div>
+                        {:else}
+                            {#if ps.mode == ProfileMode::Create}
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                            {:else}
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                            {/if}
+                            <div>{t(if ps.mode == ProfileMode::Create { "profil.create" } else { "profil.save" })}</div>
+                        {/if}
+                    </button>
+                </div>
+            </div>
+
+            {#if ps.delete_confirm}
+                <div class="rounded-xl border border-red-500/15 bg-red-500/5 p-4 flex flex-col gap-3">
+                    <div class="flex items-start gap-2.5">
+                        <div class="flex shrink-0 mt-0.5 text-red-600 dark:text-red-400"><Icon icon="material-symbols:warning-outline-rounded" width={16} /></div>
+                        {@const w = ProfileScreen::warning()}
+                        <p class="m-0 text-[11px] text-red-700/80 dark:text-red-300/70 leading-relaxed">{w.0}<span class="emphasis-soft-alert">{ProfileScreen::delete_word()}</span>{w.1}</p>
+                    </div>
+                    <input class="w-full rounded-lg px-3.5 py-2 text-xs bg-(--rg-champ) dark:bg-black/20 border border-red-500/20 text-(--rg-tx) placeholder:text-(--rg-mu2) outline-none transition-all duration-200"
+                           type="text" value={ps.delete_text.as_str()} placeholder={t_with("profil.delete_placeholder", &[("word", &ProfileScreen::delete_word())])}
+                           aria-label={t("profil.delete_forever")} oninput={|v: String| Msg::Profiles(ProfileMsg::DeleteText(v))}>
+                    <div class="flex items-center gap-2">
+                        {#if ps.delete_ready()}
+                            <button class="flex-1 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all duration-200 bg-red-500 text-white hover:bg-red-600 flex justify-center"
+                                    onclick={Msg::Profiles(ProfileMsg::Delete)}><div>{t("profil.delete_forever")}</div></button>
+                        {:else}
+                            <div class="flex-1 py-2 rounded-lg text-xs font-semibold text-center bg-(--rg-s2) text-(--rg-mu2) dark:bg-white/4 dark:text-white/15 cursor-not-allowed">{t("profil.delete_forever")}</div>
+                        {/if}
+                        <button class="px-4 py-2 rounded-lg text-xs text-(--rg-mu) hover:text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-white/5 transition-all duration-200 cursor-pointer"
+                                onclick={Msg::Profiles(ProfileMsg::DeleteCancel)}><div>{t("common.cancel")}</div></button>
+                    </div>
+                </div>
+            {/if}
+        </div>
+    </div>
+</div>

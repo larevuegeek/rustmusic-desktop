@@ -1,0 +1,72 @@
+<div class="biblio-maquette flex flex-col h-full relative">
+    {@include "../library/LibraryHeader.ui"}
+    <div class="flex-1 min-h-0 overflow-hidden">
+    {@const mv = self.mixes_view()}
+    <div class="flex flex-col h-full">
+        <div class="shrink-0 flex flex-wrap items-center gap-2.5 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
+            <div class="flex-1 text-[13px] text-(--rg-mu)">{t("mix_view.for_you_desc")}</div>
+            <ToolbarButton icon="material-symbols:refresh-rounded" label={t("mix_view.redraw_all")} onclick={Msg::Mixes(MixesMsg::Redraw(None))} />
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16">
+            <div class="@container flex flex-col gap-12 pt-3" style:margin_top={-self.export_offset}>
+                {#if !mv.for_you.is_empty()}
+                    <section>
+                        <div class="flex items-baseline gap-3 mb-4">
+                            <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("home.for_you")}</h2>
+                            <div class="text-[13px] text-(--rg-mu)">{t("home.for_you_desc")}</div>
+                        </div>
+                        <div class="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap-y-7">
+                            {#each mv.for_you as m (m.key.as_str())}{@include "MixTile.ui"}{/each}
+                        </div>
+                    </section>
+                {/if}
+
+                <section>
+                    <div class="flex items-baseline gap-3 mb-4">
+                        <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("mix_view.yours")}</h2>
+                        <div class="text-[13px] text-(--rg-mu)">{t("mix_view.yours_desc")}</div>
+                    </div>
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap-y-7">
+                        {#each mv.custom as m (m.key.as_str())}{@include "MixTile.ui"}{/each}
+                        <button class="group min-w-0 w-full flex flex-col gap-3 text-left cursor-pointer" onclick={Msg::Smart(SmartMsg::Open(None, true))}>
+                            <div class="aspect-square w-full rounded-2xl border-2 flex flex-col items-center justify-center gap-3 px-5 text-center
+                                        border-(--rg-bd2) text-(--rg-mu) transition-colors group-hover:border-(--rg-g) group-hover:text-(--rg-gtx)">
+                                <div class="w-14 h-14 rounded-full flex items-center justify-center bg-(--rg-gbg) text-(--rg-g)">
+                                    <Icon icon="material-symbols:add-rounded" width={30} />
+                                </div>
+                                <div class="text-[15px] font-bold text-(--rg-tx)">{t("mix_view.create")}</div>
+                            </div>
+                            <div class="w-full px-0.5 text-[13px] leading-snug text-(--rg-mu)">{t("mix_view.create_desc")}</div>
+                        </button>
+                    </div>
+                </section>
+
+                {#if !mv.genres.is_empty()}
+                    <section>
+                        <div class="flex items-baseline gap-3 mb-4">
+                            <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("mix_view.by_genre")}</h2>
+                            <div class="text-[13px] text-(--rg-mu)">{t("mix_view.by_genre_desc")}</div>
+                        </div>
+                        <div class="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap-y-7">
+                            {#each mv.genres as m (m.key.as_str())}{@include "MixTile.ui"}{/each}
+                        </div>
+                    </section>
+                {/if}
+
+                {#if !mv.decades.is_empty()}
+                    <section>
+                        <div class="flex items-baseline gap-3 mb-4">
+                            <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("home.decades")}</h2>
+                            <div class="text-[13px] text-(--rg-mu)">{t("home.decades_desc")}</div>
+                        </div>
+                        <div class="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-x-5 gap-y-7">
+                            {#each mv.decades as m (m.key.as_str())}{@include "MixTile.ui"}{/each}
+                        </div>
+                    </section>
+                {/if}
+            </div>
+        </div>
+    </div>
+    </div>
+</div>

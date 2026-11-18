@@ -1,0 +1,74 @@
+<div class="group relative min-w-0" style:--h={mix.h}>
+    <button class="flex text-left cursor-pointer min-w-0 w-full disabled:cursor-default
+                   flex-row items-center gap-4 @4xl:flex-col @4xl:items-stretch @4xl:gap-3"
+            onclick={Msg::PlayMix(self.index)} title={mix.help.as_str()}>
+
+        <div class="relative aspect-square overflow-hidden shrink-0
+                    shadow-[0_12px_32px_rgba(0,0,0,0.28)] ring-1 ring-black/5 dark:ring-white/[0.07]
+                    transition-transform duration-300 group-hover:-translate-y-1
+                    w-32 rounded-xl @4xl:w-full @4xl:rounded-2xl">
+            {#if !mix.ready}
+                <div class="absolute inset-0 bg-neutral-200 dark:bg-white/6 animate-pulse"></div>
+            {:else if let Some(four) = mosaic(&mix.covers_list)}
+                <div class="absolute inset-0 grid grid-cols-2 grid-rows-2">
+                    {#each four as p (p)}
+                        <img class="w-full aspect-square object-cover" src={cx.resources.cover(p)} alt="">
+                    {/each}
+                </div>
+            {:else if let Some(cover) = mix.covers_list.first()}
+                <img class="absolute inset-0 w-full h-full object-cover" src={cx.resources.cover(cover)} alt="">
+            {:else}
+                <div class="genre-backdrop absolute inset-0 flex items-center justify-center text-white/80">
+                    <Icon icon="material-symbols:shuffle-rounded" width={44} />
+                </div>
+            {/if}
+
+            <div class="mix-voile absolute inset-0 hidden @4xl:block"></div>
+
+            <div class="absolute left-4 right-16 bottom-4 flex-col gap-0.5 hidden @4xl:flex @4xl:flex-col">
+                <div class="mix-accent text-[11px] font-bold uppercase tracking-[0.1em] truncate">{mix.kind}</div>
+                <div class="text-[22px] @6xl:text-[26px] font-extrabold tracking-[-0.02em] leading-[1.1] text-white line-clamp-2">{mix.name}</div>
+            </div>
+
+            <div class="absolute rounded-full bg-accent-500 text-(--rg-on-g)
+                        flex items-center justify-center shadow-[0_8px_20px_rgba(0,0,0,0.4)] transition-all duration-200
+                        right-3.5 bottom-3.5 w-9 h-9 @4xl:w-12 @4xl:h-12
+                        opacity-0 translate-y-1.5 group-hover:opacity-100 group-hover:translate-y-0">
+                <Icon icon="mynaui:play-solid" width={20} />
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-1 px-0.5 min-w-0 flex-1">
+            <div class="@4xl:hidden accent-teinte text-[11px] font-bold uppercase tracking-[0.1em] truncate">{mix.kind}</div>
+            <div class="@4xl:hidden text-xl font-extrabold tracking-[-0.02em] leading-tight truncate text-neutral-900 dark:text-white">{mix.name}</div>
+            <div class="text-[14px] leading-snug text-neutral-700 dark:text-neutral-200 line-clamp-2">{if mix.ready {mix.description.clone()} else {t("mix_view.drawing")}}</div>
+            <div class="text-[12.5px] text-neutral-500 dark:text-[#9aa39e]">{mix.meta}</div>
+        </div>
+    </button>
+
+    <div class="absolute right-2.5 top-2.5">
+        <button id={mix.key.as_str()}
+                class="w-8 h-8 flex items-center justify-center rounded-full cursor-pointer bg-black/55 text-white backdrop-blur-sm hover:bg-black/75 transition"
+                class:opacity-0={!self.menu} class:group-hover:opacity-100={!self.menu} class:focus-visible:opacity-100={!self.menu}
+                onclick={Msg::Menu(Menu::Mix(self.index))}
+                title={t("mix_view.actions")} aria-label={t("mix_view.actions")} aria-haspopup="menu" aria-expanded={self.menu}>
+            <Icon icon="material-symbols:more-horiz" width={20} />
+        </button>
+        {#if self.menu}
+            <k-popover anchor={Anchor::Element(ElementId::named(mix.key.as_str()))} menu placement="bottom-end" offset="8"
+                       aria-label={t("mix_view.actions")} onclose={Msg::CloseMenu}
+                       class="menu mix-menu p-1.5 rounded-xl border text-(--rg-tx)
+                              bg-(--rg-carte) border-(--rg-bd) shadow-[0_18px_40px_rgba(0,0,0,0.18)]
+                              dark:bg-(--rg-s2) dark:border-[#2a312d] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] w-60">
+                {#each actions as action (action.icon.as_str())}
+                    <button class="w-full flex items-center gap-2.5 px-2.5 py-2.25 rounded-lg text-[13px] text-left cursor-pointer transition-colors
+                                   hover:bg-(--rg-s2) dark:hover:bg-[#252b28] dark:focus-visible:bg-[#252b28] text-(--rg-tx)"
+                            role="menuitem" onclick={action.msg.clone()}>
+                        <div class="flex shrink-0 text-(--rg-mu)"><Icon icon={action.icon.clone()} width={18} /></div>
+                        <div class="flex-1 min-w-0 truncate">{action.label}</div>
+                    </button>
+                {/each}
+            </k-popover>
+        {/if}
+    </div>
+</div>

@@ -1,0 +1,18 @@
+<div class="rg-atelier-menu absolute top-full mt-1 z-20 w-68 p-1.5 rounded-xl" class:right-0={col.numeric} class:left-2={!col.numeric}>
+    <p class="m-0 px-2.5 pt-1.5 pb-1 text-[11px] font-bold tracking-widest uppercase text-(--rg-mu)">{col.label}</p>
+    {#each [(0u8, "material-symbols:content-copy-outline-rounded", col.fill.0.clone(), col.fill.1), (1u8, "material-symbols:text-fields-rounded", t("workshop.title_case"), col.case_ok), (2u8, "material-symbols:backspace-outline-rounded", col.clear.0.clone(), col.clear.1), (3u8, "material-symbols:visibility-off-outline-rounded", t("workshop.hide_column"), col.idx != 1)] as a (a.0 as u32)}
+        {#if a.0 == 3}<div class="my-1 h-px bg-(--rg-bd)"></div>{/if}
+        {#if a.3}
+            <button class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-left normal-case tracking-normal font-medium cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2)"
+                    onclick={Msg::Tags(TagsMsg::ColumnAction(col.idx, a.0))}>
+                <div class="flex text-(--rg-mu)"><Icon icon={a.1} width={18} /></div>
+                <div class="truncate">{a.2}</div>
+            </button>
+        {:else}
+            <div class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] normal-case tracking-normal font-medium text-(--rg-tx) opacity-40">
+                <div class="flex text-(--rg-mu)"><Icon icon={a.1} width={18} /></div>
+                <div class="truncate">{a.2}</div>
+            </div>
+        {/if}
+    {/each}
+</div>

@@ -1,0 +1,55 @@
+<div class="flex flex-wrap gap-2.5">
+    <div class="flex p-1 rounded-xl border border-(--rg-bd) bg-(--rg-champ)" role="radiogroup" aria-label={t("source.provider")}>
+        {#each [(true, "MusicBrainz", "simple-icons:musicbrainz"), (false, "Deezer", "simple-icons:deezer")] as (k, sr) (k)}
+            {#if so.musicbrainz == sr.0}
+                <div role="radio" aria-checked="true" class="h-9 px-3.5 rounded-[9px] flex items-center gap-2 text-[13.5px] font-bold bg-(--rg-s2) text-(--rg-tx) shadow-sm"><div class="flex text-(--rg-g)"><Icon icon={sr.2} width={16} /></div><div>{sr.1}</div></div>
+            {:else}
+                <button role="radio" aria-checked="false" class="h-9 px-3.5 rounded-[9px] flex items-center gap-2 text-[13.5px] font-bold cursor-pointer transition-colors text-(--rg-mu) hover:text-(--rg-tx)"
+                        onclick={Msg::Source(SourceMsg::Source(sr.0))}><Icon icon={sr.2} width={16} /><div>{sr.1}</div></button>
+            {/if}
+        {/each}
+    </div>
+    <div class="flex-[1_1_280px] h-11.5 flex items-center gap-2.5 pl-3.5 pr-1.5 rounded-xl border border-(--rg-bd) bg-(--rg-champ)">
+        <div class="flex shrink-0 text-(--rg-mu)"><Icon icon="material-symbols:search-rounded" width={20} /></div>
+        <input class="flex-1 min-w-0 border-0 p-0 bg-transparent outline-none text-[15px] text-(--rg-tx) placeholder:text-(--rg-ph)"
+               type="text" value={so.query.as_str()} placeholder={t("source.search_placeholder")} aria-label={t("source.search_placeholder")}
+               oninput={|v: String| Msg::Source(SourceMsg::Query(v))} onchange={Msg::Source(SourceMsg::Search)}>
+        <button class="h-8.5 px-3.5 flex items-center rounded-[9px] text-[13px] font-bold cursor-pointer transition-colors bg-(--rg-s2) text-(--rg-tx2) hover:text-(--rg-tx)"
+                onclick={Msg::Source(SourceMsg::Search)}><div>{t("source.search")}</div></button>
+    </div>
+</div>
+
+{@const fl = self.source_files_line()}
+<div class="mt-3.5 mb-5.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-(--rg-mu)">
+    <div class="text-[11px] font-bold tracking-widest uppercase text-(--rg-mu2)">{t("source.your_files")}</div>
+    <div class="font-semibold text-(--rg-tx2)">{fl.0.clone()}</div>
+    {#if let Some(y) = &fl.1}<div>·</div><div>{y}</div>{/if}
+    {#if let Some(e) = &fl.2}<div>·</div><div>{e}</div>{/if}
+</div>
+
+{#if so.searching}
+    <div class="flex flex-col gap-2">{#each [0usize, 1, 2] as k (k)}<div class="h-[90px] rounded-[14px] bg-(--rg-champ) animate-pulse"></div>{/each}</div>
+{:else if so.hits.is_empty()}
+    {#if so.searched}<p class="m-0 py-12 text-center text-[13.5px] text-(--rg-mu)">{t("source.no_result")}</p>{/if}
+{:else}
+    {@const gr = so.groups()}
+    {#if !gr.0.is_empty()}
+        <div class="flex items-baseline gap-2.5 mb-2.5 text-[11.5px] font-bold tracking-widest uppercase text-(--rg-mu)">
+            <div>{so.fit_your_label()}</div>
+            <div class="text-[12.5px] font-medium tracking-normal normal-case text-(--rg-mu2)">{so.fitting_label()}</div>
+        </div>
+        <div class="flex flex-col gap-2">{#each gr.0 as (i, h) (i)}{@include "TagSourceHit.ui"}{/each}</div>
+    {/if}
+    {#if !gr.1.is_empty()}
+        <div class="flex items-baseline gap-2.5 mb-2.5 text-[11.5px] font-bold tracking-widest uppercase text-(--rg-mu)" class:mt-6.5={!gr.0.is_empty()}>
+            <div>{t("source.other_editions")}</div>
+            <div class="text-[12.5px] font-medium tracking-normal normal-case text-(--rg-mu2)">{t("source.other_hint")}</div>
+        </div>
+        <div class="flex flex-col gap-2">{#each gr.1 as (i, h) (i)}{@include "TagSourceHit.ui"}{/each}</div>
+    {/if}
+{/if}
+
+<div class="mt-5 flex gap-2 text-[12.5px] leading-normal text-(--rg-mu2)">
+    <div class="flex shrink-0"><Icon icon="material-symbols:info-outline-rounded" width={17} /></div>
+    <div class="min-w-0">{t(if so.musicbrainz { "source.note_musicbrainz" } else { "source.note_deezer" })}</div>
+</div>

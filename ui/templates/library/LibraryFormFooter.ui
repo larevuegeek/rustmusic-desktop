@@ -1,0 +1,10 @@
+<div class="shrink-0 flex items-center gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+    <div class="flex-1 min-w-0"></div>
+    <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+            onclick={Msg::ClosePopin}><div>{t("common.cancel")}</div></button>
+    <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition hover:brightness-110 bg-(--rg-g) text-(--rg-on-g)"
+            onclick={Msg::LibraryForm(LibraryFormMsg::Submit)}>
+        {#if lf.busy}<div class="flex animate-spin"><Icon icon="lucide:loader-2" width={17} /></div>{:else}<Icon icon={lf.submit().1} width={17} />{/if}
+        <div>{lf.submit().0}</div>
+    </button>
+</div>

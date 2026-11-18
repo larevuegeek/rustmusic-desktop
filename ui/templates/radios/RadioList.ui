@@ -1,0 +1,185 @@
+{@const rv = self.radios_view()}
+{#if !rv.active}
+    <div class="flex flex-col items-center justify-center gap-3 h-full text-(--rg-mu)">
+        <Icon icon="material-symbols:radio-rounded" width={34} />
+        <p class="text-sm m-0">{t("radios.disabled")}</p>
+        <button class="text-sm font-semibold text-(--rg-gtx) hover:underline cursor-pointer" onclick={Msg::Go(Route::Settings(SettingsPage::Online))}><div>{t("radios.disabled_link")}</div></button>
+    </div>
+{:else}
+<div class="h-full overflow-y-auto scrollbar-app">
+    <div class="relative px-4 md:px-8 pt-9 pb-8 overflow-hidden" style:margin_top={-self.export_offset}>
+        <div class="header-glow header-glow-rose absolute inset-0 pointer-events-none"></div>
+        <div class="relative">
+            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-rose-600 dark:text-rose-300">
+                <Icon icon="material-symbols:radio-rounded" width={16} /><div>{t("podcasts.kicker")}</div>
+            </div>
+            <h1 class="m-0 mt-1.5 text-[44px] font-extrabold tracking-[-0.03em] leading-none text-(--rg-tx)">{t("radios.title")}</h1>
+            <div class="mt-2.5 flex gap-1 text-[15px] text-(--rg-tx2)">
+                {#if let Some(c) = &rv.count}<div class="font-bold text-(--rg-tx)">{c.0}</div><div>{c.1}</div>{/if}
+                {#if rv.count.is_none()}<div>{t("radios.tagline")}</div>{/if}
+            </div>
+            <div class="mt-7">
+                <div class="group h-13 flex items-center gap-2 pl-4.5 pr-1.5 rounded-2xl border transition-[border-color,box-shadow,background-color] duration-200
+                            bg-(--rg-carte)/85 border-(--rg-bd) backdrop-blur-sm shadow-[0_8px_28px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_28px_rgba(0,0,0,0.35)] hover:border-(--rg-bd2)">
+                    <div class="shrink-0 text-(--rg-mu)">
+                        {#if rv.address}<Icon icon="material-symbols:radio-rounded" width={22} />{:else}<Icon icon="material-symbols:search-rounded" width={22} />{/if}
+                    </div>
+                    <input class="flex-1 min-w-0 h-full bg-transparent border-0 outline-0 text-[15px] text-(--rg-tx) placeholder:text-(--rg-ph) p-0"
+                           type="text" value={rv.input.as_str()} oninput={|v: String| Msg::Radios(RadiosMsg::Input(v))}
+                           onkeydown={|k: Key| Msg::Radios(RadiosMsg::Key(k))}
+                           placeholder={t("radios.search_placeholder")} aria-label={t("radios.search")}>
+                    {#if !rv.input.is_empty()}
+                        <button class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                                aria-label={t("common.clear")} title={t("common.clear")} onclick={Msg::Radios(RadiosMsg::Clear)}>
+                            <Icon icon="material-symbols:close-rounded" width={18} />
+                        </button>
+                    {/if}
+                    {#if rv.input.trim().is_empty()}
+                        <div class="shrink-0 h-10 px-4.5 inline-flex items-center gap-2 rounded-xl text-sm font-bold text-white bg-rose-600 cursor-default">
+                            <Icon icon="material-symbols:search-rounded" width={18} /><div>{t("radios.search")}</div>
+                        </div>
+                    {:else}
+                        <button class="shrink-0 h-10 px-4.5 inline-flex items-center gap-2 rounded-xl text-sm font-bold text-white bg-rose-600 cursor-pointer hover:bg-rose-500 shadow-[0_6px_18px_rgba(244,63,94,0.35)]"
+                                onclick={Msg::Radios(RadiosMsg::Submit)}>
+                            {#if rv.search_term}
+                                <Spinner width={18.} />
+                            {:else if rv.address}
+                                <Icon icon="material-symbols:add-rounded" width={18} />
+                            {:else}
+                                <Icon icon="material-symbols:search-rounded" width={18} />
+                            {/if}
+                            {#if rv.address}<div>{t("radios.open_address")}</div>{:else}<div>{t("radios.search")}</div>{/if}
+                        </button>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-4 md:px-8 pb-24">
+        {#if let Some(results) = &rv.results}
+            <section class="mt-2">
+                <div class="flex flex-wrap items-end gap-3 mb-4">
+                    <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("radios.results")}</h2>
+                    <div class="flex-1"></div>
+                    <button class="text-[13px] font-semibold cursor-pointer text-(--rg-mu) hover:text-(--rg-tx)" onclick={Msg::Radios(RadiosMsg::Clear)}><div>{t("common.clear")}</div></button>
+                </div>
+                {#if results.is_empty()}
+                    <p class="m-0 py-3 max-w-lg text-sm text-(--rg-mu)">{t("radios.no_results")}</p>
+                {:else}
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-7">
+                        {#each results as r (r.key.as_str())}{@include "RadioCard.ui"}{/each}
+                    </div>
+                {/if}
+            </section>
+        {/if}
+        {#if rv.results.is_none()}
+            {#if !rv.favorites.is_empty()}
+                {@const c = self.carousel("radios.fav", t("radios.my_radios"), t("radios.my_radios_hint"), rv.favorites.clone())}
+                <div class="-mt-10">{@include "RadioCarousel.ui"}</div>
+            {:else if rv.loaded}
+                <div class="mt-2 flex items-center gap-4 p-5 rounded-2xl border border-(--rg-bd2) max-w-180">
+                    <div class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center bg-rose-500/10 text-rose-600 dark:text-rose-300">
+                        <Icon icon="material-symbols:star-outline-rounded" width={26} />
+                    </div>
+                    <p class="m-0 text-sm leading-relaxed text-(--rg-tx2)">{t("radios.empty")}</p>
+                </div>
+            {/if}
+
+            {#if !rv.recent_items.is_empty()}
+                {@const c = self.carousel("radios.recent", t("radios.recent"), t("radios.recent_hint"), rv.recent_items.clone())}
+                {@include "RadioCarousel.ui"}
+            {/if}
+
+            {#if !rv.tracks_count.is_empty()}
+                <section class="mt-12">
+                    <div class="flex flex-wrap items-end gap-3 mb-3.5">
+                        <div class="min-w-0">
+                            <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("radios.titles")}</h2>
+                            <p class="m-0 mt-1 text-[13.5px] text-(--rg-mu)">{t("radios.titles_hint")}</p>
+                        </div>
+                        <div class="flex-1"></div>
+                        <TextButton icon="material-symbols:delete-sweep-outline-rounded" label={t("radios.titles_clear")} onclick={Msg::Radios(RadiosMsg::TitlesClear)} />
+                    </div>
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-x-6 gap-y-0.5">
+                        {#each rv.tracks_count as r (r.id)}
+                            <div class="group flex items-center gap-3 px-2 py-2 rounded-xl transition-colors hover:bg-(--rg-carte)">
+                                {#if r.logo.is_some()}
+                                    <div class="relative w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-white"><img class="absolute inset-[12%] w-[76%] h-[76%] object-contain" src={cx.resources.cover_small(&r.logo)} alt=""></div>
+                                {:else}
+                                    <div class="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center text-white/90 bg-linear-140 from-rose-500 to-orange-500"><Icon icon="material-symbols:radio-rounded" width={18} /></div>
+                                {/if}
+                                <div class="min-w-0 flex-1">
+                                    <div class="truncate text-[14.5px] font-semibold text-(--rg-tx)" title={r.title.as_str()}>{r.title}</div>
+                                    <div class="truncate text-[12.5px] text-(--rg-mu)">{r.sub}</div>
+                                </div>
+                                <button class="w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-lg cursor-pointer transition-all text-(--rg-mu) opacity-0 group-hover:opacity-100 hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                                        title={t("radios.titles_copy")} aria-label={t("radios.titles_copy")} onclick={Msg::Noop}>
+                                    <Icon icon="material-symbols:content-copy-outline-rounded" width={17} />
+                                </button>
+                            </div>
+                        {/each}
+                    </div>
+                    {#if let Some(label) = &rv.tracks_more}
+                        <div class="mt-3 flex justify-center">
+                            {#if rv.all_tracks}
+                                <TextButton icon="material-symbols:expand-less-rounded" label={label.clone()} onclick={Msg::Radios(RadiosMsg::TitlesAll)} />
+                            {:else}
+                                <TextButton icon="material-symbols:expand-more-rounded" label={label.clone()} onclick={Msg::Radios(RadiosMsg::TitlesAll)} />
+                            {/if}
+                        </div>
+                    {/if}
+                </section>
+            {/if}
+
+            <section class="mt-12">
+                <div class="flex flex-wrap items-end gap-3 mb-3.5">
+                    <div class="min-w-0">
+                        <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("radios.popular")}</h2>
+                        <div class="mt-1 text-[13px] text-(--rg-mu)">{rv.country_hint}</div>
+                    </div>
+                    <div class="flex-1"></div>
+                    <MenuSelect anchor="radios.country" open={self.popup("radios.country")} label={rv.country_label.clone()} options={rv.country.clone()} />
+                </div>
+                <div class="flex gap-2 overflow-hidden pb-1 mb-5" role="tablist" aria-label={t("radios.popular")}>
+                    {#each rv.genres as g (g.1.as_str())}
+                        {#if g.2}
+                            <button class="flex items-center justify-center shrink-0 h-8.5 px-3.5 rounded-full border text-[13px] font-semibold cursor-pointer transition-colors bg-rose-600 border-rose-600 text-white"
+                                    role="tab" aria-selected="true" onclick={Msg::Radios(RadiosMsg::Genre(g.0))}><div>{g.1}</div></button>
+                        {:else}
+                            <button class="flex items-center justify-center shrink-0 h-8.5 px-3.5 rounded-full border text-[13px] font-semibold cursor-pointer transition-colors border-(--rg-bd2) text-(--rg-tx2) hover:border-rose-400/60 hover:text-(--rg-tx)"
+                                    role="tab" aria-selected="false" onclick={Msg::Radios(RadiosMsg::Genre(g.0))}><div>{g.1}</div></button>
+                        {/if}
+                    {/each}
+                </div>
+                {#if rv.popular_error}
+                    <p class="m-0 py-3 text-sm text-(--rg-mu)">{t("radios.popular_error")}</p>
+                {:else if rv.popular.is_none()}
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-7">
+                        {#each [0, 1, 2, 3, 4, 5] as k (k)}
+                            <div class="flex flex-col gap-2.5">
+                                <div class="aspect-square w-full rounded-2xl bg-(--rg-s2) animate-pulse"></div>
+                                <div class="h-3.5 w-3/4 rounded bg-(--rg-s2) animate-pulse"></div>
+                            </div>
+                        {/each}
+                    </div>
+                {:else}
+                    {#if let Some(pop) = &rv.popular}
+                        {#if pop.is_empty()}
+                            <p class="m-0 py-3 text-sm text-(--rg-mu)">{t("radios.no_results")}</p>
+                        {:else}
+                            <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-7">
+                                {#each pop as r (r.key.as_str())}{@include "RadioCard.ui"}{/each}
+                            </div>
+                        {/if}
+                    {/if}
+                    {#if let Some(label) = &rv.more}
+                        <button class="flex items-center justify-center mt-6 h-9.5 px-4 rounded-xl border cursor-pointer text-[13px] font-semibold transition-colors border-(--rg-bd2) text-(--rg-tx) hover:border-rose-400/60"
+                                onclick={Msg::Radios(RadiosMsg::ShowAll)}><div>{label}</div></button>
+                    {/if}
+                {/if}
+            </section>
+        {/if}
+    </div>
+</div>
+{/if}

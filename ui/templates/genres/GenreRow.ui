@@ -1,0 +1,52 @@
+<button class="group relative w-full grid items-center gap-4.5 py-2 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors
+               grid-cols-[56px_minmax(0,1.3fr)_minmax(0,1.4fr)_180px_100px] max-[900px]:grid-cols-[56px_minmax(0,1fr)_120px_40px] hover:bg-(--rg-carte)"
+        onclick={genre.open.clone()}>
+    {#if i > 0}
+        <div class="absolute top-0 left-19 right-3 h-px bg-(--rg-line) group-hover:opacity-0"></div>
+    {/if}
+    <div class="w-14 h-14 rounded-[9px] overflow-hidden grid grid-cols-2 grid-rows-2 gap-px bg-(--rg-bg) shadow-[0_4px_12px_rgba(0,0,0,0.2)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+        {#each genre.covers.iter().zip(genre.tiles.iter()) as (k, pair) (k)}
+            {#if pair.0.is_some()}
+                <img class="w-full aspect-square object-cover" src={cx.resources.cover_small(pair.0)} alt="">
+            {:else}
+                <div class="w-full aspect-square" style:background_layers={pair.1.clone()}></div>
+            {/if}
+        {/each}
+    </div>
+
+    <div class="flex items-center gap-2.5 min-w-0 text-base font-bold text-(--rg-tx)">
+        <div class="w-2 h-2 shrink-0 rounded-full" style:background_color={genre.color}></div>
+        <div class="truncate">{genre.label}</div>
+    </div>
+
+    <div class="truncate text-[13px] text-(--rg-mu) max-[900px]:hidden" title={genre.artists.as_str()}>{genre.artists}</div>
+
+    <div class="flex flex-col gap-1.5">
+        <div class="flex justify-between gap-2 text-[12.5px] tabular-nums text-(--rg-mu)">
+            <div class="flex gap-1 min-w-0 truncate">
+                <div class="font-semibold text-(--rg-tx2)">{genre.tracks_n}</div>
+                <div>{genre.summary()}</div>
+            </div>
+            <div class="shrink-0 max-[900px]:hidden">{genre.part}</div>
+        </div>
+        <div class="h-1 rounded-full overflow-hidden bg-(--rg-s2)">
+            <div class="h-full rounded-full" style:width={Length::Percent(genre.bar)} style:background_color={genre.color}></div>
+        </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-0.5">
+        {#if !genre.special}
+            <button class="w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100 max-[900px]:hidden"
+                    title={t("genres_view.shuffle")} aria-label={t("genres_view.shuffle")} onclick={Msg::Genres(GenresMsg::Play(genre.name.clone(), true))}>
+                <Icon icon="material-symbols:shuffle-rounded" width={19} />
+            </button>
+            <button class="w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100 max-[900px]:hidden"
+                    title={t("genres_view.more")} aria-label={t("genres_view.more")} onclick={Msg::Noop}>
+                <Icon icon="material-symbols:more-horiz" width={19} />
+            </button>
+        {/if}
+        <div class="w-8.5 h-8.5 flex items-center justify-center text-(--rg-mu2) group-hover:text-(--rg-tx2)" title={t("genres_view.open")}>
+            <Icon icon="material-symbols:chevron-right-rounded" width={19} />
+        </div>
+    </div>
+</button>

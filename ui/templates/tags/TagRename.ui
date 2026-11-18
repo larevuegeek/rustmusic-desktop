@@ -1,0 +1,178 @@
+<div class="flex flex-col min-h-0 max-h-[calc(88vh_-_69px)]">
+    <div class="shrink-0 px-4 py-3 flex flex-col gap-2.5 border-b border-(--rg-bd) bg-(--rg-creux)">
+        <div class="flex items-center gap-1">
+            {#each [(false, "rename.mode_name"), (true, "rename.mode_tree")] as md (md.1)}
+                {#if rn.restructure == md.0}
+                    <button class="px-3 h-8 flex items-center rounded-xl border text-[12px] font-semibold cursor-pointer transition-colors bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)"
+                            onclick={Msg::Rename(RenameMsg::Mode(md.0))}><div>{t(md.1)}</div></button>
+                {:else}
+                    <button class="px-3 h-8 flex items-center rounded-xl border text-[12px] font-semibold cursor-pointer transition-colors border-transparent text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                            onclick={Msg::Rename(RenameMsg::Mode(md.0))}><div>{t(md.1)}</div></button>
+                {/if}
+            {/each}
+            {#if rn.restructure}
+                <div class="flex-1"></div>
+                <div class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">
+                    <div>{t("rename.destination")}</div>
+                    <select class="h-8 px-2.5 rounded-xl text-[12px] font-normal normal-case tracking-normal outline-none cursor-pointer transition-colors bg-(--rg-champ) text-(--rg-tx) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                            value={rn.root_index()} aria-label={t("rename.destination")}
+                            onchange={|i: u64| Msg::Rename(RenameMsg::Root(i))}>
+                        {#each rn.dirs as (i, d) (i)}<option value={i as u64}>{d}</option>{/each}
+                    </select>
+                </div>
+            {/if}
+        </div>
+        {#if let Some(error) = &rn.pattern_error}
+            <input class="w-full h-10 px-3.5 rounded-xl font-mono text-[13px] outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-red-500/60"
+                   type="text" value={rn.pattern()} placeholder={rename_presets_first()} aria-label={t("rename.title")} oninput={|v: String| Msg::Rename(RenameMsg::Pattern(v))}>
+            <div class="flex items-start gap-1.5 text-[12px] text-red-400">
+                <div class="flex shrink-0 mt-0.5"><Icon icon="lucide:alert-triangle" width={12} /></div><div class="min-w-0">{error}</div>
+            </div>
+        {:else}
+            <input class="w-full h-10 px-3.5 rounded-xl font-mono text-[13px] outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                   type="text" value={rn.pattern()} placeholder={rename_presets_first()} aria-label={t("rename.title")} oninput={|v: String| Msg::Rename(RenameMsg::Pattern(v))}>
+        {/if}
+        <div class="flex flex-wrap items-center gap-1">
+            <div class="mr-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("rename.fields")}</div>
+            {#each rename_fields() as (i, f) (i)}
+                <button class="px-1.5 h-6 flex items-center rounded-md border font-mono text-[11px] cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) text-(--rg-tx2) hover:bg-(--rg-gbg) hover:border-(--rg-gbd) hover:text-(--rg-gtx)"
+                        onclick={Msg::Rename(RenameMsg::Insert(i))}><div>{f}</div></button>
+            {/each}
+        </div>
+        <div class="flex flex-wrap items-center gap-1">
+            <div class="mr-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("rename.presets")}</div>
+            {#each rn.presets() as (i, pr) (i)}
+                {#if rn.pattern() == pr.1}
+                    <button class="px-2 h-6 flex items-center rounded-md border text-[11px] font-semibold cursor-pointer transition-colors bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)"
+                            onclick={Msg::Rename(RenameMsg::Preset(i))}><div>{pr.0.clone()}</div></button>
+                {:else}
+                    <button class="px-2 h-6 flex items-center rounded-md border text-[11px] font-semibold cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+                            onclick={Msg::Rename(RenameMsg::Preset(i))}><div>{pr.0.clone()}</div></button>
+                {/if}
+            {/each}
+        </div>
+        {#if rn.restructure}
+            <div class="flex flex-wrap items-center gap-4 pt-0.5">
+                <div class="flex items-center gap-2 cursor-pointer" onclick={Msg::Rename(RenameMsg::Satellites)}>
+                    {@const on = rn.satellites}{@include "../shared/inputs/Checkbox.ui"}<div class="text-[12px] text-(--rg-tx2)">{t("rename.satellites")}</div>
+                </div>
+                <div class="flex items-center gap-2 cursor-pointer" onclick={Msg::Rename(RenameMsg::Cleanup)}>
+                    {@const on = rn.cleanup}{@include "../shared/inputs/Checkbox.ui"}<div class="text-[12px] text-(--rg-tx2)">{t("rename.cleanup")}</div>
+                </div>
+            </div>
+        {/if}
+    </div>
+
+    <div class="min-h-0 overflow-y-auto scrollbar-none px-3 py-2.5">
+        {#if self.views.tags.as_ref().is_none_or(|p| p.files.is_empty())}
+            <p class="m-0 py-16 text-center text-[13px] text-(--rg-mu)">{t("rename.no_file")}</p>
+        {:else if rn.preview.is_none()}
+            <div class="flex flex-col gap-1">{#each [0usize, 1, 2, 3, 4, 5] as k (k)}<div class="h-9 rounded-lg animate-pulse bg-(--rg-s2)"></div>{/each}</div>
+        {:else}
+            <div class="flex items-center gap-2.5 px-2.5 pb-1.5">
+                <div class="flex shrink-0 cursor-pointer" aria-label={t("source.select")} onclick={Msg::Rename(RenameMsg::SelectAll)}>{@const on = rn.all_selected()}{@include "../shared/inputs/Checkbox.ui"}</div>
+                <div class="flex-1 min-w-0 text-[10px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("rename.current")}</div>
+                <div class="shrink-0 w-3"></div>
+                <div class="flex-1 min-w-0 text-[10px] font-bold uppercase tracking-[0.1em] text-(--rg-gtx)">{t("rename.after")}</div>
+            </div>
+            <div class="flex flex-col gap-0.5">
+                {#each rn.preview.iter().flat_map(|p| p.0.iter()).collect::<Vec<_>>() as mv (mv.from.as_str())}
+                    {#if mv.blocked}
+                        <div class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border bg-red-500/8 border-red-500/25">
+                            <div class="shrink-0 w-4 flex items-center justify-center text-red-400"><Icon icon="lucide:ban" width={11} /></div>
+                            <div class="flex-1 min-w-0 text-[12px] truncate text-(--rg-tx2)" title={mv.from.as_str()}>{mv.from_name.clone()}</div>
+                            <div class="flex shrink-0 text-red-400"><Icon icon="lucide:x" width={11} /></div>
+                            <div class="flex-1 min-w-0 text-[12px] truncate text-red-400">{mv.reason.clone()}</div>
+                        </div>
+                    {:else if mv.unchanged}
+                        <div class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border bg-(--rg-creux) border-(--rg-bd) opacity-55">
+                            <div class="shrink-0 w-4 flex items-center justify-center text-(--rg-mu2)"><Icon icon="lucide:check" width={11} /></div>
+                            <div class="flex-1 min-w-0 text-[12px] truncate text-(--rg-mu)" title={mv.from.as_str()}>{mv.from_name.clone()}</div>
+                            <div class="flex shrink-0 text-(--rg-mu2)"><Icon icon="lucide:equal" width={11} /></div>
+                            <div class="flex-1 min-w-0 text-[12px] truncate italic text-(--rg-mu)">{t("rename.unchanged")}</div>
+                        </div>
+                    {:else if rn.is_on(mv)}
+                        <div class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border bg-(--rg-creux-on) border-(--rg-gbd)">
+                            <div class="flex shrink-0 cursor-pointer" onclick={Msg::Rename(RenameMsg::Toggle(mv.from.clone()))}>{@const on = true}{@include "../shared/inputs/Checkbox.ui"}</div>
+                            <div class="flex-1 min-w-0 text-[12px] truncate text-(--rg-tx2)" title={mv.from.as_str()}>{mv.from_name.clone()}</div>
+                            <div class="flex shrink-0 text-(--rg-mu2)"><Icon icon="lucide:arrow-right" width={11} /></div>
+                            <div class="flex-1 min-w-0 text-[12px] truncate font-semibold text-(--rg-gtx)" title={mv.to.as_str()}>{mv.to_name.clone()}</div>
+                        </div>
+                    {:else}
+                        <div class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border bg-(--rg-creux) border-(--rg-bd)">
+                            <div class="flex shrink-0 cursor-pointer" onclick={Msg::Rename(RenameMsg::Toggle(mv.from.clone()))}>{@const on = false}{@include "../shared/inputs/Checkbox.ui"}</div>
+                            <div class="flex-1 min-w-0 text-[12px] truncate text-(--rg-mu)" title={mv.from.as_str()}>{mv.from_name.clone()}</div>
+                            <div class="flex shrink-0 text-(--rg-mu2)"><Icon icon="lucide:arrow-right" width={11} /></div>
+                            <div class="flex-1 min-w-0 text-[12px] truncate text-(--rg-mu)" title={mv.to.as_str()}>{mv.to_name.clone()}</div>
+                        </div>
+                    {/if}
+                {/each}
+            </div>
+        {/if}
+    </div>
+
+    {#if let Some(er) = &rn.apply_error}
+        <div class="shrink-0 flex items-start gap-2 px-6 py-2.5 bg-red-500/8 border-t border-red-500/20 text-red-400 text-xs">
+            <div class="flex shrink-0 mt-px"><Icon icon="lucide:alert-triangle" width={14} /></div><div class="min-w-0">{er}</div>
+        </div>
+    {/if}
+    {#if rn.confirming && rn.preview.is_some()}
+        <div class="shrink-0 flex items-center gap-3 px-6 py-2.5 bg-(--rg-ambg) border-t border-(--rg-ambd)">
+            <div class="flex shrink-0 text-(--rg-am)"><Icon icon="lucide:triangle-alert" width={15} /></div>
+            <div class="flex-1 min-w-0 text-[12px] font-medium text-(--rg-amtx)">{rn.confirm_label()}</div>
+            <button class="px-3.5 h-8 flex items-center rounded-xl text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-amtx) hover:bg-(--rg-am)/15"
+                    onclick={Msg::Rename(RenameMsg::Cancel)}><div>{t("profil.cancel")}</div></button>
+            <button class="flex items-center gap-1.5 px-3.5 h-8 rounded-xl text-[12px] font-bold cursor-pointer transition bg-(--rg-am) text-(--rg-ambg) hover:brightness-110"
+                    onclick={Msg::Rename(RenameMsg::Apply)}>
+                {#if rn.applying}<div class="flex animate-spin"><Icon icon="lucide:loader-circle" width={13} /></div>{/if}<div>{t("rename.confirm_yes")}</div>
+            </button>
+        </div>
+    {/if}
+    {#if let Some(oc) = &rn.outcome}
+        {#if oc.failed.is_empty()}
+            <div class="shrink-0 flex items-center gap-3 px-4 py-2.5 border-t border-(--rg-bd) bg-(--rg-creux-on)">
+                <div class="flex shrink-0 text-(--rg-g)"><Icon icon="lucide:check-circle-2" width={14} /></div>
+                <div class="flex-1 min-w-0 text-[12.5px] font-medium text-(--rg-tx)">{oc.renamed_label()}</div>
+                {@include "TagRenameUndo.ui"}
+            </div>
+        {:else}
+            <div class="shrink-0 flex items-center gap-3 px-4 py-2.5 border-t border-(--rg-bd) bg-(--rg-ambg)">
+                <div class="flex shrink-0 text-(--rg-am)"><Icon icon="lucide:triangle-alert" width={14} /></div>
+                <div class="flex-1 min-w-0 flex gap-1 text-[12.5px] font-medium text-(--rg-tx)"><div>{oc.renamed_label()} ·</div><div class="font-semibold text-(--rg-am)">{oc.failed_label()}</div></div>
+                {@include "TagRenameUndo.ui"}
+            </div>
+            <div class="shrink-0 max-h-24 overflow-y-auto scrollbar-none px-4 pb-2 flex flex-col gap-0.5">
+                {#each oc.failures() as (i, fl) (i)}
+                    <div class="flex items-baseline gap-2 text-[10.5px]">
+                        <div class="shrink-0 truncate max-w-[40%] text-(--rg-mu)">{fl.0}</div>
+                        <div class="min-w-0 text-(--rg-am)">{fl.1}</div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+    {/if}
+
+    <div class="shrink-0 flex items-center gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+        <div class="flex-1 min-w-0 flex items-center gap-3 text-[11.5px]">
+            {#if rn.computing}
+                <div class="flex items-center gap-1.5 text-(--rg-mu)"><div class="flex animate-spin"><Icon icon="lucide:loader-circle" width={12} /></div><div>{t("rename.computing")}</div></div>
+            {:else}
+                {#if rn.preview.is_some()}
+                    <div class="flex items-center gap-1.5 font-semibold text-(--rg-tx2)"><div class="w-1.5 h-1.5 rounded-full bg-(--rg-g)"></div><div>{rn.will_change()}</div></div>
+                    {#if let Some(blocked) = rn.blocked_label()}<div class="font-semibold text-red-400">{blocked}</div>{/if}
+                    {#if let Some(already) = rn.already_ok_label()}<div class="text-(--rg-mu)">{already}</div>{/if}
+                {/if}
+            {/if}
+        </div>
+        <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                onclick={Msg::ClosePopin}><div>{t("batch.close")}</div></button>
+        {#if rn.outcome.is_none()}
+            {#if rn.selected() == 0 || rn.applying || rn.confirming}
+                <div class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold flex items-center gap-2 bg-(--rg-g) text-(--rg-on-g) opacity-40"><Icon icon="lucide:file-pen-line" width={17} /><div>{t("rename.apply")}</div></div>
+            {:else}
+                <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition hover:brightness-110 bg-(--rg-g) text-(--rg-on-g)"
+                        onclick={Msg::Rename(RenameMsg::Confirm)}><Icon icon="lucide:file-pen-line" width={17} /><div>{t("rename.apply")}</div></button>
+            {/if}
+        {/if}
+    </div>
+</div>

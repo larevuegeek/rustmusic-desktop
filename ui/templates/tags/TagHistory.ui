@@ -1,0 +1,75 @@
+<div class="flex flex-col min-h-0 max-h-[calc(88vh_-_69px)]">
+    <div class="min-h-0 overflow-y-auto scrollbar-app px-6 py-5">
+        {#if let Some(er) = &hs.error}
+            <div class="flex items-start gap-2 px-4 py-3 mb-3 rounded-xl border border-red-500/25 bg-red-500/8 text-sm text-red-400">
+                <div class="flex shrink-0 mt-px"><Icon icon="material-symbols:warning-outline-rounded" width={17} /></div><div class="min-w-0">{er}</div>
+            </div>
+        {/if}
+        {#if let Some(rs) = hs.result_view()}
+            {#if rs.has_failures}
+                <div class="flex items-start gap-2 px-4 py-3 mb-3 rounded-xl border text-sm border-(--rg-ambd) bg-(--rg-ambg) text-(--rg-amtx)">
+                    <div class="flex shrink-0 mt-px text-(--rg-am)"><Icon icon="material-symbols:warning-outline-rounded" width={17} /></div>
+                    <div class="min-w-0 font-medium">
+                        <div>{rs.summary}</div>
+                        <div class="mt-1 text-xs font-normal opacity-80">{rs.detail}</div>
+                    </div>
+                </div>
+            {:else}
+                <div class="flex items-start gap-2 px-4 py-3 mb-3 rounded-xl border text-sm border-(--rg-gbd) bg-(--rg-gbg) text-(--rg-gtx)">
+                    <div class="flex shrink-0 mt-px text-(--rg-g)"><Icon icon="material-symbols:check-circle-outline-rounded" width={17} /></div>
+                    <div class="min-w-0 font-medium">{rs.summary}</div>
+                </div>
+            {/if}
+        {/if}
+        {#if hs.loading && hs.entries.is_empty()}
+            <div class="flex flex-col gap-2">{#each [0usize, 1, 2, 3] as k (k)}<div class="h-16 rounded-2xl animate-pulse border border-(--rg-bd) bg-(--rg-creux)"></div>{/each}</div>
+        {:else if hs.entries.is_empty()}
+            <div class="flex flex-col items-center justify-center gap-3 py-20 text-center">
+                <div class="w-12 h-12 rounded-2xl flex items-center justify-center border border-(--rg-bd) bg-(--rg-creux) text-(--rg-mu)"><Icon icon="lucide:history" width={22} /></div>
+                <p class="m-0 text-[13px] text-(--rg-mu)">{t("history.empty")}</p>
+            </div>
+        {:else}
+            <div class="flex flex-col gap-2">
+                {#each hs.entries as en (en.id.as_str())}
+                    <div class="flex items-center gap-3 p-3 rounded-2xl border border-(--rg-bd) bg-(--rg-creux)" class:opacity-55={en.undone}>
+                        <div class="w-9 h-9 shrink-0 rounded-[10px] border flex items-center justify-center bg-(--rg-s2) border-(--rg-bd) text-(--rg-tx2)"><Icon icon={en.icon()} width={17} /></div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex gap-1 min-w-0 text-[13px]"><div class="font-semibold text-(--rg-tx) truncate">{en.kind_label()}</div><div class="shrink-0 text-(--rg-mu)">· {en.when()}</div></div>
+                            <div class="mt-0.5 font-mono text-[11px] truncate text-(--rg-mu)" title={en.pattern_title()}>{en.pattern_text()}</div>
+                        </div>
+                        <div class="shrink-0 flex items-center gap-1.5 font-mono text-[11px] font-bold tabular-nums">
+                            <div class="px-1.75 py-0.5 rounded-lg bg-(--rg-gbg) text-(--rg-gtx)">{en.succeeded}</div>
+                            {#if en.failed > 0}<div class="px-1.75 py-0.5 rounded-lg bg-(--rg-ambg) text-(--rg-am)">{en.failed}</div>{/if}
+                        </div>
+                        {#if en.undone}
+                            <div class="shrink-0 text-[11.5px] italic text-(--rg-mu)">{t("history.already_undone")}</div>
+                        {:else if hs.confirming.as_deref() == Some(en.id.as_str())}
+                            <div class="shrink-0 flex items-center gap-1">
+                                <button class="h-8 px-3 flex items-center rounded-xl text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                                        onclick={Msg::History(HistoryMsg::Cancel)}><div>{t("profil.cancel")}</div></button>
+                                <button class="flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[12px] font-bold cursor-pointer transition-colors border-(--rg-ambd) bg-(--rg-ambg) text-(--rg-amtx) hover:border-(--rg-am)"
+                                        onclick={Msg::History(HistoryMsg::Undo(en.id.clone()))}>
+                                    {#if hs.working.as_deref() == Some(en.id.as_str())}<div class="flex animate-spin"><Icon icon="lucide:loader-2" width={14} /></div>{/if}
+                                    <div>{t("history.confirm")}</div>
+                                </button>
+                            </div>
+                        {:else if en.succeeded == 0 || hs.working.is_some()}
+                            <div class="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[12px] font-semibold opacity-30 border-(--rg-bd) bg-(--rg-champ) text-(--rg-tx2)"><Icon icon="lucide:undo-2" width={14} /><div>{t("history.undo")}</div></div>
+                        {:else}
+                            <button class="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[12px] font-semibold cursor-pointer transition-colors border-(--rg-bd) bg-(--rg-champ) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+                                    onclick={Msg::History(HistoryMsg::Ask(en.id.clone()))}><Icon icon="lucide:undo-2" width={14} /><div>{t("history.undo")}</div></button>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+            <div class="mt-4 flex gap-2 px-1 text-xs text-(--rg-mu)">
+                <div class="flex shrink-0 mt-px text-(--rg-mu2)"><Icon icon="material-symbols:info-outline-rounded" width={15} /></div><div class="min-w-0">{t("history.retention")}</div>
+            </div>
+        {/if}
+    </div>
+    <div class="shrink-0 flex items-center gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+        <div class="flex-1 min-w-0"></div>
+        <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                onclick={Msg::ClosePopin}><div>{t("batch.close")}</div></button>
+    </div>
+</div>

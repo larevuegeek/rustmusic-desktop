@@ -1,0 +1,19 @@
+<div class="flex-1 min-w-0 text-left">
+    <div class="flex items-center gap-1.5 min-w-0">
+        {#if i == vm.library}
+            <span class="text-[13px] font-medium truncate text-green-600 dark:text-green-400">{b.name}</span>
+        {:else}
+            <span class="text-[13px] font-medium truncate text-neutral-700 dark:text-neutral-300">{b.name}</span>
+        {/if}
+        {#if b.default_value}
+            <div title={t("selector.default_library")}
+                 class="shrink-0 flex items-center gap-0.5 px-1 py-px rounded
+                        text-[9px] font-semibold uppercase tracking-wide
+                        bg-green-500/15 text-green-600 dark:text-green-400">
+                <Icon icon="lucide:pin" width={9} />
+                <div>{t("selector.default")}</div>
+            </div>
+        {/if}
+    </div>
+    <div class="text-[10px] truncate text-neutral-400 dark:text-neutral-500">{b.summary}</div>
+</div>

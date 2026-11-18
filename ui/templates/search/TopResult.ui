@@ -1,0 +1,27 @@
+{@const sec = &sv.top_head}{@include "SearchSection.ui"}
+<button class="group relative w-full p-5 rounded-2xl border text-left cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2)"
+        onclick={Msg::SearchPage(SearchMsg::Open(top.n))}>
+    {#if top.cover.is_some() && top.round}
+        <img class="w-28 h-28 object-cover rounded-full shadow-[0_10px_28px_rgba(0,0,0,0.25)]" src={cx.resources.cover_opt(&top.cover)} alt="">
+    {:else if top.cover.is_some()}
+        <img class="w-28 h-28 object-cover rounded-xl shadow-[0_10px_28px_rgba(0,0,0,0.25)]" src={cx.resources.cover_opt(&top.cover)} alt="">
+    {:else if top.avatar.is_some()}
+        {#if let Some(av) = &top.avatar}<div class="avatar-artiste w-28 h-28 rounded-full flex items-center justify-center font-bold text-[36px]" style:--h={av.1}>{av.0}</div>{/if}
+    {:else if top.round}
+        <div class="w-28 h-28 flex items-center justify-center bg-(--rg-s2) text-(--rg-mu) rounded-full"><Icon icon="material-symbols:album-outline" width={44} /></div>
+    {:else}
+        <div class="w-28 h-28 flex items-center justify-center bg-(--rg-s2) text-(--rg-mu) rounded-xl"><Icon icon="material-symbols:album-outline" width={44} /></div>
+    {/if}
+    <div class="mt-4 text-[26px] font-extrabold tracking-[-0.02em] leading-tight truncate text-(--rg-tx)" title={top.title.as_str()}>{top.title}</div>
+    <div class="mt-1.5 flex items-center gap-2 text-sm text-(--rg-mu)">
+        <div class="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-[0.06em] bg-(--rg-s2) text-(--rg-tx2)">{top.type_label}</div>
+        {#if !top.subtitle.is_empty()}<div class="truncate">{top.subtitle}</div>{/if}
+    </div>
+    <div class="absolute right-5 bottom-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg bg-(--rg-g) text-(--rg-on-g) opacity-0 translate-y-1 transition-all group-hover:opacity-100 group-hover:translate-y-0">
+        {#if top.kind == "track"}
+            <Icon icon="material-symbols:play-arrow-rounded" width={26} />
+        {:else}
+            <Icon icon="material-symbols:arrow-forward-rounded" width={26} />
+        {/if}
+    </div>
+</button>

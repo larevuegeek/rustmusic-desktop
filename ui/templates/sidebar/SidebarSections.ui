@@ -1,0 +1,56 @@
+{#each self.sidebar_sections() as s (s as usize)}
+    {#if s == SbSection::Playlists}
+        {#if !self.sidebar_collapsed}
+            <SidebarTitle title={t("nav.playlists")} help={t("playlists_view.all")} onclick={Msg::Go(Route::Playlists)}>
+                <SidebarButton slot="actions" icon="material-symbols:auto-awesome-outline-rounded"
+                               label={t("playlist.new_smart")} size={16} onclick={Msg::Smart(SmartMsg::Open(None, false))} />
+                <SidebarButton slot="actions" icon="material-symbols:add-rounded"
+                               label={t("playlist.new")} size={16} onclick={Msg::PlaylistForm(PlaylistFormMsg::New(None))} />
+                <div slot="actions" id="sidebar.playlists.options" class="flex shrink-0">
+                    <SidebarButton icon="material-symbols:more-horiz" label={t("playlist.options")}
+                                   size={16} onclick={Msg::Menu(Menu::Display)}>
+                        {#if self.sidebar_hidden_shortcuts() > 0}
+                            <div class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-(--sb-g)"></div>
+                        {/if}
+                    </SidebarButton>
+                </div>
+            </SidebarTitle>
+            {@include "PlaylistZoneMenu.ui"}
+        {/if}
+        {#each vm.sidebar_playlists as playlist (playlist.key.as_str())}
+            <PlaylistItem playlist={Some(playlist.clone())} collapsed={self.sidebar_collapsed} />
+        {/each}
+    {:else if s == SbSection::Online}
+        {#if !self.sidebar_collapsed}
+            <SidebarTitle title={t("podcasts.kicker")} help={t("podcasts.kicker")}
+                          onclick={Msg::Go(self.listen_route())} />
+        {/if}
+        {#if self.podcasts_enabled()}
+            <SidebarRow title={t("podcasts.title")} subtitle={vm.podcasts_detail.clone()} collapsed={self.sidebar_collapsed}
+                        active={matches!(self.route(), Route::Podcasts | Route::PodcastSubscriptions | Route::PodcastDownloads)
+                               || self.unpinned_podcast_open()}
+                        onclick={Msg::Go(Route::Podcasts)}>
+                <SidebarThumbnail slot="vignette" covers={vm.podcast_covers.clone()}
+                                  color="#8b5cf6" icon="material-symbols:podcasts-rounded" />
+            </SidebarRow>
+            {#each self.sidebar_podcast_favs() as p (p.id)}
+                <SidebarRow title={p.title.clone()} subtitle={p.subtitle.clone()} collapsed={self.sidebar_collapsed}
+                            active={*self.route() == Route::Podcast(p.id)} onclick={Msg::Go(Route::Podcast(p.id))}>
+                    <SidebarThumbnail slot="vignette" covers={p.cover.clone().into_iter().collect::<Vec<_>>()}
+                                      color="#8b5cf6" icon="material-symbols:podcasts-rounded" />
+                </SidebarRow>
+            {/each}
+        {/if}
+        {#if self.radios_enabled()}
+            <SidebarRow title={t("radios.title")} subtitle={vm.radios_detail.clone()} collapsed={self.sidebar_collapsed}
+                        active={*self.route() == Route::Radios} onclick={Msg::Go(Route::Radios)}>
+                <div slot="vignette" class="relative block overflow-hidden isolate bg-white w-full h-full rounded-md">
+                    <img class="absolute inset-[12%] w-[76%] h-[76%] object-contain" src={match &vm.radio_logo { Some(p) => cx.resources.cover(p), None => cx.resources.radio_logo() }} alt="">
+                    <div class="absolute inset-0 ring-1 ring-inset ring-black/8 dark:ring-white/8 pointer-events-none rounded-md"></div>
+                </div>
+            </SidebarRow>
+        {/if}
+    {:else}
+        {@include "SidebarPins.ui"}
+    {/if}
+{/each}

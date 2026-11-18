@@ -1,0 +1,38 @@
+<div class="flex flex-col gap-3 px-5 py-4 leading-[1.2]">
+    <div class="flex items-center gap-4">
+        <div class="flex-1 min-w-0">
+            <p class="m-0 text-[15px] font-semibold text-(--rg-tx)">{t("settings.dac_test")}</p>
+            <p class="m-0 mt-0.75 text-[13px] leading-[1.25] text-(--rg-mu)">{self.dac_desc()}</p>
+        </div>
+        <GhostButton g={Some(self.dac_button())} />
+    </div>
+    {#if let Some(error) = &self.views.settings.audio.dac_error}
+        <div class="flex gap-1 text-[13px]">
+            <div class="text-(--rg-am)">{t("settings.dac_test_failed")}</div>
+            <div class="text-(--rg-mu)">{error}</div>
+        </div>
+    {/if}
+    {#if let Some(res) = &self.dac_rates()}
+        <div class="flex flex-wrap gap-1.5 font-mono text-xs">
+            {#each res.0 as f (f.label.as_str())}
+                {#if f.ok}
+                    <div class="flex items-center gap-1 px-2 py-1 rounded-md border whitespace-nowrap bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)">
+                        <Icon icon="material-symbols:check-rounded" width={14} />
+                        <div>{f.label}</div>
+                    </div>
+                {:else}
+                    <div class="flex items-center gap-1 px-2 py-1 rounded-md border whitespace-nowrap bg-(--rg-creux) border-(--rg-line) text-(--rg-mu2) line-through">{f.label}</div>
+                {/if}
+            {/each}
+            {#if let Some(dsd) = &res.1}
+                <div class="flex items-center gap-1 px-2 py-1 rounded-md border whitespace-nowrap bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)">
+                    <Icon icon="material-symbols:check-rounded" width={14} />
+                    <div>{dsd}</div>
+                </div>
+            {/if}
+            {#if res.1.is_none()}
+                <div class="flex items-center gap-1 px-2 py-1 rounded-md border whitespace-nowrap bg-(--rg-creux) border-(--rg-line) text-(--rg-mu2) line-through">DSD (DoP)</div>
+            {/if}
+        </div>
+    {/if}
+</div>

@@ -1,0 +1,91 @@
+{#if self.sidebar_pins_hint()}
+    <div class="relative mt-3 p-3 rounded-xl bg-(--sb-s1) border border-(--sb-bd)">
+        <button class="absolute top-1.5 right-1.5 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-colors
+                       text-(--sb-mu) hover:bg-(--sb-s2) hover:text-(--sb-tx)"
+                onclick={Msg::Sidebar(SidebarMsg::DismissHint)} title={t("common.close")} aria-label={t("common.close")}>
+            <Icon icon="material-symbols:close-rounded" width={16} />
+        </button>
+        <div class="flex items-center gap-2.5 pr-6">
+            <div class="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)">
+                <Icon icon="material-symbols:keep-outline-rounded" width={18} thick />
+            </div>
+            <div class="text-[13px] font-bold leading-tight text-(--sb-tx)">{t("sidebar.pins_empty_title")}</div>
+        </div>
+        <div class="mt-2 text-xs leading-snug text-(--sb-mu)">{t("sidebar.pins_empty_desc")}</div>
+        <div class="mt-2.5 flex gap-1.5">
+            {#each self.pin_shortcuts() as b (b.0)}
+                <button class="h-7 px-3 flex items-center gap-1.5 rounded-full cursor-pointer transition-colors
+                               text-xs font-semibold bg-(--sb-s2) text-(--sb-tx2) hover:text-(--sb-tx) hover:brightness-125"
+                        onclick={Msg::Go(Route::Library(b.2))}>
+                    <Icon icon={b.0} width={15} />
+                    <div>{b.1}</div>
+                </button>
+            {/each}
+        </div>
+    </div>
+{/if}
+
+{#if !self.sidebar_collapsed && !self.sidebar_pins(PinKind::Album).is_empty()}
+    <SidebarTitle title={t("sidebar.pinned_albums")}>
+        <div slot="actions" id="sidebar.pins.album" class="flex shrink-0">
+            <SidebarButton icon="material-symbols:more-horiz" label={t("sidebar.pinned_albums")} size={16}
+                           onclick={Msg::Menu(Menu::Popup(PinKind::Album.zone_id()))} />
+        </div>
+    </SidebarTitle>
+{/if}
+{#each self.sidebar_pins(PinKind::Album) as pin (pin.id.as_str())}
+    <SidebarRow title={pin.title.clone()} subtitle={crate::mapper::sidebar::pin_subtitle(pin)} collapsed={self.sidebar_collapsed}
+                active={*self.route() == MusicApp::sidebar_pin_route("album", &pin.id)}
+                playing={self.sidebar_playing(PinKind::Album) == Some(pin.id.as_str())}
+                target={Some(RowTarget::Pin(PinKind::Album, pin.id.clone()))}
+                onclick={Msg::Go(MusicApp::sidebar_pin_route("album", &pin.id))}>
+        <div slot="vignette" class="sb-vignette relative" style:--c={Color::oklch(0.62, 0.12, hue(&pin.title), 1.)}>
+            {#if pin.cover.as_deref().is_some_and(|c| !c.is_empty())}
+                <img class="absolute inset-0 w-full h-full object-cover" src={cx.resources.cover_thumb(&pin.cover)} alt="">
+            {:else}
+                <Icon icon="material-symbols:album-rounded" width={18} />
+            {/if}
+        </div>
+    </SidebarRow>
+{/each}
+
+{#if !self.sidebar_collapsed && !self.sidebar_pins(PinKind::Artist).is_empty()}
+    <SidebarTitle title={t("sidebar.pinned_artists")}>
+        <div slot="actions" id="sidebar.pins.artist" class="flex shrink-0">
+            <SidebarButton icon="material-symbols:more-horiz" label={t("sidebar.pinned_artists")} size={16}
+                           onclick={Msg::Menu(Menu::Popup(PinKind::Artist.zone_id()))} />
+        </div>
+    </SidebarTitle>
+{/if}
+{#if !self.sidebar_pins(PinKind::Artist).is_empty()}
+    <div class="flex" class:flex-col={self.sidebar_collapsed} class:items-center={self.sidebar_collapsed} class:gap-2={self.sidebar_collapsed}
+         class:flex-wrap={!self.sidebar_collapsed} class:gap-3={!self.sidebar_collapsed} class:px-1={!self.sidebar_collapsed} class:pb-3={!self.sidebar_collapsed}>
+        {#each self.sidebar_pins(PinKind::Artist) as pin (pin.id.as_str())}
+            <button class="group flex flex-col items-center gap-1.5 text-xs text-center cursor-pointer" class:w-16={!self.sidebar_collapsed}
+                    onclick={Msg::Go(MusicApp::sidebar_pin_route("artist", &pin.id))}
+                    oncontextmenu={{ let id = pin.id.clone(); move |q: ContextMenuRequest| Msg::Sidebar(SidebarMsg::RowMenu(TrackMenuAt::from_request(&q), RowTarget::Pin(PinKind::Artist, id.clone()))) }}
+                    title={pin.title.as_str()} aria-current={(*self.route() == MusicApp::sidebar_pin_route("artist", &pin.id)).then_some("page")}>
+                {#if *self.route() == MusicApp::sidebar_pin_route("artist", &pin.id) || self.sidebar_playing(PinKind::Artist) == Some(pin.id.as_str())}
+                    <div class="rounded-full overflow-hidden shrink-0 ring-2 ring-(--sb-g)"
+                         class:w-11={self.sidebar_collapsed} class:h-11={self.sidebar_collapsed} class:w-13={!self.sidebar_collapsed} class:h-13={!self.sidebar_collapsed}>
+                        {@include "PinAvatar.ui"}
+                    </div>
+                {:else}
+                    <div class="rounded-full overflow-hidden shrink-0 ring-1 ring-(--sb-bd) group-hover:ring-2 group-hover:ring-(--sb-bd2)"
+                         class:w-11={self.sidebar_collapsed} class:h-11={self.sidebar_collapsed} class:w-13={!self.sidebar_collapsed} class:h-13={!self.sidebar_collapsed}>
+                        {@include "PinAvatar.ui"}
+                    </div>
+                {/if}
+                {#if !self.sidebar_collapsed}
+                    {#if *self.route() == MusicApp::sidebar_pin_route("artist", &pin.id)}
+                        <div class="w-full truncate text-(--sb-g) font-semibold">{pin.title}</div>
+                    {:else}
+                        <div class="w-full truncate text-(--sb-tx2)">{pin.title}</div>
+                    {/if}
+                {/if}
+            </button>
+        {/each}
+    </div>
+{/if}
+{@include "PinZoneMenu.ui"}
+{@include "LibraryItemMenu.ui"}

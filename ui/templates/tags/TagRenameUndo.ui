@@ -1,0 +1,5 @@
+<button class="flex items-center gap-1.5 px-3.5 h-8 rounded-xl text-[12.5px] font-semibold cursor-pointer transition-colors text-(--rg-tx2) bg-(--rg-carte) border border-(--rg-bd) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+        onclick={Msg::Rename(RenameMsg::Undo)}>
+    {#if rn.undoing}<div class="flex animate-spin"><Icon icon="lucide:loader-circle" width={12} /></div>{:else}<Icon icon="lucide:undo-2" width={12} />{/if}
+    <div>{t("rename.undo")}</div>
+</button>

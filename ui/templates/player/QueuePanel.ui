@@ -1,0 +1,141 @@
+{#if let Some(q) = self.queue_panel()}
+    <div class="absolute inset-0 z-40 bg-black/50 backdrop-blur-md cursor-default animate-[popin-fade-in_220ms_linear]" data-exit="popin-fade-out 200ms linear" title={t("queue_panel.close")} onclick={Msg::CloseMenu}></div>
+    <div class="absolute right-0 top-0 bottom-0 z-50 w-110 bg-white dark:bg-[#0c0c0e] border-l border-black/4 dark:border-white/6 shadow-[-8px_0_40px_rgba(0,0,0,0.08)] dark:shadow-[-8px_0_60px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col animate-[panel-slide-in_340ms_cubic-bezier(0.32,0.72,0,1)]" data-exit="panel-slide-out 220ms cubic-bezier(0.4, 0, 1, 1)">
+        {#if q.playing && q.now_playing.is_some()}
+            <div class="rg-file-lueur absolute top-0 left-0 right-0 h-72 opacity-20"></div>
+        {/if}
+
+        <div class="relative z-20 shrink-0 flex items-center justify-between px-6 py-5 bg-white/80 dark:bg-[#0c0c0e]/80 backdrop-blur-xl border-b border-black/4 dark:border-white/6">
+            <div class="rg-file-trait absolute bottom-0 left-0 right-0 h-px"></div>
+            <div class="flex flex-col gap-1">
+                <h2 class="m-0 text-[15px] font-bold tracking-tight text-neutral-900 dark:text-white">{t("queue_panel.title")}</h2>
+                <div class="flex items-center gap-2">
+                    <div class="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 tabular-nums">
+                        {q.count}
+                    </div>
+                    {#if q.playing}
+                        <div class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                            <div class="relative flex h-1.5 w-1.5">
+                                <div class="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60"></div>
+                                <div class="relative h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                            </div>
+                            <div>{q.status}</div>
+                        </div>
+                    {:else}
+                        <div class="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-neutral-500/10 text-neutral-500 dark:text-neutral-400">{q.status}</div>
+                    {/if}
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+                {#if q.now_playing.is_some()}
+                    <button class="group flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/30 transition-all duration-200 cursor-pointer text-emerald-500"
+                            aria-label={q.toggle_label.as_str()} title={q.toggle_label.as_str()} onclick={Msg::TogglePlay}>
+                        {#if q.playing}<Icon icon="lucide:pause" width={15} />{:else}<div class="flex ml-0.5"><Icon icon="lucide:play" width={15} /></div>{/if}
+                    </button>
+                {/if}
+                {#if q.has_tracks}
+                    <button class="group flex items-center justify-center h-9 w-9 rounded-xl bg-white/5 hover:bg-red-500/15 border border-transparent hover:border-red-500/20 transition-all duration-200 cursor-pointer text-neutral-500 dark:text-neutral-400 hover:text-red-400"
+                            aria-label={t("queue_panel.clear")} title={t("queue_panel.clear")} onclick={Msg::QueueClear}>
+                        <Icon icon="mynaui:trash" width={16} />
+                    </button>
+                {/if}
+                <button class="group flex items-center justify-center h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/8 transition-all duration-200 cursor-pointer text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                        aria-label={t("common.close")} title={t("common.close")} onclick={Msg::CloseMenu}>
+                    <Icon icon="mynaui:x" width={18} />
+                </button>
+            </div>
+        </div>
+
+        <div class="relative flex-1 min-h-0 w-full overflow-y-auto scrollbar-app px-4 pb-16"
+             onscroll={|s: ScrollMetrics| Msg::QueueScrolled(s.offset, s.max_offset())}>
+            {#if let Some(now) = &q.now_playing}
+                <div class="mt-6 mb-8 px-2">
+                    <div class="mb-3 flex items-center gap-2.5">
+                        <div class="relative flex h-2.5 w-2.5 items-center justify-center">
+                            {#if q.playing}<div class="absolute inset-0 rounded-full bg-emerald-400 opacity-40 animate-ping"></div>{:else}<div class="absolute inset-0 rounded-full bg-emerald-400 opacity-40"></div>{/if}
+                            <div class="relative h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></div>
+                        </div>
+                        <h3 class="m-0 text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400">{t("home.now_playing")}</h3>
+                    </div>
+                    <div class="group relative flex items-center gap-4 rounded-2xl p-3.5 border bg-white dark:bg-white/4 border-black/4 dark:border-white/6 shadow-[0_2px_12px_rgba(0,0,0,0.3)] transition-all duration-400 hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+                        <div class="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-neutral-200 dark:bg-neutral-800 shadow-[0_2px_12px_rgba(0,0,0,0.4)] ring-1 ring-white/6">
+                            <img class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src={cx.resources.cover_opt(&now.cover)} alt="">
+                        </div>
+                        <div class="min-w-0 flex-1 flex flex-col justify-center gap-0.5">
+                            <div class="truncate text-[14px] font-bold leading-tight text-neutral-900 dark:text-white" title={now.title.as_str()}>{now.title}</div>
+                            <div class="truncate text-[12px] font-medium text-neutral-500 dark:text-neutral-400">{now.artist}</div>
+                        </div>
+                        <div class="shrink-0 w-14 flex flex-col justify-center gap-2.5 pr-1">
+                            {#if q.playing}
+                                <div class="w-full flex items-end justify-end gap-0.75 h-5">
+                                    <span class="w-0.75 rounded-full bg-emerald-500 animate-[eq-bar-1_0.8s_ease-in-out_infinite]"></span>
+                                    <span class="w-0.75 rounded-full bg-emerald-500 animate-[eq-bar-2_0.6s_ease-in-out_infinite_0.1s]"></span>
+                                    <span class="w-0.75 rounded-full bg-emerald-500 animate-[eq-bar-3_0.7s_ease-in-out_infinite_0.2s]"></span>
+                                    <span class="w-0.75 rounded-full bg-emerald-500/60 animate-[eq-bar-1_0.9s_ease-in-out_infinite_0.15s]"></span>
+                                </div>
+                            {:else if q.paused}
+                                <div class="w-full flex justify-end text-neutral-400 dark:text-neutral-500"><Icon icon="mynaui:pause" width={18} /></div>
+                            {/if}
+                            <div class="w-full text-right text-[11px] font-semibold tabular-nums text-neutral-400 dark:text-neutral-500">{now.duration}</div>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+
+            {#if let Some(count) = &q.upcoming_count}
+                <div class="z-10 mb-1 flex items-center justify-between bg-white/90 dark:bg-[#0c0c0e]/90 backdrop-blur-xl px-2 py-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="flex items-center justify-center h-6 w-6 rounded-lg bg-white/5 text-neutral-400 dark:text-neutral-500"><Icon icon="mynaui:list" width={14} /></div>
+                        <h3 class="m-0 text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-500 dark:text-neutral-400">{t("queue_panel.up_next")}</h3>
+                    </div>
+                    <div class="text-[11px] font-semibold tabular-nums text-neutral-600">
+                        {count}
+                    </div>
+                </div>
+                <div class="flex flex-col w-full gap-0.5">
+                    {#each q.upcoming as row (row.queue_id.as_str())}
+                        <div class="group relative flex items-center gap-3 rounded-xl p-2.5 transition-all duration-300 ease-out hover:bg-neutral-100/70 dark:hover:bg-white/4 cursor-pointer"
+                             onclick={Msg::PlayQueue(row.index)}>
+                            <div class="absolute left-0 top-0 bottom-0 z-10 flex w-7 items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 text-neutral-600">
+                                <Icon icon="radix-icons:drag-handle-dots-2" width={14} />
+                            </div>
+                            <div class="w-5 ml-2 text-center text-[11px] font-semibold tabular-nums text-neutral-600 transition-opacity duration-200 group-hover:opacity-0">{row.rank}</div>
+                            <div class="h-11 w-11 shrink-0 overflow-hidden rounded-sm bg-neutral-200 dark:bg-neutral-800 ring-1 ring-white/6 transition-shadow duration-200 group-hover:shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
+                                <img class="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]" src={cx.resources.cover_small(&row.cover)} alt="">
+                            </div>
+                            <div class="min-w-0 flex-1 flex flex-col justify-center gap-0.5">
+                                <div class="truncate text-[13px] font-semibold text-neutral-700 dark:text-neutral-200 group-hover:text-white transition-colors duration-200" title={row.title.as_str()}>{row.title}</div>
+                                <div class="truncate text-[11px] font-medium text-neutral-400 dark:text-neutral-500">{row.artist}</div>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <div class="w-10 text-right text-[11px] font-semibold tabular-nums text-neutral-600 transition-opacity duration-200 group-hover:opacity-0">{row.duration}</div>
+                                <button class="flex h-7 w-7 items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 bg-neutral-200/60 dark:bg-white/6 hover:bg-red-500/15 hover:text-red-400 transition-all duration-200 cursor-pointer text-neutral-500 dark:text-neutral-400"
+                                        title={t("queue_panel.remove")} aria-label={t("queue_panel.remove")} onclick={Msg::QueueRemove(row.queue_id.clone())}>
+                                    <Icon icon="mynaui:trash" width={13} />
+                                </button>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            {:else if q.now_playing.is_none()}
+                <div class="flex h-72 flex-col items-center justify-center text-center mt-12">
+                    <div class="relative mb-6">
+                        <div class="flex h-24 w-24 items-center justify-center rounded-3xl bg-neutral-50 dark:bg-white/3 border border-black/5 dark:border-white/5 shadow-[0_4px_24px_rgba(0,0,0,0.2)] text-neutral-600">
+                            <Icon icon="mynaui:music" width={40} />
+                        </div>
+                        <div class="absolute -inset-3 rounded-[28px] border border-white/3"></div>
+                        <div class="absolute -inset-6 rounded-4xl border border-white/2"></div>
+                    </div>
+                    <h3 class="m-0 text-[15px] font-bold text-neutral-700 dark:text-neutral-200">{t("queue_panel.empty_title")}</h3>
+                    <p class="m-0 mt-2.5 text-[13px] leading-relaxed text-neutral-400 dark:text-neutral-500 max-w-55">{t("queue_panel.empty_desc")}</p>
+                </div>
+            {:else}
+                <div class="flex h-52 flex-col items-center justify-center text-center mt-8">
+                    <div class="flex h-14 w-14 items-center justify-center rounded-2xl mb-4 bg-neutral-50 dark:bg-white/3 border border-black/5 dark:border-white/5 text-neutral-500 dark:text-neutral-400"><Icon icon="mynaui:music" width={24} /></div>
+                    <h3 class="m-0 text-[13px] font-bold text-neutral-600 dark:text-neutral-300">{t("queue_panel.no_next_title")}</h3>
+                    <p class="m-0 mt-1.5 text-[12px] text-neutral-400 dark:text-neutral-500">{t("queue_panel.no_next_desc")}</p>
+                </div>
+            {/if}
+        </div>
+    </div>
+{/if}

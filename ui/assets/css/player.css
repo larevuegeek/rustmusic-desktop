@@ -1,0 +1,44 @@
+/* Lecteur : la mise en page est dans les classes Tailwind des gabarits (player/).
+   Restent ici les classes propres à RustMusic (dock flottant teinté par la
+   pochette, --lh / --ls) ; leurs jetons (.dark .lecteur, contraste élevé) sont dans
+   theme.css (:root), chromas calculées pour --ls 0.07 (voir le commentaire de theme.css). */
+
+/* .lecteur, puis .dark .lecteur : fond en dégradé, ombre, reflet et liseré ; Figtree ;
+   line-height: 1.5 de la feuille de base de Tailwind (html), hérité par text-[11px]… */
+.lecteur {
+    color: var(--lc-tx); font-family: var(--font-maquette); line-height: 1.5;
+    background: linear-gradient(100deg, var(--lc-fond-1), var(--lc-fond-2) 45%, var(--lc-fond-3));
+    box-shadow: 0px 20px 50px var(--lc-ombre), inset 0px 1px 0px var(--lc-reflet), 0px 0px 0px 1px var(--lc-lisere);
+}
+/* .lecteur-pochette */
+.lecteur-pochette { box-shadow: 0px 10px 26px var(--lc-pochette-ombre), 0px 0px 0px 1px var(--lc-pochette-lisere); }
+/* .lecteur-lecture { box-shadow: 0 8px 22px oklch(0.55 calc(0.13 * var(--ls)) var(--lh) / 0.4) } */
+.lecteur-lecture { box-shadow: 0px 8px 22px var(--lc-lecture-ombre); }
+/* .lecteur-dossier : chemin tronqué par la gauche, la fin (dossier de l'album) reste lisible. */
+.lecteur-dossier { direction: rtl; text-align: left; }
+/* .lecteur-chaine-ouverte : bloc qualité dont le détail de la chaîne audio est ouvert. */
+.lecteur-chaine-ouverte { background: var(--lc-survol); }
+
+/* Menus Sortie et Réseau : des k-popover hors de la carte, que la classe menu met en
+   Inter ; ils reprennent la police de .lecteur. */
+.lecteur-menu { font-family: var(--font-maquette); }
+
+/* Mini-lecteur (app.css : .dark .mini-lecteur) : dégradé vertical ; ses jetons (onglets,
+   panneau, paroles) sont dans theme.css, teinte du morceau figée comme le reste du lecteur. */
+.mini-lecteur {
+    background: linear-gradient(160deg, var(--mf-1), var(--mf-2) 55%, var(--mf-3));
+    /* Pas de liseré haut : la fenêtre a déjà le cadre du système. */
+    box-shadow: none;
+}
+/* Paroles : fondu en haut et en bas de la zone qui défile. */
+.mini-paroles { mask-image: linear-gradient(180deg, transparent, #000 18%, #000 78%, transparent); }
+/* .mini-eq i du titre en cours (var(--eq, var(--lc-acc))) : les barres de library.css
+   (.mini-eq-1…), teintées par le lecteur. */
+.mini-eq-lc-1 { width: 2px; height: 100%; border-radius: 1px; background: var(--lc-acc); transform-origin: 50% 100%; animation: mini-eq 1s ease-in-out infinite; }
+.mini-eq-lc-2 { width: 2px; height: 100%; border-radius: 1px; background: var(--lc-acc); transform-origin: 50% 100%; animation: mini-eq 1s ease-in-out -0.3s infinite; }
+.mini-eq-lc-3 { width: 2px; height: 100%; border-radius: 1px; background: var(--lc-acc); transform-origin: 50% 100%; animation: mini-eq 1s ease-in-out -0.6s infinite; }
+
+/* .lecteur et .mini-lecteur en thème clair (les jetons de couleur : theme-modes.css). */
+@media (prefers-color-scheme: light) {
+    .lecteur { box-shadow: 0px 16px 40px var(--lc-ombre), inset 0px 1px 0px var(--lc-reflet), 0px 0px 0px 1px var(--lc-lisere); }
+}

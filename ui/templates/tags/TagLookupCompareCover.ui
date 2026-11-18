@@ -1,0 +1,28 @@
+<div class="flex shrink-0 cursor-pointer" aria-label={t("tags.cover")} onclick={Msg::Lookup(LookupMsg::TakeCover)}>
+    {@const on = lk.take_cover}{@include "../shared/inputs/Checkbox.ui"}
+</div>
+<div class="shrink-0 w-24 text-[11px] font-medium text-neutral-300">{t("tags.cover")}</div>
+<div class="flex-1 min-w-0 flex items-center gap-2">
+    <div class="shrink-0 w-12 h-12 rounded overflow-hidden ring-1 ring-white/10 bg-white/5">
+        {#if let Some(cv) = &e.cover()}<img class="w-full h-full object-cover" src={cx.resources.cover(&cv.src)} alt="">{/if}
+    </div>
+    <div class="min-w-0 text-[10.5px] leading-tight text-neutral-500">
+        {#if let Some(cv) = &e.cover()}<div>{cv.format_label()}</div><div>{cv.size_label()}</div>{/if}
+        {#if e.cover().is_none()}<div class="italic">{t("tags.no_media")}</div>{/if}
+    </div>
+</div>
+<div class="flex shrink-0 text-neutral-600"><Icon icon="lucide:arrow-right" width={11} /></div>
+<div class="flex-1 min-w-0 flex items-center gap-2">
+    <div class="shrink-0 w-12 h-12 rounded overflow-hidden ring-1 ring-white/10 bg-white/5 flex items-center justify-center">
+        {#if let Some(rc) = &lk.cover}<img class="w-full h-full object-cover" src={cx.resources.cover(&rc.src)} alt="">{/if}
+        {#if lk.cover.is_none() && lk.cover_loading}<div class="flex animate-spin text-neutral-500"><Icon icon="lucide:loader-circle" width={14} /></div>{/if}
+    </div>
+    <div class="min-w-0 text-[10.5px] leading-tight text-neutral-400">
+        {#if let Some(rc) = &lk.cover}
+            <div>{rc.size.clone()}</div>
+            <div>{rc.size_line()}</div>
+        {/if}
+        {#if let Some(ce) = &lk.cover_error}<div class="text-red-500">{ce}</div>{/if}
+        {#if lk.cover.is_none() && !lk.cover_loading && lk.cover_error.is_none()}<div class="italic text-neutral-500">{t("source.not_provided")}</div>{/if}
+    </div>
+</div>

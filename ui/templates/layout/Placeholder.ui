@@ -1,0 +1,15 @@
+<div class="home-maquette h-full overflow-y-auto overscroll-contain scrollbar-app">
+    <div class="@container max-w-[1480px] mx-auto flex flex-col gap-6 py-6 px-4 md:px-10 pb-16">
+        <h1 class="text-3xl font-extrabold tracking-[-0.02em] leading-tight text-neutral-900 dark:text-neutral-50">{route_title}</h1>
+        <div class="text-[15px] text-neutral-500 dark:text-[#9aa39e]">{t("common.page_placeholder")}</div>
+        <div class="flex items-center gap-3">
+            <button class="h-10 px-4 rounded-full text-sm font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap
+                           bg-neutral-900/6 hover:bg-neutral-900/10 text-neutral-900
+                           dark:bg-white/10 dark:hover:bg-white/16 dark:text-white transition-colors"
+                    onclick={Msg::Go(Route::Home)}>
+                <Icon icon="material-symbols:home-outline-rounded" width={16} />
+                <div class="w-auto">{t("common.back_home")}</div>
+            </button>
+        </div>
+    </div>
+</div>

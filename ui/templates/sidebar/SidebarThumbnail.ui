@@ -1,0 +1,13 @@
+<div class="sb-vignette relative" style:--c={hex(&self.color)}>
+    {#if let Some(four) = mosaic(&self.covers)}
+        <div class="absolute inset-0 grid grid-cols-2 grid-rows-2">
+            {#each four as path_part (path_part)}
+                <img class="w-full aspect-square object-cover" src={cx.resources.cover(path_part)} alt="">
+            {/each}
+        </div>
+    {:else if let Some(cover) = self.covers.first()}
+        <img class="absolute inset-0 w-full h-full object-cover" src={cx.resources.cover(cover)} alt="">
+    {:else if !self.icon.is_empty()}
+        <Icon icon={self.icon.as_str()} width={18} />
+    {/if}
+</div>

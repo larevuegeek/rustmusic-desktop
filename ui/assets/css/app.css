@@ -1,0 +1,53 @@
+/* Feuille unique compilée par css_file! ; une feuille importée par zone de l'application.
+   Les utilitaires Tailwind (voir docs/tailwind.md) sont compilés à la demande pour les
+   templates qui les emploient ; les classes de ces feuilles restent prioritaires. */
+@import "tailwindcss";
+@import "theme.css";
+@import "tokens.css";
+@import "theme-modes.css";
+@import "layout.css";
+@import "sidebar.css";
+@import "home.css";
+@import "player.css";
+@import "menus.css";
+@import "library.css";
+@import "detail.css";
+@import "settings.css";
+@import "popin.css";
+@import "pages.css";
+@import "amp-remote.css";
+
+/* @theme de RustMusic (src/app.css), polices chargées par l'exemple. */
+@theme {
+    --font-sans: "Inter", system-ui, sans-serif;
+    --color-accent-50: var(--acc-50, #f0fdf4);
+    --color-accent-100: var(--acc-100, #dcfce7);
+    --color-accent-200: var(--acc-200, #bbf7d0);
+    --color-accent-300: var(--acc-300, #86efac);
+    --color-accent-400: var(--acc-400, #4ade80);
+    --color-accent-500: var(--acc-500, #22c55e);
+    --color-accent-600: var(--acc-600, #16a34a);
+    --color-accent-700: var(--acc-700, #15803d);
+    --color-accent-800: var(--acc-800, #166534);
+    --color-accent-900: var(--acc-900, #14532d);
+    --color-accent-950: var(--acc-950, #052e16);
+    /* Gris secondaires : selon le thème et le contraste (`:root[data-contrast="high"]`
+       d'app.css), voir theme.css et theme-modes.css. */
+    --color-neutral-300: var(--neutral-300);
+    --color-neutral-400: var(--neutral-400);
+    --color-neutral-500: var(--neutral-500);
+    --color-neutral-600: var(--neutral-600);
+}
+/* `dark:` suit `Application::color_preferences`, dialogues et popovers compris. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+/* Palette claire lue par les classes de la barre de
+   titre et de la page (bg-(--c-barre), border-(--c-bord), bg-(--c-kbd)…), surchargées par
+   les variantes dark:. */
+:root {
+    --c-barre: #efece5;
+    --c-fond: #f6f4ef;
+    --c-bord: #e2ddd3;
+    --c-bord2: #cfc9bd;
+    --c-kbd: #f1eee8;
+}

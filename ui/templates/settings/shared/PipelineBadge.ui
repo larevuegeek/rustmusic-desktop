@@ -1,0 +1,13 @@
+<div class="flex shrink-0">
+{#if self.mode == "bit-perfect"}
+    <div class="h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border bg-emerald-500/12 border-emerald-400/25 text-emerald-300"><div class="w-1.5 h-1.5 rounded-full bg-current"></div><div>{label}</div></div>
+{:else if self.mode == "dop"}
+    <div class="h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border bg-violet-500/12 border-violet-400/30 text-violet-300"><div class="w-1.5 h-1.5 rounded-full bg-current"></div><div>{label}</div></div>
+{:else if self.mode == "resampled" || self.mode == "dsd"}
+    <div class="h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border bg-amber-500/14 border-amber-400/25 text-amber-300"><div class="w-1.5 h-1.5 rounded-full bg-current"></div><div>{label}</div></div>
+{:else if self.mode == "exclusive"}
+    <div class="h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border bg-sky-500/12 border-sky-400/25 text-sky-300"><div class="w-1.5 h-1.5 rounded-full bg-current"></div><div>{label}</div></div>
+{:else}
+    <div class="h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border bg-(--rg-s2) border-(--rg-bd2) text-(--rg-tx2)"><div class="w-1.5 h-1.5 rounded-full bg-current"></div><div>{label}</div></div>
+{/if}
+</div>

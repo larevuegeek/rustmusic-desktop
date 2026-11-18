@@ -1,0 +1,110 @@
+<div class="relative flex flex-col h-full min-h-0 min-w-0 overflow-hidden bg-(--rg-champ) text-(--rg-tx)">
+{#if let Some(wv) = self.workshop_view()}
+{#if self.views.tags.as_ref().is_some_and(|p| p.loading)}
+    <div class="flex-1 flex items-center justify-center text-(--rg-g)"><Spinner width={26.} /></div>
+{:else if wv.rows.is_empty() && !wv.only_issues}
+    <div class="flex-1 flex flex-col items-center justify-center gap-3 text-(--rg-mu)">
+        <Icon icon="material-symbols:sell-outline-rounded" width={34} />
+        <p class="m-0 text-sm">{t("workshop.title")}</p>
+    </div>
+{:else}
+    <div class="shrink-0 flex items-center gap-3 px-5 py-3">
+        <button class="w-9 h-9 shrink-0 rounded-[10px] flex items-center justify-center cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-carte) hover:text-(--rg-tx)"
+                title={t("workshop.back")} aria-label={t("workshop.back")} onclick={Msg::Tags(TagsMsg::Leave)}>
+            <Icon icon="material-symbols:arrow-back-rounded" width={22} />
+        </button>
+        <div class="relative w-11 h-11 shrink-0 rounded-[9px] overflow-hidden bg-(--rg-s2) shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+            {#if wv.head_cover.is_some()}
+                <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&wv.head_cover)} alt="">
+            {:else}
+                <div class="absolute inset-0 flex items-center justify-center text-(--rg-mu2)"><Icon icon="material-symbols:hide-image-outline-rounded" width={22} /></div>
+            {/if}
+        </div>
+        <div class="flex-1 min-w-0">
+            <h1 class="m-0 text-[18px] leading-tight font-extrabold tracking-[-0.01em] truncate" title={t("workshop.title")}>{wv.source}</h1>
+            <div class="mt-0.5 flex gap-x-2 text-[12.5px] text-(--rg-mu) min-w-0">
+                {#if let Some(a) = &wv.artist}<div class="font-semibold text-(--rg-tx2) truncate">{a}</div><div>·</div>{/if}
+                {#if let Some(y) = &wv.year}<div>{y}</div><div>·</div>{/if}
+                <div class="whitespace-nowrap">{wv.files_label}</div>
+            </div>
+        </div>
+        <div class="shrink-0 flex items-center gap-2">
+            {#if wv.changes > 0}
+                <div class="h-10 flex items-center gap-2 pl-3 pr-1 rounded-[10px] border border-(--rg-gbd) bg-(--rg-gbg) text-[13px] whitespace-nowrap text-(--rg-tx2)">
+                    <div class="w-2 h-2 rounded-full bg-(--rg-g) shadow-[0_0_0_4px_rgba(34,197,94,0.15)]"></div>
+                    <div class="font-bold text-(--rg-tx)">{wv.changes_label}</div>
+                    <button class="flex items-center justify-center h-8 px-2.5 rounded-[7px] text-[13px] font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-neutral-100 dark:hover:bg-white/6 hover:text-(--rg-tx)"
+                            onclick={Msg::Tags(TagsMsg::RevertAll)}><div>{t("workshop.revert_all")}</div></button>
+                </div>
+            {/if}
+            {#if wv.undo > 0}
+                <button class="relative w-10 h-10 shrink-0 rounded-[10px] flex items-center justify-center cursor-pointer transition-colors border border-(--rg-bd) bg-(--rg-carte) text-(--rg-tx2) hover:text-(--rg-tx) hover:border-(--rg-bd2)"
+                        title={t("workshop.undo_shortcut")} aria-label={t("workshop.undo")} onclick={Msg::Tags(TagsMsg::Undo)}>
+                    <Icon icon="material-symbols:undo-rounded" width={20} />
+                    <div class="absolute -top-1.25 -right-1.25 min-w-4.5 h-4.5 px-1.25 rounded-full border border-(--rg-bd2) bg-(--rg-s2) text-[10.5px] font-bold flex items-center justify-center text-(--rg-tx2)">{wv.undo}</div>
+                </button>
+            {:else}
+                <div class="relative w-10 h-10 shrink-0 rounded-[10px] flex items-center justify-center border border-(--rg-bd) bg-(--rg-carte) text-(--rg-tx2) opacity-40" title={t("workshop.undo")}>
+                    <Icon icon="material-symbols:undo-rounded" width={20} />
+                </div>
+            {/if}
+            {#if wv.pending > 0 && !wv.launching}
+                <button class="h-10 px-4 pl-3 rounded-[10px] flex items-center gap-2 text-[14px] font-extrabold whitespace-nowrap cursor-pointer transition bg-(--rg-g) text-(--rg-on-g) hover:brightness-110"
+                        title={t("workshop.write_shortcut")} onclick={Msg::Tags(TagsMsg::Write)}>
+                    <Icon icon="material-symbols:check-rounded" width={20} />
+                    <div>{wv.write_label}</div>
+                </button>
+            {:else}
+                <div class="h-10 px-4 pl-3 rounded-[10px] flex items-center gap-2 text-[14px] font-extrabold whitespace-nowrap bg-(--rg-carte) text-(--rg-mu2) border border-(--rg-bd)">
+                    {#if wv.launching}<div class="flex animate-spin"><Icon icon="material-symbols:progress-activity" width={20} /></div>{:else}<Icon icon="material-symbols:check-rounded" width={20} />{/if}
+                    <div>{wv.write_label}</div>
+                </div>
+            {/if}
+            {#if wv.panel}
+                <button class="relative w-10 h-10 shrink-0 rounded-[10px] flex items-center justify-center cursor-pointer transition-colors border bg-(--rg-s2) border-(--rg-bd2) text-(--rg-tx)"
+                        aria-pressed="true" title={t("workshop.edit_panel")} aria-label={t("workshop.edit_panel")} onclick={Msg::Tags(TagsMsg::Panel)}>
+                    <Icon icon="material-symbols:view-sidebar-outline-rounded" width={20} />
+                </button>
+            {:else}
+                <button class="relative w-10 h-10 shrink-0 rounded-[10px] flex items-center justify-center cursor-pointer transition-colors border border-(--rg-bd) bg-(--rg-carte) text-(--rg-tx2) hover:text-(--rg-tx) hover:border-(--rg-bd2)"
+                        aria-pressed="false" title={t("workshop.edit_panel")} aria-label={t("workshop.edit_panel")} onclick={Msg::Tags(TagsMsg::Panel)}>
+                    <Icon icon="material-symbols:view-sidebar-outline-rounded" width={20} />
+                </button>
+            {/if}
+        </div>
+    </div>
+
+    {#if let Some(text) = &wv.leave}
+        <div class="mx-5 mb-3 flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-(--rg-ambd) bg-(--rg-ambg) text-[13.5px]">
+            <div class="shrink-0 flex text-(--rg-am)"><Icon icon="material-symbols:warning-outline-rounded" width={19} /></div>
+            <div class="flex-1 min-w-0 text-(--rg-amtx)">{text}</div>
+            <button class="flex items-center justify-center h-8 px-3 rounded-lg font-semibold cursor-pointer text-(--rg-am) hover:bg-neutral-100 dark:hover:bg-white/6" onclick={Msg::Tags(TagsMsg::Leave)}><div>{t("tags.discard")}</div></button>
+            <button class="flex items-center justify-center h-8 px-3 rounded-lg font-bold cursor-pointer bg-(--rg-am) text-black" onclick={Msg::Tags(TagsMsg::KeepEditing)}><div>{t("tags.keep_editing")}</div></button>
+        </div>
+    {/if}
+    {#if let Some(e) = &wv.error}
+        <div class="mx-5 mb-3 flex items-start gap-2 text-[13px] text-red-500">
+            <div class="shrink-0 flex"><Icon icon="material-symbols:error-outline-rounded" width={17} /></div>
+            <div class="flex-1 min-w-0">{e}</div>
+        </div>
+    {/if}
+
+    {@include "TagWorkshopToolbar.ui"}
+
+    <div class="flex-1 min-h-0 min-w-0 flex relative">
+        {@include "TagWorkshopTable.ui"}
+        {#if wv.panel}{@include "TagWorkshopInspector.ui"}{/if}
+    </div>
+{/if}
+
+{#if let Some(n) = &wv.notice}
+    <div class="rg-atelier-menu absolute left-1/2 bottom-8 -translate-x-1/2 z-50 flex items-center gap-2.5 py-2.75 pl-3 pr-4 rounded-xl text-[13.5px] font-semibold whitespace-nowrap">
+        <div class="flex text-(--rg-g)"><Icon icon="material-symbols:check-rounded" width={20} /></div>
+        <div>{n.0}</div>
+        {#if n.1}
+            <button class="ml-2 font-bold cursor-pointer text-(--rg-gtx)" onclick={Msg::Tags(TagsMsg::Undo)}><div>{t("workshop.undo")}</div></button>
+        {/if}
+    </div>
+{/if}
+{/if}
+</div>

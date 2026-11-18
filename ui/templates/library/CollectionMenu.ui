@@ -1,0 +1,90 @@
+{#if let Some(m) = &self.views.collection_menu}
+    <k-popover anchor={m.at.anchor()} menu placement="bottom-start" offset="0" aria-label={m.title.as_str()}
+               onclose={Msg::CollectionMenu(CollectionMenuMsg::Close)}
+               class="w-55 py-1.5 bg-(--rg-s2) border border-(--rg-bd) dark:border-[#2a312d] rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+        <div class="px-3.5 py-1.5 mb-1">
+            <p class="m-0 text-[10px] uppercase tracking-widest text-(--rg-mu) truncate">{m.title}</p>
+        </div>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx) transition-colors"
+                onclick={Msg::CollectionMenu(CollectionMenuMsg::PlayAll)}>
+            <div class="flex opacity-60"><Icon icon="lucide:play" width={14} /></div><div>{m.play_all_label()}</div>
+        </button>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                onclick={Msg::CollectionMenu(CollectionMenuMsg::PlayNext)}>
+            <div class="flex opacity-60"><Icon icon="lucide:list-start" width={14} /></div><div>{t("track_view.play_next")}</div>
+        </button>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                onclick={Msg::CollectionMenu(CollectionMenuMsg::Enqueue)}>
+            <div class="flex opacity-60"><Icon icon="lucide:list-end" width={14} /></div><div>{t("menu.enqueue_all")}</div>
+        </button>
+        {#if m.is_album()}
+            <div class="h-px mx-3 my-1 bg-white/8"></div>
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                    onclick={Msg::CollectionMenu(CollectionMenuMsg::EditTags)}>
+                <div class="flex opacity-60"><Icon icon="lucide:table-properties" width={14} /></div><div>{t("workshop.fix_tags")}</div>
+            </button>
+        {/if}
+        <div class="h-px mx-3 my-1 bg-white/8"></div>
+        <button role="menuitem" class="w-full flex items-center justify-between px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                onclick={Msg::CollectionMenu(CollectionMenuMsg::SubPlaylists)}>
+            <div class="flex items-center gap-2.5"><div class="flex opacity-60"><Icon icon="lucide:list-music" width={14} /></div><div>{t("menu.add_to_playlist")}</div></div>
+            {#if m.sub_playlists}<div class="flex opacity-40"><Icon icon="lucide:chevron-down" width={12} /></div>{:else}<div class="flex opacity-40"><Icon icon="lucide:chevron-right" width={12} /></div>{/if}
+        </button>
+        {#if m.sub_playlists}
+            <div class="border-t border-neutral-200/60 dark:border-white/6 bg-(--rg-hover)">
+                {#if self.collection_menu_playlists().is_empty()}
+                    <div class="flex flex-col items-center py-4 px-3">
+                        <div class="flex text-(--rg-mu2) mb-1.5"><Icon icon="lucide:list-music" width={16} /></div>
+                        <p class="m-0 text-[11px] text-(--rg-mu)">{t("menu.no_playlist")}</p>
+                    </div>
+                {/if}
+                {#each self.collection_menu_playlists() as (i, pl) (pl.id)}
+                    {#if i > 0}<div class="h-px mx-2 bg-white/8"></div>{/if}
+                    <button role="menuitem" class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-[12px] text-left cursor-pointer text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                            onclick={Msg::CollectionMenu(CollectionMenuMsg::AddTo(pl.id))}>
+                        <div class="flex opacity-70" style:color={hex(&pl.color)}><Icon icon={if pl.icon.is_empty() { "lucide:list-music" } else { pl.icon.as_str() }} width={13} /></div>
+                        <div class="truncate">{pl.name}</div>
+                        <div class="ml-auto text-[10px] text-(--rg-mu2)">{pl.track_count}</div>
+                    </button>
+                {/each}
+            </div>
+        {/if}
+        {#if m.is_album()}
+            <div class="h-px mx-3 my-1 bg-white/8"></div>
+            {#if m.pinned == Some(true)}
+                <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                        onclick={Msg::CollectionMenu(CollectionMenuMsg::Pin)}>
+                    <div class="flex opacity-60"><Icon icon="material-symbols:keep-off-outline-rounded" width={15} /></div><div>{t("sidebar.unpin")}</div>
+                </button>
+            {:else}
+                <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                        onclick={Msg::CollectionMenu(CollectionMenuMsg::Pin)}>
+                    <div class="flex opacity-60"><Icon icon="material-symbols:keep-outline-rounded" width={15} /></div><div>{t("sidebar.pin")}</div>
+                </button>
+            {/if}
+            <button role="menuitem" class="w-full flex items-center justify-between px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                    onclick={Msg::CollectionMenu(CollectionMenuMsg::SubCover)}>
+                <div class="flex items-center gap-2.5"><div class="flex opacity-60"><Icon icon="lucide:image" width={14} /></div><div>{t("menu.change_cover")}</div></div>
+                {#if m.sub_cover}<div class="flex opacity-40"><Icon icon="lucide:chevron-down" width={12} /></div>{:else}<div class="flex opacity-40"><Icon icon="lucide:chevron-right" width={12} /></div>{/if}
+            </button>
+            {#if m.sub_cover}
+                <div class="border-t border-neutral-200/60 dark:border-white/6 bg-(--rg-hover)">
+                    <button role="menuitem" class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-[12px] text-left cursor-pointer text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                            onclick={Msg::CollectionMenu(CollectionMenuMsg::FetchCover)}>
+                        <div class="flex opacity-60"><Icon icon="lucide:wand-sparkles" width={13} /></div><div>{t("menu.cover_from_deezer")}</div>
+                    </button>
+                    <div class="h-px mx-2 bg-white/8"></div>
+                    <button role="menuitem" class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-[12px] text-left cursor-pointer text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                            onclick={Msg::CollectionMenu(CollectionMenuMsg::SearchCover)}>
+                        <div class="flex opacity-60"><Icon icon="lucide:search" width={13} /></div><div>{t("menu.cover_search_deezer")}</div>
+                    </button>
+                    <div class="h-px mx-2 bg-white/8"></div>
+                    <button role="menuitem" class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-[12px] text-left cursor-pointer text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                            onclick={Msg::CollectionMenu(CollectionMenuMsg::Close)}>
+                        <div class="flex opacity-60"><Icon icon="lucide:folder-open" width={13} /></div><div>{t("menu.cover_pick_file")}</div>
+                    </button>
+                </div>
+            {/if}
+        {/if}
+    </k-popover>
+{/if}

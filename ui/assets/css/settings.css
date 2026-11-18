@@ -1,0 +1,48 @@
+/* Réglages (app.css) : police et fond de la page ; le reste (filets entre options, groupes
+   masqués par la recherche) est calculé par la vue. */
+.reglages {
+    background: var(--rg-bg);
+    color: var(--rg-tx);
+    font-family: var(--font-maquette);
+}
+.rg-nav-sous { }
+.rg-contenu { }
+.rg-groupe { }
+.rg-carte { }
+
+/* Aperçu de la barre latérale (SettingsSidebarPreview.ui) : `.dark .rg-teinte`, puis le filet sous Fichier / Dossier
+   (`bg-linear-to-r from-transparent via-(--rg-mu2)/40 to-transparent`). */
+.rg-teinte {
+    background: oklch(0.3 0.08 var(--h, 150));
+}
+.rg-filet-apercu {
+    background: linear-gradient(90deg, rgba(154, 163, 158, 0) 0%, rgba(154, 163, 158, 0.4) 50%, rgba(154, 163, 158, 0) 100%);
+}
+
+/* Choix de la couleur d'accent : pastille de couleur libre, en dégradé linéaire
+   (`conic-gradient` manque à karbon-ui). */
+.rg-arc-en-ciel {
+    background: linear-gradient(135deg, #ef4444 0%, #f59e0b 17%, #22c55e 33%, #06b6d4 50%, #3b82f6 67%, #a855f7 83%, #ec4899 100%);
+}
+
+/* Aperçu du thème, mode « auto » : `[clip-path:polygon(0_0,55%_0,45%_100%,0_100%)]`
+   rendu par un masque à arête franche, incliné comme la découpe. */
+.rg-moitie-claire {
+    mask-image: linear-gradient(100deg, #000 50%, rgba(0, 0, 0, 0) 50%);
+}
+
+/* Ligne de réglage : ligne cliquable (interrupteur) ou estompée (`opacity-45`). */
+.rg-ligne-active {
+    cursor: pointer;
+}
+.rg-ligne-active:hover {
+    background: var(--rg-hover);
+}
+.rg-ligne-inerte {
+    opacity: 0.45;
+}
+
+/* .rg-teinte en thème clair. */
+@media (prefers-color-scheme: light) {
+    .rg-teinte { background: oklch(0.86 0.06 var(--h, 150)); }
+}

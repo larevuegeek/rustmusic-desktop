@@ -1,0 +1,7 @@
+{#if pin.cover.as_deref().is_some_and(|c| !c.is_empty())}
+    <img class="w-full h-full object-cover" src={cx.resources.cover_thumb(&pin.cover)} alt="">
+{:else}
+    <div class="sb-vignette text-base font-bold" style:--c={Color::oklch(0.62, 0.12, hue(&pin.title), 1.)}>
+        {initial(&pin.title)}
+    </div>
+{/if}

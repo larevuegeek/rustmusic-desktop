@@ -1,0 +1,54 @@
+<div class="flex items-center gap-3 px-3.5 pt-3.5 pb-3 border-b border-(--rg-bd) dark:border-[#262d29] bg-linear-135 from-(--rg-g)/10 to-transparent to-70%">
+    {#if m.remote}
+        <div class="w-9.5 h-9.5 shrink-0 rounded-[10px] border flex items-center justify-center bg-sky-500/12 border-sky-500/30 text-sky-600 dark:text-sky-300">
+            <Icon icon="material-symbols:cloud-outline-rounded" width={20} />
+        </div>
+    {:else}
+        <div class="w-9.5 h-9.5 shrink-0 rounded-[10px] border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+            <Icon icon="material-symbols:hard-drive-outline" width={20} />
+        </div>
+    {/if}
+    <div class="flex-1 min-w-0">
+        <div class="block truncate text-sm font-bold">{m.name}</div>
+        {#if m.remote}
+            <div class="block mt-0.5 truncate text-[11.5px] text-(--rg-mu)">{m.server_name}</div>
+        {:else}
+            <div class="block mt-0.5 truncate font-mono text-[11px] text-(--rg-mu)">{m.dirs_line}</div>
+        {/if}
+    </div>
+    {#if m.state == "scanning"}
+        <div class="shrink-0 flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap bg-(--rg-ambg) text-(--rg-am)">
+            <div class="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor] animate-pulse"></div>
+            <div class="w-auto">{t("library_head.status_scanning")}</div>
+        </div>
+    {:else if m.state == "error"}
+        <div class="shrink-0 flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap bg-red-500/10 text-red-600 dark:text-red-400">
+            <div class="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor]"></div>
+            <div class="w-auto">{t("library_head.status_error")}</div>
+        </div>
+    {:else}
+        <div class="shrink-0 flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap bg-(--rg-g)/10 text-(--rg-gtx)">
+            <div class="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor]"></div>
+            <div class="w-auto">{t("library_head.status_ok")}</div>
+        </div>
+    {/if}
+</div>
+{#each m.groups as (g, group) (g)}
+    {#if g == 0}
+        <div class="p-1.5">{@include "LibraryManageActions.ui"}</div>
+    {:else}
+        <div class="p-1.5 border-t border-(--rg-bd) dark:border-[#262d29]">{@include "LibraryManageActions.ui"}</div>
+    {/if}
+{/each}
+<div class="p-1.5 border-t border-(--rg-bd) dark:border-[#262d29]">
+    <button class="group/a w-full flex items-center gap-3 p-2 rounded-[10px] text-left cursor-pointer transition-colors hover:bg-red-500/8"
+            role="menuitem" onclick={Msg::Library(LibraryMsg::Delete(m.id))}>
+        <div class="w-8.5 h-8.5 shrink-0 rounded-[9px] border flex items-center justify-center transition-colors bg-red-500/8 border-red-500/20 group-hover/a:bg-red-500/15 group-hover/a:border-red-500/35 text-red-600 dark:text-red-400">
+            <Icon icon="material-symbols:delete-outline-rounded" width={18} />
+        </div>
+        <div class="flex-1 min-w-0">
+            <div class="block text-[13px] font-semibold text-red-600 dark:text-red-400">{t("library_head.delete")}</div>
+            <div class="block mt-0.5 truncate text-[11.5px] text-(--rg-mu)">{t("library_head.delete_desc")}</div>
+        </div>
+    </button>
+</div>

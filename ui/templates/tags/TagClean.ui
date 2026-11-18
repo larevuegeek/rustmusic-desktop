@@ -1,0 +1,62 @@
+<div class="flex flex-col min-h-0 max-h-[calc(88vh_-_69px)]">
+    <div class="shrink-0 px-6 pt-5 pb-4 flex flex-col gap-3 border-b border-(--rg-bd) bg-(--rg-creux)">
+        <div class="flex flex-wrap gap-2">
+            {#each cl.rule_chips() as chip (chip.index)}
+                {#if chip.active}
+                    <button class="flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[12.5px] cursor-pointer transition-colors border-(--rg-gbd) bg-(--rg-gbg) text-(--rg-gtx) font-semibold"
+                            aria-pressed="true" onclick={Msg::Clean(CleanMsg::Toggle(chip.index))}><div class="flex -ml-0.5 text-(--rg-g)"><Icon icon="material-symbols:check-rounded" width={15} /></div><div>{chip.label}</div></button>
+                {:else}
+                    <button class="flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[12.5px] cursor-pointer transition-colors border-(--rg-bd) bg-(--rg-champ) text-(--rg-tx2) font-medium hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+                            aria-pressed="false" onclick={Msg::Clean(CleanMsg::Toggle(chip.index))}><div>{chip.label}</div></button>
+                {/if}
+            {/each}
+        </div>
+        <div class="flex gap-2 text-xs leading-relaxed text-(--rg-mu)">
+            <div class="flex shrink-0 mt-px text-(--rg-mu2)"><Icon icon="material-symbols:info-outline-rounded" width={15} /></div><div class="min-w-0">{t("clean.hint")}</div>
+        </div>
+    </div>
+    <div class="min-h-0 overflow-y-auto scrollbar-app px-6 py-4">
+        {#if let Some(er) = &cl.error}
+            <div class="flex items-start gap-2 px-4 py-3 rounded-xl border border-red-500/25 bg-red-500/8 text-sm text-red-400">
+                <div class="flex shrink-0 mt-px"><Icon icon="material-symbols:warning-outline-rounded" width={17} /></div><div class="min-w-0">{er}</div>
+            </div>
+        {/if}
+        {#if cl.error.is_none() && (cl.rules.is_empty() || cl.proposals.is_empty())}
+            <div class="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                <div class="w-12 h-12 rounded-2xl flex items-center justify-center border border-(--rg-bd) bg-(--rg-creux) text-(--rg-mu)">
+                    {#if cl.computing}<div class="flex animate-spin"><Icon icon="lucide:loader-2" width={22} /></div>{:else}<Icon icon="lucide:sparkles" width={22} />{/if}
+                </div>
+                <p class="m-0 text-[13px] text-(--rg-mu)">{t(if cl.rules.is_empty() { "clean.pick_rule" } else if cl.computing { "rename.computing" } else { "clean.nothing" })}</p>
+            </div>
+        {/if}
+        {#if cl.error.is_none() && !cl.proposals.is_empty()}
+            <div class="flex flex-col gap-1.5">
+                {#each cl.proposals as (i, p) (i)}
+                    <div class="flex items-center gap-3 px-3.5 py-2 rounded-xl border border-(--rg-bd) bg-(--rg-creux)">
+                        <div class="shrink-0 w-32 text-[11px] truncate text-(--rg-mu)" title={p.file_name()}>{p.file_name()}</div>
+                        <div class="shrink-0 w-20 flex"><div class="px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold bg-(--rg-s2) text-(--rg-tx2) truncate">{p.field_label()}</div></div>
+                        <div class="flex-1 min-w-0 text-[12.5px] truncate line-through text-(--rg-mu2)" title={p.from.as_str()}>{p.from.clone()}</div>
+                        <div class="flex shrink-0 text-(--rg-mu2)"><Icon icon="material-symbols:arrow-forward-rounded" width={14} /></div>
+                        <div class="flex-1 min-w-0 text-[12.5px] truncate font-semibold text-(--rg-gtx)" title={p.to.as_str()}>{p.to.clone()}</div>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+    </div>
+    <div class="shrink-0 flex items-center gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+        <div class="flex-1 min-w-0 flex items-center gap-2">
+            {#if !cl.proposals.is_empty()}
+                <div class="px-2 py-0.5 rounded-lg text-[12px] font-bold tabular-nums bg-(--rg-gbg) text-(--rg-gtx)">{cl.proposal_count()}</div>
+                <div class="text-[13px] text-(--rg-tx2)">{t("clean.changes")}</div>
+            {/if}
+        </div>
+        <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                onclick={Msg::ClosePopin}><div>{t("profil.cancel")}</div></button>
+        {#if cl.proposals.is_empty()}
+            <div class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold flex items-center gap-2 bg-(--rg-g) text-(--rg-on-g) opacity-40"><Icon icon="material-symbols:check-rounded" width={17} /><div>{t("source.apply")}</div></div>
+        {:else}
+            <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition hover:brightness-110 bg-(--rg-g) text-(--rg-on-g)"
+                    onclick={Msg::Clean(CleanMsg::Apply)}><Icon icon="material-symbols:check-rounded" width={17} /><div>{t("source.apply")}</div></button>
+        {/if}
+    </div>
+</div>

@@ -1,0 +1,9 @@
+<div class="absolute inset-0">
+{#if self.cover.is_some()}
+    <img class="absolute inset-0 w-full h-full object-cover" src={cx.resources.cover_opt(&self.cover)} alt="">
+{:else}
+    <div class="absolute inset-0 flex items-center justify-center text-white/90 bg-linear-140 from-violet-500 to-violet-900">
+        <Icon icon="material-symbols:podcasts-rounded" width={self.icon} />
+    </div>
+{/if}
+</div>

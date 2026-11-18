@@ -1,0 +1,63 @@
+<div class="min-h-0 flex flex-col">
+    <div class="shrink-0 flex items-center gap-2.5 px-4 py-2.5 border-b border-(--rg-bd)">
+        <div class="w-7 h-7 shrink-0 rounded-[9px] border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)"><Icon icon="lucide:cloud-download" width={14} /></div>
+        <div class="flex-1 min-w-0 text-[13px] font-bold truncate text-(--rg-tx)">{t("source.title")}</div>
+        <button class="flex items-center gap-1.5 px-3 h-8 rounded-xl text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                onclick={Msg::Lookup(LookupMsg::Close)}>
+            <Icon icon="lucide:x" width={12} /><div>{t("source.back_to_fields")}</div>
+        </button>
+    </div>
+    {#if lk.picked.is_none()}
+        <div class="shrink-0 px-4 pt-3 flex">
+            <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-(--rg-s2)" role="radiogroup" aria-label={t("source.provider")}>
+                {#each [(true, "MusicBrainz", "simple-icons:musicbrainz"), (false, "Deezer", "simple-icons:deezer")] as (k, so) (k)}
+                    {#if lk.musicbrainz == so.0}
+                        <div role="radio" aria-checked="true" class="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-[12px] font-semibold bg-(--rg-carte) text-(--rg-tx) shadow-sm"><Icon icon={so.2} width={13} /><div>{so.1}</div></div>
+                    {:else}
+                        <button role="radio" aria-checked="false" class="h-7 px-2.5 flex items-center gap-1.5 rounded-md text-[12px] font-semibold cursor-pointer text-(--rg-mu) hover:text-(--rg-tx)"
+                                onclick={Msg::Lookup(LookupMsg::Source(so.0))}><Icon icon={so.2} width={13} /><div>{so.1}</div></button>
+                    {/if}
+                {/each}
+            </div>
+        </div>
+        <div class="shrink-0 flex gap-1.5 px-4 py-3">
+            <div class="relative flex-1 min-w-0">
+                <input class="w-full h-8 pl-7.5 pr-2.5 rounded-lg text-[12px] outline-none bg-white/5 ring-1 ring-inset ring-white/10 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-600"
+                       type="text" value={lk.query.as_str()} placeholder={t("source.track_placeholder")} aria-label={t("source.track_placeholder")}
+                       oninput={|v: String| Msg::Lookup(LookupMsg::Query(v))} onchange={Msg::Lookup(LookupMsg::Search)}>
+                <div class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-neutral-500"><Icon icon="lucide:search" width={13} /></div>
+            </div>
+            <button class="shrink-0 px-3 h-8 rounded-lg flex items-center gap-1.5 text-[12px] font-medium cursor-pointer transition-colors bg-emerald-500 text-white hover:bg-emerald-600"
+                    onclick={Msg::Lookup(LookupMsg::Search)}>
+                {#if lk.searching}<div class="flex animate-spin"><Icon icon="lucide:loader-circle" width={12} /></div>{/if}
+                <div>{t("source.search")}</div>
+            </button>
+        </div>
+        {#if let Some(er) = &lk.error}
+            <div class="shrink-0 mx-4 mb-2 flex items-start gap-1.5 px-2.5 py-2 rounded-lg text-[11px] bg-red-500/10 text-red-500">
+                <div class="flex shrink-0 mt-0.5"><Icon icon="lucide:alert-triangle" width={12} /></div><div class="min-w-0">{er}</div>
+            </div>
+        {/if}
+        <div class="min-h-0 overflow-y-auto scrollbar-none px-2 pb-3 flex flex-col gap-0.5">
+            {#each lk.hits as (i, h) (i)}
+                <button class="w-full flex items-center gap-2.5 p-1.5 rounded-lg text-left cursor-pointer transition-colors hover:bg-neutral-100 dark:hover:bg-white/6"
+                        onclick={Msg::Lookup(LookupMsg::Pick(i))}>
+                    <div class="shrink-0 w-10 h-10 rounded overflow-hidden bg-white/5"></div>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-[12px] font-medium truncate text-neutral-900 dark:text-neutral-100">{h.title}</div>
+                        <div class="text-[10.5px] truncate text-neutral-500">{h.summary()}</div>
+                    </div>
+                    {#if lk.loading == Some(i)}
+                        <div class="flex shrink-0 animate-spin text-neutral-600"><Icon icon="lucide:loader-circle" width={13} /></div>
+                    {:else}
+                        <div class="flex shrink-0 text-neutral-600"><Icon icon="lucide:chevron-right" width={13} /></div>
+                    {/if}
+                </button>
+            {/each}
+            {#if lk.hits.is_empty() && lk.searched && !lk.searching}
+                <p class="m-0 px-2 py-8 text-center text-[12px] text-neutral-500">{t("source.no_track_result")}</p>
+            {/if}
+        </div>
+    {/if}
+    {#if let Some(pk) = &lk.picked}{@include "TagLookupCompare.ui"}{/if}
+</div>

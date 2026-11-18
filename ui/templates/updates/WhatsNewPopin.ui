@@ -1,0 +1,76 @@
+{#if let Some(wn) = self.whats_new_view()}
+<div class="relative flex flex-col" aria-label={t("whats_new.title")}>
+    <div class="absolute left-4 top-4 z-10 h-7 px-3 inline-flex items-center gap-1.5 rounded-full text-[12px] font-bold text-white bg-black/35">
+        <Icon icon="material-symbols:campaign-rounded" width={16} /><div>{wn.kicker}</div>
+    </div>
+    <button class="absolute right-3 top-3 z-10 w-8.5 h-8.5 rounded-full flex items-center justify-center cursor-pointer transition-colors bg-black/35 text-white hover:bg-black/50"
+            aria-label={t("common.close")} title={t("common.close")} onclick={Msg::ClosePopin}>
+        <Icon icon="material-symbols:close-rounded" width={20} />
+    </button>
+
+    <div class="overflow-hidden">
+        <div class="flex transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
+             style:transform={whats_new_track(wn.index)}>
+            {#each wn.slides as v (v.slide.id)}
+                <section class="w-full shrink-0 flex flex-col" aria-hidden={!v.active}
+                         aria-label={v.position.as_str()}>
+                    <div class="h-64">{@include "WhatsNewArt.ui"}</div>
+                    <div class="px-7 pt-6 pb-2">
+                        <p class="m-0 text-[12px] font-bold uppercase tracking-widest" style:color={hex(v.slide.colors[1])}>{v.position}</p>
+                        <h2 class="m-0 mt-1.5 text-[23px] font-extrabold leading-tight tracking-[-0.01em] text-(--rg-tx)">{v.title}</h2>
+                        <p class="m-0 mt-2 text-[14.5px] leading-relaxed text-(--rg-tx2)">{v.text}</p>
+                        {#if v.slide.action.is_some()}
+                            <div class="flex">
+                                <button class="mt-4 h-9 pl-3.5 pr-3 inline-flex items-center gap-1.5 rounded-full border cursor-pointer text-[13px] font-bold transition-colors border-(--rg-bd2) text-(--rg-tx) hover:bg-(--rg-s2)"
+                                        onclick={Msg::WhatsNew(WhatsNewMsg::Try)}>
+                                    <div>{t("whats_new.try")}</div><Icon icon="material-symbols:arrow-forward-rounded" width={17} />
+                                </button>
+                            </div>
+                        {/if}
+                    </div>
+                </section>
+            {/each}
+        </div>
+    </div>
+
+    <div class="flex justify-center gap-1.5 pt-3 pb-1">
+        {#each wn.slides as v (v.index)}
+            {#if v.active}
+                <div class="h-2 rounded-full cursor-pointer transition-all duration-300 w-6" style:background_color={hex(v.slide.colors[0])}
+                     aria-label={v.position.as_str()} aria-current="true" onclick={Msg::WhatsNew(WhatsNewMsg::Go(v.index))}></div>
+            {:else}
+                <div class="h-2 rounded-full cursor-pointer transition-all duration-300 w-2 bg-(--rg-bd2) hover:bg-(--rg-mu)"
+                     aria-label={v.position.as_str()} aria-current="false" onclick={Msg::WhatsNew(WhatsNewMsg::Go(v.index))}></div>
+            {/if}
+        {/each}
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3 px-7 py-4 mt-2 border-t border-(--rg-line)">
+        <div class="flex items-center gap-2 cursor-pointer text-[13px] text-(--rg-tx2)" onclick={Msg::WhatsNew(WhatsNewMsg::AtStartup(!wn.at_startup))}>
+            {#if wn.at_startup}
+                <div class="w-3.75 h-3.75 shrink-0 rounded-[4.5px] border-[1.5px] border-emerald-500 bg-emerald-500 flex items-center justify-center text-white">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.4l3 3 6-6.8" /></svg>
+                </div>
+            {:else}
+                <div class="w-3.75 h-3.75 shrink-0 rounded-[4.5px] border-[1.5px] border-white/24 bg-neutral-200/60 dark:bg-white/6 hover:border-emerald-500"></div>
+            {/if}
+            <div>{t("whats_new.show_at_startup")}</div>
+        </div>
+        <div class="flex-1"></div>
+        {#if let Some(previous) = wn.previous}
+            <button class="w-10 h-10 rounded-full border flex items-center justify-center cursor-pointer transition-colors border-(--rg-bd2) text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                    aria-label={t("common.previous")} title={t("common.previous")} onclick={Msg::WhatsNew(WhatsNewMsg::Go(previous))}>
+                <Icon icon="material-symbols:chevron-left-rounded" width={22} />
+            </button>
+        {/if}
+        <button class="h-10 px-5 inline-flex items-center gap-1.5 rounded-full cursor-pointer text-sm font-bold text-white transition hover:brightness-110"
+                style:background_layers={whats_new_next(wn.current)} onclick={Msg::WhatsNew(WhatsNewMsg::Next)}>
+            {#if wn.last}
+                <div>{t("whats_new.done")}</div>
+            {:else}
+                <div>{t("common.next")}</div><Icon icon="material-symbols:chevron-right-rounded" width={20} />
+            {/if}
+        </button>
+    </div>
+</div>
+{/if}

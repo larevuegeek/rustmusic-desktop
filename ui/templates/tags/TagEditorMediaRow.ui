@@ -1,0 +1,24 @@
+                <div class="w-11 h-11 shrink-0 rounded-lg overflow-hidden cursor-pointer ring-1 ring-(--rg-bd)" onclick={Msg::TagEditor(TagEditorMsg::Zoom(Some(i)))}>
+                    <img class="w-full h-full object-cover" src={cx.resources.cover(&sl.src)} alt="">
+                </div>
+                <div class="min-w-0 flex-1">
+                    {#if sl.picture_type == 3}
+                        <p class="m-0 text-[11px] truncate font-semibold text-(--rg-gtx)">{tag_editor_type(sl.picture_type)}</p>
+                    {:else}
+                        <p class="m-0 text-[11px] truncate font-medium text-(--rg-tx2)">{tag_editor_type(sl.picture_type)}</p>
+                    {/if}
+                    <p class="m-0 text-[10px] truncate text-(--rg-mu)">{sl.summary()}</p>
+                    <div class="flex items-center gap-0.5 mt-0.5 -ml-1">
+                        {#each tag_editor_actions(i, e.slot_count(), sl.picture_type == 3) as (k, ac) (k)}
+                            {#if ac.3}
+                                <div class="w-6 h-6 shrink-0 rounded-lg flex items-center justify-center text-(--rg-mu2) opacity-25 cursor-not-allowed" title={ac.1.clone()}><Icon icon={ac.0} width={12} /></div>
+                            {:else if ac.4}
+                                <button class="w-6 h-6 shrink-0 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu2) hover:text-red-400 hover:bg-red-500/8"
+                                        title={ac.1.clone()} aria-label={ac.1.clone()} onclick={ac.2.clone()}><Icon icon={ac.0} width={12} /></button>
+                            {:else}
+                                <button class="w-6 h-6 shrink-0 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu2) hover:text-(--rg-g) hover:bg-(--rg-gbg)"
+                                        title={ac.1.clone()} aria-label={ac.1.clone()} onclick={ac.2.clone()}><Icon icon={ac.0} width={12} /></button>
+                            {/if}
+                        {/each}
+                    </div>
+                </div>

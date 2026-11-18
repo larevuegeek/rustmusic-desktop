@@ -1,0 +1,42 @@
+<div class="rg-groupe">
+    {#if let Some(title) = &g.title}
+        <div class="flex items-baseline gap-2.5 px-1 pb-2.5 min-w-0 leading-[1.2]">
+            {#if let Some(fold) = &g.fold}
+                <button class="group flex-1 min-w-0 flex items-baseline gap-2.5 text-left cursor-pointer" onclick={Msg::Settings(SettingsMsg::Fold(fold))}>
+                    {#if g.closed}
+                        <div class="self-center shrink-0 -mx-0.5 text-(--rg-mu2) group-hover:text-(--rg-tx2) -rotate-90"><Icon icon="material-symbols:keyboard-arrow-down-rounded" width={18} /></div>
+                    {:else}
+                        <div class="self-center shrink-0 -mx-0.5 text-(--rg-mu2) group-hover:text-(--rg-tx2)"><Icon icon="material-symbols:keyboard-arrow-down-rounded" width={18} /></div>
+                    {/if}
+                    <h2 class="m-0 shrink-0 text-[13px] font-bold uppercase tracking-[0.08em] text-(--rg-tx2)">{title}</h2>
+                    {#if let Some(hint) = &g.hint}<p class="m-0 flex-1 min-w-0 text-[13px] text-(--rg-mu2) truncate">{hint}</p>{/if}
+                </button>
+            {/if}
+            {#if g.fold.is_none()}
+                <h2 class="m-0 shrink-0 text-[13px] font-bold uppercase tracking-[0.08em] text-(--rg-tx2)">{title}</h2>
+                {#if let Some(hint) = &g.hint}<p class="m-0 flex-1 min-w-0 text-[13px] text-(--rg-mu2) truncate">{hint}</p>{/if}
+            {/if}
+            {#if let Some(badge) = &g.badge()}
+                <div class="self-center shrink-0 ml-auto"><SettingsBadge text={badge.0.clone()} tone={badge.1.to_string()} /></div>
+            {/if}
+            {#if let Some(g) = &g.button()}
+                <div class="self-center shrink-0 ml-auto"><GhostButton g={Some(Ghost::clone(g))} /></div>
+            {/if}
+        </div>
+    {/if}
+    {#if !g.closed}
+        <div class="rg-carte rounded-[14px] bg-(--rg-carte) border border-(--rg-bd) overflow-hidden">
+            <div class="flex">
+                <div class="flex-1 min-w-0">
+                    {#each g.rows as (k, r) (k)}
+                        {#if k > 0}<div class="h-px bg-(--rg-line)"></div>{/if}
+                        {@include "SettingsRow.ui"}
+                    {/each}
+                </div>
+                {#if let Some(ap) = &g.sidebar}
+                    <div class="w-[200px] shrink-0 flex flex-col border-l border-(--rg-line)">{@include "SettingsSidebarPreview.ui"}</div>
+                {/if}
+            </div>
+        </div>
+    {/if}
+</div>

@@ -1,0 +1,7 @@
+{#if on}
+    <div class="w-3.75 h-3.75 shrink-0 rounded-[4.5px] border-[1.5px] border-emerald-500 bg-emerald-500 flex items-center justify-center text-white">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.4l3 3 6-6.8" /></svg>
+    </div>
+{:else}
+    <div class="w-3.75 h-3.75 shrink-0 rounded-[4.5px] border-[1.5px] border-white/24 bg-neutral-200/60 dark:bg-white/6"></div>
+{/if}

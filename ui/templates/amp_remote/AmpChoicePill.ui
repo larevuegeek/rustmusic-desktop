@@ -1,0 +1,11 @@
+{#if c.selected}
+    <button class="amp-tile-on min-w-0 h-9 px-1 flex items-center justify-center rounded-xl border cursor-pointer transition duration-150 active:scale-[0.96]"
+            title={c.name.as_str()} aria-pressed="true" onclick={c.msg.clone()}>
+        <div class="max-w-full truncate text-[12px] font-semibold">{c.name}</div>
+    </button>
+{:else}
+    <button class="min-w-0 h-9 px-1 flex items-center justify-center rounded-xl border cursor-pointer transition duration-150 border-(--rg-bd) bg-(--rg-s2)/50 text-(--rg-tx2) hover:text-(--rg-tx) hover:border-(--rg-bd2) active:scale-[0.96]"
+            title={c.name.as_str()} aria-pressed="false" onclick={c.msg.clone()}>
+        <div class="max-w-full truncate text-[12px] font-semibold">{c.name}</div>
+    </button>
+{/if}

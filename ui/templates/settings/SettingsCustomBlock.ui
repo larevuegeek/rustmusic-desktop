@@ -1,0 +1,66 @@
+{#if r.custom() == "audio-outputs"}
+    {@include "audio/Outputs.ui"}
+{:else if r.custom() == "output-mode"}
+    {@include "audio/OutputMode.ui"}
+{:else if r.custom() == "dac-test"}
+    {@include "audio/DacTest.ui"}
+{:else if r.custom() == "audio-quality"}
+    {@const pn = (self.quality_panel(), self.quality_note())}{@include "audio/PanelNote.ui"}
+{:else if r.custom() == "replay-gain"}
+    {@const pn = (self.replay_gain_panel(), self.replay_gain_note())}{@include "audio/PanelNote.ui"}
+{:else if r.custom() == "dlna-active"}
+    <div class="flex items-center gap-4 px-5 py-4 leading-[1.2]">
+        <div class="relative shrink-0 flex w-2.5 h-2.5">
+            <div class="absolute inset-0 rounded-full bg-(--rg-g) opacity-50 animate-ping"></div>
+            <div class="relative w-2.5 h-2.5 rounded-full bg-(--rg-g)"></div>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p class="m-0 text-[15px] font-semibold text-(--rg-gtx)">{t("settings.dlna_active")}</p>
+            {#if let Some(url) = &self.views.settings.dlna.url}
+                <p class="m-0 mt-0.75 font-mono text-[13px] text-(--rg-mu) truncate" title={url.as_str()}>{url}</p>
+            {/if}
+        </div>
+        <GhostButton g={Some(Ghost::new("material-symbols:content-copy-outline-rounded", t("settings.dlna_copy_url"), Msg::Noop))} />
+    </div>
+{:else if r.custom().starts_with("lb-") || r.custom().starts_with("lf-")}
+    {@include "online/Scrobble.ui"}
+{:else if r.custom() == "amp-pilot"}
+    {#if let Some(driver) = &self.views.settings.remote.pilot}
+        <div class="flex items-center gap-4 px-5 py-4 leading-[1.2]">
+            <div class="relative shrink-0 flex w-2.5 h-2.5">
+                {#if driver.1}
+                    <div class="absolute inset-0 rounded-full bg-(--rg-g) opacity-50 animate-ping"></div>
+                    <div class="relative w-2.5 h-2.5 rounded-full bg-(--rg-g)"></div>
+                {:else}
+                    <div class="relative w-2.5 h-2.5 rounded-full bg-(--rg-am)"></div>
+                {/if}
+            </div>
+            <div class="flex-1 min-w-0">
+                {#if driver.1}
+                    <p class="m-0 text-[15px] font-semibold text-(--rg-gtx)">{t_with("amp_remote.connected", &[("name", &driver.0.name)])}</p>
+                {:else}
+                    <p class="m-0 text-[15px] font-semibold text-(--rg-am)">{t_with("amp_remote.unreachable", &[("name", &driver.0.name)])}</p>
+                {/if}
+                <p class="m-0 mt-0.75 text-[13px] text-(--rg-mu) truncate">{amp_line(&driver.0)}</p>
+            </div>
+            <GhostButton g={Some(Ghost::new("material-symbols:link-off-rounded", t("amp_remote.stop"), Msg::Settings(SettingsMsg::AmpSelect(None))))} />
+        </div>
+    {/if}
+{:else if r.custom() == "amp-none"}
+    <div class="px-5 py-4 text-[13px] text-(--rg-mu)">{r.desc}</div>
+{:else if r.custom() == "server"}
+    {#if let Some(s) = &self.server_of(&r.key)}{@include "storage/Server.ui"}{/if}
+{:else if r.custom() == "servers-empty"}
+    <div class="flex gap-3.5 px-5 py-4 leading-[1.25]">
+        <div class="shrink-0 mt-px text-(--rg-mu)"><Icon icon="material-symbols:cloud-outline-rounded" width={20} /></div>
+        <p class="m-0 flex-1 min-w-0 text-[13px] text-(--rg-mu)">{r.desc}</p>
+    </div>
+{:else if r.custom().starts_with("guide-")}
+    {@include "help/Guide.ui"}
+{:else if r.custom().starts_with("about-")}
+    {@include "help/About.ui"}
+{:else if r.custom() == "servers-add"}
+    <div class="flex justify-end px-5 py-3">
+        <GhostButton g={Some(Ghost::new("material-symbols:add-rounded", t("servers.add"), Msg::ServerForm(ServerFormMsg::OpenAdd)))} />
+    </div>
+{/if}

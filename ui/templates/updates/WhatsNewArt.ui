@@ -1,0 +1,39 @@
+<div class="art relative h-full w-full overflow-hidden isolate" class:pause={!v.active} style:background_layers={whats_new_art(v.slide)}>
+    <div class="absolute left-[-10%] top-[-30%] w-[55%] h-[110%] opacity-60 tache-a" style:background_layers={whats_new_blob(v.slide, 0)} aria-hidden="true"></div>
+    <div class="absolute right-[-12%] bottom-[-40%] w-[60%] h-[120%] opacity-50 tache-b" style:background_layers={whats_new_blob(v.slide, 1)} aria-hidden="true"></div>
+
+    {#if !v.slide.logos.is_empty()}
+        <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 py-8 flex flex-col gap-5 fondu" aria-hidden="true">
+            {#each whats_new_logo_rows(v.slide).iter().enumerate() as r (r.0)}
+                <div class="piste" class:inverse={r.0 > 0}>
+                    {#each r.1.iter().chain(r.1.iter()).enumerate() as l (l.0)}
+                        <div class="shrink-0 pr-3.5"><div class="verre h-11 pl-3 pr-4 inline-flex items-center gap-2 rounded-full text-white text-[14px] font-bold whitespace-nowrap" style:box_shadows={whats_new_shadows(v.slide, false)}><Icon icon={l.1.0} width={21} /><div>{l.1.1}</div></div></div>
+                    {/each}
+                </div>
+            {/each}
+        </div>
+        <div class="absolute inset-0 projecteur" style:background_layers={whats_new_spot(v.slide)} aria-hidden="true"></div>
+    {:else}
+        {#each v.slide.satellites.iter().take(3).enumerate() as sat (sat.0)}
+            {#if sat.0 == 0}
+                <div class="absolute left-[15%] top-[44%] art-flotte" aria-hidden="true">
+                    <div class="verre w-12 h-12 rounded-2xl flex items-center justify-center text-white" style:box_shadows={whats_new_shadows(v.slide, false)}><Icon icon={*sat.1} width={24} /></div>
+                </div>
+            {:else if sat.0 == 1}
+                <div class="absolute right-[15%] top-[24%] art-flotte" style="animation-delay: -1.4s" aria-hidden="true">
+                    <div class="verre w-12 h-12 rounded-2xl flex items-center justify-center text-white" style:box_shadows={whats_new_shadows(v.slide, false)}><Icon icon={*sat.1} width={24} /></div>
+                </div>
+            {:else}
+                <div class="absolute right-[25%] bottom-[14%] art-flotte" style="animation-delay: -2.8s" aria-hidden="true">
+                    <div class="verre w-12 h-12 rounded-2xl flex items-center justify-center text-white" style:box_shadows={whats_new_shadows(v.slide, false)}><Icon icon={*sat.1} width={24} /></div>
+                </div>
+            {/if}
+        {/each}
+    {/if}
+
+    <div class="absolute left-1/2 top-1/2 w-80 h-80 -ml-40 -mt-40 halo" aria-hidden="true"></div>
+    <div class="centre absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[124px] h-[124px] rounded-[36px] flex items-center justify-center text-white"
+         style:box_shadows={whats_new_shadows(v.slide, true)} aria-hidden="true">
+        <div class="icone flex"><Icon icon={v.slide.icon} width={62} /></div>
+    </div>
+</div>

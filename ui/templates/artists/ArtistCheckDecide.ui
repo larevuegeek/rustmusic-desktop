@@ -1,0 +1,34 @@
+{@const done = ac.decided.get(&v.name).cloned()}
+{@const parts = v.pile_parts()}
+{#if done.is_some()}
+<div class="group flex flex-wrap items-center gap-x-3.5 gap-y-2.5 p-3 rounded-2xl border transition-colors border-(--rg-gbd) bg-(--rg-gbg)">
+    {@const pl = (v.decided_parts(done.as_deref()), false, true)}{@include "ArtistCheckPile.ui"}
+    <div class="min-w-0 flex-1 basis-56">
+        <p class="m-0 text-[13px] font-semibold truncate text-(--rg-tx)" title={v.name.clone()}>{v.name.clone()}</p>
+        <p class="m-0 mt-1.5 text-[12px] font-medium text-(--rg-gtx)">{v.decided_label(done.as_deref())}</p>
+    </div>
+    {#if v.can_split()}
+        <button class="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                onclick={Msg::ArtistCheck(ArtistCheckMsg::Decide(v.name.clone(), done.as_deref() != Some("split")))}><Icon icon="material-symbols:swap-horiz-rounded" width={15} /><div>{t("artist_split.change")}</div></button>
+    {/if}
+</div>
+{:else}
+<div class="group flex flex-wrap items-center gap-x-3.5 gap-y-2.5 p-3 rounded-2xl border transition-colors border-(--rg-ambd) bg-(--rg-creux) hover:border-(--rg-bd2)">
+    {@const pl = (parts.clone(), false, false)}{@include "ArtistCheckPile.ui"}
+    <div class="min-w-0 flex-1 basis-56">
+        <p class="m-0 text-[13px] font-semibold truncate text-(--rg-tx)" title={v.name.clone()}>{v.name.clone()}</p>
+        {#if v.can_split()}
+            <div class="mt-1.5">{@const nm = (v.parts.clone(), artist_truncated(&v.name))}{@include "ArtistCheckNames.ui"}</div>
+        {/if}
+    </div>
+    <div class="ml-auto shrink-0 flex p-0.5 rounded-xl border border-(--rg-bd) bg-(--rg-champ)" aria-label={v.name.clone()}>
+        {#if v.can_split()}
+            <button class="flex items-center gap-1.5 h-7.5 px-2.5 rounded-[9px] text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-gtx) hover:bg-(--rg-gbg)"
+                    onclick={Msg::ArtistCheck(ArtistCheckMsg::Decide(v.name.clone(), true))}><Icon icon="material-symbols:call-split-rounded" width={15} /><div>{t("artist_split.split")}</div></button>
+            <div class="w-px my-1.5 bg-(--rg-bd)"></div>
+        {/if}
+        <button class="flex items-center gap-1.5 h-7.5 px-2.5 rounded-[9px] text-[12px] font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                onclick={Msg::ArtistCheck(ArtistCheckMsg::Decide(v.name.clone(), false))}><Icon icon="material-symbols:person-outline-rounded" width={15} /><div>{t("artist_split.keep")}</div></button>
+    </div>
+</div>
+{/if}

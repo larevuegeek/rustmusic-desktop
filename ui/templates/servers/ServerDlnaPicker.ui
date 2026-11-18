@@ -1,0 +1,52 @@
+<div class="flex flex-col gap-2">
+    <div class="flex flex-wrap items-center gap-0.5 text-[13px]" aria-label={t("servers.dlna_choose")}>
+        {#each dp.crumbs() as crumb (crumb.index)}
+            {#if crumb.index > 0}<div class="flex text-(--rg-mu)"><Icon icon="material-symbols:chevron-right-rounded" width={16} /></div>{/if}
+            {#if crumb.current}
+                <div class="px-1.5 py-0.5 rounded-md font-semibold truncate max-w-56 text-(--rg-tx)">{crumb.label}</div>
+            {:else}
+                <button class="px-1.5 py-0.5 rounded-md font-semibold truncate max-w-56 cursor-pointer text-(--rg-gtx) hover:bg-(--rg-s2)"
+                        onclick={Msg::Dlna(DlnaMsg::Trail(crumb.index))}><div>{crumb.label}</div></button>
+            {/if}
+        {/each}
+    </div>
+
+    <div class="flex flex-col gap-1.5 max-h-72 overflow-y-auto scrollbar-none pr-1">
+        {#if dp.loading && dp.folders.is_empty()}
+            <div class="flex items-center gap-2 px-1 py-2 text-sm text-(--rg-mu)">
+                <div class="flex animate-spin"><Icon icon="material-symbols:progress-activity" width={16} /></div><div>{t("servers.dlna_loading")}</div>
+            </div>
+        {:else if let Some(error) = &dp.error}
+            <p class="m-0 px-1 py-2 text-sm text-red-400">{error}</p>
+        {:else if dp.folders.is_empty()}
+            <p class="m-0 px-1 py-2 text-sm text-(--rg-mu)">{t("servers.dlna_empty_folder")}</p>
+        {:else}
+            {#each dp.folders as (i, f) (i)}
+                {#if dp.is_selected(&f.id)}
+                    <div class="flex items-center gap-1 rounded-xl border transition-colors border-(--rg-gbd) bg-(--rg-gbg)">
+                        {@include "ServerDlnaRow.ui"}
+                    </div>
+                {:else}
+                    <div class="flex items-center gap-1 rounded-xl border transition-colors border-(--rg-bd) hover:border-(--rg-bd2)">
+                        {@include "ServerDlnaRow.ui"}
+                    </div>
+                {/if}
+            {/each}
+        {/if}
+    </div>
+
+    {#if !dp.selected.is_empty()}
+        <div class="flex flex-wrap gap-1.5 pt-1">
+            {#each dp.selected as (i, s) (i)}
+                <div class="h-7 pl-2.5 pr-1 flex items-center gap-1.5 rounded-full text-[12.5px] font-medium bg-(--rg-gbg) text-(--rg-tx) border border-(--rg-gbd)">
+                    <div class="flex text-(--rg-mu)"><Icon icon="material-symbols:cloud-outline-rounded" width={14} /></div>
+                    <div>{s.1}</div>
+                    <button class="w-5 h-5 rounded-full flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                            aria-label={t("common.remove")} onclick={Msg::Dlna(DlnaMsg::Unselect(i))}>
+                        <Icon icon="material-symbols:close-rounded" width={14} />
+                    </button>
+                </div>
+            {/each}
+        </div>
+    {/if}
+</div>

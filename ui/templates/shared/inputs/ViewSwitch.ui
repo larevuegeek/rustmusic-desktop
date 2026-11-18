@@ -1,0 +1,9 @@
+<div class="flex shrink-0 p-0.75 rounded-[10px] border bg-(--rg-carte)/80 border-(--rg-bd)" role="radiogroup" aria-label={t("albums_view.grid_or_list")}>
+    {#if self.views.view_mode == ViewMode::Grid}
+        <button role="radio" aria-checked="true" class="w-8 h-7 flex items-center justify-center rounded-[7px] cursor-pointer bg-(--rg-s2) text-(--rg-tx)" title={t("albums_view.grid")} onclick={Msg::Albums(AlbumsMsg::View(ViewMode::Grid))}><Icon icon="material-symbols:grid-view-outline-rounded" width={18} /></button>
+        <button role="radio" aria-checked="false" class="w-8 h-7 flex items-center justify-center rounded-[7px] cursor-pointer text-(--rg-mu) hover:text-(--rg-tx)" title={t("albums_view.list")} onclick={Msg::Albums(AlbumsMsg::View(ViewMode::List))}><Icon icon="material-symbols:view-list-outline-rounded" width={18} /></button>
+    {:else}
+        <button role="radio" aria-checked="false" class="w-8 h-7 flex items-center justify-center rounded-[7px] cursor-pointer text-(--rg-mu) hover:text-(--rg-tx)" title={t("albums_view.grid")} onclick={Msg::Albums(AlbumsMsg::View(ViewMode::Grid))}><Icon icon="material-symbols:grid-view-outline-rounded" width={18} /></button>
+        <button role="radio" aria-checked="true" class="w-8 h-7 flex items-center justify-center rounded-[7px] cursor-pointer bg-(--rg-s2) text-(--rg-tx)" title={t("albums_view.list")} onclick={Msg::Albums(AlbumsMsg::View(ViewMode::List))}><Icon icon="material-symbols:view-list-outline-rounded" width={18} /></button>
+    {/if}
+</div>

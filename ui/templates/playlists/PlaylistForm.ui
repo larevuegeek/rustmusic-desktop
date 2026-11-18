@@ -1,0 +1,69 @@
+<div class="flex flex-col gap-6">
+    <div class="flex items-center gap-4 p-3.5 rounded-2xl border transition-colors"
+         style:border_color={Color { alpha: 77, ..hex(f.color_hex()) }} style:background_layers={playlist_form_preview(f.color_hex())}>
+        <div class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center transition-colors border"
+             style:background_color={Color { alpha: 41, ..hex(f.color_hex()) }} style:border_color={Color { alpha: 77, ..hex(f.color_hex()) }} style:color={hex(f.color_hex())}>
+            <Icon icon={f.icon_id()} width={24} />
+        </div>
+        <div class="min-w-0">
+            <p class="m-0 text-[15px] font-bold truncate text-(--rg-tx)">{if f.name.trim().is_empty() { t("playlist.new") } else { f.name.trim().to_string() }}</p>
+            <p class="m-0 mt-0.5 text-xs text-(--rg-mu)">{t("popins.playlist_new_meta")}</p>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+        <div class="flex gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)"><div>{t("forms.name")}</div><div class="text-red-500">*</div></div>
+        {#if f.error.is_some()}
+            <input class="w-full h-11 px-4 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-red-500/60"
+                   type="text" value={f.name.as_str()} placeholder={t("popins.playlist_name_placeholder")} aria-label={t("forms.name")}
+                   oninput={|v: String| Msg::PlaylistForm(PlaylistFormMsg::Name(v))} onchange={Msg::PlaylistForm(PlaylistFormMsg::Submit)}>
+        {:else}
+            <input class="w-full h-11 px-4 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                   type="text" value={f.name.as_str()} placeholder={t("popins.playlist_name_placeholder")} aria-label={t("forms.name")}
+                   oninput={|v: String| Msg::PlaylistForm(PlaylistFormMsg::Name(v))} onchange={Msg::PlaylistForm(PlaylistFormMsg::Submit)}>
+        {/if}
+        {#if let Some(e) = &f.error}
+            <div class="flex items-center gap-1.5 text-xs text-red-400"><Icon icon="material-symbols:error-outline-rounded" width={15} /><div>{e}</div></div>
+        {/if}
+    </div>
+
+    <div class="flex flex-col gap-2">
+        <div class="flex gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">
+            <div>{t("forms.description")}</div><div class="normal-case font-medium tracking-normal text-(--rg-mu2)">{t("forms.optional")}</div>
+        </div>
+        <textarea class="w-full px-4 py-3 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                  rows="3" value={f.desc.as_str()} placeholder={t("forms.description_placeholder")} aria-label={t("forms.description")}
+                  oninput={|v: String| Msg::PlaylistForm(PlaylistFormMsg::Desc(v))}></textarea>
+    </div>
+
+    <div class="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-3.5">
+        <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("forms.color")}</div>
+        <div class="flex flex-wrap gap-2">
+            {#each playlist_form_colors() as (i, c) (i)}
+                {#if i == f.color}
+                    <button class="w-6 h-6 rounded-full cursor-pointer transition-transform ring-2 ring-offset-2 ring-(--rg-tx) ring-offset-(--rg-carte) scale-110"
+                            style:background_color={hex(c)} aria-label={t_with("forms.color_aria", &[("color", c)])} aria-pressed="true" onclick={Msg::PlaylistForm(PlaylistFormMsg::Color(i))}><div></div></button>
+                {:else}
+                    <button class="w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110"
+                            style:background_color={hex(c)} aria-label={t_with("forms.color_aria", &[("color", c)])} aria-pressed="false" onclick={Msg::PlaylistForm(PlaylistFormMsg::Color(i))}><div></div></button>
+                {/if}
+            {/each}
+        </div>
+        <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("forms.icon")}</div>
+        <div class="flex flex-wrap gap-1">
+            {#each playlist_form_icons() as (i, ic) (i)}
+                {#if i == f.icon}
+                    <button class="w-9 h-9 flex items-center justify-center rounded-xl cursor-pointer transition-colors text-white"
+                            style:background_color={hex(f.color_hex())} title={playlist_form_icon_label(ic)} aria-label={playlist_form_icon_label(ic)} aria-pressed="true" onclick={Msg::PlaylistForm(PlaylistFormMsg::Icon(i))}>
+                        <Icon icon={ic} width={18} />
+                    </button>
+                {:else}
+                    <button class="w-9 h-9 flex items-center justify-center rounded-xl cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                            title={playlist_form_icon_label(ic)} aria-label={playlist_form_icon_label(ic)} aria-pressed="false" onclick={Msg::PlaylistForm(PlaylistFormMsg::Icon(i))}>
+                        <Icon icon={ic} width={18} />
+                    </button>
+                {/if}
+            {/each}
+        </div>
+    </div>
+</div>

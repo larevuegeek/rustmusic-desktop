@@ -1,0 +1,1 @@
+{#each help_split(text) as (i, m) (i)}{#if m.1.is_some() && self.help_bubbles()}<span class="cursor-help underline decoration-[1.5px] underline-offset-[3px] decoration-[rgba(176,185,180,0.45)]">{m.0}</span>{:else}{m.0}{/if}{/each}

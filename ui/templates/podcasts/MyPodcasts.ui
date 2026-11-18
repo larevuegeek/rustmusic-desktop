@@ -1,0 +1,28 @@
+<section class="mt-12">
+    <div class="flex flex-wrap items-end gap-3 mb-4">
+        <div class="min-w-0">
+            <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("podcasts.my_podcasts")}</h2>
+            <div class="mt-1 text-[13px] text-(--rg-mu)">{t("podcasts.my_podcasts_hint")}</div>
+        </div>
+        <div class="ml-auto flex items-center gap-3">
+            <MenuSelect anchor="podcasts.sort" open={self.popup("podcasts.sort")} label={pv.sort_label.clone()} icon={pv.sort_icon} options={pv.sorts.clone()} />
+            <button class="h-8.5 px-3 mr-1 inline-flex items-center gap-1 rounded-full text-[13px] font-semibold cursor-pointer text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                    onclick={Msg::Go(Route::PodcastSubscriptions)}>
+                <div>{t("podcasts.see_all")}</div><Icon icon="material-symbols:chevron-right-rounded" width={18} />
+            </button>
+            {@const c = self.carousel("podcasts.mine", String::new(), String::new(), pv.podcasts.clone())}
+            {#if c.back || c.forward}{@include "../shared/buttons/CarouselArrows.ui"}{/if}
+        </div>
+    </div>
+    {@const c = self.carousel("podcasts.mine", String::new(), String::new(), pv.podcasts.clone())}
+    {#each [c.view] as view (view)}
+    <div class="flex gap-4.5 pb-1 overflow-x-auto [scrollbar-width:none]"
+         onscroll={{ let id = c.id; move |s: ScrollMetrics| Msg::CarouselScrolled(id, CarouselGeometry::of(s)) }}
+         onscrollrange={{ let id = c.id; move |s: ScrollMetrics| Msg::CarouselScrolled(id, CarouselGeometry::of(s)) }}
+         style:scroll_request={c.request}>
+        {#each c.items as p (p.id)}
+            <div class="shrink-0 w-[150px] @5xl:w-[165px] @6xl:w-[185px] @7xl:w-[200px]">{@include "PodcastCard.ui"}</div>
+        {/each}
+    </div>
+    {/each}
+</section>

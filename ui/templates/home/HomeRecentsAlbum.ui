@@ -1,0 +1,21 @@
+<button class="group relative aspect-square rounded-[10px] overflow-hidden cursor-pointer
+               bg-neutral-200 dark:bg-neutral-800 shadow-[0_8px_24px_rgba(0,0,0,0.3)]
+               transition-transform duration-300 hover:-translate-y-1"
+        onclick={Msg::PlayAlbumOf(a.path.clone(), false)} title={t("home.resume_album")}
+        aria-label={t_with("home.resume_album_named", &[("name", &a.title)])}>
+    <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&a.cover_path)} alt="">
+    <div class="absolute inset-0 flex items-center justify-center bg-black/30
+                opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div class="w-12 h-12 rounded-full bg-accent-500 text-(--rg-on-g) flex items-center justify-center
+                    shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
+            <Icon icon="mynaui:play-solid" width={22} />
+        </div>
+    </div>
+    <div class="absolute right-2 bottom-2 px-2 py-0.75 rounded-[10px] bg-black/70 text-white
+                text-[12px] font-semibold leading-tight"><div class="whitespace-nowrap">{a.tracks_list}</div></div>
+</button>
+
+<div class="flex flex-col min-w-0 px-0.5">
+    <div class="text-[15px] font-semibold truncate text-neutral-900 dark:text-[#f2f5f3] hover:text-neutral-900 dark:hover:text-white hover:underline">{a.title}</div>
+    <div class="text-[13px] truncate text-neutral-500 dark:text-[#9aa39e]">{a.subtitle}</div>
+</div>

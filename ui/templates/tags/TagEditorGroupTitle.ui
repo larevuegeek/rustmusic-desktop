@@ -1,0 +1,4 @@
+<div class="flex items-center gap-2.5 mb-2">
+    <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{gt.clone()}</div>
+    <div class="flex-1 h-px bg-linear-to-r from-(--rg-bd) to-transparent"></div>
+</div>

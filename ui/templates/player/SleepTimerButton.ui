@@ -1,0 +1,112 @@
+<div class="relative">
+    <button id="header.minuteur"
+            class="flex items-center justify-center rounded-full cursor-pointer transition-all duration-150 h-8"
+            class:text-emerald-500={self.sleep_timer.is_some()} class:hover:text-emerald-400={self.sleep_timer.is_some()}
+            class:gap-1={self.sleep_timer.is_some()} class:px-2={self.sleep_timer.is_some()}
+            class:w-8={self.sleep_timer.is_none()} class:text-neutral-500={self.sleep_timer.is_none()}
+            class:dark:text-neutral-400={self.sleep_timer.is_none()} class:hover:text-neutral-700={self.sleep_timer.is_none()}
+            class:dark:hover:text-neutral-200={self.sleep_timer.is_none()}
+            onclick={Msg::Menu(Menu::Timer)} aria-label={t("sleep.title")}
+            aria-haspopup="dialog" aria-expanded={self.open(Menu::Timer)} title={self.sleep_title()}>
+        <Icon icon="tabler:alarm-snooze" width={20} />
+        {#if let Some(rest) = self.sleep_remaining()}
+            <div class="text-[11px] font-semibold tabular-nums">{rest}</div>
+        {/if}
+        {#if self.sleep_timer == Some(SleepTimer::TrackEnd)}
+            <Icon icon="lucide:flag" width={11} />
+        {/if}
+    </button>
+
+    {#if self.open(Menu::Timer)}
+        <k-popover anchor="header.minuteur" placement="bottom-end" offset="12"
+                   aria-label={t("sleep.title")} onclose={Msg::CloseMenu}
+                   class="menu p-0 w-64 overflow-hidden
+                          rounded-2xl border border-neutral-200/80 dark:border-white/10
+                          bg-white/98 dark:bg-neutral-900/98 backdrop-blur-2xl
+                          shadow-2xl shadow-black/40">
+            <div class="flex items-center gap-2.5 px-4 pt-3.5 pb-3
+                        border-b border-neutral-100 dark:border-white/5
+                        bg-linear-to-b from-emerald-500/5 to-transparent">
+                <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-500 dark:text-emerald-400">
+                    <Icon icon="tabler:alarm-snooze" width={17} />
+                </div>
+                <div class="min-w-0">
+                    <p class="text-[13px] font-semibold text-neutral-800 dark:text-neutral-100 leading-tight m-0">{t("sleep.title")}</p>
+                    {#if self.sleep_timer.is_some()}
+                        <p class="text-[10px] text-emerald-600 dark:text-emerald-400 leading-tight mt-0.5 mb-0">{self.sleep_title()}</p>
+                    {:else}
+                        <p class="text-[10px] text-neutral-400 dark:text-neutral-500 leading-tight mt-0.5 mb-0">{t("sleep.subtitle")}</p>
+                    {/if}
+                </div>
+            </div>
+
+            <div class="p-2.5">
+                <div class="grid grid-cols-2 gap-1.5">
+                    {#each [15, 30, 45, 60] as d (d)}
+                        {#if self.sleep_timer == Some(SleepTimer::Minutes(d))}
+                            <button class="flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl text-sm font-medium cursor-pointer
+                                           border transition-all
+                                           bg-emerald-500/12 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                                    onclick={Msg::SleepTimer(Some(SleepTimer::Minutes(d)))}>
+                                <div class="flex shrink-0 text-emerald-500"><Icon icon="lucide:clock" width={13} /></div>
+                                <div>{d}</div>
+                                <div class="text-[10px] opacity-60">{t("units.min_short")}</div>
+                            </button>
+                        {:else}
+                            <button class="flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl text-sm font-medium cursor-pointer
+                                           border transition-all
+                                           bg-neutral-50 dark:bg-white/3 border-neutral-200/60 dark:border-white/6 text-neutral-700 dark:text-neutral-300 hover:border-emerald-500/25 hover:bg-emerald-500/5
+                                           focus-visible:border-emerald-500/25 focus-visible:bg-emerald-500/5"
+                                    onclick={Msg::SleepTimer(Some(SleepTimer::Minutes(d)))}>
+                                <div class="flex shrink-0 text-neutral-400 dark:text-neutral-500"><Icon icon="lucide:clock" width={13} /></div>
+                                <div>{d}</div>
+                                <div class="text-[10px] opacity-60">{t("units.min_short")}</div>
+                            </button>
+                        {/if}
+                    {/each}
+                </div>
+
+                {#if self.sleep_timer == Some(SleepTimer::TrackEnd)}
+                    <button class="mt-1.5 w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer
+                                   border transition-all
+                                   bg-emerald-500/12 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                            onclick={Msg::SleepTimer(Some(SleepTimer::TrackEnd))}>
+                        <div class="flex shrink-0 text-emerald-500"><Icon icon="lucide:flag" width={14} /></div>
+                        <div>{t("sleep.end_of_track")}</div>
+                        <div class="flex ml-auto text-emerald-500"><Icon icon="lucide:check" width={15} /></div>
+                    </button>
+                {:else}
+                    <button class="mt-1.5 w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer
+                                   border transition-all
+                                   bg-neutral-50 dark:bg-white/3 border-neutral-200/60 dark:border-white/6 text-neutral-700 dark:text-neutral-300 hover:border-emerald-500/25 hover:bg-emerald-500/5
+                                   focus-visible:border-emerald-500/25 focus-visible:bg-emerald-500/5"
+                            onclick={Msg::SleepTimer(Some(SleepTimer::TrackEnd))}>
+                        <div class="flex shrink-0 text-neutral-400 dark:text-neutral-500"><Icon icon="lucide:flag" width={14} /></div>
+                        <div>{t("sleep.end_of_track")}</div>
+                    </button>
+                {/if}
+
+                <div class="rg-field mt-1.5 flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 dark:bg-white/3 border border-neutral-200/60 dark:border-white/6">
+                    <div class="flex text-neutral-400 dark:text-neutral-500 shrink-0"><Icon icon="lucide:sliders-horizontal" width={13} /></div>
+                    <input class="w-12 bg-transparent text-sm tabular-nums text-neutral-800 dark:text-neutral-200 focus:outline-none
+                                  h-5 p-0 border-0"
+                           type="text" value={self.sleep_input.as_str()}
+                           oninput={Msg::SleepInput} aria-label={t("sleep.custom")} maxlength="3">
+                    <div class="text-[11px] text-neutral-400">{t("units.min_short")}</div>
+                    <button class="ml-auto px-3 py-1 rounded-lg text-[11px] font-semibold cursor-pointer
+                                   bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+                            onclick={Msg::SleepCustom}>{t("sleep.set")}</button>
+                </div>
+
+                {#if self.sleep_timer.is_some()}
+                    <button class="mt-1.5 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-medium cursor-pointer
+                                   text-red-500 hover:bg-red-500/10 transition-colors"
+                            onclick={Msg::SleepTimer(None)}>
+                        <Icon icon="lucide:x" width={13} />
+                        <div>{t("sleep.cancel")}</div>
+                    </button>
+                {/if}
+            </div>
+        </k-popover>
+    {/if}
+</div>

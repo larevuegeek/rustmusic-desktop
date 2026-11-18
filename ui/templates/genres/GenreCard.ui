@@ -1,0 +1,45 @@
+<button class="group relative w-full flex flex-col gap-3 min-w-0 text-left cursor-pointer" onclick={genre.open.clone()}>
+    <div class="relative w-full aspect-square rounded-[14px] overflow-hidden grid grid-cols-2 grid-rows-2 gap-0.5 bg-(--rg-bg)
+                shadow-[0_10px_28px_rgba(0,0,0,0.25)] dark:shadow-[0_10px_28px_rgba(0,0,0,0.4)]">
+        {#each genre.covers.iter().zip(genre.tiles.iter()) as (k, pair) (k)}
+            {#if pair.0.is_some()}
+                <img class="w-full aspect-square object-cover" src={cx.resources.cover_small(pair.0)} alt="">
+            {:else}
+                <div class="w-full aspect-square" style:background_layers={pair.1.clone()}></div>
+            {/if}
+        {/each}
+        <div class="absolute inset-0 z-1 opacity-90 pointer-events-none" style:background_layers={genre.fade.clone()}></div>
+        <div class="absolute inset-0 z-1 rounded-[14px] border-2 border-transparent pointer-events-none group-hover:opacity-100 opacity-0" style:border_color={genre.color}></div>
+
+        <div class="absolute left-3.5 right-3.5 bottom-3 z-2 flex flex-col gap-0.5">
+            <div class="w-7 h-0.75 mb-2 rounded-full" style:background_color={genre.color}></div>
+            <div class="text-[22px] font-extrabold tracking-[-0.02em] leading-[1.1] text-white line-clamp-2" title={genre.label.as_str()}>{genre.label}</div>
+        </div>
+
+        {#if !genre.special}
+            <div class="absolute right-3 top-3 z-3 flex gap-1.5 opacity-0 -translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-150">
+                <button class="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer shadow-[0_6px_16px_rgba(0,0,0,0.5)] bg-black/60 text-white hover:bg-black/80"
+                        title={t("genres_view.more")} aria-label={t("genres_view.more")} onclick={Msg::Noop}>
+                    <Icon icon="material-symbols:more-horiz" width={20} />
+                </button>
+                <button class="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer shadow-[0_6px_16px_rgba(0,0,0,0.5)] bg-black/60 text-white hover:bg-black/80"
+                        title={t("genres_view.shuffle")} aria-label={t("genres_view.shuffle")} onclick={Msg::Genres(GenresMsg::Play(genre.name.clone(), true))}>
+                    <Icon icon="material-symbols:shuffle-rounded" width={20} />
+                </button>
+                <button class="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer shadow-[0_6px_16px_rgba(0,0,0,0.5)] bg-(--rg-g) text-(--rg-on-g)"
+                        title={t("genres_view.play")} aria-label={t_with("genres_view.play_named", &[("name", &genre.label)])} onclick={Msg::Genres(GenresMsg::Play(genre.name.clone(), false))}>
+                    <Icon icon="material-symbols:play-arrow-rounded" width={24} />
+                </button>
+            </div>
+        {/if}
+    </div>
+
+    <div class="w-full flex flex-col gap-0.75 px-0.5 min-w-0">
+        <div class="flex gap-1.5 whitespace-nowrap text-[13px] text-(--rg-mu)">
+            <div class="font-semibold text-(--rg-tx2)">{genre.albums_n}</div><div>{genre.albums_label}</div>
+            <div>·</div>
+            <div class="font-semibold text-(--rg-tx2)">{genre.tracks_n}</div><div>{genre.tracks_label}</div>
+        </div>
+        {#if !genre.artists.is_empty()}<div class="truncate text-[12.5px] text-(--rg-mu2)" title={genre.artists.as_str()}>{genre.artists}</div>{/if}
+    </div>
+</button>

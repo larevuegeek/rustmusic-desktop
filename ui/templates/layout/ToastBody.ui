@@ -1,0 +1,12 @@
+<div class="flex gap-3 p-4 pl-5">
+    <div class="min-w-0 flex-1">
+        <p class="m-0 text-sm font-semibold">{toast.title}</p>
+        {#if let Some(message) = &toast.message}
+            <p class="m-0 mt-1 text-sm text-neutral-300">{message}</p>
+        {/if}
+    </div>
+    <button class="ml-1 flex h-9 w-9 items-center justify-center rounded-xl cursor-pointer text-neutral-400 hover:text-white hover:bg-white/10"
+            aria-label={t("common.close")} onclick={Msg::ToastClose(toast.id)}>
+        <div>✕</div>
+    </button>
+</div>

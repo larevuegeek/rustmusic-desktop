@@ -1,0 +1,65 @@
+<div class="px-2.5 pt-1.5 pb-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t("settings.library_tabs")}</div>
+<div class="flex gap-1 px-1 pb-1">
+    {#each [(t("settings.library_tabs_sidebar"), true, false), (t("settings.library_tabs_top"), false, true), (t("settings.library_tabs_both"), true, true)] as (i, p) (i)}
+        {#if self.is_tabs_placement(i)}
+            <button class="flex-1 flex flex-col items-center gap-1 py-1.5 rounded-lg cursor-pointer
+                           border transition-colors bg-emerald-500/10 border-emerald-500/30"
+                    onclick={Msg::TabPlacement(i as u8)} title={p.0}>
+                <div class="w-9 h-6 rounded flex gap-0.5 p-0.5 bg-neutral-100 dark:bg-white/5">
+                    {#if p.1}<div class="w-1/4 h-full rounded-[2px] bg-emerald-500/70"></div>
+                    {:else}<div class="w-1/4 h-full rounded-[2px] bg-neutral-300 dark:bg-white/10"></div>{/if}
+                    <div class="flex-1 flex flex-col gap-0.5">
+                        {#if p.2}<div class="h-1 rounded-[2px] bg-emerald-500/70"></div>
+                        {:else}<div class="h-1 rounded-[2px] bg-neutral-300 dark:bg-white/10"></div>{/if}
+                        <div class="flex-1 rounded-[2px] bg-neutral-200 dark:bg-white/4"></div>
+                    </div>
+                </div>
+                <span class="text-[10px] leading-[14px] -my-0.5 w-auto text-emerald-600 dark:text-emerald-400">{p.0}</span>
+            </button>
+        {:else}
+            <button class="flex-1 flex flex-col items-center gap-1 py-1.5 rounded-lg cursor-pointer
+                           border transition-colors border-transparent hover:bg-neutral-100 dark:hover:bg-white/5 dark:focus-visible:bg-white/5"
+                    onclick={Msg::TabPlacement(i as u8)} title={p.0}>
+                <div class="w-9 h-6 rounded flex gap-0.5 p-0.5 bg-neutral-100 dark:bg-white/5">
+                    {#if p.1}<div class="w-1/4 h-full rounded-[2px] bg-emerald-500/70"></div>
+                    {:else}<div class="w-1/4 h-full rounded-[2px] bg-neutral-300 dark:bg-white/10"></div>{/if}
+                    <div class="flex-1 flex flex-col gap-0.5">
+                        {#if p.2}<div class="h-1 rounded-[2px] bg-emerald-500/70"></div>
+                        {:else}<div class="h-1 rounded-[2px] bg-neutral-300 dark:bg-white/10"></div>{/if}
+                        <div class="flex-1 rounded-[2px] bg-neutral-200 dark:bg-white/4"></div>
+                    </div>
+                </div>
+                <span class="text-[10px] leading-[14px] -my-0.5 w-auto text-neutral-500 dark:text-neutral-400">{p.0}</span>
+            </button>
+        {/if}
+    {/each}
+</div>
+
+<div class="h-px mx-2 my-1.5 bg-neutral-200/80 dark:bg-white/8" role="separator"></div>
+
+<div class="px-2.5 pt-1.5 pb-2 text-[10px] font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t("settings.library_tabs_shown")}</div>
+{#each Section::ALL as (i, tab) (tab.1)}
+    <button class="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl cursor-pointer text-left transition-colors
+                   hover:bg-neutral-100 dark:hover:bg-white/5 dark:focus-visible:bg-white/5"
+            class:cursor-not-allowed={vm.tabs[i] && vm.tabs.iter().filter(|x| **x).count() == 1}
+            disabled={vm.tabs[i] && vm.tabs.iter().filter(|x| **x).count() == 1}
+            title={if vm.tabs[i] && vm.tabs.iter().filter(|x| **x).count() == 1 { t("settings.library_tabs_last") } else { String::new() }}
+            onclick={Msg::ToggleTab(i)}>
+        <div class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center border
+                    bg-neutral-100 dark:bg-white/5 border-neutral-200/80 dark:border-white/8 transition-opacity"
+             class:opacity-40={!vm.tabs[i]} class:text-neutral-600={vm.tabs[i]}
+             class:dark:text-neutral-300={vm.tabs[i]} class:text-neutral-400={!vm.tabs[i]}>
+            <Icon icon={tab.3} width={13} />
+        </div>
+        <div class="flex-1 min-w-0 text-[13px] truncate"
+             class:text-neutral-800={vm.tabs[i]} class:dark:text-neutral-100={vm.tabs[i]}
+             class:text-neutral-400={!vm.tabs[i]} class:dark:text-neutral-500={!vm.tabs[i]}>{tab.0.label()}</div>
+        <div class="w-8 h-4.5 rounded-full shrink-0 relative transition-colors"
+             class:opacity-50={vm.tabs[i] && vm.tabs.iter().filter(|x| **x).count() == 1}
+             class:bg-emerald-500={vm.tabs[i]} class:bg-neutral-300={!vm.tabs[i]}
+             class:dark:bg-neutral-700={!vm.tabs[i]}>
+            <div class="absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform"
+                 class:translate-x-3.5={vm.tabs[i]}></div>
+        </div>
+    </button>
+{/each}

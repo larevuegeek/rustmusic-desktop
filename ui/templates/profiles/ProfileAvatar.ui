@@ -1,0 +1,6 @@
+<div class="relative flex items-center justify-center shrink-0 overflow-hidden font-semibold w-32 h-32 rounded-2xl text-5xl text-(--rg-tx)">
+    {#if let Some(img) = &p.avatar}
+        <img class="w-full h-full object-cover" src={cx.resources.cover(img)} alt={p.name.clone()}>
+    {/if}
+    {#if p.avatar.is_none()}<div>{profile_initials(&p.name)}</div>{/if}
+</div>

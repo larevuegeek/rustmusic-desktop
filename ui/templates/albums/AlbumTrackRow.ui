@@ -1,0 +1,71 @@
+<div class="row-album-track group relative w-full flex items-center gap-3.5 h-16 px-3 rounded-[10px] transition-colors cursor-default hover:bg-(--rg-carte)"
+     class:rg-titre-marque={track.mark} onclick={Msg::Row(RowMsg::Click(track.i))}
+     oncontextmenu={{ let n = track.i; move |r: ContextMenuRequest| Msg::Row(RowMsg::Menu(n, TrackMenuAt::from_request(&r))) }}>
+    {#if self.selecting()}
+    <div class="relative w-8 h-8 shrink-0 flex items-center justify-center">
+        {@const checked = self.selected(track.i)}{@include "../tracks/TrackSelectionCheck.ui"}
+    </div>
+    {:else}
+    <div class="relative w-8 h-8 shrink-0 flex items-center justify-center">
+        {#if track.in_progress}
+            <div class="mini-eq flex items-end gap-0.5 h-3.5 group-hover:hidden">
+                <div class="mini-eq-1" class:eq-pause={!self.playing()}></div>
+                <div class="mini-eq-2" class:eq-pause={!self.playing()}></div>
+                <div class="mini-eq-3" class:eq-pause={!self.playing()}></div>
+            </div>
+        {:else if track.numbered}
+            <div class="text-[15px] tabular-nums text-(--rg-mu) group-hover:opacity-0">{track.number}</div>
+        {:else}
+            <div class="text-[15px] tabular-nums text-(--rg-mu2) group-hover:opacity-0" title={t("album_view.no_number")}>{track.number}</div>
+        {/if}
+        <button class="absolute inset-0 hidden group-hover:flex items-center justify-center cursor-pointer text-(--rg-tx)"
+                title={t("tracks_view.play")} aria-label={t("tracks_view.play")} onclick={Msg::Row(RowMsg::Play(track.i))}>
+            <Icon icon="material-symbols:play-arrow-rounded" width={26} />
+        </button>
+    </div>
+    {/if}
+
+    {#if track.artwork}
+        <div class="w-11.5 h-11.5 shrink-0 rounded-[7px] overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.2)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+            {#if track.cover.is_some()}
+                <img class="w-full h-full object-cover" src={cx.resources.cover_small(&track.cover)} alt="">
+            {:else}
+                <div class="w-full h-full flex items-center justify-center text-(--rg-mu2) shadow-[inset_0_0_0_1px_var(--rg-bd)] bg-(--rg-s2)">
+                    <Icon icon="material-symbols:music-note-rounded" width={18} />
+                </div>
+            {/if}
+        </div>
+    {/if}
+
+    <div class="flex-1 min-w-0 flex flex-col gap-0.5">
+        {#if track.in_progress}
+            <div class="truncate text-[15px] font-semibold text-(--rg-g)" title={track.title.as_str()}>{track.title}</div>
+        {:else}
+            <div class="truncate text-[15px] font-semibold text-(--rg-tx)" title={track.title.as_str()}>{track.title}</div>
+        {/if}
+        {#if let Some(invite) = &track.invite}
+            <div class="truncate text-[12.5px] text-(--rg-mu)" title={invite.as_str()}>{invite}</div>
+        {/if}
+    </div>
+
+    <div class="w-12 shrink-0 text-right text-sm tabular-nums text-(--rg-mu)">{track.duration}</div>
+
+    <div class="w-18 shrink-0 flex justify-end gap-0.5">
+        {#if track.liked}
+            <button class="w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-g) hover:bg-(--rg-s2)"
+                    title={t("tracks_view.like")} aria-label={t("tracks_view.like")} aria-pressed="true" onclick={Msg::Row(RowMsg::Like(track.i))}>
+                <Icon icon="material-symbols:favorite-rounded" width={19} />
+            </button>
+        {:else}
+            <button class="w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100"
+                    title={t("tracks_view.like")} aria-label={t("tracks_view.like")} aria-pressed="false" onclick={Msg::Row(RowMsg::Like(track.i))}>
+                <Icon icon="material-symbols:favorite-outline-rounded" width={19} />
+            </button>
+        {/if}
+        <button class="w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100"
+                id={ElementId::named(&track.more_id())}
+                title={t("tracks_view.more")} aria-label={t("tracks_view.more")} onclick={Msg::Row(RowMsg::Menu(track.i, TrackMenuAt::Named(track.more_id())))}>
+            <Icon icon="material-symbols:more-horiz" width={19} />
+        </button>
+    </div>
+</div>

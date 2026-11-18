@@ -1,0 +1,39 @@
+{#if self.no_output_devices()}
+    <div class="flex items-center gap-2.5 px-5 py-4 text-[13px] text-(--rg-mu)">
+        <Icon icon="material-symbols:speaker-outline-rounded" width={18} />
+        <div>{t("settings.audio_devices_empty")}</div>
+    </div>
+{/if}
+{#each self.audio_outputs() as (k, o) (o.index)}
+    {#if k > 0}<div class="h-px bg-(--rg-line)"></div>{/if}
+    {#if o.active}
+        <div class="group relative flex items-center gap-3.5 pl-5 pr-4 py-3.5 cursor-pointer transition-colors bg-(--rg-creux-on)"
+             role="radio" aria-checked="true" title={o.title.as_str()} onclick={Msg::ChooseOutput(o.index)}>
+            <div class="absolute left-0 top-2.5 bottom-2.5 w-0.75 rounded-r-[3px] bg-(--rg-g)"></div>
+            <div class="relative shrink-0 w-5 h-5 rounded-full border-2 border-(--rg-g)">
+                <div class="absolute inset-0.75 rounded-full bg-(--rg-g)"></div>
+            </div>
+            <div class="shrink-0 w-9.5 h-9.5 rounded-[10px] flex items-center justify-center bg-(--rg-gbg) text-(--rg-gtx)">
+                <Icon icon={o.icon} width={20} />
+            </div>
+            {@include "OutputText.ui"}
+            <button class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                    aria-label={t("settings.audio_devices_details_action")} title={t("settings.audio_devices_details_action")} onclick={Msg::Device(DeviceMsg::Open(o.index))}>
+                <Icon icon="material-symbols:tune-rounded" width={20} />
+            </button>
+        </div>
+    {:else}
+        <div class="group relative flex items-center gap-3.5 pl-5 pr-4 py-3.5 cursor-pointer transition-colors hover:bg-(--rg-hover)"
+             role="radio" aria-checked="false" title={o.title.as_str()} onclick={Msg::ChooseOutput(o.index)}>
+            <div class="relative shrink-0 w-5 h-5 rounded-full border-2 border-(--rg-bd2)"></div>
+            <div class="shrink-0 w-9.5 h-9.5 rounded-[10px] flex items-center justify-center bg-(--rg-s2) text-(--rg-mu)">
+                <Icon icon={o.icon} width={20} />
+            </div>
+            {@include "OutputText.ui"}
+            <button class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2) opacity-0 group-hover:opacity-100"
+                    aria-label={t("settings.audio_devices_details_action")} title={t("settings.audio_devices_details_action")} onclick={Msg::Device(DeviceMsg::Open(o.index))}>
+                <Icon icon="material-symbols:tune-rounded" width={20} />
+            </button>
+        </div>
+    {/if}
+{/each}

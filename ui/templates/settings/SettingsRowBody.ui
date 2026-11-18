@@ -1,0 +1,41 @@
+{#if let Some(lead) = &r.lead}
+    <div class="rg-icone-teinte w-8 h-8 shrink-0 rounded-lg flex items-center justify-center" style:--h={lead.1}>
+        <Icon icon={lead.0} width={18} />
+    </div>
+{/if}
+<div class="flex-1 min-w-0">
+    <p class="m-0 text-[15px] font-semibold text-(--rg-tx)">{r.title}</p>
+    {#if !r.desc.is_empty()}<p class="m-0 mt-0.75 text-[13px] leading-[1.25] text-(--rg-mu)">{@const text = &r.desc}{@include "SettingsHelpText.ui"}</p>{/if}
+    {#if let Some(v) = &r.value}
+        <p class="m-0 mt-1.5 font-mono text-xs text-(--rg-mu2) truncate" title={v.as_str()}>{v}</p>
+    {/if}
+</div>
+{#if let Some(on) = &r.toggle()}<ToggleSwitch on={on.clone()} />{/if}
+{#if let Some(sel) = &r.select()}
+    <div class="relative shrink-0">
+        <select class="h-9.5 pl-3.5 pr-9 rounded-[10px] cursor-pointer bg-(--rg-s2) border border-(--rg-off) hover:border-(--rg-bd2) text-sm font-semibold text-(--rg-tx) transition-colors"
+                value={sel.1} aria-label={r.title.as_str()}
+                onchange={{ let key = sel.0; move |i: u64| Msg::Settings(SettingsMsg::Choose(key, i)) }}>
+            {#each sel.2 as (i, label) (i)}<option value={i as u64}>{label}</option>{/each}
+        </select>
+    </div>
+{/if}
+{#if let Some(m) = &r.menu()}
+    <div class="shrink-0 flex items-center gap-2">
+        <MenuSelect anchor={m.0} open={self.popup(m.0)} label={m.1.clone()} icon={active_icon(m.2)} options={m.2.clone()} />
+    </div>
+{/if}
+{#if let Some(sg) = &r.segmented()}
+    <SegmentedControl label={r.title.clone()} options={sg.0.clone()} subtle={sg.1} />
+{/if}
+{#if let Some(pills) = &r.pills()}
+    <div class="shrink-0 flex gap-1.5">
+        {#each pills as p (p.label.as_str())}<TogglePill p={Some(Pill::clone(p))} />{/each}
+    </div>
+{/if}
+{#if let Some(buttons) = &r.buttons()}
+    <div class="shrink-0 flex flex-wrap gap-2">
+        {#each buttons as g (g.label.as_str())}<GhostButton g={Some(Ghost::clone(g))} />{/each}
+    </div>
+{/if}
+{#if !r.custom().is_empty()}{@include "SettingsCustomControl.ui"}{/if}

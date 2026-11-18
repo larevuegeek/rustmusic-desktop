@@ -1,0 +1,31 @@
+use crate::models::podcasts::*;
+use crate::models::app::Choice;
+
+pub struct PodcastsView {
+    pub active: bool,
+    pub count: Option<(String, String, Option<String>)>,
+    pub input: String,
+    pub address: bool,
+    pub busy: bool,
+    pub results: Option<Vec<DirectoryItem>>,
+    pub latest: Vec<EpisodeCardItem>,
+    pub podcasts: Vec<PodcastItem>,
+    pub loaded: bool,
+    pub sort_label: String,
+    pub sort_icon: &'static str,
+    pub sorts: Vec<Choice>,
+    pub pop_label: String,
+    pub pop_icon: &'static str,
+    pub pop_sorts: Vec<Choice>,
+    pub country_hint: String,
+    pub country_label: String,
+    pub country: Vec<Choice>,
+    pub genres: Vec<(Option<u32>, String, bool)>,
+    pub popular: Option<Vec<DirectoryItem>>,
+    pub popular_error: bool,
+    pub more: Option<String>,
+    pub verification: bool,
+    pub filtre: String,
+    pub filtre_placeholder: String,
+    pub subscriptions: Vec<PodcastItem>,
+}

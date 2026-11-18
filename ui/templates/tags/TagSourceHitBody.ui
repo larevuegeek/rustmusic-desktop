@@ -1,0 +1,22 @@
+<div class="w-16 h-16 shrink-0 rounded-[9px] overflow-hidden bg-(--rg-s2) shadow-[0_4px_14px_rgba(0,0,0,0.35)] flex items-center justify-center text-(--rg-mu2)">
+    {#if let Some(th) = &so.thumbs.get(&h.id)}<img class="w-full h-full object-cover" src={cx.resources.cover(th)} alt="">{/if}
+    {#if !so.thumbs.contains_key(&h.id)}<Icon icon="material-symbols:album-outline-rounded" width={24} />{/if}
+</div>
+<div class="min-w-0 flex flex-col gap-1.25 text-left">
+    <div class="flex items-center gap-2 text-[15.5px] font-bold min-w-0">
+        <div class="truncate">{h.title.clone()}</div>
+        {#if gr.0.first().is_some_and(|b| b.id == h.id)}<div class="shrink-0 px-1.75 py-0.5 rounded-[5px] text-[10.5px] font-extrabold tracking-wide bg-(--rg-g) text-(--rg-on-g)">{t("source.best")}</div>{/if}
+    </div>
+    <div class="flex flex-wrap gap-x-3 gap-y-1 text-[12.5px] text-(--rg-mu)">
+        <div>{h.artist.clone()}</div>
+        {#if let Some(d) = &h.detail}<div>{d}</div>{/if}
+    </div>
+</div>
+{@const pl = so.pill(h.track_count)}
+{#if pl.1 == 0}
+    <div class="h-6.5 px-2.5 rounded-[13px] flex items-center gap-1.25 text-[12px] font-bold whitespace-nowrap border text-(--rg-gtx) bg-(--rg-gbg) border-(--rg-gbd)"><Icon icon="material-symbols:check-rounded" width={15} /><div>{pl.0.clone()}</div></div>
+{:else if pl.1 == 1}
+    <div class="h-6.5 px-2.5 rounded-[13px] flex items-center text-[12px] font-bold whitespace-nowrap border text-(--rg-am) bg-(--rg-ambg) border-(--rg-ambd)">{pl.0.clone()}</div>
+{:else}
+    <div class="h-6.5 px-2.5 rounded-[13px] flex items-center text-[12px] font-bold whitespace-nowrap border text-(--rg-mu) bg-(--rg-carte) border-(--rg-bd)">{pl.0.clone()}</div>
+{/if}

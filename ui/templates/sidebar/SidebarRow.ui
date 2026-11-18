@@ -1,0 +1,41 @@
+<div class="group relative" class:flex={self.collapsed} class:justify-center={self.collapsed}
+     oncontextmenu={oncontextmenu.clone()}>
+    {#if self.collapsed}
+        <button class="flex items-center gap-3 rounded-lg text-left cursor-pointer transition-colors p-0"
+                aria-current={self.active.then_some("page")} onclick={self.onclick.clone()} title={self.title.as_str()} aria-label={self.title.as_str()}>
+            {#if self.active || self.playing}
+                <div class="shrink-0 overflow-hidden rounded-md w-11 h-11 ring-2 ring-(--sb-g)"><slot name="vignette" /></div>
+            {:else}
+                <div class="shrink-0 overflow-hidden rounded-md w-11 h-11"><slot name="vignette" /></div>
+            {/if}
+        </button>
+    {:else}
+        <button class="flex items-center gap-3 rounded-lg text-left cursor-pointer transition-colors w-full p-1 pr-9 hover:bg-(--sb-hover)"
+                aria-current={self.active.then_some("page")} onclick={self.onclick.clone()} title={self.title.as_str()}>
+            <div class="shrink-0 overflow-hidden rounded-md w-10 h-10"><slot name="vignette" /></div>
+            <div class="flex flex-col gap-px min-w-0 flex-1">
+                {#if self.active || self.playing}
+                    <div class="text-sm font-bold truncate text-(--sb-g)">{self.title}</div>
+                {:else}
+                    <div class="text-sm font-bold truncate text-(--sb-tx)">{self.title}</div>
+                {/if}
+                {#if !self.subtitle.is_empty()}
+                    <div class="text-xs truncate text-(--sb-mu)">{self.subtitle}</div>
+                {/if}
+            </div>
+            {#if self.playing}
+                <div class="flex shrink-0 text-(--sb-g)"><Icon icon="material-symbols:graphic-eq-rounded" width={20} /></div>
+            {/if}
+        </button>
+        {#if self.target.is_some()}
+            <button id={more_id.as_str()}
+                    class="absolute right-1 top-1/2 -translate-y-1/2 w-7.5 h-7.5 rounded-lg
+                           flex items-center justify-center cursor-pointer transition-opacity
+                           opacity-0 group-hover:opacity-100 focus-visible:opacity-100
+                           text-(--sb-mu) hover:text-(--sb-tx) hover:bg-(--sb-s2)"
+                    onclick={onmenu.clone()} aria-label={self.title.as_str()} title={self.title.as_str()}>
+                <Icon icon="material-symbols:more-horiz" width={20} />
+            </button>
+        {/if}
+    {/if}
+</div>

@@ -1,0 +1,13 @@
+<div class="absolute inset-0 grid grid-cols-[30%_1fr] grid-rows-[1fr_16px]">
+    <div class="flex flex-col gap-1 px-1.5 py-2" style:background_color={e.0.sb}>
+        <div class="h-1.25 w-3/5 rounded-[3px] bg-(--rg-g)"></div>
+        <div class="h-1.25 rounded-[3px]" style:background_color={e.0.bar}></div>
+        <div class="h-1.25 rounded-[3px]" style:background_color={e.0.bar}></div>
+    </div>
+    <div class="flex flex-col gap-1.25 p-2" style:background_color={e.0.ct}>
+        <div class="h-7 shrink-0 rounded-[5px]" style:background_color={e.0.hero}></div>
+        <div class="h-1.25 rounded-[3px]" style:background_color={e.0.bar}></div>
+        {#if e.1}<div class="h-1.25 w-[70%] rounded-[3px]" style:background_color={e.0.bar}></div>{/if}
+    </div>
+    <div class="col-span-2 border-t" style:background_color={e.0.pl} style:border_color={e.0.plbd}></div>
+</div>

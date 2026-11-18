@@ -1,0 +1,122 @@
+<div class="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-5 mt-2">
+    <div class="min-w-0 rounded-2xl border px-5.5 py-5 bg-(--rg-carte) border-(--rg-bd)">
+        <h3 class="m-0 mb-4 text-xs font-bold tracking-widest uppercase text-(--rg-mu)">{t("track_view.audio")}</h3>
+        {#if let Some(r) = &tv.resume}
+            <div class="flex items-center gap-4 pt-1 pb-4.5 mb-1.5 border-b border-(--rg-bd)">
+                <div class="w-12 h-12 shrink-0 rounded-xl border flex items-center justify-center bg-(--rg-s2) border-(--rg-bd2) text-(--rg-tx2)">
+                    <Icon icon="material-symbols:graphic-eq-rounded" width={24} />
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{r.0}</div>
+                    <div class="mt-0.75 text-[13px] text-(--rg-mu)">{r.1}</div>
+                </div>
+                <QualityBadge tier={r.2} text={r.3.clone()} />
+            </div>
+        {/if}
+        <div class="grid grid-cols-2 gap-x-7">
+            {#each tv.audio as (i, x) (i)}
+                {#if x.ruled}
+                    <div class="flex justify-between gap-3 py-2.75 min-w-0 border-b border-(--rg-line)">{@include "TrackInfoLine.ui"}</div>
+                {:else}
+                    <div class="flex justify-between gap-3 py-2.75 min-w-0">{@include "TrackInfoLine.ui"}</div>
+                {/if}
+            {/each}
+        </div>
+    </div>
+
+    <div class="min-w-0 rounded-2xl border px-5.5 py-5 bg-(--rg-carte) border-(--rg-bd)">
+        <div class="mb-4 flex items-center gap-2.5">
+            <h3 class="m-0 text-xs font-bold tracking-widest uppercase text-(--rg-mu)">{t("track_view.tags")}</h3>
+            <div class="flex-1"></div>
+            {#if !tv.remote}
+                <button class="h-7.5 pl-2 pr-2.5 flex items-center gap-1.5 rounded-lg border text-[12.5px] font-semibold cursor-pointer transition-colors border-(--rg-bd2) text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                        onclick={Msg::TagEditor(TagEditorMsg::Open(tv.path()))}>
+                    <Icon icon="material-symbols:edit-outline-rounded" width={16} />
+                    <div>{t("track_view.edit")}</div>
+                </button>
+            {/if}
+        </div>
+        {#each tv.tags as (i, x) (i)}
+            <div class="flex justify-between gap-3 py-2.75 min-w-0 border-b border-(--rg-line) last:border-b-0">{@include "TrackInfoLine.ui"}</div>
+        {/each}
+    </div>
+</div>
+
+{#if !tv.cards.is_empty()}
+    <div class="grid grid-cols-2 gap-5 mt-5">
+        {#each tv.cards as card (card.kicker.as_str())}
+            <div class="group flex items-center gap-4 min-w-0 py-3.5 pl-3.5 pr-4 rounded-2xl border cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-bd2) hover:bg-(--rg-hover)"
+                 onclick={Msg::Go(card.route.clone())}>
+                {#if card.round}
+                    <div class="w-16 h-16 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-(--rg-s2) text-(--rg-mu)">
+                        {#if card.image.is_some()}<img class="w-full h-full object-cover" src={cx.resources.cover_small(&card.image)} alt="">{:else}<Icon icon="material-symbols:person-rounded" width={30} />{/if}
+                    </div>
+                {:else}
+                    <div class="w-16 h-16 shrink-0 rounded-[10px] overflow-hidden bg-(--rg-s2)">
+                        {#if card.image.is_some()}<img class="w-full h-full object-cover" src={cx.resources.cover_small(&card.image)} alt="">{/if}
+                    </div>
+                {/if}
+                <div class="flex-1 min-w-0">
+                    <div class="text-[11px] font-bold tracking-widest uppercase text-(--rg-mu)">{card.kicker}</div>
+                    <div class="mt-0.75 truncate text-[17px] font-bold text-(--rg-tx)">{card.name}</div>
+                    {#if let Some(sub) = &card.sub}<div class="mt-0.5 text-[13px] text-(--rg-mu)">{sub}</div>{/if}
+                </div>
+                <div class="shrink-0 flex text-(--rg-mu2) group-hover:text-(--rg-tx)"><Icon icon="material-symbols:chevron-right-rounded" width={22} /></div>
+            </div>
+        {/each}
+    </div>
+{/if}
+
+<div class="min-w-0 rounded-2xl border px-5.5 py-5 bg-(--rg-carte) border-(--rg-bd) mt-5">
+    <h3 class="m-0 mb-4 text-xs font-bold tracking-widest uppercase text-(--rg-mu)">{t("track_view.file")}</h3>
+    {#if tv.remote}
+        <div class="flex items-center gap-2.5 py-3 pl-4 pr-3 rounded-xl border bg-(--c-fond) dark:bg-zinc-950 border-(--rg-bd) text-[13px] text-(--rg-mu)">
+            <Icon icon="material-symbols:cloud-outline-rounded" width={18} />
+        </div>
+    {:else}
+        <div class="flex items-center gap-2.5 py-3 pl-4 pr-3 rounded-xl border bg-(--c-fond) dark:bg-zinc-950 border-(--rg-bd)">
+            <div class="flex-1 min-w-0 flex flex-wrap font-mono text-[12.5px]">
+                <div class="text-(--rg-mu)">{tv.folder}</div>
+                <div class="text-(--rg-tx)">{tv.file}</div>
+            </div>
+            <button class="h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-lg text-[12.5px] font-semibold whitespace-nowrap cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                    onclick={Msg::Noop}>
+                <Icon icon="material-symbols:content-copy-outline-rounded" width={17} />
+                <div>{t("track_view.copy")}</div>
+            </button>
+        </div>
+    {/if}
+    <div class="flex flex-wrap items-center gap-x-4.5 gap-y-1.5 mt-3 text-[13px] text-(--rg-mu)">
+        {#if let Some(d) = &tv.added}<div class="flex gap-1"><div>{t("track_view.added")}</div><div class="font-semibold text-(--rg-tx2)">{d}</div></div>{/if}
+        {#if let Some(d) = &tv.scanned}<div class="flex gap-1"><div>{t("track_view.scanned")}</div><div class="font-semibold text-(--rg-tx2)">{d}</div></div>{/if}
+        <div class="flex-1"></div>
+        {#if !tv.remote}
+            <button class="h-8 pl-2 pr-2.5 shrink-0 flex items-center gap-1.5 rounded-lg text-[12.5px] font-semibold whitespace-nowrap cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                    onclick={Msg::Track(TrackMsg::Reveal)}>
+                <Icon icon="material-symbols:folder-outline-rounded" width={17} />
+                <div>{t("track_view.reveal")}</div>
+            </button>
+        {/if}
+    </div>
+</div>
+
+{#if let Some(same) = &tv.same}
+    <div class="mt-12">
+        <div class="flex items-end gap-3 mb-4">
+            <div class="flex flex-col gap-1 min-w-0">
+                <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("track_view.same_album")}</h2>
+                <div class="text-[13px] text-(--rg-mu)">{same.0}</div>
+            </div>
+            <div class="flex-1"></div>
+            <button class="h-8.5 pl-3 pr-2 flex items-center gap-0.5 rounded-[9px] text-sm font-semibold cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                    onclick={Msg::Go(same.3.clone())}>
+                <div>{t("track_view.see_album")}</div>
+                <Icon icon="material-symbols:chevron-right-rounded" width={20} />
+            </button>
+        </div>
+        <div class="grid grid-cols-2 gap-x-7">
+            <div class="min-w-0 flex flex-col gap-0.5">{#each same.1 as track (track.i)}{@include "../albums/AlbumTrackRow.ui"}{/each}</div>
+            <div class="min-w-0 flex flex-col gap-0.5">{#each same.2 as track (track.i)}{@include "../albums/AlbumTrackRow.ui"}{/each}</div>
+        </div>
+    </div>
+{/if}

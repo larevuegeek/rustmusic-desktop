@@ -1,0 +1,47 @@
+{#if r.compact}
+    <button class:amp-handle-free={!r.open} class:amp-handle-left={r.dock.left} class:amp-handle-grabbed={r.panning} class="amp-tab-handle mt-3 h-24 w-10 shrink-0 flex flex-col justify-center gap-3 rounded-l-2xl border border-r-0 cursor-pointer border-(--rg-bd) text-(--rg-mu) hover:text-(--rg-tx) transition-colors"
+            title={if r.open { t("amp_remote.close") } else { t("amp_remote.open") }} aria-label={if r.open { t("amp_remote.close") } else { t("amp_remote.open") }}
+            onclick={Msg::AmpRemote(AmpRemoteMsg::Toggle)} onpan={|e: PanEvent| Msg::AmpRemote(AmpRemoteMsg::Pan(e))}>
+        <div class="flex justify-center">
+            {#if r.open && r.dock.left}
+                <Icon icon="material-symbols:chevron-left-rounded" width={21} />
+            {:else if r.open}
+                <Icon icon="material-symbols:chevron-right-rounded" width={21} />
+            {:else}
+                <Icon icon="material-symbols:settings-remote-outline-rounded" width={21} />
+            {/if}
+        </div>
+        <div class="flex justify-center">
+            {#if r.led == "warn"}
+                <div class="w-1.5 h-1.5 rounded-full bg-(--rg-am)"></div>
+            {:else if r.led == "on"}
+                <div class="w-1.5 h-1.5 rounded-full bg-(--rg-g) shadow-[0_0_8px_var(--rg-g)]"></div>
+            {:else}
+                <div class="w-1.5 h-1.5 rounded-full bg-(--rg-off)"></div>
+            {/if}
+        </div>
+    </button>
+{:else}
+    <button class:amp-handle-free={!r.open} class:amp-handle-left={r.dock.left} class:amp-handle-grabbed={r.panning} class="amp-tab-handle mt-10 h-30 w-10 shrink-0 flex flex-col justify-center gap-3 rounded-l-2xl border border-r-0 cursor-pointer border-(--rg-bd) text-(--rg-mu) hover:text-(--rg-tx) transition-colors"
+            title={if r.open { t("amp_remote.close") } else { t("amp_remote.open") }} aria-label={if r.open { t("amp_remote.close") } else { t("amp_remote.open") }}
+            onclick={Msg::AmpRemote(AmpRemoteMsg::Toggle)} onpan={|e: PanEvent| Msg::AmpRemote(AmpRemoteMsg::Pan(e))}>
+        <div class="flex justify-center">
+            {#if r.open && r.dock.left}
+                <Icon icon="material-symbols:chevron-left-rounded" width={21} />
+            {:else if r.open}
+                <Icon icon="material-symbols:chevron-right-rounded" width={21} />
+            {:else}
+                <Icon icon="material-symbols:settings-remote-outline-rounded" width={21} />
+            {/if}
+        </div>
+        <div class="flex justify-center">
+            {#if r.led == "warn"}
+                <div class="w-1.5 h-1.5 rounded-full bg-(--rg-am)"></div>
+            {:else if r.led == "on"}
+                <div class="w-1.5 h-1.5 rounded-full bg-(--rg-g) shadow-[0_0_8px_var(--rg-g)]"></div>
+            {:else}
+                <div class="w-1.5 h-1.5 rounded-full bg-(--rg-off)"></div>
+            {/if}
+        </div>
+    </button>
+{/if}

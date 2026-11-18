@@ -1,0 +1,78 @@
+{#if let Some(m) = &self.views.track_menu}
+    <k-popover anchor={m.at.anchor()} menu placement="bottom-start" offset="0" aria-label={t("tracks_view.more")}
+               onclose={Msg::TrackMenu(TrackMenuMsg::Close)}
+               class="w-55 py-1.5 bg-(--rg-s2) border border-(--rg-bd) dark:border-[#2a312d] rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx) transition-colors"
+                onclick={Msg::TrackMenu(TrackMenuMsg::Play)}>
+            <div class="flex opacity-60"><Icon icon="lucide:play" width={14} /></div><div>{t("actions.play_now")}</div>
+        </button>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                onclick={Msg::TrackMenu(TrackMenuMsg::PlayNext)}>
+            <div class="flex opacity-60"><Icon icon="lucide:list-start" width={14} /></div><div>{t("track_view.play_next")}</div>
+        </button>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                onclick={Msg::TrackMenu(TrackMenuMsg::Enqueue)}>
+            <div class="flex opacity-60"><Icon icon="lucide:list-end" width={14} /></div><div>{t("albums_view.enqueue")}</div>
+        </button>
+        <div class="h-px mx-2 my-1 bg-white/8"></div>
+        {#if self.is_liked(&m.track.path)}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-pink-400 hover:bg-pink-500/15 transition-colors"
+                    onclick={Msg::TrackMenu(TrackMenuMsg::Like)}>
+                <Icon icon="lucide:heart-off" width={14} /><div>{t("actions.like_remove")}</div>
+            </button>
+        {:else}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-pink-500/15 hover:text-pink-400 transition-colors"
+                    onclick={Msg::TrackMenu(TrackMenuMsg::Like)}>
+                <div class="flex opacity-60"><Icon icon="lucide:heart" width={14} /></div><div>{t("actions.like_add")}</div>
+            </button>
+        {/if}
+        <button role="menuitem" class="w-full flex items-center justify-between px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                onclick={Msg::TrackMenu(TrackMenuMsg::Sub)}>
+            <div class="flex items-center gap-2.5">
+                <div class="flex opacity-60"><Icon icon="lucide:list-plus" width={14} /></div><div>{t("menu.add_to_playlist")}</div>
+            </div>
+            {#if m.sub}<div class="flex opacity-40"><Icon icon="lucide:chevron-down" width={12} /></div>{:else}<div class="flex opacity-40"><Icon icon="lucide:chevron-right" width={12} /></div>{/if}
+        </button>
+        {#if m.sub}
+            <div class="border-t border-neutral-200/60 dark:border-white/6 bg-(--rg-hover)">
+                <button role="menuitem" class="w-full flex items-center gap-2.5 pl-6 pr-3 py-2 text-left text-[13px] cursor-pointer text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                        onclick={Msg::TrackMenu(TrackMenuMsg::NewPlaylist)}>
+                    <div class="flex opacity-60"><Icon icon="lucide:plus" width={13} /></div><div class="flex-1 truncate">{t("playlist.new")}</div>
+                </button>
+                {#each self.track_menu_playlists() as (i, pl) (pl.id)}
+                    <div class="h-px mx-2 bg-white/8"></div>
+                    <button role="menuitem" class="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-left cursor-pointer text-(--rg-tx2) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                            onclick={Msg::TrackMenu(TrackMenuMsg::AddTo(pl.id))}>
+                        <div class="flex opacity-70" style:color={hex(&pl.color)}><Icon icon={if pl.icon.is_empty() { "lucide:list-music" } else { pl.icon.as_str() }} width={13} /></div>
+                        <div class="truncate">{pl.name}</div>
+                        <div class="ml-auto text-[10px] text-(--rg-mu2)">{pl.track_count}</div>
+                    </button>
+                {/each}
+            </div>
+        {/if}
+        {#if m.nav}
+            <div class="h-px mx-2 my-1 bg-white/8"></div>
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                    onclick={Msg::TrackMenu(TrackMenuMsg::Track)}>
+                <div class="flex opacity-60"><Icon icon="lucide:music-4" width={14} /></div><div>{t("actions.view_track")}</div>
+            </button>
+            {#if m.track.album_id.is_some()}
+                <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                        onclick={Msg::TrackMenu(TrackMenuMsg::Album)}>
+                    <div class="flex opacity-60"><Icon icon="lucide:disc-album" width={14} /></div><div>{t("actions.view_album")}</div>
+                </button>
+            {/if}
+            {#if m.track.artist_id.is_some()}
+                <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                        onclick={Msg::TrackMenu(TrackMenuMsg::Artist)}>
+                    <div class="flex opacity-60"><Icon icon="lucide:mic-2" width={14} /></div><div>{t("actions.view_artist")}</div>
+                </button>
+            {/if}
+        {/if}
+        <div class="h-px mx-2 my-1 bg-white/8"></div>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] transition-colors"
+                onclick={Msg::TrackMenu(TrackMenuMsg::Tags)}>
+            <div class="flex opacity-60"><Icon icon="lucide:tag" width={14} /></div><div>{t("tags.edit")}</div>
+        </button>
+    </k-popover>
+{/if}

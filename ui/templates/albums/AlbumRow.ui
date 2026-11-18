@@ -1,0 +1,55 @@
+<button class="group relative w-full grid items-center gap-4 py-2 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors
+               grid-cols-[64px_minmax(0,1fr)_90px_90px_110px] max-[900px]:grid-cols-[56px_minmax(0,1fr)_80px_40px] hover:bg-(--rg-carte)"
+        onclick={album.open.clone()} oncontextmenu={{{ let (id, title, artist_name) = (album.id.clone(), album.title.clone(), album.artist.clone()); move |r: ContextMenuRequest| Msg::CollOpen(TrackMenuAt::from_request(&r), title.clone(), CollectionSource::Album { id: id.clone(), artist: Some(artist_name.clone()) }) }}}>
+    {#if i > 0}
+        <div class="absolute top-0 left-21 right-3 h-px bg-(--rg-line) group-hover:opacity-0"></div>
+    {/if}
+    <div class="relative w-16 h-16 max-[900px]:w-14 max-[900px]:h-14 rounded-lg overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.2)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.35)] bg-(--rg-s2)">
+        {#if album.cover.is_some()}
+            <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&album.cover)} alt="">
+        {:else}
+            <div class="absolute inset-0 flex items-center justify-center text-(--rg-mu2) shadow-[inset_0_0_0_1px_var(--rg-bd)] rounded-lg bg-(--rg-s2)">
+                <Icon icon="material-symbols:image-search-rounded" width={20} />
+            </div>
+        {/if}
+        <button class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                title={t("albums_view.play")} aria-label={t_with("albums_view.play_named", &[("name", &album.title)])} onclick={Msg::Albums(AlbumsMsg::Play(album.id.clone()))}>
+            <div class="w-8.5 h-8.5 rounded-full flex items-center justify-center bg-(--rg-g) text-(--rg-on-g)">
+                <Icon icon="material-symbols:play-arrow-rounded" width={22} />
+            </div>
+        </button>
+    </div>
+
+    <div class="min-w-0">
+        <div class="flex items-center gap-2 min-w-0 text-base font-semibold text-(--rg-tx)">
+            <div class="truncate">{album.title}</div>
+            {#if album.compilation}
+                <div class="shrink-0 px-1.75 py-0.5 rounded-[5px] border text-[10px] font-bold uppercase tracking-[0.06em] bg-(--rg-s2) border-(--rg-bd) text-(--rg-mu)">{t("albums_view.compilation")}</div>
+            {/if}
+        </div>
+        <div class="mt-0.75 flex min-w-0 text-sm text-(--rg-mu)">
+            <div class="truncate text-(--rg-tx2)">{album.artist}</div>
+            {#if !album.year.is_empty()}<div class="shrink-0 whitespace-pre">{" · "}{album.year}</div>{/if}
+        </div>
+    </div>
+
+    <div class="flex justify-end gap-1 text-[13px] tabular-nums whitespace-nowrap text-(--rg-mu)">
+        <div class="font-medium text-(--rg-tx2)">{album.tracks_n}</div><div>{album.tracks_label}</div>
+    </div>
+    <div class="text-right text-[13px] tabular-nums whitespace-nowrap text-(--rg-mu) max-[900px]:hidden">{album.duration}</div>
+
+    <div class="flex items-center justify-end gap-0.5">
+        <button class="w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100 max-[900px]:hidden"
+                title={t("albums_view.enqueue")} aria-label={t("albums_view.enqueue")} onclick={Msg::Albums(AlbumsMsg::Enqueue(album.id.clone()))}>
+            <Icon icon="material-symbols:queue-music-rounded" width={19} />
+        </button>
+        <button class="w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100 max-[900px]:hidden"
+                id={ElementId::named(&album.more_id())}
+                title={t("albums_view.more")} aria-label={t("albums_view.more")} onclick={Msg::CollOpen(TrackMenuAt::Named(album.more_id()), album.title.clone(), CollectionSource::Album { id: album.id.clone(), artist: Some(album.artist.clone()) })}>
+            <Icon icon="material-symbols:more-horiz" width={19} />
+        </button>
+        <div class="w-8.5 h-8.5 flex items-center justify-center text-(--rg-mu2) group-hover:text-(--rg-tx2)" title={t("albums_view.open")}>
+            <Icon icon="material-symbols:chevron-right-rounded" width={19} />
+        </div>
+    </div>
+</button>

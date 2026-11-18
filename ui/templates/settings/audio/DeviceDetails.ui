@@ -1,0 +1,146 @@
+{#if let Some(dv) = &self.device_view()}
+<div class="absolute inset-0 z-[60] flex items-center justify-center animate-[popin-fade-in_150ms_linear]" data-exit="popin-fade-out 150ms linear">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default" onclick={Msg::Device(DeviceMsg::Close)}></div>
+    <div class="relative flex flex-col w-full max-w-2xl mx-4 max-h-[88vh] rounded-2xl overflow-hidden text-(--rg-tx) bg-(--rg-carte) border border-(--rg-bd) dark:border-[#2a312d] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] animate-[popin-scale-in_180ms_cubic-bezier(0.33,1,0.68,1)]" data-exit="popin-scale-out 180ms cubic-bezier(0.33, 1, 0.68, 1)"
+         aria-label={dv.title.clone()}>
+        <div class="rg-popin-tete shrink-0 px-6 pt-5 pb-4 border-b border-(--rg-bd)">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5 min-w-0 text-[17px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">
+                    <div class="shrink-0 w-8 h-8 rounded-[9px] flex items-center justify-center bg-(--rg-gbg) text-(--rg-g) border border-(--rg-gbd)"><Icon icon={dv.icon} width={15} /></div>
+                    <div class="truncate">{dv.title.clone()}</div>
+                </div>
+                <button class="shrink-0 -mr-1.5 w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-hover) transition-colors"
+                        aria-label={t("common.close")} onclick={Msg::Device(DeviceMsg::Close)}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+            </div>
+            {#if dv.is_default || dv.is_hires || dv.manufacturer.is_some()}
+                <div class="mt-2 pl-10.5 flex items-center gap-1.5 flex-wrap">
+                    {#if dv.is_default}<SettingsBadge text={t("settings.audio_devices_default_badge")} tone={"green".to_string()} />{/if}
+                    {#if dv.is_hires}<SettingsBadge text={t("settings.audio_devices_rate_hires")} tone={"amber".to_string()} />{/if}
+                    {#if let Some(m) = &dv.manufacturer}<div class="text-[12px] text-(--rg-mu)">{m}</div>{/if}
+                </div>
+            {/if}
+        </div>
+
+        <div class="min-h-0 overflow-y-auto scrollbar-app px-6 py-5 flex flex-col gap-6">
+            <div>
+                <p class="m-0 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("settings.audio_devices_identity")}</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3.5 rounded-xl bg-(--rg-creux) border border-(--rg-bd)">
+                        <p class="m-0 mb-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-(--rg-mu2)">{t("settings.audio_devices_raw_name")}</p>
+                        <p class="m-0 text-xs font-mono text-(--rg-tx2)">{dv.raw_name.clone()}</p>
+                    </div>
+                    {#if let Some(m) = &dv.manufacturer}
+                        <div class="p-3.5 rounded-xl bg-(--rg-creux) border border-(--rg-bd)">
+                            <p class="m-0 mb-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-(--rg-mu2)">{t("settings.audio_devices_manufacturer")}</p>
+                            <p class="m-0 text-[13px] text-(--rg-tx)">{m}</p>
+                        </div>
+                    {/if}
+                    {#if let Some(dr) = &dv.driver}
+                        <div class="p-3.5 rounded-xl bg-(--rg-creux) border border-(--rg-bd)">
+                            <p class="m-0 mb-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-(--rg-mu2)">{t("settings.audio_devices_driver")}</p>
+                            <p class="m-0 text-[13px] text-(--rg-tx) truncate" title={dr.clone()}>{dr}</p>
+                        </div>
+                    {/if}
+                    <div class="p-3.5 rounded-xl bg-(--rg-creux) border border-(--rg-bd)">
+                        <p class="m-0 mb-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-(--rg-mu2)">{t("settings.audio_devices_channels")}</p>
+                        <p class="m-0 text-[13px] text-(--rg-tx)">{dv.channels.clone()}</p>
+                    </div>
+                </div>
+            </div>
+
+            {#if dv.banner == DeviceBanner::Probing}
+                <div class="flex items-center gap-2.5 px-3.5 py-3 rounded-xl border text-[13px] bg-(--rg-creux) border-(--rg-bd) text-(--rg-mu)">
+                    <div class="flex shrink-0 animate-spin"><Icon icon="lucide:loader-2" width={16} /></div><div>{t("settings.audio_devices_probing")}</div>
+                </div>
+            {:else if dv.banner == DeviceBanner::Probed}
+                <div class="flex gap-2.5 px-3.5 py-3 rounded-xl border text-[13px] leading-normal bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)">
+                    <div class="flex shrink-0 mt-0.5 text-(--rg-g)"><Icon icon="lucide:shield-check" width={16} /></div>
+                    <div class="min-w-0"><p class="m-0 font-semibold">{t("settings.audio_devices_probed_title")}</p><p class="m-0 mt-0.5 text-[12px] opacity-80">{t("settings.audio_devices_probed_hint")}</p></div>
+                </div>
+            {:else if dv.banner == DeviceBanner::NoExclusive}
+                <div class="flex gap-2.5 px-3.5 py-3 rounded-xl border text-[13px] leading-normal bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-amtx)">
+                    <div class="flex shrink-0 mt-0.5 text-(--rg-am)"><Icon icon="lucide:info" width={16} /></div>
+                    <div class="min-w-0"><p class="m-0 font-semibold">{t("settings.audio_devices_no_exclusive_title")}</p><p class="m-0 mt-0.5 text-[12px] opacity-80">{t("settings.audio_devices_no_exclusive_hint")}</p></div>
+                </div>
+            {:else if dv.banner == DeviceBanner::CpalOnly}
+                <div class="flex gap-2.5 px-3.5 py-3 rounded-xl border text-[13px] leading-normal bg-(--rg-creux) border-(--rg-bd) text-(--rg-mu)">
+                    <div class="flex shrink-0 mt-0.5"><Icon icon="lucide:info" width={16} /></div><div class="min-w-0">{t("settings.audio_devices_cpal_only")}</div>
+                </div>
+            {/if}
+            {#if let Some(e) = &device_failed(&dv.banner)}
+                <div class="flex gap-2.5 px-3.5 py-3 rounded-xl border text-[13px] leading-normal bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-amtx)">
+                    <div class="flex shrink-0 mt-0.5 text-(--rg-am)"><Icon icon="lucide:info" width={16} /></div>
+                    <div class="min-w-0"><p class="m-0 font-semibold">{t("settings.audio_devices_probe_failed")}</p><p class="m-0 mt-0.5 text-[12px] opacity-80">{e}</p></div>
+                </div>
+            {/if}
+
+            {#if let Some(mx) = &dv.mix}
+                <div>
+                    <p class="m-0 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("settings.audio_devices_windows_mix")}</p>
+                    <div class="p-3.5 rounded-xl bg-(--rg-creux) border border-(--rg-bd)">
+                        <p class="m-0 text-[13px] font-mono tabular-nums text-(--rg-tx)">{mx}</p>
+                        <p class="m-0 mt-1 text-[12px] text-(--rg-mu)">{t("settings.audio_devices_windows_mix_hint")}</p>
+                    </div>
+                </div>
+            {/if}
+
+            {#if !dv.formats.is_empty()}
+                <div>
+                    <p class="m-0 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{dv.formats_title.clone()}</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        {#each dv.formats as (i, pill) (i)}{@include "TonePill.ui"}{/each}
+                    </div>
+                </div>
+            {/if}
+
+            {#if !dv.rate_groups.is_empty()}
+                <div>
+                    <p class="m-0 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{dv.rates_title.clone()}</p>
+                    <div class="flex flex-col gap-2.5">
+                        {#each dv.rate_groups as (g, grp) (g)}
+                            <div>
+                                <p class="m-0 mb-1.5 text-[12px] font-semibold text-(--rg-tx2)">{grp.0.clone()}</p>
+                                <div class="flex flex-wrap gap-1.5">
+                                    {#each grp.1 as (i, pill) (i)}{@include "TonePill.ui"}{/each}
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+
+            {#if let Some(b) = &dv.buffer}
+                <div>
+                    <p class="m-0 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("settings.audio_devices_buffer")}</p>
+                    <div class="p-3.5 rounded-xl bg-(--rg-creux) border border-(--rg-bd)">
+                        <p class="m-0 text-[13px] font-mono tabular-nums text-(--rg-tx)">{b}</p>
+                        <p class="m-0 mt-1 text-[12px] text-(--rg-mu)">{t("settings.audio_devices_buffer_hint")}</p>
+                    </div>
+                </div>
+            {/if}
+        </div>
+
+        <div class="shrink-0 flex items-center justify-between gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+            {#if dv.active}
+                <div class="flex items-center gap-1.5 text-[13px] font-semibold text-(--rg-gtx)">
+                    <div class="flex text-(--rg-g)"><Icon icon="lucide:check-circle-2" width={16} /></div><div>{t("settings.audio_devices_active")}</div>
+                </div>
+            {:else}
+                <div class="min-w-0 text-[12.5px] text-(--rg-mu)">{t("settings.audio_devices_select_hint")}</div>
+            {/if}
+            <div class="shrink-0 flex items-center gap-2">
+                <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                        onclick={Msg::Device(DeviceMsg::Close)}><div>{t("common.close")}</div></button>
+                {#if !dv.active}
+                    <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition bg-(--rg-g) text-(--rg-on-g) hover:brightness-110"
+                            onclick={Msg::Device(DeviceMsg::Select)}>
+                        <Icon icon="lucide:check" width={17} /><div>{t("settings.audio_devices_select_action")}</div>
+                    </button>
+                {/if}
+            </div>
+        </div>
+    </div>
+</div>
+{/if}

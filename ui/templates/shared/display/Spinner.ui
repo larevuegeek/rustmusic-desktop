@@ -1,0 +1,1 @@
+<div class="flex animate-spin"><Icon icon="material-symbols:progress-activity" width={self.width} /></div>

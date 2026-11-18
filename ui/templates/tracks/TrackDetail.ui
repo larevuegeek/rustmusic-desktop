@@ -1,0 +1,138 @@
+<div class="h-full">
+{#each self.views.track.iter() as page (page.id.as_str())}
+{#if page.loading_state && page.track.is_none()}
+    <div class="flex items-center justify-center h-full text-(--rg-mu)"><Spinner width={26.} /></div>
+{:else if page.track.is_none()}
+    <div class="flex flex-col items-center justify-center gap-3 h-full text-(--rg-mu)">
+        <Icon icon="material-symbols:music-note-rounded" width={34} />
+        <p class="text-sm m-0">{t("track_view.error")}</p>
+        <button class="text-sm font-semibold text-(--rg-gtx) hover:underline cursor-pointer" onclick={Msg::Go(Route::Library(Section::Tracks))}><div>{t("track_view.back")}</div></button>
+    </div>
+{:else}
+{#if let Some(tv) = self.track_view()}
+<div class="relative h-full overflow-y-auto scrollbar-app">
+    <div class="album-lueur absolute inset-x-0 top-0 h-115 pointer-events-none" style:--h={tv.tint.0} style:--s={tv.tint.1}></div>
+
+    <div class="relative max-w-350 px-8 pb-24" style:margin_top={-self.export_offset}>
+        <div class="z-20 h-15 -mx-8 px-8 flex items-center gap-3 border-b border-transparent">
+            <button class="h-8.5 pl-2 pr-3 shrink-0 flex items-center gap-1.5 rounded-[9px] text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                    onclick={Msg::Go(Route::Library(Section::Tracks))}>
+                <Icon icon="material-symbols:arrow-back-rounded" width={20} />
+                <div>{t("track_view.back")}</div>
+            </button>
+            <div class="flex-1"></div>
+            <div class="flex gap-0.5">
+                {#each [(tv.prev.clone(), "material-symbols:chevron-left-rounded", "track_view.prev"), (tv.next.clone(), "material-symbols:chevron-right-rounded", "track_view.next")] as o (o.2)}
+                    {#if o.0.is_some()}
+                        <button class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                                title={t(o.2)} aria-label={t(o.2)} onclick={Msg::Go(o.0.clone().unwrap_or(Route::Home))}>
+                            <Icon icon={o.1} width={22} />
+                        </button>
+                    {:else}
+                        <div class="w-8 h-8 flex items-center justify-center rounded-lg text-(--rg-mu) opacity-30" title={t(o.2)}><Icon icon={o.1} width={22} /></div>
+                    {/if}
+                {/each}
+            </div>
+        </div>
+
+        <div class="relative flex flex-wrap items-end gap-8 pt-3 pb-7">
+            <div class="relative w-58 aspect-square shrink-0 rounded-[14px] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
+                {#if tv.cover.is_some()}
+                    <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&tv.cover)} alt="">
+                {:else}
+                    <div class="w-full h-full flex items-center justify-center text-(--rg-mu2) shadow-[inset_0_0_0_1px_var(--rg-bd)] bg-(--rg-s2)"><Icon icon="material-symbols:music-note-rounded" width={64} /></div>
+                {/if}
+                <div class="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/6 pointer-events-none"></div>
+            </div>
+
+            <div class="flex-[1_1_320px] min-w-0 flex flex-col gap-2.5">
+                <div class="flex flex-wrap items-center gap-2.5 text-xs font-bold tracking-widest uppercase text-(--rg-tx2)">
+                    <div>{t("track_view.kicker")}</div>
+                    {#if let Some(q) = &tv.quality}<QualityBadge tier={q.0} text={q.1.clone()} />{/if}
+                </div>
+                {#if tv.title_long}
+                    <h1 class="m-0 font-extrabold leading-[1.12] tracking-[-0.03em] line-clamp-3 text-(--rg-tx) text-[44px]" title={tv.title.as_str()}>{tv.title}</h1>
+                {:else}
+                    <h1 class="m-0 font-extrabold leading-[1.12] tracking-[-0.03em] line-clamp-3 text-(--rg-tx) text-[56px]" title={tv.title.as_str()}>{tv.title}</h1>
+                {/if}
+
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[15px] text-(--rg-mu)">
+                    <div class="flex flex-wrap items-center gap-x-1">
+                        {#each tv.credits as (i, c) (i)}
+                            {#if i > 0}<div class="text-(--rg-mu2)">,</div>{/if}
+                            {#if let Some(route) = &c.1}
+                                <button class="font-bold text-(--rg-tx) hover:underline underline-offset-2 cursor-pointer" onclick={Msg::Go(route.clone())}><div>{c.0}</div></button>
+                            {/if}
+                            {#if c.1.is_none()}<div class="font-bold text-(--rg-tx)">{c.0}</div>{/if}
+                        {/each}
+                    </div>
+                    {#if let Some(al) = &tv.album}
+                        <div class="text-(--rg-mu2)">·</div>
+                        {#if let Some(route) = &al.1}
+                            <button class="font-bold text-(--rg-tx) hover:underline underline-offset-2 cursor-pointer" onclick={Msg::Go(route.clone())}><div>{al.0}</div></button>
+                        {/if}
+                        {#if al.1.is_none()}<div>{al.0}</div>{/if}
+                    {/if}
+                    {#if let Some(y) = &tv.year}
+                        <div class="text-(--rg-mu2)">·</div>
+                        <button class="hover:text-(--rg-tx) hover:underline underline-offset-2 cursor-pointer" title={t_with("album_view.year_title", &[("y", &y.0)])}
+                                onclick={Msg::Go(y.1.clone())}><div>{y.0}</div></button>
+                    {/if}
+                    {#if let Some(d) = &tv.duration}
+                        <div class="text-(--rg-mu2)">·</div>
+                        <div class="tabular-nums">{d}</div>
+                    {/if}
+                </div>
+
+                <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-(--rg-mu)">
+                    {#if let Some(n) = &tv.number}
+                        <div class="flex gap-1 whitespace-nowrap">
+                            <div>{t("track_view.track_label")}</div>
+                            <div class="font-semibold text-(--rg-tx2)">{n.0}</div>
+                            {#if let Some(total) = &n.1}<div>{total}</div>{/if}
+                        </div>
+                    {/if}
+                    <div class="whitespace-nowrap">{tv.listen}</div>
+                    {#if let Some(d) = &tv.added}
+                        <div class="flex gap-1 whitespace-nowrap"><div>{t("track_view.added")}</div><div class="font-semibold text-(--rg-tx2)">{d}</div></div>
+                    {/if}
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5 mt-2">
+                    <PlayButton large label={t("track_view.play")} onclick={Msg::Track(TrackMsg::Play)} />
+                    <RoundButton icon="material-symbols:queue-music-rounded" title={t("track_view.play_next")} onclick={Msg::Track(TrackMsg::PlayNext)} />
+                    {#if tv.liked}
+                        <RoundButton icon="material-symbols:favorite-rounded" pressed title={t("tracks_view.like")} onclick={Msg::Track(TrackMsg::Like)} />
+                    {:else}
+                        <RoundButton icon="material-symbols:favorite-outline-rounded" title={t("tracks_view.like")} onclick={Msg::Track(TrackMsg::Like)} />
+                    {/if}
+                    <div class="h-12 px-3.5 flex items-center rounded-full border border-(--rg-bd2) bg-black/25" title={t("track_view.rate")}>
+                        <div class="flex items-center gap-0.5">
+                            {#each [1., 2., 3., 4., 5.] as (i, star) (i)}
+                                <div class="relative shrink-0 w-5.5 h-5.5 transition-transform duration-100 hover:scale-110">
+                                    <div class="absolute inset-0 text-neutral-600"><Icon icon="lucide:star" width={22} /></div>
+                                    {#if tv.rating >= star}
+                                        <div class="absolute inset-y-0 left-0 w-5.5 overflow-hidden pointer-events-none text-amber-700 dark:text-[#e8c46a]"><Icon icon="mynaui:star-solid" width={22} /></div>
+                                    {:else if tv.rating >= star - 0.5}
+                                        <div class="absolute inset-y-0 left-0 w-2.75 overflow-hidden pointer-events-none text-amber-700 dark:text-[#e8c46a]"><Icon icon="mynaui:star-solid" width={22} /></div>
+                                    {/if}
+                                    <button class="absolute inset-y-0 left-0 w-1/2 cursor-pointer" aria-label={t_with("actions.stars_n", &[("n", &(star - 0.5).to_string())])}
+                                            onclick={Msg::Track(TrackMsg::Rate(star - 0.5))}><div class="w-full h-full"></div></button>
+                                    <button class="absolute inset-y-0 right-0 w-1/2 cursor-pointer" aria-label={t_with("actions.stars_n", &[("n", &star.to_string())])}
+                                            onclick={Msg::Track(TrackMsg::Rate(star))}><div class="w-full h-full"></div></button>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} onclick={Msg::Noop} />
+                </div>
+            </div>
+        </div>
+
+        {@include "TrackCards.ui"}
+    </div>
+</div>
+{/if}
+{/if}
+{/each}
+</div>

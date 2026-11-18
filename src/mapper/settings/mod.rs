@@ -1,0 +1,26 @@
+pub(crate) mod settings_appearance;
+pub(crate) mod settings_audio;
+pub(crate) mod settings_audio_devices;
+pub(crate) mod settings_builders;
+pub(crate) mod settings_device_details;
+pub(crate) mod settings_general;
+pub(crate) mod settings_help;
+pub(crate) mod settings_network;
+pub(crate) mod settings_online;
+pub(crate) mod settings_page;
+pub(crate) mod settings_remote;
+pub(crate) mod settings_scrobble;
+pub(crate) mod settings_servers;
+pub(crate) mod settings_shortcuts;
+pub(crate) mod settings_storage;
+
+pub(crate) use settings_appearance::*;
+pub(crate) use settings_audio::*;
+pub(crate) use settings_audio_devices::*;
+pub(crate) use settings_device_details::*;
+pub(crate) use settings_help::*;
+pub(crate) use settings_page::*;
+pub(crate) use settings_remote::*;
+pub(crate) use settings_scrobble::*;
+pub(crate) use settings_servers::*;
+pub(crate) use settings_shortcuts::*;

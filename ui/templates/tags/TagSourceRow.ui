@@ -1,0 +1,38 @@
+<div class="border-(--rg-line)" class:border-t={i > 0 || so.cover.is_some()}>
+    {#if row.check != 0}
+        <div class="grid grid-cols-[44px_150px_minmax(0,1fr)_20px_minmax(0,1fr)_150px_36px] items-center gap-x-2.5 pl-1 pr-2.5 min-h-14.5 cursor-pointer bg-[rgba(34,197,94,0.05)] hover:bg-(--rg-hover)"
+             onclick={Msg::Source(SourceMsg::ToggleField(row.field.clone()))}>
+            {@include "TagSourceRowBody.ui"}
+        </div>
+    {:else}
+        <div class="grid grid-cols-[44px_150px_minmax(0,1fr)_20px_minmax(0,1fr)_150px_36px] items-center gap-x-2.5 pl-1 pr-2.5 min-h-14.5 cursor-pointer hover:bg-(--rg-hover)"
+             onclick={Msg::Source(SourceMsg::ToggleField(row.field.clone()))}>
+            {@include "TagSourceRowBody.ui"}
+        </div>
+    {/if}
+    {#if row.open}
+        <div class="pl-14.5 pr-2.5 pt-1 pb-3 bg-(--rg-creux)">
+            {#each row.details as (k, dt) (k)}
+                {#if let Some(dk) = &dt.key}
+                    <div class="grid grid-cols-[20px_34px_minmax(0,1fr)_20px_minmax(0,1fr)] gap-2.5 items-center min-h-9 px-2 rounded-lg text-[13px] cursor-pointer hover:bg-(--rg-hover)"
+                         onclick={Msg::Source(SourceMsg::ToggleCell(dk.clone()))}>
+                        {@const ck = if dt.on { 1u8 } else { 0 }}{@include "TagSourceBox.ui"}
+                        <div class="text-right tabular-nums text-(--rg-mu2)">{dt.number.clone()}</div>
+                        <div class="truncate text-(--rg-mu)">{dt.from.clone()}</div>
+                        <div class="flex text-(--rg-mu2)"><Icon icon="material-symbols:arrow-forward-rounded" width={15} /></div>
+                        {#if dt.on}<div class="truncate text-(--rg-gtx)">{dt.to.clone()}</div>{:else}<div class="truncate text-(--rg-tx)">{dt.to.clone()}</div>{/if}
+                    </div>
+                {/if}
+                {#if dt.key.is_none()}
+                    <div class="grid grid-cols-[20px_34px_minmax(0,1fr)_20px_minmax(0,1fr)] gap-2.5 items-center min-h-9 px-2 rounded-lg text-[13px] opacity-45">
+                        <div></div>
+                        <div class="text-right tabular-nums text-(--rg-mu2)">{dt.number.clone()}</div>
+                        <div class="truncate text-(--rg-mu)">{dt.from.clone()}</div>
+                        <div class="flex text-(--rg-mu2)"><Icon icon="material-symbols:arrow-forward-rounded" width={15} /></div>
+                        <div class="truncate text-(--rg-tx)">{dt.to.clone()}</div>
+                    </div>
+                {/if}
+            {/each}
+        </div>
+    {/if}
+</div>

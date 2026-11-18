@@ -1,0 +1,127 @@
+<div class="shrink-0 flex items-center gap-1 px-5 py-2 border-y border-(--rg-bd) bg-(--rg-carte)/40">
+    {#if wv.selected > 0}
+        <div class="mr-1.5 flex gap-1 text-[13px] whitespace-nowrap text-(--rg-mu)">
+            <div>{wv.scope_before}</div><div class="font-bold text-(--rg-tx)">{wv.selected}</div><div>{wv.scope_after}</div>
+        </div>
+    {:else}
+        <div class="mr-1.5 text-[13px] whitespace-nowrap text-(--rg-mu)">{t("workshop.no_selection")}</div>
+    {/if}
+    <div class="w-px h-5 mx-1 bg-(--rg-bd2)"></div>
+
+    {#each [("tags", "workshop.menu_tags", "material-symbols:sell-outline-rounded"), ("files", "workshop.menu_files", "material-symbols:folder-open-outline-rounded")] as m (m.0)}
+        <div class="relative">
+            {#if wv.menu.as_deref() == Some(m.0)}
+                <button class="h-9 px-2.5 rounded-[9px] flex items-center gap-2 text-[13.5px] font-semibold whitespace-nowrap cursor-pointer transition-colors bg-(--rg-carte) text-(--rg-tx)"
+                        onclick={Msg::Tags(TagsMsg::Menu(None))}>
+                    <div class="flex text-(--rg-mu)"><Icon icon={m.2} width={19} /></div><div>{t(m.1)}</div>
+                    <div class="flex -ml-1 text-(--rg-mu) rotate-180"><Icon icon="material-symbols:expand-more-rounded" width={18} /></div>
+                </button>
+                <div class="absolute left-0 top-full mt-2 z-30 w-84 p-1.5 rounded-xl border text-(--rg-tx) bg-(--rg-s2) border-(--rg-bd) dark:border-[#2a312d] shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)]">
+                    {#if m.0 == "tags"}
+                        {#each [("material-symbols:cloud-download-outline-rounded", "workshop.complete_online", "workshop.desc_online", 0u8), ("material-symbols:auto-fix-normal-outline-rounded", "clean.short", "workshop.desc_clean", 0u8), ("material-symbols:format-list-numbered-rounded", "tags.number_tracks", "workshop.desc_number", 1u8), ("material-symbols:image-outline-rounded", "workshop.cover_action", "workshop.desc_cover", 0u8)] as a (a.1)}
+                            {@include "TagWorkshopMenuAction.ui"}
+                        {/each}
+                    {:else}
+                        {#each [("material-symbols:drive-file-rename-outline-outline-rounded", "workshop.rename_files", "workshop.desc_rename", 2u8), ("material-symbols:history-rounded", "history.title", "workshop.desc_history", 2u8)] as a (a.1)}
+                            {@include "TagWorkshopMenuAction.ui"}
+                        {/each}
+                    {/if}
+                </div>
+            {:else}
+                <button class="h-9 px-2.5 rounded-[9px] flex items-center gap-2 text-[13.5px] font-semibold whitespace-nowrap cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-carte) hover:text-(--rg-tx)"
+                        onclick={Msg::Tags(TagsMsg::Menu(Some(m.0.to_string())))}>
+                    <div class="flex text-(--rg-mu)"><Icon icon={m.2} width={19} /></div><div>{t(m.1)}</div>
+                    <div class="flex -ml-1 text-(--rg-mu)"><Icon icon="material-symbols:expand-more-rounded" width={18} /></div>
+                </button>
+            {/if}
+        </div>
+    {/each}
+    <div class="flex-1"></div>
+
+    <div class="relative">
+        {#if wv.issues.is_empty()}
+            <button class="h-8.5 pl-2.5 pr-3 rounded-full border flex items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors border-(--rg-bd) text-(--rg-gtx) hover:border-(--rg-bd2)"
+                    onclick={Msg::Tags(TagsMsg::Menu(Some("issues".into())))}>
+                <Icon icon="material-symbols:done-all-rounded" width={17} /><div>{t("workshop.consistent")}</div>
+            </button>
+        {:else if wv.only_issues || wv.menu.as_deref() == Some("issues")}
+            <button class="h-8.5 pl-2.5 pr-3 rounded-full border flex items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors bg-(--rg-ambg) border-(--rg-ambd) text-(--rg-am)"
+                    onclick={Msg::Tags(TagsMsg::Menu(Some("issues".into())))}>
+                <Icon icon="material-symbols:warning-outline-rounded" width={17} />
+                <div>{wv.issues_label}</div>
+                {#if wv.only_issues}<Icon icon="material-symbols:filter-alt" width={15} />{/if}
+            </button>
+        {:else}
+            <button class="h-8.5 pl-2.5 pr-3 rounded-full border flex items-center gap-1.5 text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors border-(--rg-ambd) text-(--rg-am) hover:bg-(--rg-ambg)"
+                    onclick={Msg::Tags(TagsMsg::Menu(Some("issues".into())))}>
+                <Icon icon="material-symbols:warning-outline-rounded" width={17} />
+                <div>{wv.issues_label}</div>
+            </button>
+        {/if}
+        {#if wv.menu.as_deref() == Some("issues")}
+            <div class="rg-atelier-menu absolute right-0 top-full mt-1.5 z-30 w-90 p-2 rounded-xl">
+                {#if wv.issues.is_empty()}
+                    {#if wv.changes > 0}<p class="m-0 px-2 py-2.5 text-[13px] text-(--rg-mu)">{t("workshop.remember_write")}</p>{:else}<p class="m-0 px-2 py-2.5 text-[13px] text-(--rg-mu)">{t("workshop.no_issue")}</p>{/if}
+                {:else}
+                    {#each wv.issues as issue (issue.0)}
+                        <div class="flex items-center gap-2 px-2 py-2 rounded-lg text-[13.5px] text-(--rg-tx2)">
+                            <div class="flex-1 min-w-0">{issue_label(issue.0)}</div>
+                            <div class="font-bold tabular-nums text-(--rg-tx)">{issue.1}</div>
+                            {#if issue.2 == "fill_album_artist"}
+                                <button class="h-7 px-2.5 rounded-md flex items-center gap-1 text-[12.5px] font-bold cursor-pointer text-(--rg-gtx) hover:bg-(--rg-gbg)" onclick={Msg::Tags(TagsMsg::FillAlbumArtist)}>
+                                    <Icon icon="material-symbols:auto-fix-normal-outline-rounded" width={15} /><div>{t("workshop.fix_fill_album_artist")}</div>
+                                </button>
+                            {:else if issue.2 == "online"}
+                                <button class="h-7 px-2.5 rounded-md flex items-center gap-1 text-[12.5px] font-bold cursor-pointer text-(--rg-gtx) hover:bg-(--rg-gbg)" onclick={Msg::Source(SourceMsg::Open)}>
+                                    <Icon icon="material-symbols:cloud-download-outline-rounded" width={15} /><div>{t("workshop.fix_online")}</div>
+                                </button>
+                            {:else}
+                                <button class="h-7 px-2.5 rounded-md flex items-center gap-1 text-[12.5px] font-bold cursor-pointer text-(--rg-gtx) hover:bg-(--rg-gbg)" onclick={Msg::Clean(CleanMsg::Open)}>
+                                    <Icon icon="material-symbols:auto-fix-normal-outline-rounded" width={15} /><div>{t("workshop.fix_clean")}</div>
+                                </button>
+                            {/if}
+                        </div>
+                    {/each}
+                    <div class="my-1.5 h-px bg-(--rg-bd)"></div>
+                    <button class="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13.5px] text-left cursor-pointer hover:bg-(--rg-s2)" onclick={Msg::Tags(TagsMsg::OnlyIssues)}>
+                        {#if wv.only_issues}
+                            <div class="w-4.5 h-4.5 rounded-[5px] border-2 flex items-center justify-center bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"><Icon icon="material-symbols:check-rounded" width={14} /></div>
+                        {:else}
+                            <div class="w-4.5 h-4.5 rounded-[5px] border-2 border-(--rg-bd2)"></div>
+                        {/if}
+                        <div>{t_with("workshop.show_only_issues", &[("n", &tags_tracks_label(wv.issue_count))])}</div>
+                    </button>
+                {/if}
+            </div>
+        {/if}
+    </div>
+
+    <div class="relative">
+        <button class="h-9 px-2.5 rounded-[9px] flex items-center gap-2 text-[13.5px] font-semibold whitespace-nowrap cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-carte) hover:text-(--rg-tx)"
+                title={t("workshop.columns")} aria-label={t("workshop.columns")} onclick={Msg::Tags(TagsMsg::Menu(Some("columns".into())))}>
+            <div class="flex text-(--rg-mu)"><Icon icon="material-symbols:view-column-outline-rounded" width={19} /></div><div>{t("workshop.columns")}</div>
+        </button>
+        {#if wv.menu.as_deref() == Some("columns")}
+            <div class="rg-atelier-menu absolute right-0 top-full mt-1.5 z-30 w-58 p-1.5 rounded-xl">
+                <p class="m-0 px-2.5 pt-2 pb-1.5 text-[11px] font-bold tracking-widest uppercase text-(--rg-mu)">{t("workshop.shown_columns")}</p>
+                {#each wv.all_columns as col (col.0)}
+                    {#if col.0 == 1}
+                        <div class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] opacity-40">
+                            <div class="w-4.5 h-4.5 rounded-[5px] border-2 flex items-center justify-center bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"><Icon icon="material-symbols:check-rounded" width={14} /></div>
+                            <div>{col.1}</div>
+                        </div>
+                    {:else}
+                        <button class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-left cursor-pointer transition-colors hover:bg-(--rg-s2)" onclick={Msg::Tags(TagsMsg::Column(col.0))}>
+                            {#if col.2}
+                                <div class="w-4.5 h-4.5 rounded-[5px] border-2 flex items-center justify-center bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"><Icon icon="material-symbols:check-rounded" width={14} /></div>
+                            {:else}
+                                <div class="w-4.5 h-4.5 rounded-[5px] border-2 border-(--rg-bd2)"></div>
+                            {/if}
+                            <div>{col.1}</div>
+                        </button>
+                    {/if}
+                {/each}
+            </div>
+        {/if}
+    </div>
+</div>

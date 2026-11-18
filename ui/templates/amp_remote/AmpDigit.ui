@@ -1,0 +1,7 @@
+<div class="amp-seg-off absolute top-0 left-[14%] right-[14%] h-[11%] rounded-full" class:amp-seg-lit={d.segments[0] && r.lit} class:amp-seg-muted={d.segments[0] && !r.lit}></div>
+<div class="amp-seg-off absolute top-[5%] right-0 w-[19%] h-[42%] rounded-full" class:amp-seg-lit={d.segments[1] && r.lit} class:amp-seg-muted={d.segments[1] && !r.lit}></div>
+<div class="amp-seg-off absolute bottom-[5%] right-0 w-[19%] h-[42%] rounded-full" class:amp-seg-lit={d.segments[2] && r.lit} class:amp-seg-muted={d.segments[2] && !r.lit}></div>
+<div class="amp-seg-off absolute bottom-0 left-[14%] right-[14%] h-[11%] rounded-full" class:amp-seg-lit={d.segments[3] && r.lit} class:amp-seg-muted={d.segments[3] && !r.lit}></div>
+<div class="amp-seg-off absolute bottom-[5%] left-0 w-[19%] h-[42%] rounded-full" class:amp-seg-lit={d.segments[4] && r.lit} class:amp-seg-muted={d.segments[4] && !r.lit}></div>
+<div class="amp-seg-off absolute top-[5%] left-0 w-[19%] h-[42%] rounded-full" class:amp-seg-lit={d.segments[5] && r.lit} class:amp-seg-muted={d.segments[5] && !r.lit}></div>
+<div class="amp-seg-off absolute top-[44.5%] left-[14%] right-[14%] h-[11%] rounded-full" class:amp-seg-lit={d.segments[6] && r.lit} class:amp-seg-muted={d.segments[6] && !r.lit}></div>

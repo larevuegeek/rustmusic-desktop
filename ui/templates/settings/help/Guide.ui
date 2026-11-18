@@ -1,0 +1,128 @@
+{#if r.custom() == "guide-path"}
+    <div>
+        <div class="flex items-start justify-between gap-5 px-6 pt-5">
+            <p class="m-0 max-w-[400px] text-sm leading-normal text-(--rg-tx2)">{t("guide.path_intro")}</p>
+            <SegmentedControl label={t("guide.modes_title")} options={vec![
+                Choice { label: t("glossary.shared.name"), icon: String::new(), active: !self.guide_exclusive(), msg: Msg::Settings(SettingsMsg::GuideMode(false)), icon_only: false },
+                Choice { label: t("glossary.exclusive.name"), icon: String::new(), active: self.guide_exclusive(), msg: Msg::Settings(SettingsMsg::GuideMode(true)), icon_only: false },
+            ]} />
+        </div>
+        <div class="relative grid grid-cols-5 px-6 pt-7">
+            {#if self.guide_exclusive()}
+                <div class="absolute left-[10%] right-[10%] mx-3 top-[55px] h-0.5 rounded-full transition-colors duration-300 bg-(--rg-g)"></div>
+            {:else}
+                <div class="absolute left-[10%] right-[10%] mx-3 top-[55px] h-0.5 rounded-full transition-colors duration-300 bg-(--rg-bd2)"></div>
+            {/if}
+            {#each self.guide_steps() as e (e.index)}
+                <button class="relative flex flex-col gap-2 px-1 cursor-pointer group" aria-pressed={e.selected} onclick={Msg::Settings(SettingsMsg::GuideStep(e.index))}>
+                    <div class="w-full flex justify-center">
+                        {#if e.selected && e.bypassed}
+                            <div class="rg-icone-teinte w-14 h-14 flex items-center justify-center rounded-2xl transition-all duration-300 ring-2 ring-(--rg-g) ring-offset-[3px] ring-offset-(--rg-carte) opacity-30 grayscale" style:--h={e.hue}><Icon icon={e.icon} width={26} /></div>
+                        {:else if e.selected}
+                            <div class="rg-icone-teinte w-14 h-14 flex items-center justify-center rounded-2xl transition-all duration-300 ring-2 ring-(--rg-g) ring-offset-[3px] ring-offset-(--rg-carte)" style:--h={e.hue}><Icon icon={e.icon} width={26} /></div>
+                        {:else if e.bypassed}
+                            <div class="rg-icone-teinte w-14 h-14 flex items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-105 opacity-30 grayscale" style:--h={e.hue}><Icon icon={e.icon} width={26} /></div>
+                        {:else}
+                            <div class="rg-icone-teinte w-14 h-14 flex items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-105" style:--h={e.hue}><Icon icon={e.icon} width={26} /></div>
+                        {/if}
+                    </div>
+                    {#if e.bypassed}
+                        <div class="w-full text-center text-[13px] font-semibold leading-tight text-(--rg-mu2) line-through">{e.title()}</div>
+                        <div class="w-full text-center text-[11.5px] leading-tight font-semibold text-(--rg-gtx)">{t("guide.step_mixer_bypassed")}</div>
+                    {:else}
+                        <div class="w-full text-center text-[13px] font-semibold leading-tight text-(--rg-tx)">{e.title()}</div>
+                        <div class="w-full text-center text-[11.5px] leading-tight text-(--rg-mu)">{e.short()}</div>
+                    {/if}
+                </button>
+            {/each}
+        </div>
+        {@const chosen = self.guide_step()}
+        <div class="relative mx-6 mt-4 mb-5 flex gap-3.5 px-5 py-4 rounded-xl border border-(--rg-bd) bg-(--rg-creux)">
+            <div class="absolute -top-[7px] -ml-1.5 w-3 h-3 rotate-45 border-l border-t border-(--rg-bd) bg-(--rg-creux)"
+                 style:left={Length::Percent((chosen.0.index as f32 + 0.5) * 20.0)}></div>
+            <div class="rg-icone-teinte shrink-0 w-9 h-9 flex items-center justify-center rounded-xl" style:--h={chosen.0.hue}><Icon icon={chosen.0.icon} width={19} /></div>
+            <div class="min-w-0 flex-1">
+                <div class="flex items-baseline gap-1.5 leading-tight">
+                    <div class="font-mono text-xs text-(--rg-mu)">{chosen.0.number()}</div>
+                    <p class="m-0 text-[15px] font-bold text-(--rg-tx)">{chosen.0.title()}</p>
+                </div>
+                <p class="m-0 mt-1.5 text-sm leading-[1.55] text-(--rg-tx2)">{@const text = &chosen.1}{@include "../SettingsHelpText.ui"}</p>
+            </div>
+        </div>
+        <div class="flex items-center flex-wrap gap-x-3 gap-y-2 px-6 py-3.5 border-t border-(--rg-line) bg-(--rg-s2)/50">
+            <div class="text-[11px] font-bold uppercase tracking-[0.08em] text-(--rg-mu)">{t("guide.result")}</div>
+            {#if self.guide_exclusive()}
+                <div class="text-[13px] text-(--rg-tx2)">{t("guide.result_exclusive")}</div>
+            {:else}
+                <div class="text-[13px] text-(--rg-tx2)">{t("guide.result_shared")}</div>
+            {/if}
+            <div class="flex gap-1.5 ml-auto">
+                {#each self.guide_result() as p (p)}<PipelineBadge mode={p.to_string()} />{/each}
+            </div>
+        </div>
+    </div>
+{:else if r.custom() == "guide-modes"}
+    <div class="flex flex-col gap-4 p-4">
+        <div class="grid grid-cols-2 gap-3">
+            {#each guide_modes() as m (m.id)}
+                <div class="min-w-0 flex flex-col px-5 pt-4.5 pb-5 rounded-xl border border-(--rg-bd) bg-(--rg-creux)">
+                    <div class="flex items-center gap-3">
+                        <div class="rg-icone-teinte shrink-0 w-10 h-10 flex items-center justify-center rounded-xl" style:--h={m.hue}><Icon icon={m.icon} width={21} /></div>
+                        <p class="m-0 text-base font-bold leading-tight text-(--rg-tx)">{m.name}</p>
+                    </div>
+                    <p class="m-0 mt-3 text-[13.5px] leading-normal text-(--rg-tx2)">{m.for_whom}</p>
+                    <div class="mt-3.5 flex flex-col gap-2 text-[13px] leading-snug">
+                        {#each m.pros as c (c.as_str())}
+                            <div class="flex gap-2 text-(--rg-tx)">
+                                <div class="shrink-0 flex text-(--rg-g)"><Icon icon="material-symbols:check-circle-rounded" width={17} /></div>
+                                <div class="flex-1 min-w-0">{c}</div>
+                            </div>
+                        {/each}
+                        {#each m.cons as c (c.as_str())}
+                            <div class="flex gap-2 text-(--rg-mu)">
+                                <div class="shrink-0 flex text-(--rg-am)"><Icon icon="material-symbols:do-not-disturb-on-outline-rounded" width={17} /></div>
+                                <div class="flex-1 min-w-0">{c}</div>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/each}
+        </div>
+        <button class="self-start flex items-center gap-1 px-1 text-[13px] font-semibold text-(--rg-gtx) hover:underline cursor-pointer"
+                onclick={Msg::Go(Route::Settings(SettingsPage::Audio))}>
+            <div>{t("guide.modes_action")}</div>
+            <div>→</div>
+        </button>
+    </div>
+{:else if r.custom() == "guide-badges"}
+    <div class="flex flex-col gap-4 p-4">
+        <p class="m-0 px-1 text-sm leading-normal text-(--rg-tx2)">{t("guide.badges_intro")}</p>
+        <div class="grid grid-cols-2 gap-2.5">
+            {#each guide_badges() as p (p)}
+                <div class="flex flex-col items-start gap-2 px-4 py-3.5 rounded-xl border border-(--rg-bd) bg-(--rg-creux)">
+                    <PipelineBadge mode={p.to_string()} />
+                    <p class="m-0 text-[13px] leading-normal text-(--rg-mu)">{t(guide_badge_keys(p).1)}</p>
+                </div>
+            {/each}
+        </div>
+    </div>
+{:else if r.custom() == "guide-index"}
+    <div class="flex flex-wrap gap-1.5 px-5 py-4">
+        {#each guide_terms() as term (term.0)}
+            <button class="flex items-center justify-center h-7 px-3 rounded-full border border-(--rg-bd) bg-(--rg-creux) text-[12.5px] font-semibold text-(--rg-tx2) hover:border-(--rg-gbd) hover:text-(--rg-gtx) cursor-pointer transition-colors"
+                    onclick={Msg::Settings(SettingsMsg::GuideTerm(term.0))}><div>{term.1}</div></button>
+        {/each}
+    </div>
+{:else if r.custom() == "guide-term"}
+    {#if self.guide_term_read(&r.key)}
+        <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-6 gap-y-1.5 px-5 py-4.5 transition-colors duration-500 bg-(--rg-creux-on) shadow-[inset_3px_0_0_#22c55e]">
+            <p class="m-0 text-[15px] font-bold leading-snug text-(--rg-tx)">{r.title}</p>
+            <p class="m-0 text-sm leading-[1.6] text-(--rg-tx2)">{@const text = &r.desc}{@include "../SettingsHelpText.ui"}</p>
+        </div>
+    {:else}
+        <div class="grid grid-cols-[170px_minmax(0,1fr)] gap-x-6 gap-y-1.5 px-5 py-4.5 transition-colors duration-500">
+            <p class="m-0 text-[15px] font-bold leading-snug text-(--rg-tx)">{r.title}</p>
+            <p class="m-0 text-sm leading-[1.6] text-(--rg-tx2)">{@const text = &r.desc}{@include "../SettingsHelpText.ui"}</p>
+        </div>
+    {/if}
+{/if}

@@ -1,0 +1,19 @@
+{#if cx.resources.has_cover(&r.cover_path)}
+    <img class="w-10 h-10 rounded-lg object-cover shrink-0" src={cx.resources.cover_opt(&r.cover_path)} alt="">
+{:else}
+    <div class="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center
+                bg-neutral-100 dark:bg-neutral-800 text-neutral-400">
+        <Icon icon={r.genre.icon()} width={16} />
+    </div>
+{/if}
+
+<div class="flex-1 min-w-0">
+    <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate m-0">{r.title}</p>
+    {#if !r.subtitle.is_empty()}
+        <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate m-0">{r.subtitle}</p>
+    {/if}
+</div>
+
+<div class="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded
+            bg-neutral-100 dark:bg-white/5
+            text-neutral-400 dark:text-neutral-500 shrink-0"><p class="m-0">{r.genre.label()}</p></div>

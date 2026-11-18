@@ -1,0 +1,61 @@
+/* Menus, popins et panneaux ouverts depuis l'accueil (k-popover menu|listbox).
+   Les classes Tailwind équivalentes sont en commentaire au-dessus de chaque règle ;
+   couleurs du contraste élevé. Entrée en fondu : le moteur n'anime pas l'échelle d'une couche (popover). */
+@keyframes menu-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+/* Les menus sont hors de .home-maquette (Figtree) : police de base Inter, comme le body. */
+.menu { animation: menu-in 120ms ease-out; font-family: var(--font-sans); line-height: 1.5; }
+
+/* Menu du profil (profiles/ProfileSelector.ui) : classes Tailwind dans le gabarit. */
+
+/* ── Minuteur de veille (player/SleepTimerButton.ui) : classes Tailwind dans le gabarit ──
+   .rg-field (app.css) : boîte de saisie (icône + champ sans fond) qui s'allume entière au
+   focus ; en contraste élevé, un trait net de 2 px qui épouse l'arrondi, sans halo (le
+   moteur n'anime pas les ombres). */
+.rg-field { transition: border-color 150ms ease; }
+.rg-field:focus-within {
+    border-color: color-mix(in oklab, #22c55e 75%, transparent);
+    outline: 2px solid var(--emerald-500); outline-offset: 2px; box-shadow: none;
+}
+
+/* Choix de la source, de la bibliothèque et menus des zones de la barre latérale :
+   classes Tailwind dans leurs gabarits. */
+
+/* ── Menu des actions d'un mix (mixes/MixCard.ui) ──
+   Le menu est dans .home-maquette : police de la page (Figtree) ; le
+   popover est hors de la page, et .menu (police de base) l'emporterait sur un utilitaire. */
+.mix-menu { font-family: var(--font-maquette); }
+
+/* Barre de son, menu réseau, pastilles, interrupteurs du lecteur : classes Tailwind dans
+   les gabarits (player/) ; police des menus : .lecteur-menu (player.css). */
+
+/* ── Recherche rapide : résultats (classes Tailwind dans SearchAutocomplete.ui et
+   SearchResult.ui) ──
+   Barre classique de WebView2 (sans ::-webkit-scrollbar) : environ 15 px, réservée quand la
+   liste déborde ; l'épaisseur de la gouttière n'a pas d'utilitaire. */
+.recherche-liste { scrollbar-width: thin; }
+.recherche-liste::-webkit-scrollbar { width: 15px; }
+
+/* ── Menus des pages : p-1.5 rounded-xl border, puis les variantes
+   dark: (thème sombre) : bg-(--rg-s2) border-[#2a312d] shadow-[0_18px_40px_rgba(0,0,0,0.6)] ;
+   placement par le k-popover. ── */
+.rg-menu {
+    padding: 6px; border-radius: 12px; border: 1px solid #2a312d; color: var(--rg-tx);
+    background: var(--rg-s2); box-shadow: 0px 18px 40px rgba(0, 0, 0, 0.6);
+    animation: menu-in 120ms ease-out; font-family: var(--font-maquette); line-height: 1.5;
+}
+
+/* Menus en thème clair (`bg-(--rg-carte)`, `border-(--rg-bd)`, sans ombre
+   appuyée) ; champ de saisie allumé au focus, en contraste normal : halo teinté. */
+@media (prefers-color-scheme: light) {
+    .rg-menu { background: var(--rg-carte); border-color: var(--rg-bd); box-shadow: 0px 18px 40px rgba(0, 0, 0, 0.18); }
+}
+@media (prefers-contrast: no-preference) {
+    .rg-field:focus-within {
+        border-color: color-mix(in oklab, var(--rg-g) 75%, transparent);
+        outline: none;
+        box-shadow: 0px 0px 0px 4px color-mix(in oklab, var(--rg-g) 16%, transparent);
+    }
+}

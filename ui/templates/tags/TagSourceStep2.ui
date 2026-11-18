@@ -1,0 +1,108 @@
+{#if let Some(al) = &so.album}
+{@const fit = self.source_fit()}
+<div class="flex flex-wrap items-center gap-4 px-4 py-3.5 rounded-[14px] border border-(--rg-bd) bg-(--rg-champ)">
+    <div class="w-13 h-13 shrink-0 rounded-[9px] overflow-hidden bg-(--rg-s2) flex items-center justify-center text-(--rg-mu2)">
+        {#if let Some(th) = so.picked_thumb()}<img class="w-full h-full object-cover" src={cx.resources.cover(th)} alt="">{:else}<Icon icon="material-symbols:album-outline-rounded" width={24} />{/if}
+    </div>
+    <div class="flex-[1_1_220px] min-w-0">
+        <div class="text-[15px] font-bold truncate">{al.title.clone()}</div>
+        <div class="mt-0.75 text-[12.5px] text-(--rg-mu) truncate">{so.album_subtitle(al, fit.0)}</div>
+    </div>
+    <button class="shrink-0 h-8 px-3 flex items-center rounded-[9px] border border-(--rg-bd2) text-[13px] font-bold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+            onclick={Msg::Source(SourceMsg::Step1)}><div>{t("source.change_edition")}</div></button>
+</div>
+
+<div class="mt-5.5 mb-3 flex flex-wrap items-center gap-3">
+    <div class="text-[11.5px] font-bold tracking-widest uppercase text-(--rg-mu)">{t("source.update")}</div>
+    <div class="flex p-0.75 rounded-[10px] border border-(--rg-bd) bg-(--rg-champ)">
+        {#each [(0u8, "source.mode_fill"), (1, "source.mode_all"), (2, "source.mode_custom")] as (k, md) (k)}
+            {#if so.mode == md.0}
+                <div aria-pressed="true" class="h-8 px-3.5 flex items-center rounded-[7px] text-[13px] font-bold whitespace-nowrap bg-(--rg-s2) text-(--rg-tx) shadow-sm">{t(md.1)}</div>
+            {:else if md.0 == 2}
+                <div aria-pressed="false" class="h-8 px-3.5 flex items-center rounded-[7px] text-[13px] font-bold whitespace-nowrap text-(--rg-mu) opacity-50">{t(md.1)}</div>
+            {:else}
+                <button aria-pressed="false" class="h-8 px-3.5 flex items-center rounded-[7px] text-[13px] font-bold whitespace-nowrap cursor-pointer transition-colors text-(--rg-mu) hover:text-(--rg-tx)"
+                        onclick={Msg::Source(SourceMsg::Mode(md.0))}><div>{t(md.1)}</div></button>
+            {/if}
+        {/each}
+    </div>
+    <div class="text-[12.5px] text-(--rg-mu2)">{so.mode_hint()}</div>
+</div>
+
+<div class="rounded-[14px] border border-(--rg-bd) overflow-hidden">
+    <div class="grid grid-cols-[44px_150px_minmax(0,1fr)_20px_minmax(0,1fr)_150px_36px] items-center gap-x-2.5 pl-1 pr-2.5 h-9.5 bg-(--rg-champ) text-[11px] font-bold tracking-widest uppercase text-(--rg-mu2) border-b border-(--rg-bd)">
+        <div></div><div>{t("source.col_field")}</div><div>{t("source.your_files")}</div><div></div>
+        <div class="text-(--rg-gtx)">{so.source_name()}</div><div>{t("source.col_effect")}</div><div></div>
+    </div>
+    {#if let Some(cr) = &self.source_cover_row()}
+        {#if let Some(rc) = &so.cover}
+            <div class="grid grid-cols-[44px_150px_minmax(0,1fr)_20px_minmax(0,1fr)_150px_36px] items-center gap-x-2.5 pl-1 pr-2.5 min-h-14.5 cursor-pointer hover:bg-(--rg-hover)" onclick={Msg::Source(SourceMsg::ToggleCover)}>
+                {@const ck = cr.0}{@include "TagSourceBox.ui"}
+                <div class="text-[14px] font-bold">{t("tags.cover")}</div>
+                <div class="min-w-0 flex items-center gap-2.5 text-[13.5px] text-(--rg-tx2)">
+                    {#if let Some(cu) = &cr.1}<img class="w-8.5 h-8.5 rounded-md object-cover shrink-0" src={cx.resources.cover(cu)} alt=""><div class="truncate">{t("workshop.cover_embedded")}</div>{/if}
+                    {#if cr.1.is_none()}<div class="italic text-(--rg-mu2)">{t("source.empty")}</div>{/if}
+                </div>
+                <div class="flex text-(--rg-mu2)"><Icon icon="material-symbols:arrow-forward-rounded" width={17} /></div>
+                <div class="min-w-0 flex items-center gap-2.5 text-[13.5px] font-semibold text-(--rg-tx)"><img class="w-8.5 h-8.5 rounded-md object-cover shrink-0" src={cx.resources.cover(&rc.src)} alt=""><div class="truncate">{rc.size_label()}</div></div>
+                {#if cr.2}
+                    <div class="flex items-center gap-1.25 text-[12px] font-bold whitespace-nowrap text-(--rg-gtx)"><Icon icon="material-symbols:add-rounded" width={15} /><div>{cr.3.clone()}</div></div>
+                {:else}
+                    <div class="flex items-center gap-1.25 text-[12px] font-bold whitespace-nowrap text-(--rg-am)"><Icon icon="material-symbols:warning-outline-rounded" width={15} /><div>{cr.3.clone()}</div></div>
+                {/if}
+                <div></div>
+            </div>
+        {/if}
+    {/if}
+    {#each self.source_rows() as (i, row) (i)}
+        {@include "TagSourceRow.ui"}
+    {/each}
+    {@const sm = self.source_same_missing()}
+    {#if !sm.0.is_empty() || !sm.1.is_empty() || (self.source_rows().is_empty() && so.cover.is_none())}
+        <div class="flex flex-col gap-1.5 px-4 py-3.5 border-t border-(--rg-bd) bg-(--rg-champ) text-[13px] text-(--rg-mu)">
+            {#if self.source_rows().is_empty() && so.cover.is_none()}
+                <div class="flex items-center gap-2.5"><div class="flex text-(--rg-g)"><Icon icon="material-symbols:done-all-rounded" width={18} /></div><div>{t("source.nothing_new")}</div></div>
+            {/if}
+            {#if !sm.0.is_empty()}
+                <div class="flex items-center gap-2.5"><div class="flex shrink-0 text-(--rg-mu2)"><Icon icon="material-symbols:done-all-rounded" width={18} /></div>
+                    <div class="flex flex-wrap gap-1"><div>{t("source.already_same")}</div><div class="font-semibold text-(--rg-tx2)">{sm.0.join(", ")}</div></div></div>
+            {/if}
+            {#if !sm.1.is_empty()}
+                <div class="flex items-center gap-2.5"><div class="flex shrink-0 text-(--rg-mu2)"><Icon icon="material-symbols:block" width={18} /></div>
+                    <div class="flex flex-wrap gap-1"><div>{t_with("source.not_provided_by", &[("s", so.source_name())])}</div><div class="font-semibold text-(--rg-tx2)">{sm.1.join(", ")}</div></div></div>
+            {/if}
+        </div>
+    {/if}
+</div>
+
+<div class="mt-3.5 rounded-[14px] border border-(--rg-bd)">
+    <button class="w-full flex items-center gap-2.5 px-4 py-3.5 text-[13.5px] text-left cursor-pointer" onclick={Msg::Source(SourceMsg::MapOpen)}>
+        {#if fit.2}
+            <div class="h-6.5 px-2.5 rounded-[13px] flex items-center gap-1.25 text-[12px] font-bold whitespace-nowrap border text-(--rg-gtx) bg-(--rg-gbg) border-(--rg-gbd)"><Icon icon="material-symbols:check-rounded" width={15} /><div>{so.matched_label(fit.1)}</div></div>
+        {:else}
+            <div class="h-6.5 px-2.5 rounded-[13px] flex items-center gap-1.25 text-[12px] font-bold whitespace-nowrap border text-(--rg-am) bg-(--rg-ambg) border-(--rg-ambd)"><Icon icon="material-symbols:warning-outline-rounded" width={15} /><div>{so.matched_label(fit.1)}</div></div>
+        {/if}
+        <div class="font-bold">{t("source.matching")}</div>
+        <div class="text-(--rg-mu)">{t("source.matching_how")}</div>
+        <div class="flex-1"></div>
+        <div class="flex text-(--rg-mu) transition-transform" class:rotate-180={so.map_open}><Icon icon="material-symbols:expand-more-rounded" width={20} /></div>
+    </button>
+    {#if so.map_open}
+        <div class="grid grid-cols-2 gap-x-7 px-4 pb-3.5">
+            {#each self.source_associations() as association (association.local)}
+                <div class="grid grid-cols-[minmax(0,1fr)_16px_minmax(0,1fr)_44px] gap-2 items-center min-h-8 text-[12.5px] border-b border-(--rg-line)"
+                     class:opacity-45={association.excluded} class:line-through={association.excluded} class:cursor-pointer={association.confidence != 2}
+                     title={t(if association.confidence == 2 { "source.no_match" } else if association.excluded { "source.include" } else { "source.exclude" })}
+                     onclick={if association.confidence == 2 { Msg::Noop } else { Msg::Source(SourceMsg::Exclude(association.local)) }}>
+                    <div class="truncate">{association.title.clone()}</div>
+                    {#if association.confidence == 2}<div class="flex text-red-500"><Icon icon="material-symbols:close-rounded" width={15} /></div>
+                    {:else if association.confidence == 1}<div class="flex text-(--rg-am)"><Icon icon="material-symbols:help-outline-rounded" width={15} /></div>
+                    {:else}<div class="flex text-(--rg-g)"><Icon icon="material-symbols:check-rounded" width={15} /></div>{/if}
+                    <div class="truncate text-(--rg-mu)">{association.remote.clone()}</div>
+                    <div class="text-right tabular-nums text-(--rg-mu2)">{association.duration.clone()}</div>
+                </div>
+            {/each}
+        </div>
+    {/if}
+</div>
+{/if}

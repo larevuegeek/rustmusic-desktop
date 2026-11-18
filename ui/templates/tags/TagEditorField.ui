@@ -1,0 +1,28 @@
+<div class="group relative rounded-xl overflow-hidden transition-colors duration-150 bg-(--rg-champ) border border-(--rg-bd) hover:border-(--rg-bd2)">
+    {#if e.is_dirty(fd.0)}<div class="absolute left-0 inset-y-0 w-0.75 bg-(--rg-g)"></div>{/if}
+    <div class="px-3.5 py-2">
+        <div class="text-[10px] font-bold uppercase tracking-[0.1em] leading-none text-(--rg-mu) group-focus-within:text-(--rg-g) transition-colors">{field_label(fd.0)}</div>
+        {#if fd.2}
+            <textarea class="w-full mt-1.5 border-0 p-0 bg-transparent text-[13px] leading-snug outline-none text-(--rg-tx) placeholder:text-(--rg-ph)"
+                      rows="2" value={e.form[fd.0].as_str()} placeholder="—" aria-label={field_label(fd.0)}
+                      oninput={{ let k = fd.0; move |v: String| Msg::TagEditor(TagEditorMsg::Field(k, v)) }}></textarea>
+        {:else if fd.1}
+            <input class="w-full mt-1.5 border-0 p-0 bg-transparent leading-tight outline-none text-(--rg-tx) placeholder:text-(--rg-ph) text-[15px] font-semibold pr-8"
+                   type="text" value={e.form[fd.0].as_str()} placeholder="—" aria-label={field_label(fd.0)}
+                   oninput={{ let k = fd.0; move |v: String| Msg::TagEditor(TagEditorMsg::Field(k, v)) }}>
+        {:else}
+            <input class="w-full mt-1.5 border-0 p-0 bg-transparent leading-tight outline-none text-(--rg-tx) placeholder:text-(--rg-ph) text-[13px] pr-8"
+                   type="text" value={e.form[fd.0].as_str()} placeholder="—" aria-label={field_label(fd.0)}
+                   oninput={{ let k = fd.0; move |v: String| Msg::TagEditor(TagEditorMsg::Field(k, v)) }}>
+        {/if}
+    </div>
+    {#if e.is_dirty(fd.0)}
+        {#if fd.2}
+            <button class="absolute right-2 top-1.5 w-6 h-6 rounded-lg cursor-pointer flex items-center justify-center transition-colors text-(--rg-mu2) hover:text-(--rg-g) hover:bg-(--rg-gbg)"
+                    title={e.revert_label(fd.0)} aria-label={e.revert_label(fd.0)} onclick={Msg::TagEditor(TagEditorMsg::Revert(fd.0))}><Icon icon="lucide:rotate-ccw" width={12} /></button>
+        {:else}
+            <button class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg cursor-pointer flex items-center justify-center transition-colors text-(--rg-mu2) hover:text-(--rg-g) hover:bg-(--rg-gbg)"
+                    title={e.revert_label(fd.0)} aria-label={e.revert_label(fd.0)} onclick={Msg::TagEditor(TagEditorMsg::Revert(fd.0))}><Icon icon="lucide:rotate-ccw" width={12} /></button>
+        {/if}
+    {/if}
+</div>

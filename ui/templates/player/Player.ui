@@ -1,0 +1,182 @@
+<div class="shrink-0 px-2.5 pt-1.5 pb-2.5" memo={self.player_key(&vm, cx.resources)}>
+    <div id="player.carte" class="lecteur relative rounded-[18px]">
+        <div class="grid grid-cols-[minmax(220px,1fr)_minmax(300px,1.4fr)_minmax(max-content,1fr)] items-center gap-7 max-[1250px]:gap-5 h-23 pl-2 pr-5
+                    max-lg:grid-cols-[minmax(0,1fr)_auto] max-lg:h-auto max-lg:py-3 max-lg:gap-x-3 max-lg:gap-y-2">
+            <div class="flex items-center gap-4 min-w-0">
+                <div class="relative shrink-0">
+                    <div class="lecteur-pochette w-19 h-19 rounded-xl overflow-hidden">
+                        {#if vm.details.cover_path.is_some()}
+                            <button class="w-full h-full cursor-pointer" aria-label={t("tags.cover")} onclick={Msg::CoverZoom(true)}>
+                                <img class="rounded w-full h-full object-cover" src={cx.resources.cover_opt(&vm.details.cover_path)} alt="">
+                            </button>
+                        {:else}
+                            <img class="rounded w-full h-full object-cover" src={cx.resources.cover_opt(&vm.details.cover_path)} alt="">
+                        {/if}
+                    </div>
+                    {#if self.playing()}
+                        <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#141816]"></div>
+                    {/if}
+                </div>
+                <div class="min-w-0 flex flex-col gap-0.75 leading-tight">
+                    <div class="text-[17px] font-bold tracking-[-0.01em] text-(--lc-tx) min-w-0 truncate text-left cursor-pointer hover:underline underline-offset-3"
+                         onclick={Msg::Go(Route::Home)} title={vm.details.title.as_str()}>{if vm.details.title.is_empty() {t("player.no_track_short")} else {vm.details.title.clone()}}</div>
+                    <div class="flex items-center gap-1 min-w-0 text-sm font-medium text-(--lc-tx2) whitespace-nowrap">
+                        <div class="text-(--lc-acc) shrink-0 max-w-[75%] min-w-0 truncate text-left cursor-pointer hover:underline underline-offset-3"
+                             onclick={Msg::Search(vm.details.artist_name.clone())} title={vm.details.artist_name.as_str()}>{vm.details.artist_name}</div>
+                        <div class="shrink-0 text-(--lc-mu)">·</div>
+                        <div class="text-(--lc-mu) min-w-0 truncate text-left cursor-pointer hover:underline underline-offset-3"
+                             onclick={Msg::PlayAlbumOf(vm.details.path.clone(), true)} title={vm.details.album.as_str()}>{vm.details.album}</div>
+                    </div>
+                    <div class="self-start text-xs font-medium tabular-nums text-(--lc-mu) cursor-pointer hover:text-(--lc-tx2) hover:underline underline-offset-3 w-auto"
+                         onclick={Msg::Go(Route::Library(Section::Years))} title={t_with("player.albums_of_year", &[("year", &vm.details.year.to_string())])}>{vm.details.year}</div>
+                </div>
+            </div>
+
+            <div class="justify-self-center w-full max-w-155 flex flex-col items-center gap-1.5 min-w-0 max-lg:max-w-none max-lg:col-span-2 max-lg:row-start-2">
+                <div class="flex items-center gap-1.5 justify-center">
+                    {#if self.is_shuffled()}
+                        <button class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol)
+                                       text-(--lc-acc)! after:absolute after:bottom-0.75 after:left-1/2 after:-ml-[1.5px] after:w-0.75 after:h-0.75 after:rounded-full after:bg-current hover:text-(--lc-acc)!"
+                                aria-pressed="true" onclick={Msg::Shuffle} title={t("player.shuffle")} aria-label={t("player.shuffle")}>
+                            <Icon icon="material-symbols-light:shuffle-rounded" width={22} />
+                        </button>
+                    {:else}
+                        <button class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                                aria-pressed="false" onclick={Msg::Shuffle} title={t("player.shuffle")} aria-label={t("player.shuffle")}>
+                            <Icon icon="material-symbols-light:shuffle-rounded" width={22} />
+                        </button>
+                    {/if}
+                    <button class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol) max-[1250px]:hidden"
+                            onclick={Msg::SeekBy(-10.)} title={t("player.back10")} aria-label={t("player.back10")}>
+                        <Icon icon="material-symbols-light:replay-10-rounded" width={22} />
+                    </button>
+                    <button class="w-11 h-11 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                            onclick={Msg::Previous} title={t("player.prev")} aria-label={t("player.prev")}>
+                        <Icon icon="material-symbols-light:skip-previous-rounded" width={32} />
+                    </button>
+                    <button class="lecteur-lecture relative w-12.5 h-12.5 mx-2 shrink-0 flex items-center justify-center rounded-full cursor-pointer
+                                   bg-(--lc-play) text-(--lc-play-tx) transition-transform hover:scale-105 active:scale-95"
+                            onclick={Msg::TogglePlay}
+                            title={if self.playing() {t("player.pause")} else {t("player.play")}}
+                            aria-label={if self.playing() {t("player.pause")} else {t("player.play")}}>
+                        <Icon icon={if self.playing() {"material-symbols-light:pause-rounded"} else {"material-symbols-light:play-arrow-rounded"}} width={32} />
+                    </button>
+                    <button class="w-11 h-11 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                            onclick={Msg::Next} title={t("player.next")} aria-label={t("player.next")}>
+                        <Icon icon="material-symbols-light:skip-next-rounded" width={32} />
+                    </button>
+                    <button class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol) max-[1250px]:hidden"
+                            onclick={Msg::SeekBy(10.)} title={t("player.fwd10")} aria-label={t("player.fwd10")}>
+                        <Icon icon="material-symbols-light:forward-10-rounded" width={22} />
+                    </button>
+                    {#if self.repeat_on()}
+                        <button class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol)
+                                       text-(--lc-acc)! after:absolute after:bottom-0.75 after:left-1/2 after:-ml-[1.5px] after:w-0.75 after:h-0.75 after:rounded-full after:bg-current hover:text-(--lc-acc)!"
+                                onclick={Msg::Repeat} title={t("amp_remote.repeat")} aria-label={t("amp_remote.repeat")}>
+                            <Icon icon={self.repeat_icon()} width={22} />
+                        </button>
+                    {:else}
+                        <button class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                                onclick={Msg::Repeat} title={t("amp_remote.repeat")} aria-label={t("amp_remote.repeat")}>
+                            <Icon icon="material-symbols-light:repeat-rounded" width={22} />
+                        </button>
+                    {/if}
+                    <button class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol) max-[1080px]:hidden disabled:opacity-40 disabled:cursor-default"
+                            onclick={Msg::Stop} title={t("player.stop")} aria-label={t("player.stop")}>
+                        <Icon icon="material-symbols-light:stop-outline-rounded" width={22} />
+                    </button>
+                </div>
+                <div class="flex items-center gap-3 w-full font-(--font-mono) text-[11px] tabular-nums text-(--lc-mu)">
+                    <div class="min-w-9 text-right">{vm.position_label}</div>
+                    <div class="flex-1 min-w-0">{@include "PlayerProgressBar.ui"}</div>
+                    <div class="min-w-9">{vm.duration_label}</div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-0.5 max-lg:col-start-2 max-lg:row-start-1">
+                {#if vm.liked}
+                    <button class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol)
+                                   text-[#e2566a]! dark:text-[#ff7a88]! hover:text-[#ff7a88]!"
+                            aria-pressed="true" onclick={Msg::Like(vm.details.path.clone())} title={t("player.like")} aria-label={t("player.like")}>
+                        <Icon icon="material-symbols-light:favorite-rounded" width={22} />
+                    </button>
+                {:else}
+                    <button class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                            aria-pressed="false" onclick={Msg::Like(vm.details.path.clone())} title={t("player.like")} aria-label={t("player.like")}>
+                        <Icon icon="material-symbols-light:favorite-outline-rounded" width={22} />
+                    </button>
+                {/if}
+                <button id="player.file" class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                        onclick={Msg::Menu(Menu::File)}
+                        title={t("player.queue")} aria-label={t("player.queue")} aria-expanded={self.open(Menu::File)}>
+                    <Icon icon="material-symbols-light:queue-music-rounded" width={22} />
+                </button>
+                {#if self.open(Menu::Lyrics)}
+                    <button id="player.paroles" class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol)
+                                   text-(--lc-acc)! after:absolute after:bottom-0.75 after:left-1/2 after:-ml-[1.5px] after:w-0.75 after:h-0.75 after:rounded-full after:bg-current hover:text-(--lc-acc)!"
+                            onclick={Msg::Menu(Menu::Lyrics)}
+                            title={t("player.lyrics")} aria-label={t("player.lyrics")} aria-pressed="true" aria-expanded={self.open(Menu::Lyrics)}>
+                        <Icon icon="material-symbols-light:lyrics-outline-rounded" width={22} />
+                    </button>
+                {:else}
+                    <button id="player.paroles" class="relative w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic) hover:text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                            onclick={Msg::Menu(Menu::Lyrics)}
+                            title={t("player.lyrics")} aria-label={t("player.lyrics")} aria-pressed="false" aria-expanded={self.open(Menu::Lyrics)}>
+                        <Icon icon="material-symbols-light:lyrics-outline-rounded" width={22} />
+                    </button>
+                {/if}
+                <div class="w-px h-5.5 mx-2 shrink-0 bg-(--lc-trait) max-md:hidden" aria-hidden="true"></div>
+                {@include "PlayerSoundBar.ui"}
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2.5 h-8 pl-3 pr-2 rounded-b-[18px] text-[11px] text-(--lc-mu) border-t border-(--lc-statut-bd) bg-(--lc-statut)">
+            <button id="player.chain" class="shrink-0 -ml-1.5 h-6.5 pl-1.5 pr-1 flex items-center gap-2 whitespace-nowrap rounded-lg transition-colors enabled:cursor-pointer enabled:hover:bg-(--lc-survol) disabled:cursor-default"
+                    class:lecteur-chaine-ouverte={self.popup("player.chain")}
+                    disabled={!self.chain_available()} aria-label={t("player.audio_chain")} aria-expanded={self.popup("player.chain")}
+                    onclick={Msg::ChainMenu}>
+                <div class="h-5 px-1.5 flex items-center rounded-[5px] text-[10px] font-bold tracking-[0.06em] bg-(--lc-fmt-bg) text-(--lc-fmt-tx)">{vm.statut.format}</div>
+                <div class="font-(--font-mono) font-medium text-(--lc-tx)">{vm.statut.quality}</div>
+                {#if !vm.statut.output.is_empty()}
+                    <div class="font-(--font-mono) text-amber-600 dark:text-amber-400">{vm.statut.output}</div>
+                {/if}
+                <div class="font-(--font-mono) max-[1080px]:hidden">{vm.statut.bitrate}</div>
+                {#if self.chain_available()}
+                    <div class="flex text-(--lc-mu2)"><Icon icon="material-symbols:expand-less-rounded" width={16} /></div>
+                {/if}
+            </button>
+            {@include "PipelinePopover.ui"}
+
+            <div class="w-px h-3.5 shrink-0 bg-(--lc-trait) max-md:hidden" aria-hidden="true"></div>
+
+            <div class="group/chemin flex-1 min-w-0 overflow-hidden flex items-center gap-1 font-(--font-mono) text-[10.5px] max-md:hidden">
+                <button class="min-w-0 flex items-center gap-1.5 cursor-pointer group-hover/chemin:text-(--lc-tx2)" onclick={Msg::Reveal(vm.details.path.clone())} title={t("player.open_folder")}>
+                    <Icon icon="material-symbols-light:folder-open-outline-rounded" width={15} />
+                    <div class="lecteur-dossier min-w-0 shrink-[999] truncate group-hover/chemin:text-(--lc-tx2)">{vm.statut.folder}</div>
+                    <div class="min-w-8 truncate text-(--lc-tx2)" title={vm.statut.file.as_str()}>{vm.statut.file}</div>
+                </button>
+                <button class="shrink-0 w-5.5 h-5.5 flex items-center justify-center rounded-md cursor-pointer opacity-0 group-hover/chemin:opacity-100 focus-visible:opacity-100 hover:bg-(--lc-survol) hover:text-(--lc-tx)"
+                        onclick={Msg::Noop} title={t("player.copy_path")} aria-label={t("player.copy_path")}>
+                    <Icon icon="material-symbols-light:content-copy-outline-rounded" width={14} />
+                </button>
+                {#if !self.playing()}
+                    <button class="shrink-0 w-5.5 h-5.5 flex items-center justify-center rounded-md cursor-pointer hover:text-red-500 hover:bg-(--lc-survol)"
+                            onclick={Msg::Stop} title={t("player.close_track")} aria-label={t("player.close_track")}>
+                        <Icon icon="material-symbols-light:close-rounded" width={15} />
+                    </button>
+                {/if}
+            </div>
+
+            <div class="min-w-0 ml-auto flex items-center gap-1.5">
+                <button class="shrink-0 h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border
+                               bg-sky-500/12 border-sky-600/25 text-sky-800 dark:border-sky-400/25 dark:text-sky-300
+                               cursor-pointer transition-colors hover:border-current/50 max-w-44 max-[1250px]:hidden"
+                        onclick={Msg::Menu(Menu::Output)} title={t("player.output")}>
+                    <div class="flex shrink-0"><Icon icon="material-symbols-light:speaker-outline-rounded" width={14} /></div>
+                    <div class="truncate">{vm.output_label}</div>
+                </button>
+                {@include "NetworkMenu.ui"}
+            </div>
+        </div>
+    </div>
+</div>

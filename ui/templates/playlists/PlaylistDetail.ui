@@ -1,0 +1,150 @@
+<div class="relative h-full">
+{#if let Some(page) = &self.views.playlist}
+{#if page.failed}
+    <div class="flex flex-col items-center justify-center gap-3 h-full text-(--rg-mu)">
+        <Icon icon="material-symbols:queue-music-rounded" width={34} />
+        <p class="text-sm m-0">{t("common.error_library")}</p>
+        <button class="text-sm font-semibold text-(--rg-gtx) hover:underline cursor-pointer" onclick={Msg::Go(Route::Playlists)}><div>{t("playlists_view.all")}</div></button>
+    </div>
+{:else}
+{#if let Some(pv) = self.playlist_view()}
+<div class="relative h-full overflow-y-auto scrollbar-app">
+    <div class="album-lueur absolute inset-x-0 top-0 h-115 pointer-events-none" style:--h={pv.tint.0} style:--s={pv.tint.1}></div>
+
+    <div class="@container relative max-w-350 px-4 md:px-8 pb-24" style:margin_top={-self.export_offset}>
+        <div class="z-20 h-15 -mx-4 md:-mx-8 px-4 md:px-8 flex items-center gap-3 border-b border-transparent">
+            <button class="h-8.5 pl-2 pr-3 shrink-0 flex items-center gap-1.5 rounded-[9px] text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                    onclick={Msg::Go(Route::Playlists)}>
+                <Icon icon="material-symbols:arrow-back-rounded" width={20} />
+                <div>{t("playlists_view.all")}</div>
+            </button>
+            <div class="flex-1"></div>
+            {@include "../tracks/SelectionButtons.ui"}
+            {@include "../shared/inputs/ViewSwitch.ui"}
+        </div>
+
+        <div class="relative flex flex-wrap items-end gap-8 pt-3 pb-7">
+            <div class="relative w-55 h-55 shrink-0 rounded-[14px] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.55)] playlist-backdrop"
+                 style:--c={hex(&pv.color)}>
+                {#if let Some(four) = mosaic(&pv.covers)}
+                    <div class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-0.5 bg-black/20">
+                        {#each four as c (c.as_str())}<img class="w-full aspect-square object-cover" src={cx.resources.cover_small_path(&c)} alt="">{/each}
+                    </div>
+                {:else if let Some(cover) = pv.covers.first()}
+                    <img class="absolute inset-0 w-full h-full object-cover" src={cx.resources.cover(cover)} alt="">
+                {:else}
+                    <div class="absolute inset-0 flex items-center justify-center text-white/90"><Icon icon={pv.icon.clone()} width={64} /></div>
+                {/if}
+                <div class="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-black/5 dark:ring-white/6 pointer-events-none"></div>
+            </div>
+
+            <div class="flex-[1_1_320px] min-w-0 flex flex-col gap-3">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-[0.1em] uppercase text-(--rg-tx2)">
+                    <div class="w-5 h-0.75 rounded-full" style:background_color={hex(&pv.color)}></div>
+                    <div>{pv.kicker}</div>
+                </div>
+                {#if pv.title_long}
+                    <h1 class="m-0 font-extrabold leading-[1.12] tracking-[-0.03em] line-clamp-2 text-(--rg-tx) text-[56px]" title={pv.title.as_str()}>{pv.title}</h1>
+                {:else}
+                    <h1 class="m-0 font-extrabold leading-[1.12] tracking-[-0.03em] line-clamp-2 text-(--rg-tx) text-[72px]" title={pv.title.as_str()}>{pv.title}</h1>
+                {/if}
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-[15px] text-(--rg-mu)">
+                    <div class="flex gap-1"><div class="font-bold text-(--rg-tx)">{pv.count.0}</div><div>{pv.count.1}</div></div>
+                    {#if !pv.duration.is_empty()}<div class="text-(--rg-mu2)">·</div><div>{pv.duration}</div>{/if}
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5 mt-2">
+                    <PlayButton large label={t("artist_view.play_all")} onclick={Msg::Playlist(PlaylistMsg::PlayAll)} />
+                    <RoundButton icon="material-symbols:shuffle-rounded" title={t("album_view.shuffle")} disabled={page.tracks.is_empty()} onclick={Msg::Playlist(PlaylistMsg::Shuffle)} />
+                    {#if pv.playlist_id.is_some()}
+                        {#if pv.smart}
+                            <RoundButton icon="lucide:sparkles" title={t("playlist_page.rules")} onclick={Msg::Smart(SmartMsg::Open(pv.playlist_id, false))} />
+                        {:else}
+                            <RoundButton icon="material-symbols:edit-outline-rounded" title={t("playlist_page.modify")} onclick={Msg::PlaylistForm(PlaylistFormMsg::Edit(pv.playlist_id.unwrap_or(0)))} />
+                        {/if}
+                        {#if pv.pinned}
+                            <RoundButton icon="material-symbols:keep-rounded" title={t("sidebar.unpin")} onclick={Msg::Playlist(PlaylistMsg::Pin)} />
+                        {:else}
+                            <RoundButton icon="material-symbols:keep-outline-rounded" title={t("sidebar.pin")} onclick={Msg::Playlist(PlaylistMsg::Pin)} />
+                        {/if}
+                        <RoundButton icon="material-symbols:delete-outline-rounded" title={t("playlist_page.delete_playlist")} onclick={Msg::Playlist(PlaylistMsg::AskDelete(true))} />
+                    {:else if page.route == Route::Recent && !page.tracks.is_empty()}
+                        <RoundButton icon="material-symbols:delete-sweep-outline-rounded" title={t("playlist_page.clear_history")} onclick={Msg::Playlist(PlaylistMsg::ClearHistory)} />
+                    {/if}
+                </div>
+            </div>
+        </div>
+
+        <section class="mt-6">
+            <div class="flex flex-wrap items-center gap-2.5 pt-1 pb-3.5">
+                <div class="mr-auto flex gap-1 text-[13px] text-(--rg-mu)">
+                    <div class="font-semibold text-(--rg-tx2)">{pv.count.0}</div><div>{pv.count.1}</div>
+                    {#if !pv.duration.is_empty()}<div>· {pv.duration}</div>{/if}
+                </div>
+                <div class="flex shrink-0 p-0.75 rounded-[10px] border bg-(--rg-carte) border-(--rg-bd)" role="radiogroup" aria-label={t("common.sort")}>
+                    {#each pv.sorts as s (s.key)}
+                        {#if s.active}
+                            <button role="radio" aria-checked="true" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer whitespace-nowrap h-7 px-3 bg-(--rg-s2) text-(--rg-tx)"
+                                    onclick={Msg::Playlist(PlaylistMsg::Sort(s.key.to_string()))}>
+                                <div>{s.label}</div>
+                                {#if let Some(a) = &s.arrow}<Icon icon={*a} width={14} />{/if}
+                            </button>
+                        {:else}
+                            <button role="radio" aria-checked="false" class="flex items-center justify-center gap-1 rounded-[7px] text-[13px] font-semibold cursor-pointer whitespace-nowrap h-7 px-3 text-(--rg-mu) hover:text-(--rg-tx)"
+                                    onclick={Msg::Playlist(PlaylistMsg::Sort(s.key.to_string()))}><div>{s.label}</div></button>
+                        {/if}
+                    {/each}
+                </div>
+                {#if self.views.view_mode == ViewMode::List}
+                    <ToolbarButton icon="material-symbols:view-column-outline-rounded" label={t("album_view.columns")} title={t("tracks_view.columns")} onclick={Msg::Columns(ColumnsMsg::Open)} />
+                {/if}
+            </div>
+
+            {#if page.loading}
+                <div class="flex justify-center py-10 text-(--rg-mu)"><Spinner width={22.} /></div>
+            {:else if page.tracks.is_empty()}
+                <div class="flex flex-col items-center py-16 text-center">
+                    <div class="w-16 h-16 mb-4 rounded-full flex items-center justify-center" style:background_color={Color { alpha: 36, ..hex(&pv.color) }} style:color={hex(&pv.color)}>
+                        <Icon icon={pv.icon.clone()} width={30} />
+                    </div>
+                    <p class="m-0 text-[17px] font-bold text-(--rg-tx)">{pv.empty.0}</p>
+                    <p class="m-0 mt-1.5 max-w-sm text-sm leading-relaxed text-(--rg-mu)">{pv.empty.1}</p>
+                </div>
+            {:else if self.views.view_mode == ViewMode::Grid}
+                <div class="grid grid-cols-2 gap-x-7 @max-[900px]:grid-cols-1">
+                    <div class="flex flex-col gap-y-0.5 min-w-0">
+                        {#each pv.left as track (track.i)}{@include "../albums/AlbumTrackRow.ui"}{/each}
+                    </div>
+                    <div class="flex flex-col gap-y-0.5 min-w-0">
+                        {#each pv.right as track (track.i)}{@include "../albums/AlbumTrackRow.ui"}{/each}
+                    </div>
+                </div>
+            {:else}
+                {#if let Some(table) = &pv.table}
+                    {@include "../tracks/TrackTableHead.ui"}
+                    {@include "../tracks/TrackRows.ui"}
+                {/if}
+            {/if}
+        </section>
+    </div>
+</div>
+
+{#if let Some(parts) = &pv.confirm}
+    <div class="absolute inset-0 z-50 flex items-center justify-center animate-[popin-fade-in_150ms_linear]" data-exit="popin-fade-out 150ms linear">
+        <button class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default" aria-label={t("common.close")} onclick={Msg::Playlist(PlaylistMsg::AskDelete(false))}></button>
+        <div class="relative w-full max-w-sm mx-4 p-6 rounded-2xl border bg-(--rg-carte) border-(--rg-bd) shadow-2xl text-center animate-[popin-scale-in_180ms_cubic-bezier(0.33,1,0.68,1)]" data-exit="popin-scale-out 180ms cubic-bezier(0.33, 1, 0.68, 1)">
+            <div class="mx-auto mb-4 w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                <Icon icon="material-symbols:delete-outline-rounded" width={22} />
+            </div>
+            <h3 class="m-0 mb-1 text-base font-bold text-(--rg-tx)">{t("playlist_page.delete_playlist")}</h3>
+            <p class="m-0 mb-6 text-sm text-(--rg-mu)">{parts.0}<b class="text-(--rg-tx)">{pv.title}</b>{parts.1}</p>
+            <div class="flex gap-3">
+                <button class="flex items-center justify-center flex-1 h-10 rounded-xl text-sm font-semibold cursor-pointer text-(--rg-tx2) hover:bg-(--rg-hover)" onclick={Msg::Playlist(PlaylistMsg::AskDelete(false))}><div>{t("common.cancel")}</div></button>
+                <button class="flex items-center justify-center flex-1 h-10 rounded-xl text-sm font-bold cursor-pointer bg-red-500 text-white hover:bg-red-600" onclick={Msg::Playlist(PlaylistMsg::Delete)}><div>{t("common.delete")}</div></button>
+            </div>
+        </div>
+    </div>
+{/if}
+{/if}
+{/if}
+{/if}
+</div>

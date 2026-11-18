@@ -1,0 +1,55 @@
+<div class="flex flex-col gap-2.5">
+    {#if !r.modes.is_empty()}
+        <div class="flex flex-col">
+            <div class="px-1 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-(--rg-mu)">{t("amp_remote.mode")}</div>
+            <div class="grid grid-cols-3 gap-1.5">
+                {#each r.modes as c (c.id.as_str())}{@include "AmpChoicePill.ui"}{/each}
+            </div>
+        </div>
+    {/if}
+    {#if !r.tone.is_empty()}
+        <div class="flex flex-col">
+            <div class="px-1 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-(--rg-mu)">{t("amp_remote.tone")}</div>
+            <div class="flex flex-col rounded-2xl border border-(--rg-bd) bg-(--rg-s2)/50">
+                {#each r.tone as row (row.label.as_str())}
+                    {#if row.first}
+                        <div class="flex items-center gap-2 py-1 pl-3 pr-1">{@include "AmpToneRow.ui"}</div>
+                    {:else}
+                        <div class="flex items-center gap-2 py-1 pl-3 pr-1 border-t border-(--rg-line)">{@include "AmpToneRow.ui"}</div>
+                    {/if}
+                {/each}
+            </div>
+        </div>
+    {/if}
+    {#if let Some(z2) = &r.zone2}
+        <div class="rounded-2xl border border-(--rg-bd) bg-(--rg-s2)/50 p-2.5 flex flex-col gap-2.5">
+            <div class="flex items-center gap-2.5 pl-0.5">
+                <div class="flex-1 min-w-0 leading-[1.25]">
+                    <div class="text-[13px]">{t("amp_remote.zone2")}</div>
+                    {#if z2.power}
+                        <div class="text-[12px] truncate text-(--rg-gtx)">{z2.label}</div>
+                    {:else}
+                        <div class="text-[12px] truncate text-(--rg-mu)">{z2.label}</div>
+                    {/if}
+                </div>
+                {#if z2.power}
+                    <button class="relative w-8.5 h-5 shrink-0 rounded-full cursor-pointer transition duration-150 bg-(--rg-g) active:scale-[0.96]" role="switch" aria-checked="true" aria-label={t("amp_remote.zone2")}
+                            onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Power { zone: Zone::Zone2, on: false }))}>
+                        <div class="absolute top-0.75 left-0.75 w-3.5 h-3.5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] transition-transform duration-150 translate-x-3.5"></div>
+                    </button>
+                {:else}
+                    <button class="relative w-8.5 h-5 shrink-0 rounded-full cursor-pointer transition duration-150 bg-(--rg-off) active:scale-[0.96]" role="switch" aria-checked="false" aria-label={t("amp_remote.zone2")}
+                            onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Power { zone: Zone::Zone2, on: true }))}>
+                        <div class="absolute top-0.75 left-0.75 w-3.5 h-3.5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] transition-transform duration-150"></div>
+                    </button>
+                {/if}
+            </div>
+            {#if z2.power}
+                {@const z = z2}{@include "AmpVolumeRow.ui"}
+                <div class="grid grid-cols-4 gap-1.5">
+                    {#each r.zone2_inputs as c (c.id.as_str())}{@include "AmpChoicePill.ui"}{/each}
+                </div>
+            {/if}
+        </div>
+    {/if}
+</div>

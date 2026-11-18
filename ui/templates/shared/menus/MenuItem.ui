@@ -1,0 +1,24 @@
+<div class="w-full">
+{#if self.active}
+    <button class="w-full flex items-center gap-2.5 px-2.5 py-2.25 rounded-lg text-[13px] text-left cursor-pointer transition-colors
+                   hover:bg-(--rg-s2) dark:hover:bg-[#252b28] text-(--rg-gtx) font-semibold" role="menuitem" onclick={onclick}>
+        {#if !self.icon.is_empty()}<div class="flex shrink-0"><Icon icon={self.icon.as_str()} width={18} /></div>{/if}
+        <div class="flex-1 min-w-0 truncate"><slot /></div>
+        <slot name="fin" />
+    </button>
+{:else if self.danger}
+    <button class="w-full flex items-center gap-2.5 px-2.5 py-2.25 rounded-lg text-[13px] text-left cursor-pointer transition-colors
+                   hover:bg-(--rg-s2) dark:hover:bg-[#252b28] text-red-600 dark:text-red-400" role="menuitem" onclick={onclick}>
+        {#if !self.icon.is_empty()}<div class="flex shrink-0"><Icon icon={self.icon.as_str()} width={18} /></div>{/if}
+        <div class="flex-1 min-w-0 truncate"><slot /></div>
+        <slot name="fin" />
+    </button>
+{:else}
+    <button class="w-full flex items-center gap-2.5 px-2.5 py-2.25 rounded-lg text-[13px] text-left cursor-pointer transition-colors
+                   hover:bg-(--rg-s2) dark:hover:bg-[#252b28] text-(--rg-tx)" role="menuitem" onclick={onclick}>
+        {#if !self.icon.is_empty()}<div class="flex shrink-0 text-(--rg-mu)"><Icon icon={self.icon.as_str()} width={18} /></div>{/if}
+        <div class="flex-1 min-w-0 truncate"><slot /></div>
+        <slot name="fin" />
+    </button>
+{/if}
+</div>

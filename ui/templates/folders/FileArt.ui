@@ -1,0 +1,13 @@
+<div class="relative w-full h-full">
+    {#if entry.tier == Tier::Hires}
+        <div class="w-full h-full text-[#eaa82a]">{@include "FileArtSvg.ui"}</div>
+    {:else if entry.tier == Tier::Lossless}
+        <div class="w-full h-full text-[#2fae5c]">{@include "FileArtSvg.ui"}</div>
+    {:else}
+        <div class="w-full h-full text-[#76859a]">{@include "FileArtSvg.ui"}</div>
+    {/if}
+    {#if !entry.format.is_empty()}
+        <div class="absolute left-[23%] right-[27%] bottom-[8%] h-[13%] rounded-[3px] bg-black/25 flex items-center justify-center
+                    text-[9px] font-extrabold tracking-[0.06em] text-white uppercase">{entry.format.chars().take(5).collect::<String>()}</div>
+    {/if}
+</div>

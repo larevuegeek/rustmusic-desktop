@@ -1,0 +1,1121 @@
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
+use chrono::Utc;
+use rayon::prelude::*;
+use serde::Serialize;
+use sqlx::{SqlitePool, SqliteConnection};
+
+use crate::entity::artist::artist::{Artist, ArtistCreate};
+use crate::entity::library::library_album::{LibraryAlbum, LibraryAlbumCreate};
+use crate::entity::library::library_album_artist::{LibraryAlbumArtistCreate};
+use crate::entity::library::library_artist::{LibraryArtist, LibraryArtistCreate};
+use crate::entity::library::library_cache::{LibraryCache, LibraryCacheCreate};
+use crate::entity::library::library_dirs::{LibraryDir, LibraryDirCreate};
+use crate::entity::library::library_track::{LibraryTrack, LibraryTrackCreate};
+use crate::entity::library::library_track_artist::LibraryTrackArtistCreate;
+use crate::helper::files::reader::read_dir_deep_with_progress;
+use crate::helper::task::{Task, TaskToken};
+use crate::helper::library::thumbnail_helper::{migrate_old_thumbnails, thumbnail_saver};
+use crate::helper::string::string::{normalize_name, normalize_sort_name, split_artists};
+use crate::mapper::tracks::track_row::to_track_list_row;
+use crate::repository::artist::artist_repository::ArtistRepository;
+use crate::repository::library::library_album_artist_repository::LibraryAlbumArtistRepository;
+use crate::repository::library::library_album_repository::LibraryAlbumRepository;
+use crate::repository::library::library_artist_repository::LibraryArtistRepository;
+use crate::repository::library::library_cache_repository::LibraryCacheRepository;
+use crate::repository::library::library_dirs_repository::LibraryDirRepository;
+use crate::repository::library::library_files_repository::LibraryFilesRepository;
+use crate::repository::library::library_track_artist_repository::LibraryTrackArtistRepository;
+use crate::repository::library::library_track_repository::LibraryTrackRepository;
+use crate::repository::library::artist_split_repository::ArtistSplitRepository;
+use crate::{core::audio_analyser::audio_analyser::AudioAnalyser, entity::audio::audio_file::AudioFile};
+use crate::entity::audio::audio_tags::AudioTags;
+use crate::entity::library::library_files::{LibraryFile, LibraryFileCreate};
+use crate::query::track::track_list_row::TrackListRow;
+use crate::service::library::album_folder::album_root;
+use crate::service::library::artist_split;
+
+// ============================================================================
+// RÉSULTAT D'ANALYSE D'UN FICHIER (phase CPU, sync, rayon-compatible)
+// ============================================================================
+// Cette struct transporte les données entre la phase d'analyse (parallèle)
+// et la phase d'écriture DB (séquentielle dans la transaction).
+
+pub struct FileAnalysisResult {
+    pub path: String,
+    pub filename: String,
+    pub extension: String,
+    pub size: i64,
+    pub file_modified: Option<String>,
+    pub audio_file: AudioFile,
+    pub thumbnail_url: Option<String>,
+}
+
+/// Pochettes de dossier (cover.jpg…) d'un import, cherchées une fois par dossier :
+/// avant, chaque morceau testait 25 noms puis relisait l'image. Un seul fil la
+/// cherche, les autres morceaux du dossier attendent son résultat.
+#[derive(Default)]
+struct FolderCovers(Mutex<HashMap<PathBuf, Arc<OnceLock<Option<String>>>>>);
+
+impl FolderCovers {
+    fn thumbnail(&self, folder: &Path, covers_dir: &PathBuf) -> Option<String> {
+        let cell = self.0.lock().ok()?.entry(folder.to_path_buf()).or_default().clone();
+        cell
+            .get_or_init(|| {
+                let path_part = AudioAnalyser::find_folder_cover(folder)?;
+                let image = AudioAnalyser::read_cover_file(&path_part).ok()?;
+                if image.image_data.is_empty() {
+                    return None;
+                }
+                thumbnail_saver(covers_dir, &image.image_data, false).ok()
+            })
+            .clone()
+    }
+}
+
+/// Date de modification d'un fichier, en secondes, telle qu'enregistrée en base.
+pub(crate) fn modified_secs(metadata: &std::fs::Metadata) -> Option<String> {
+    metadata.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs().to_string())
+}
+
+/// Sort de la phase d'analyse d'un fichier.
+enum Step {
+    /// Déjà indexé et inchangé sur le disque : repris de la base (id du fichier).
+    Unchanged(String),
+    Analyse(Result<FileAnalysisResult, String>),
+}
+
+/// Un fichier indexé dont la date n'a pas bougé n'est pas relu : le rescan d'une
+/// grande bibliothèque ne coûte plus qu'une date par fichier.
+fn analyse_or_reuse(
+    file: &PathBuf,
+    indexes: &HashMap<String, (String, Option<String>)>,
+    covers_dir: &PathBuf,
+    covers: &FolderCovers,
+) -> Step {
+    if let Some((id, Some(en_base))) = file.to_str().and_then(|p| indexes.get(p)) {
+        let on_disk = std::fs::metadata(file).ok().as_ref().and_then(modified_secs);
+        if on_disk.as_ref() == Some(en_base) {
+            return Step::Unchanged(id.clone());
+        }
+    }
+    Step::Analyse(analyse_file_sync(file, covers_dir, covers))
+}
+
+// Analyse un fichier audio de manière synchrone (compatible rayon)
+// Cette fonction fait le travail CPU : lire les métadonnées du FS,
+// parser le fichier avec symphonia, extraire la cover
+fn analyse_file_sync(file: &PathBuf, covers_dir: &PathBuf, covers: &FolderCovers) -> Result<FileAnalysisResult, String> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        analyse_file_inner(file, covers_dir, covers)
+    }))
+    .unwrap_or_else(|_| {
+        let path = file.to_str().unwrap_or("?");
+        log::error!("⛔ PANIC attrapé lors de l'analyse de : {}", path);
+        Err(format!("Panic during analysis of {}", path))
+    })
+}
+
+fn analyse_file_inner(file: &PathBuf, covers_dir: &PathBuf, covers: &FolderCovers) -> Result<FileAnalysisResult, String> {
+    let path = file.to_str().ok_or("Invalid UTF-8 path")?.to_string();
+    let filename = file.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+    let extension = file.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()).unwrap_or_default();
+
+    let metadata = std::fs::metadata(&path).map_err(|e| format!("metadata: {}", e))?;
+    let size = metadata.len() as i64;
+    let file_modified = modified_secs(&metadata);
+
+    let audio_file = AudioAnalyser::analyse_for_import(file).map_err(|e| e.to_string())?;
+
+    // Pochette intégrée d'abord ; à défaut, celle du dossier, partagée par ses morceaux.
+    let thumbnail_url = match audio_file.tags.attached_images.first() {
+        Some(img) if img.image_data.is_empty() => None,
+        Some(img) => thumbnail_saver(covers_dir, &img.image_data, false).ok(),
+        None => file.parent().and_then(|folder| covers.thumbnail(folder, covers_dir)),
+    };
+
+    Ok(FileAnalysisResult { path, filename, extension, size, file_modified, audio_file, thumbnail_url })
+}
+
+pub struct LibrarySaveContext {
+    pub pool: SqlitePool,
+    pub covers_dir: PathBuf,
+}
+
+pub fn create_context(
+    app: crate::app::AppHandle,
+    pool_api: &SqlitePool
+) -> LibrarySaveContext {
+    let covers_dir: PathBuf = crate::app::platform::paths::covers_dir();
+
+    LibrarySaveContext {
+        pool: pool_api.clone(),
+        covers_dir,
+    }
+}
+
+// ============================================================================
+// EVENTS DE PROGRESSION
+// ============================================================================
+
+/// Import ou rescan : un seul à la fois, arrêtable.
+pub static IMPORT: Task = Task::new();
+
+#[derive(Clone, Serialize)]
+pub struct ImportStart {
+    pub library_id: i64,
+    pub directory: String,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ImportListing {
+    pub library_id: i64,
+    pub directory: String,
+    pub found: usize,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ImportProgress {
+    pub library_id: i64,
+    pub directory: String,
+    pub current: usize,
+    pub total: usize,
+    pub percent: usize,
+    pub file_name: String,
+    /// Nouveaux morceaux, pas encore validés en base.
+    pub added: usize,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ImportComplete {
+    pub library_id: i64,
+    pub directory: String,
+    pub total: usize,
+    pub cancelled: bool,
+    pub duration_ms: u128,
+    /// Number of files skipped because of an analysis or DB error.
+    pub skipped: usize,
+}
+
+#[derive(Clone, Serialize)]
+pub struct RescanProgressPayload {
+    pub library_id: i64,
+    pub current: usize,
+    pub total: usize,
+}
+
+/// Progression d'un rescan, cumulée sur tous les dossiers de la bibliothèque.
+pub struct RescanProgress {
+    library_id: i64,
+    current: usize,
+    total: usize,
+    last_emit: Option<Instant>,
+}
+
+impl RescanProgress {
+    pub fn new(library_id: i64, total: usize) -> Self {
+        Self { library_id, current: 0, total, last_emit: None }
+    }
+
+    /// Au plus un évènement toutes les 100 ms ; le premier et le dernier passent toujours.
+    pub fn emit_progress(&mut self, app: &crate::app::AppHandle) {
+        let due = self.last_emit
+            .map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(100));
+        if !due && self.current < self.total {
+            return;
+        }
+        self.last_emit = Some(Instant::now());
+        let _ = app.emit("rescan-progress", RescanProgressPayload {
+            library_id: self.library_id,
+            current: self.current,
+            total: self.total,
+        });
+    }
+
+    fn advance(&mut self, app: &crate::app::AppHandle) {
+        self.current += 1;
+        self.emit_progress(app);
+    }
+}
+
+// ============================================================================
+// IMPORT D'UN DOSSIER DANS LA BIBLIOTHÈQUE
+// ============================================================================
+//
+// Fonctionnement :
+// 1. On scanne le dossier récursivement pour lister tous les fichiers audio
+// 2. Par lot de 8 fichiers : analyse d'abord, HORS transaction, puis une
+//    transaction courte (BEGIN IMMEDIATE) pour écrire le lot
+//    → Le verrou d'écriture ne dure que le temps d'écrire 8 fichiers
+// 3. Pour chaque fichier, on émet un event Tauri "import-progress" au frontend
+// 4. À la fin, on émet "import-complete"
+//
+// Pourquoi pas une seule transaction pour tout l'import ?
+// - SQLite n'a qu'un écrivain à la fois, même en WAL
+// - Une transaction englobant l'analyse (lecture des fichiers, parfois sur un
+//   partage réseau) gardait le verrou plusieurs minutes : la file de lecture,
+//   l'historique, les compteurs attendaient 5 s (busy_timeout) puis échouaient
+//   en « database is locked »
+//
+// Pourquoi BEGIN IMMEDIATE ?
+// - Le lot lit (fichier déjà connu ?) puis écrit : en BEGIN simple, si une
+//   autre écriture passe entre les deux, SQLite refuse aussitôt, sans attendre
+// - BEGIN IMMEDIATE prend le verrou d'écriture d'emblée et attend son tour
+//
+// ============================================================================
+
+pub async fn save_dir_to_library(
+    app: crate::app::AppHandle,
+    pool_api: &SqlitePool,
+    library_id: i64,
+    directory: String,
+    token: &TaskToken,
+) -> Result<Vec<TrackListRow>, String> {
+
+    // Enregistré avant le listage pour apparaître tout de suite.
+    let library_dir = find_or_create_dir(pool_api, library_id, &directory).await?;
+    let _ = app.emit("import-start", ImportStart { library_id, directory: directory.clone() });
+
+    let Some(Listing { files, unreadable }) = list_files(&app, library_id, &directory).await else {
+        let _ = LibraryDirRepository::update_scan_result(
+            pool_api, &library_dir.id, 0, 0, "cancelled", None,
+        ).await;
+        let _ = app.emit("import-complete", ImportComplete {
+            library_id, directory, total: 0, cancelled: true, duration_ms: 0, skipped: 0,
+        });
+        return Ok(Vec::new());
+    };
+
+    // Avant le scan : un fichier renommé ou déplacé garde sa piste au lieu d'en recréer une.
+    if let Err(e) = crate::service::library::missing_files::relink_renamed(pool_api, library_id, std::slice::from_ref(&directory), &files, &unreadable).await {
+        log::warn!("📁 Renommages de {directory} non suivis : {e}");
+    }
+    let listed = files.clone();
+    let tracks = save_files_to_library(app, pool_api, library_id, directory.clone(), files, None, token).await?;
+    // Listage complet et scan mené au bout : ce qui manque au disque quitte la bibliothèque.
+    if !token.is_cancelled() {
+        if let Err(e) = crate::service::library::missing_files::remove_missing_files(pool_api, library_id, &directory, &listed, &unreadable).await {
+            log::warn!("📁 Fichiers disparus de {directory} non retirés : {e}");
+        }
+    }
+    Ok(tracks)
+}
+
+/// Fichiers audio d'un dossier, et ses sous-dossiers illisibles (leurs fichiers manquent à `files`).
+pub struct Listing {
+    pub files: Vec<PathBuf>,
+    pub unreadable: Vec<PathBuf>,
+}
+
+/// Liste les fichiers audio hors du runtime async ; `None` si l'import est arrêté.
+pub async fn list_files(
+    app: &crate::app::AppHandle,
+    library_id: i64,
+    directory: &str,
+) -> Option<Listing> {
+    let app = app.clone();
+    let directory = directory.to_string();
+    crate::app::platform::runtime::spawn_blocking(move || {
+        let emit = |found: usize| {
+            let _ = app.emit("import-listing", ImportListing {
+                library_id, directory: directory.clone(), found,
+            });
+        };
+        let mut files: Vec<PathBuf> = Vec::new();
+        let mut unreadable: Vec<PathBuf> = Vec::new();
+        let mut last_one: Option<Instant> = None;
+        let complet = read_dir_deep_with_progress(&directory, &mut files, &mut unreadable, &mut |found| {
+            if last_one.map_or(true, |t| t.elapsed() >= std::time::Duration::from_millis(100)) {
+                last_one = Some(Instant::now());
+                emit(found);
+            }
+            !IMPORT.is_cancel_requested()
+        });
+        emit(files.len());
+        complet.then_some(Listing { files, unreadable })
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+async fn find_or_create_dir(
+    pool_api: &SqlitePool,
+    library_id: i64,
+    directory: &str,
+) -> Result<LibraryDir, String> {
+    match LibraryDirRepository::find_by_path(pool_api, library_id, directory).await {
+        Ok(Some(library_dir)) => Ok(library_dir),
+        Ok(None) => {
+            LibraryDirRepository::insert_library_dir(pool_api, LibraryDirCreate {
+                    library_id,
+                    path: directory.to_string(),
+                    name: PathBuf::from(directory)
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("Unknown")
+                        .to_string(),
+                    is_recursive: true,
+                    is_active: true,
+                    watch_enabled: true,
+                    include_patterns: None,
+                    exclude_patterns: None,
+                })
+                .await
+                .map_err(|e| e.to_string())
+        },
+        Err(e) => Err(format!("Failed to find directory: {}", e)),
+    }
+}
+
+/// Importe les fichiers déjà listés d'un dossier. Le rescan les liste d'avance
+/// pour connaître le total de toute la bibliothèque.
+pub async fn save_files_to_library(
+    app: crate::app::AppHandle,
+    pool_api: &SqlitePool,
+    library_id: i64,
+    directory: String,
+    files: Vec<PathBuf>,
+    mut progression: Option<&mut RescanProgress>,
+    token: &TaskToken,
+) -> Result<Vec<TrackListRow>, String> {
+
+    let start: Instant = Instant::now();
+
+    let mut tracks: Vec<TrackListRow> = Vec::new();
+
+    // declaration de mes repository
+    let ctx: LibrarySaveContext = create_context(app.clone(), pool_api);
+
+    // On ajoute le dossier (hors transaction, c'est 1 seule requête)
+    let library_dir: LibraryDir = find_or_create_dir(pool_api, library_id, &directory).await?;
+
+    // Migrations miniatures (covers → covers/albums/, artists → covers/artists/)
+    migrate_old_thumbnails(&app, &ctx.covers_dir, pool_api, "covers").await?;
+    migrate_old_thumbnails(&app, &ctx.covers_dir, pool_api, "artists").await?;
+
+    let total: usize = files.len();
+    log::info!("📁 {} fichiers trouvés dans {}", total, directory);
+
+    // ─── IMPORT PAR BATCH DE 8 (analyse parallèle + DB séquentielle) ───
+    //
+    // Pour chaque batch de 8 fichiers :
+    //   1. rayon analyse les 8 fichiers en parallèle sur tous les cores CPU
+    //   2. On récupère les résultats (Vec<Result<FileAnalysisResult>>)
+    //   3. On écrit chaque résultat en DB séquentiellement (une transaction par batch)
+    //   4. On émet la progression fichier par fichier pendant la phase DB
+    //
+    // Pourquoi 8 ? C'est un bon compromis entre :
+    //   - Utilisation CPU (assez de fichiers pour occuper tous les cores)
+    //   - Mémoire (max 8 AudioFile + covers en RAM simultanément)
+    //   - Latence de progression (pause max = temps d'analyse de 8 fichiers)
+
+    const BATCH_SIZE: usize = 8;
+    let mut processed: usize = 0;
+    let mut skipped: Vec<(PathBuf, String)> = Vec::new();
+    let covers_dir = ctx.covers_dir.clone();
+    let mut cancelled = false;
+    let mut added_items: usize = 0;
+    let covers = FolderCovers::default();
+    // Vide au premier import ; au rescan, les fichiers inchangés ne sont pas relus.
+    let indexes = LibraryFilesRepository::indexed_by_path(pool_api, library_id)
+        .await
+        .unwrap_or_default();
+    // Progression : au plus une toutes les 100 ms (l'interface se redessine à chacune).
+    let mut last_emit: Option<Instant> = None;
+
+    for chunk in files.chunks(BATCH_SIZE) {
+
+        // Arrêt entre deux lots : ce qui est fait est validé.
+        if token.is_cancelled() {
+            cancelled = true;
+            break;
+        }
+
+        // ── Phase 1 : Analyse parallèle (CPU-bound, sync, rayon) ──
+        // Double protection :
+        // 1. catch_unwind dans analyse_file_sync (par fichier)
+        // 2. catch_unwind autour du batch rayon entier (si un thread crash malgré tout)
+        // Si le batch crash → on retente les fichiers un par un (séquentiel)
+        let analyses: Vec<(PathBuf, Step)> = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            chunk
+                .par_iter()
+                .map(|file| {
+                    let step = analyse_or_reuse(file, &indexes, &covers_dir, &covers);
+                    (file.clone(), step)
+                })
+                .collect::<Vec<_>>()
+        })) {
+            Ok(results) => results,
+            Err(_) => {
+                log::error!("⛔ PANIC batch rayon — fallback séquentiel pour {:?}",
+                    chunk.iter().filter_map(|f| f.file_name().map(|n| n.to_string_lossy().to_string())).collect::<Vec<_>>());
+                chunk.iter().map(|file| {
+                    let step = analyse_or_reuse(file, &indexes, &covers_dir, &covers);
+                    (file.clone(), step)
+                }).collect()
+            }
+        };
+
+        // ── Phase 2 : Écriture DB séquentielle (async, transaction du lot) ──
+        // On itère les résultats un par un et on écrit dans la transaction
+        // La progression est émise après chaque fichier → UX fluide
+        let mut tx = pool_api.begin_with("BEGIN IMMEDIATE").await
+            .map_err(|e| format!("Failed to begin transaction: {}", e))?;
+
+        for (file, step) in analyses {
+            processed += 1;
+
+            let file_name = file.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("?")
+                .to_string();
+
+            // Émettre la progression (le premier et le dernier fichier passent toujours)
+            let due = last_emit.map_or(true, |t| t.elapsed() >= Duration::from_millis(100));
+            if due || processed == total {
+                last_emit = Some(Instant::now());
+                let _ = app.emit("import-progress", ImportProgress {
+                    library_id,
+                    directory: directory.clone(),
+                    current: processed,
+                    total,
+                    percent: if total > 0 { (processed * 100) / total } else { 0 },
+                    file_name: file_name.clone(),
+                    added: added_items,
+                });
+            }
+
+            if let Some(p) = progression.as_deref_mut() {
+                p.advance(&app);
+            }
+
+            let analysis_result = match step {
+                Step::Unchanged(file_id) => {
+                    match LibraryTrackRepository::find_track_view_by_file_id(&mut *tx, &file_id).await {
+                        Ok(Some(view)) => {
+                            tracks.push(view);
+                            continue;
+                        }
+                        // Fichier en base sans morceau : incohérence, on le réanalyse.
+                        _ => analyse_file_sync(&file, &covers_dir, &covers),
+                    }
+                }
+                Step::Analyse(result) => result,
+            };
+
+            let analysis = match analysis_result {
+                Ok(a) => a,
+                Err(e) => {
+                    log::warn!("⚠️ Analyse ignorée {} : {}", file_name, e);
+                    skipped.push((file.clone(), e));
+                    continue;
+                }
+            };
+
+            // Écrire le résultat analysé en DB via save_analysed_to_db
+            match save_analysed_to_db(
+                &mut *tx, library_id, Some(library_dir.id.clone()), analysis
+            ).await {
+                Ok((track, new_one)) => {
+                    added_items += new_one as usize;
+                    tracks.push(track);
+                }
+                Err(e) => {
+                    log::warn!("⚠️ DB ignoré {} : {}", file_name, e);
+                    skipped.push((file.clone(), e));
+                }
+            }
+        }
+
+        tx.commit().await
+            .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+    }
+
+    let elapsed = start.elapsed();
+    log::info!(
+        "✅ Import terminé : {} fichiers en {:.2}s ({:.0} fichiers/sec)\
+         {}",
+        tracks.len(),
+        elapsed.as_secs_f64(),
+        tracks.len() as f64 / elapsed.as_secs_f64().max(0.001),
+        if skipped.is_empty() {
+            String::new()
+        } else {
+            format!(" — {} fichier(s) ignoré(s)", skipped.len())
+        }
+    );
+
+    // Mettre à jour les stats du dossier importé
+    let total_size: i64 = tracks.iter()
+        .map(|t| t.size)
+        .sum();
+    let _ = LibraryDirRepository::update_scan_result(
+        pool_api, &library_dir.id,
+        tracks.len() as i64, total_size,
+        if cancelled { "cancelled" } else { "completed" }, None,
+    ).await;
+
+
+    //clear old directory
+
+
+    // Émettre l'événement de fin au frontend
+    let _ = app.emit("import-complete", ImportComplete {
+        library_id,
+        directory,
+        total: tracks.len(),
+        cancelled,
+        duration_ms: elapsed.as_millis(),
+        skipped: skipped.len(),
+    });
+
+    Ok(tracks)
+}
+
+
+// ============================================================================
+// ÉCRITURE DB D'UN FICHIER ANALYSÉ (phase DB, async, séquentielle)
+// ============================================================================
+// Prend le résultat d'analyse (CPU) et écrit tout en DB dans la transaction.
+// Gère aussi le skip si le fichier est déjà indexé et inchangé.
+
+pub(crate) async fn save_analysed_to_db(
+    conn: &mut SqliteConnection,
+    library_id: i64,
+    library_dir_id: Option<String>,
+    analysis: FileAnalysisResult,
+) -> Result<(TrackListRow, bool), String> {
+    let now = Utc::now();
+
+    // ─── Upsert le fichier en DB ───
+    let library_file: LibraryFile = LibraryFilesRepository::insert_library_file(&mut *conn, LibraryFileCreate {
+        library_id, library_dir_id, cache_id: None,
+        path: analysis.path.clone(), filename: analysis.filename.clone(),
+        extension: analysis.extension.clone(), size: analysis.size,
+        file_hash: None, modified_at: analysis.file_modified.clone(),
+        status: "pending".to_string(), is_available: true, error_message: None,
+        created_at: now.clone(), updated_at: now, last_verified_at: None,
+    }).await.map_err(|e| format!("Failed to insert file: {}", e))?;
+
+    // L'upsert garde le statut d'un fichier connu.
+    let new_one = library_file.status != "indexed";
+
+    // ─── Skip si fichier inchangé ───
+    if library_file.status == "indexed" && library_file.modified_at == analysis.file_modified {
+        if let Ok(Some(existing_view)) = LibraryTrackRepository::find_track_view_by_file_id(
+            &mut *conn, &library_file.id
+        ).await {
+            return Ok((existing_view, false));
+        }
+    }
+
+    // ─── Cache ───
+    let audio_format_string = format!("{:?}", analysis.audio_file.audio_format);
+    let data = LibraryCacheCreate {
+        path: analysis.audio_file.path.clone(),
+        title: analysis.audio_file.tags.title.clone(), artist: analysis.audio_file.tags.artist.clone(),
+        album: analysis.audio_file.tags.album.clone(), album_artist: analysis.audio_file.tags.album_artist.clone(),
+        year: analysis.audio_file.tags.year.clone(), genre: analysis.audio_file.tags.genre.clone(),
+        track_number: analysis.audio_file.tags.track_number.map(|n| n as i32),
+        disc_number: analysis.audio_file.tags.disc_number.map(|n| n as i32),
+        duration: Some(analysis.audio_file.duration as f64), bitrate: Some(analysis.audio_file.bitrate as i32),
+        bits_per_sample: Some(analysis.audio_file.bits_per_sample as i32),
+        sample_rate: Some(analysis.audio_file.sample_rate as i32), channels: Some(analysis.audio_file.channels as i32),
+        audio_format: Some(audio_format_string), mime_type: None,
+        file_size: Some(analysis.audio_file.file_size as i64), extra_tags: None,
+        thumbnail_path: analysis.thumbnail_url.clone(),
+    };
+
+    let library_cache = LibraryCacheRepository::upsert_library_cache(&mut *conn, data)
+        .await.map_err(|e| format!("Failed to upsert cache: {}", e))?;
+
+    let audio_tags = &analysis.audio_file.tags;
+
+    // ─── Artistes (split multi-artistes) ───
+    let raw_artist = audio_tags.artist.as_deref().unwrap_or("Unknown Artist");
+    // Tag ARTISTS, sinon découpe d'origine corrigée par les règles des artistes multiples.
+    let artist_names = artist_split::resolve(raw_artist, &artist_split::artists_tag(&audio_tags.custom_tags), &artist_split::rules());
+
+    // Le premier artiste est le "principal" (affiché sur la track)
+    let mut all_artist_ids: Vec<String> = Vec::new();
+    let mut first_artist: Option<Artist> = None;
+    let mut first_library_artist: Option<LibraryArtist> = None;
+
+    for (i, artist_name) in artist_names.iter().enumerate() {
+        let artist = ArtistRepository::insert_artist(&mut *conn, ArtistCreate {
+            name: artist_name.clone(),
+            name_normalized: normalize_name(artist_name),
+            sort_name: normalize_sort_name(artist_name),
+        }).await.map_err(|e| format!("Failed to insert artist: {}", e))?;
+
+        let lib_artist = LibraryArtistRepository::insert_library_artist(&mut *conn, LibraryArtistCreate {
+            library_id, artist_id: artist.id.clone(),
+        }).await.map_err(|e| format!("Failed to insert library_artist: {}", e))?;
+
+        all_artist_ids.push(artist.id.clone());
+        if i == 0 {
+            first_artist = Some(artist);
+            first_library_artist = Some(lib_artist);
+        }
+    }
+
+    let artist = first_artist.ok_or("Aucun artiste créé")?;
+    let artist_id: Option<String> = Some(artist.id.clone());
+    let main_artist_id: Option<String> = artist_id.clone();
+    let library_artist: Option<LibraryArtist> = first_library_artist;
+
+    // Album artist (si différent du premier track artist)
+    let mut artist_album_id: Option<String> = None;
+    if let Some(album_artist_raw) = analysis.audio_file.tags.album_artist.as_deref() {
+        let album_artist_names = split_artists(album_artist_raw);
+        for album_artist_name in &album_artist_names {
+            let album_artist_normalized = normalize_name(album_artist_name);
+            if album_artist_normalized != normalize_name(&artist_names[0]) {
+                let album_artist = ArtistRepository::insert_artist(&mut *conn, ArtistCreate {
+                    name: album_artist_name.clone(),
+                    name_normalized: album_artist_normalized,
+                    sort_name: normalize_sort_name(album_artist_name),
+                }).await.map_err(|e| format!("Failed to insert artist (album): {}", e))?;
+                let _ = LibraryArtistRepository::insert_library_artist(&mut *conn, LibraryArtistCreate {
+                    library_id, artist_id: album_artist.id.clone(),
+                }).await;
+                // Le premier album_artist différent porte l'album — et lui
+                // seul. L'écrire aussi dans `main_artist_id` donnait
+                // « Various Artists » comme artiste de chaque piste d'une
+                // compilation, alors que leur tag nomme un vrai artiste.
+                if artist_album_id.is_none() {
+                    artist_album_id = Some(album_artist.id.clone());
+                }
+            }
+        }
+    }
+
+    // ─── Album ───
+    let year: Option<i32> = audio_tags.year.as_deref().and_then(|s| s.parse::<i32>().ok());
+    let genre: Option<String> = audio_tags.genre.clone();
+    let album_title = audio_tags.album.as_deref().unwrap_or("Unknown").to_string();
+    let album_title_normalized = normalize_name(&album_title);
+    let mut library_album_id: Option<String> = None;
+    let mut library_album: Option<LibraryAlbum> = None;
+
+    // L'album appartient à son artiste d'album quand le tag en donne un.
+    let album_owner = artist_album_id.clone().or_else(|| main_artist_id.clone());
+    let album_dir = album_root(&library_file.path);
+
+    if let Some(owner) = album_owner {
+        let album = LibraryAlbumRepository::insert_library_album(&mut *conn, LibraryAlbumCreate {
+            library_id, artist_id: owner.clone(), album_dir,
+            title: album_title.clone(), title_normalized: album_title_normalized,
+            year, genre, cover_url: analysis.thumbnail_url.clone(), album_type: Some("album".to_string()),
+        }).await.map_err(|e| format!("Failed to insert album: {}", e))?;
+        let album = switch_to_compilation(
+            &mut *conn, album, &owner, artist_album_id.is_some(), library_id,
+        ).await?;
+        library_album_id = Some(album.id.clone());
+        library_album = Some(album);
+    }
+
+    // ─── Track ───
+    let title = audio_tags.title.as_deref().unwrap_or(&library_file.filename).to_string();
+    let disc_number = audio_tags.disc_number.unwrap_or(1) as i32;
+    let track_number = audio_tags.track_number.map(|n| n as i32);
+    let title_normalized = title.to_lowercase();
+
+    let previous_album = LibraryTrackRepository::album_of_file(&mut *conn, library_file.library_id, &library_file.id)
+        .await.map_err(|e| format!("Failed to read track: {}", e))?;
+    let library_track = LibraryTrackRepository::insert_library_track(&mut *conn, LibraryTrackCreate {
+        library_id: library_file.library_id, file_id: library_file.id.clone(),
+        cache_id: Some(library_cache.id.clone()), artist_id: main_artist_id.clone(),
+        library_album_id: library_album_id.clone(), title, title_normalized,
+        track_number, disc_number,
+        tags: {
+            // Stocker les tags SANS les images (trop lourd en base64)
+            let mut tags_light = audio_tags.clone();
+            tags_light.attached_images.clear();
+            serde_json::to_string(&tags_light).ok()
+        },
+        duration: Some(analysis.audio_file.duration as f64), bitrate: Some(analysis.audio_file.bitrate as i32),
+        sample_rate: Some(analysis.audio_file.sample_rate as i32),
+        rating: audio_tags.rating,
+    }).await.map_err(|e| format!("Failed to insert track: {}", e))?;
+    forget_previous_links(&mut *conn, &library_track.id, previous_album.as_deref(), library_album_id.as_deref()).await?;
+
+    // ─── Liaison artistes ↔ track (tous les artistes splittés) ───
+    for aid in &all_artist_ids {
+        if let Err(e) = LibraryTrackArtistRepository::insert_library_track_artist(&mut *conn, LibraryTrackArtistCreate {
+            library_id, artist_id: aid.clone(), library_track_id: library_track.id.clone(),
+        }).await {
+            // Cette liaison porte les artistes secondaires — les « feat. », les
+            // duos. Sans elle ils ne sont crédités nulle part. L'échec était
+            // avalé : la table pouvait rester vide de bout en bout sans qu'une
+            // seule ligne de journal ne le signale.
+            log::warn!("⚠️ Liaison artiste ↔ piste refusée ({} / {}) : {}", aid, library_track.id, e);
+        }
+    }
+
+    // Album artist(s) → liaison track + album
+    if let Some(ref album_art_id) = artist_album_id {
+        // Lier l'album artist au track si pas déjà fait
+        if !all_artist_ids.contains(album_art_id) {
+            let _ = LibraryTrackArtistRepository::insert_library_track_artist(&mut *conn, LibraryTrackArtistCreate {
+                library_id, artist_id: album_art_id.clone(), library_track_id: library_track.id.clone(),
+            }).await;
+        }
+        // Lier l'album artist à l'album
+        if let Some(ref lib_album_id) = library_album_id {
+            let _ = LibraryAlbumArtistRepository::insert_library_album_artist(&mut *conn, LibraryAlbumArtistCreate {
+                library_id, artist_id: album_art_id.clone(), library_album_id: lib_album_id.clone(),
+            }).await;
+        }
+    }
+
+    // ─── Marquer comme indexé ───
+    let _ = LibraryFilesRepository::mark_as_indexed(
+        &mut *conn, &library_file.id, analysis.file_modified.as_deref(),
+    ).await;
+
+    Ok((to_track_list_row(&library_track, &library_file, &library_cache, &artist, library_artist.as_ref(), library_album.as_ref()), new_one))
+}
+
+/// Piste relue : ses liens d'artistes sont refaits d'après le fichier, et l'album qu'elle quitte
+/// disparaît s'il ne lui reste rien. Sans effet sur une piste neuve.
+async fn forget_previous_links(
+    conn: &mut sqlx::SqliteConnection,
+    track_id: &str,
+    previous_album: Option<&str>,
+    new_album: Option<&str>,
+) -> Result<(), String> {
+    ArtistSplitRepository::delete_track_links(&mut *conn, track_id)
+        .await
+        .map_err(|e| format!("Failed to reset artist links: {}", e))?;
+    if let Some(old) = previous_album.filter(|old| Some(*old) != new_album) {
+        LibraryAlbumRepository::delete_if_empty(&mut *conn, old)
+            .await
+            .map_err(|e| format!("Failed to drop empty album: {}", e))?;
+    }
+    Ok(())
+}
+
+// Version pool — pour l'import de fichiers individuels (hors transaction)
+pub async fn save_track_to_library(
+    ctx: &LibrarySaveContext,
+    library_id: i64,
+    library_dir_id: Option<String>,
+    file: String
+) -> Result<TrackListRow, String> {
+    let mut conn = ctx.pool.acquire().await.map_err(|e| format!("Failed to acquire connection: {}", e))?;
+    save_track_to_library_tx(&mut *conn, &ctx.covers_dir, library_id, library_dir_id, file).await
+}
+
+// Version transactionnelle — reçoit &mut SqliteConnection de la transaction
+// Chaque appel utilise &mut *conn (reborrow) pour ne pas consommer la connexion
+pub async fn save_track_to_library_tx(
+    conn: &mut SqliteConnection,
+    covers_dir: &PathBuf,
+    library_id: i64,
+    library_dir_id: Option<String>,
+    file: String
+) -> Result<TrackListRow, String> {
+
+        let file_buf: PathBuf = PathBuf::from(&file);
+
+        // ─── ÉTAPE 1 : Lire les métadonnées du système de fichiers ───
+        // std::fs::metadata() est très rapide (~0.01ms) car il lit juste l'inode
+        // On récupère : taille du fichier + date de dernière modification
+        let path_buf_file: PathBuf = PathBuf::from(&file);
+        let filename: String = path_buf_file.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+        let extension: String = path_buf_file.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()).unwrap_or_default();
+        let metadata = std::fs::metadata(&file).map_err(|e| format!("Failed to read file metadata: {}", e))?;
+        let size: i64 = metadata.len() as i64;
+
+        // Convertir SystemTime en timestamp string pour stockage en DB
+        // UNIX_EPOCH = 1er janvier 1970, on calcule les secondes écoulées depuis
+        let file_modified: Option<String> = metadata.modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs().to_string());
+
+        let now = Utc::now();
+
+        // ─── ÉTAPE 2 : Upsert le fichier en DB ──────────────────────
+        // ON CONFLICT(library_id, path) → si le fichier existe déjà, on retourne la ligne existante
+        // On passe le modified_at du disque pour les nouveaux fichiers
+        let library_file: LibraryFile = LibraryFilesRepository::insert_library_file(&mut *conn, LibraryFileCreate {
+            library_id, library_dir_id, cache_id: None,
+            path: file.clone(), filename, extension, size,
+            file_hash: None, modified_at: file_modified.clone(),
+            status: "pending".to_string(), is_available: true, error_message: None,
+            created_at: now.clone(), updated_at: now, last_verified_at: None,
+        }).await.map_err(|e| format!("Failed to insert file: {}", e))?;
+
+        // ─── ÉTAPE 3 : Skip si fichier inchangé ─────────────────────
+        // Comparer la date de modification du fichier sur disque vs en base
+        // Si identiques ET le fichier a déjà été indexé (status != "pending")
+        // → Le fichier n'a pas changé depuis le dernier import
+        // → On récupère le TrackListRow existant depuis la DB (1 requête SQL rapide)
+        // → On économise l'analyse audio complète (symphonia ~5-50ms par fichier)
+        if library_file.status == "indexed"
+            && library_file.modified_at == file_modified
+        {
+            // Le fichier est déjà importé et n'a pas changé → skip l'analyse
+            if let Ok(Some(existing_view)) = LibraryTrackRepository::find_track_view_by_file_id(
+                &mut *conn, &library_file.id
+            ).await {
+                return Ok(existing_view);
+            }
+            // Si on ne trouve pas le track (données incohérentes), on continue l'import normal
+        }
+
+        // ─── ÉTAPE 4 : Analyse audio (seulement si fichier nouveau ou modifié) ───
+        // C'est l'opération la plus coûteuse : symphonia ouvre le fichier, lit les headers,
+        // parse les tags ID3/Vorbis/FLAC, extrait les images embarquées, calcule la durée
+        let audio_file: AudioFile = AudioAnalyser::analyse_for_scan(&file_buf).map_err(|e| e.to_string())?;
+
+        let thumbnail_url: Option<String> = audio_file.tags.attached_images.first().and_then(|img| {
+            if img.image_data.is_empty() { return None; }
+            thumbnail_saver(covers_dir, &img.image_data, false).ok()
+        });
+
+        // --- Cache ---
+        let audio_format_string: String = format!("{:?}", audio_file.audio_format);
+        let data: LibraryCacheCreate = LibraryCacheCreate {
+            path: audio_file.path.clone(),
+            title: audio_file.tags.title.clone(), artist: audio_file.tags.artist.clone(),
+            album: audio_file.tags.album.clone(), album_artist: audio_file.tags.album_artist.clone(),
+            year: audio_file.tags.year.clone(), genre: audio_file.tags.genre.clone(),
+            track_number: audio_file.tags.track_number.map(|n| n as i32),
+            disc_number: audio_file.tags.disc_number.map(|n| n as i32),
+            duration: Some(audio_file.duration as f64), bitrate: Some(audio_file.bitrate as i32),
+            bits_per_sample: Some(audio_file.bits_per_sample as i32),
+            sample_rate: Some(audio_file.sample_rate as i32), channels: Some(audio_file.channels as i32),
+            audio_format: Some(audio_format_string), mime_type: None,
+            file_size: Some(audio_file.file_size as i64), extra_tags: None,
+            thumbnail_path: thumbnail_url.clone(),
+        };
+
+        let library_cache: LibraryCache = LibraryCacheRepository::upsert_library_cache(&mut *conn, data)
+            .await.map_err(|e| format!("Failed to upsert cache: {}", e))?;
+
+        let audio_tags: &AudioTags = &audio_file.tags;
+
+        // ─── Artistes (split multi-artistes) ───
+        let raw_artist = audio_tags.artist.as_deref().unwrap_or("Unknown Artist");
+        let artist_names = artist_split::resolve(raw_artist, &artist_split::artists_tag(&audio_tags.custom_tags), &artist_split::rules());
+
+        let mut all_artist_ids: Vec<String> = Vec::new();
+        let mut first_artist: Option<Artist> = None;
+        let mut first_library_artist: Option<LibraryArtist> = None;
+
+        for (i, artist_name) in artist_names.iter().enumerate() {
+            let artist = ArtistRepository::insert_artist(&mut *conn, ArtistCreate {
+                name: artist_name.clone(),
+                name_normalized: normalize_name(artist_name),
+                sort_name: normalize_sort_name(artist_name),
+            }).await.map_err(|e| format!("Failed to insert artist: {}", e))?;
+
+            let lib_artist = LibraryArtistRepository::insert_library_artist(&mut *conn, LibraryArtistCreate {
+                library_id, artist_id: artist.id.clone(),
+            }).await.map_err(|e| format!("Failed to insert library_artist: {}", e))?;
+
+            all_artist_ids.push(artist.id.clone());
+            if i == 0 {
+                first_artist = Some(artist);
+                first_library_artist = Some(lib_artist);
+            }
+        }
+
+        let artist = first_artist.ok_or("Aucun artiste créé")?;
+        let artist_id: Option<String> = Some(artist.id.clone());
+        let main_artist_id: Option<String> = artist_id.clone();
+        let library_artist: Option<LibraryArtist> = first_library_artist;
+
+        let mut artist_album_id: Option<String> = None;
+        if let Some(album_artist_raw) = audio_file.tags.album_artist.as_deref() {
+            let album_artist_names = split_artists(album_artist_raw);
+            for album_artist_name in &album_artist_names {
+                let album_artist_normalized = normalize_name(album_artist_name);
+                if album_artist_normalized != normalize_name(&artist_names[0]) {
+                    let album_artist = ArtistRepository::insert_artist(&mut *conn, ArtistCreate {
+                        name: album_artist_name.clone(),
+                        name_normalized: album_artist_normalized,
+                        sort_name: normalize_sort_name(album_artist_name),
+                    }).await.map_err(|e| format!("Failed to insert artist (album): {}", e))?;
+                    let _ = LibraryArtistRepository::insert_library_artist(&mut *conn, LibraryArtistCreate {
+                        library_id, artist_id: album_artist.id.clone(),
+                    }).await;
+                    // Porte l'album, et lui seul — voir `save_analysed_to_db`.
+                    if artist_album_id.is_none() {
+                        artist_album_id = Some(album_artist.id.clone());
+                    }
+                }
+            }
+        }
+
+        // --- Album ---
+        let year: Option<i32> = audio_tags.year.as_deref().and_then(|s| s.parse::<i32>().ok());
+        let genre: Option<String> = audio_tags.genre.clone();
+        let album_title: String = audio_tags.album.as_deref().unwrap_or("Unknown").to_string();
+        let album_title_normalized = normalize_name(&album_title);
+        let mut library_album_id: Option<String> = None;
+        let mut library_album: Option<LibraryAlbum> = None;
+
+        let album_owner = artist_album_id.clone().or_else(|| main_artist_id.clone());
+        let album_dir = album_root(&library_file.path);
+
+        if let Some(owner) = album_owner {
+            let album: LibraryAlbum = LibraryAlbumRepository::insert_library_album(&mut *conn, LibraryAlbumCreate {
+                library_id, artist_id: owner.clone(), album_dir,
+                title: album_title.clone(), title_normalized: album_title_normalized,
+                year, genre, cover_url: thumbnail_url.clone(), album_type: Some("album".to_string()),
+            }).await.map_err(|e| format!("Failed to insert album: {}", e))?;
+            let album = switch_to_compilation(
+                &mut *conn, album, &owner, artist_album_id.is_some(), library_id,
+            ).await?;
+            library_album_id = Some(album.id.clone());
+            library_album = Some(album);
+        }
+
+        // --- Track (upsert — 1 requête au lieu de SELECT + INSERT) ---
+        let title = audio_tags.title.as_deref().unwrap_or(&library_file.filename).to_string();
+        let disc_number = audio_tags.disc_number.unwrap_or(1) as i32;
+        let track_number = audio_tags.track_number.map(|n| n as i32);
+        let title_normalized = title.to_lowercase();
+
+        let previous_album = LibraryTrackRepository::album_of_file(&mut *conn, library_file.library_id, &library_file.id)
+            .await.map_err(|e| format!("Failed to read track: {}", e))?;
+        let library_track: LibraryTrack = LibraryTrackRepository::insert_library_track(&mut *conn, LibraryTrackCreate {
+            library_id: library_file.library_id, file_id: library_file.id.clone(),
+            cache_id: Some(library_cache.id.clone()), artist_id: main_artist_id.clone(),
+            library_album_id: library_album_id.clone(), title, title_normalized,
+            track_number, disc_number,
+            tags: {
+                let mut tags_light = audio_tags.clone();
+                tags_light.attached_images.clear();
+                serde_json::to_string(&tags_light).ok()
+            },
+            duration: Some(audio_file.duration as f64), bitrate: Some(audio_file.bitrate as i32),
+            sample_rate: Some(audio_file.sample_rate as i32),
+            rating: audio_tags.rating,
+        }).await.map_err(|e| format!("Failed to insert track: {}", e))?;
+        forget_previous_links(&mut *conn, &library_track.id, previous_album.as_deref(), library_album_id.as_deref()).await?;
+
+        // ─── Liaison artistes ↔ track (tous les artistes splittés) ───
+        for aid in &all_artist_ids {
+            if let Err(e) = LibraryTrackArtistRepository::insert_library_track_artist(&mut *conn, LibraryTrackArtistCreate {
+                library_id, artist_id: aid.clone(), library_track_id: library_track.id.clone(),
+            }).await {
+                log::warn!("⚠️ Liaison artiste ↔ piste refusée ({} / {}) : {}", aid, library_track.id, e);
+            }
+        }
+
+        if let Some(ref album_art_id) = artist_album_id {
+            if !all_artist_ids.contains(album_art_id) {
+                let _ = LibraryTrackArtistRepository::insert_library_track_artist(&mut *conn, LibraryTrackArtistCreate {
+                    library_id, artist_id: album_art_id.clone(), library_track_id: library_track.id.clone(),
+                }).await;
+            }
+            if let Some(ref lib_album_id) = library_album_id {
+                let _ = LibraryAlbumArtistRepository::insert_library_album_artist(&mut *conn, LibraryAlbumArtistCreate {
+                    library_id, artist_id: album_art_id.clone(), library_album_id: lib_album_id.clone(),
+                }).await;
+            }
+        }
+
+        // ─── ÉTAPE FINALE : Marquer le fichier comme "indexed" ────────
+        // On met à jour le status et le modified_at pour que le prochain scan
+        // puisse détecter que ce fichier a déjà été traité et n'a pas changé
+        let _ = LibraryFilesRepository::mark_as_indexed(
+            &mut *conn,
+            &library_file.id,
+            file_modified.as_deref(),
+        ).await;
+
+        Ok(to_track_list_row(&library_track, &library_file, &library_cache, &artist, library_artist.as_ref(), library_album.as_ref()))
+}
+
+/// Deux artistes sous le même toit et aucun tag « artiste de l'album » pour
+/// trancher : c'est une compilation, pas l'album du premier indexé.
+async fn switch_to_compilation(
+    conn: &mut sqlx::SqliteConnection,
+    album: LibraryAlbum,
+    wanted_owner: &str,
+    tag_present: bool,
+    library_id: i64,
+) -> Result<LibraryAlbum, String> {
+    if tag_present || album.artist_id == wanted_owner || album.album_type == "compilation" {
+        return Ok(album);
+    }
+
+    let various = ArtistRepository::insert_artist(&mut *conn, ArtistCreate {
+        name: "Various Artists".to_string(),
+        name_normalized: normalize_name("Various Artists"),
+        sort_name: normalize_sort_name("Various Artists"),
+    }).await.map_err(|e| format!("Artiste « Various Artists » : {e}"))?;
+    let _ = LibraryArtistRepository::insert_library_artist(&mut *conn, LibraryArtistCreate {
+        library_id, artist_id: various.id.clone(),
+    }).await;
+
+    let mut placed = LibraryAlbumRepository::set_owner(&mut *conn, &album.id, &various.id, "compilation").await;
+    // Une autre compilation porte déjà ce titre dans un autre dossier : seul
+    // l'index de compatibilité 0.2.4 s'y oppose, il cède.
+    if matches!(&placed, Err(sqlx::Error::Database(e)) if e.is_unique_violation()) {
+        log::info!("Index de compatibilité 0.2.4 retiré : deux compilations « {} »", album.title);
+        if LibraryAlbumRepository::drop_compat_index(&mut *conn).await.is_ok() {
+            placed = LibraryAlbumRepository::set_owner(&mut *conn, &album.id, &various.id, "compilation").await;
+        }
+    }
+    // Un regroupement manqué ne vaut pas un fichier perdu : la piste reste indexée.
+    if let Err(e) = placed {
+        log::warn!("⚠️ Passage en compilation refusé pour « {} » : {e}", album.title);
+        return Ok(album);
+    }
+
+    Ok(LibraryAlbum { artist_id: various.id, album_type: "compilation".to_string(), ..album })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    /// Deux compilations du même titre dans deux dossiers, sans tag « artiste
+    /// de l'album » : la seconde heurtait l'index 0.2.4 et ses pistes tombaient.
+    #[tokio::test]
+    async fn two_compilations_with_the_same_title_stay_indexed() {
+        let pool = SqlitePoolOptions::new().max_connections(1)
+            .connect("sqlite::memory:").await.expect("base mémoire");
+        sqlx::migrate!("./SQL/").run(&pool).await.expect("migrations");
+        sqlx::query("INSERT OR IGNORE INTO profil (id, name) VALUES (1, 'Socle')").execute(&pool).await.unwrap();
+        sqlx::query("INSERT OR IGNORE INTO library (id, profil_id, name) VALUES (1, 1, 'test')").execute(&pool).await.unwrap();
+        for (id, name) in [("a1", "Ricchi e Poveri"), ("a2", "Al Bano"), ("a3", "Pooh"), ("a4", "Matia Bazar")] {
+            sqlx::query("INSERT INTO artists (id, name, name_normalized, sort_name) VALUES (?, ?, ?, ?)")
+                .bind(id).bind(name).bind(name.to_lowercase()).bind(name).execute(&pool).await.unwrap();
+        }
+        sqlx::query(crate::repository::library::library_album_repository::INDEX_COMPAT_0_2_4)
+            .execute(&pool).await.unwrap();
+
+        let mut conn = pool.acquire().await.unwrap();
+        let mut place = async |dir: &str, artist_name: &str| {
+            let album = LibraryAlbumRepository::insert_library_album(&mut *conn, LibraryAlbumCreate {
+                library_id: 1, artist_id: artist_name.into(), album_dir: dir.into(),
+                title: "Amore".into(), title_normalized: "amore".into(),
+                year: None, genre: None, cover_url: None, album_type: None,
+            }).await.expect("album");
+            switch_to_compilation(&mut *conn, album, artist_name, false, 1).await
+        };
+
+        place(r"E:\M\Amore 1", "a1").await.expect("1re piste");
+        let un = place(r"E:\M\Amore 1", "a2").await.expect("1re compilation");
+        place(r"E:\M\Amore 2", "a3").await.expect("1re piste, 2e dossier");
+        let two = place(r"E:\M\Amore 2", "a4").await.expect("la 2e compilation ne doit pas faire échouer la piste");
+
+        assert_eq!(two.album_type, "compilation");
+        assert_ne!(un.id, two.id, "un dossier, un album");
+    }
+}

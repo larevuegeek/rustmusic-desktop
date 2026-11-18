@@ -1,0 +1,27 @@
+{#if row.in_progress && table.detailed}
+    <p class="truncate font-semibold text-base text-(--rg-g) m-0" title={row.title.as_str()}>{row.title}</p>
+{:else if row.in_progress}
+    <p class="truncate font-semibold text-[15px] text-(--rg-g) m-0" title={row.title.as_str()}>{row.title}</p>
+{:else if table.detailed}
+    <p class="truncate font-semibold text-base text-(--rg-tx) m-0" title={row.title.as_str()}>{row.title}</p>
+{:else}
+    <p class="truncate font-semibold text-[15px] text-(--rg-tx) m-0" title={row.title.as_str()}>{row.title}</p>
+{/if}
+{#if !row.artist.is_empty()}
+    {#if let Some(route) = &row.artist_route}
+        <div class="mt-0.5 truncate text-[13px] text-(--rg-tx2) hover:text-(--rg-tx) hover:underline underline-offset-2 cursor-pointer w-auto self-start"
+             onclick={Msg::Go(route.clone())}>{row.artist}</div>
+    {/if}
+    {#if row.artist_route.is_none()}
+        <div class="mt-0.5 truncate text-[13px] text-(--rg-tx2)">{row.artist}</div>
+    {/if}
+{/if}
+{#if table.detailed}
+    <div class="mt-1.5 flex items-center gap-2 min-w-0 text-xs text-(--rg-mu2)">
+        {#if !row.album.is_empty()}
+            <div class="min-w-0 truncate text-(--rg-mu)">{row.album_line()}</div>
+        {/if}
+        {@include "TierBadge.ui"}
+        <div class="whitespace-nowrap">{row.details}</div>
+    </div>
+{/if}

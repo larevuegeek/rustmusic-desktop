@@ -1,0 +1,8 @@
+<div class="flex items-baseline gap-2.5 mb-3.5">
+    <h2 class="m-0 text-[19px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{sec.title}</h2>
+    {#if let Some(count) = &sec.count}<div class="text-sm text-(--rg-mu)">{count}</div>{/if}
+    {#if let Some(m) = &sec.see_all}
+        <div class="flex-1"></div>
+        <button class="text-[13px] font-semibold cursor-pointer text-(--rg-gtx) hover:underline underline-offset-2" onclick={m.clone()}><div>{t("search.see_all")}</div></button>
+    {/if}
+</div>

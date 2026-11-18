@@ -1,0 +1,47 @@
+<div class="-mx-2 px-2 pt-2 pb-1 bg-(--sb-bg)">
+    <div class="flex items-center gap-2 py-2 pl-2.5 pr-1.5 rounded-xl bg-(--sb-gbg) border border-(--sb-gbd)">
+        <div class="flex shrink-0 text-(--sb-g)"><Icon icon="material-symbols:swap-vert-rounded" width={18} /></div>
+        <div class="flex-1 min-w-0 text-xs leading-snug text-(--sb-tx2)">{t("sidebar.organize_hint")}</div>
+        <button class="shrink-0 h-7 px-2.5 rounded-lg cursor-pointer text-xs font-bold bg-(--sb-g) text-white hover:brightness-110
+                       flex items-center"
+                onclick={Msg::Sidebar(SidebarMsg::Organize(false))}><div>{t("sidebar.organize_done")}</div></button>
+    </div>
+</div>
+{#each self.sidebar_section_rows() as row (row.section as usize)}
+    <div class="mt-2 rounded-xl border p-1.5 transition-colors border-(--sb-bd2)"
+         ondrop={|e: DropEvent| Msg::Sidebar(SidebarMsg::DropSection(e))} dropzone={(DRAG_SECTIONS, row.index as u64)}>
+        <div class="flex items-center gap-0.5">
+            <div class="w-6 h-7.5 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing
+                        text-(--sb-mu) hover:text-(--sb-tx)"
+                 title={t("sidebar.move")} tabindex="-1" onclick={Msg::Noop} draggable={(DRAG_SECTIONS, row.index as u64)}>
+                <Icon icon="material-symbols:drag-indicator" width={18} />
+            </div>
+            <div class="flex-1 min-w-0 truncate text-xs font-bold uppercase tracking-[.08em] text-(--sb-hd)">{row.title}</div>
+            {#if row.can_move_up}
+                <SidebarButton icon="material-symbols:keyboard-arrow-up-rounded" label={t("sidebar.move_up")} size={18}
+                               onclick={Msg::Sidebar(SidebarMsg::Shift(row.index, true))} />
+            {/if}
+            {#if row.can_move_down}
+                <SidebarButton icon="material-symbols:keyboard-arrow-down-rounded" label={t("sidebar.move_down")} size={18}
+                               onclick={Msg::Sidebar(SidebarMsg::Shift(row.index, false))} />
+            {/if}
+        </div>
+        {#if row.section == SbSection::Playlists}
+            {#each vm.sidebar_playlists as (j, playlist) (playlist.key.as_str())}
+                <div class="flex items-center gap-0.5 rounded-lg transition-colors"
+                     ondrop={|e: DropEvent| Msg::Sidebar(SidebarMsg::DropPlaylist(e))} dropzone={(DRAG_PLAYLISTS, j as u64)}>
+                    <div class="w-6 h-10 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing
+                                text-(--sb-mu) hover:text-(--sb-tx)"
+                         title={t("sidebar.move")} tabindex="-1" onclick={Msg::Noop} draggable={(DRAG_PLAYLISTS, j as u64)}>
+                        <Icon icon="material-symbols:drag-indicator" width={18} />
+                    </div>
+                    <div class="flex-1 min-w-0 pointer-events-none">
+                        <PlaylistItem playlist={Some(PlaylistRow { active: false, ..playlist.clone() })} />
+                    </div>
+                </div>
+            {:else}
+                <div class="px-2 py-1.5 text-xs text-(--sb-mu)">{t("sidebar.organize_no_playlist")}</div>
+            {/each}
+        {/if}
+    </div>
+{/each}

@@ -1,0 +1,15 @@
+<div class="flex items-center gap-2 mb-3">
+    <div class="text-[13px] text-(--rg-mu)">{t("smart.match")}</div>
+    <select class="h-8 px-2.5 rounded-lg text-[13px] cursor-pointer bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
+            value={if g.all { 0u64 } else { 1u64 }} aria-label={t("smart.match")}
+            onchange={{ let p = g.path.clone(); move |i: u64| Msg::Smart(SmartMsg::Match(p.clone(), i == 0)) }}>
+        <option value={0u64}>{t("smart.match_all")}</option>
+        <option value={1u64}>{t("smart.match_any")}</option>
+    </select>
+    {#if g.removable}
+        <button class="ml-auto w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-(--rg-mu) hover:text-red-500 hover:bg-red-500/10"
+                aria-label={t("smart.remove_group")} onclick={Msg::Smart(SmartMsg::Remove(g.path.clone()))}>
+            <Icon icon="lucide:x" width={14} />
+        </button>
+    {/if}
+</div>

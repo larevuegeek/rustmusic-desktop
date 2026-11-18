@@ -1,0 +1,80 @@
+/* Popin : en-tête `bg-linear-135 from-(--rg-g)/8 to-transparent to-60%`. */
+.rg-popin-tete {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0) 60%);
+}
+
+/* Illustration des nouveautés (updates/WhatsNewArt.ui). Les fonds et les ombres qui lisent la
+   couleur de la diapo (`var(--c0)`, `var(--c1)` : `.art`, `.tache-a`, `.tache-b`,
+   `.projecteur`, ombres de `.verre` et `.centre`) sont posés par mapper/updates/update_whats_new.rs, et
+   `.grain` (`feTurbulence`, `mix-blend-mode: overlay`) n'est pas rendu : voir
+   KARBON-UI-MANQUES.md. `will-change` n'a pas d'équivalent (inutile ici). */
+/* Marqueurs sans règle propre ici : `.art`, `.tache-a` et `.tache-b` (fond posé par
+   mapper/updates/update_whats_new.rs). */
+.art { }
+.tache-a { }
+.tache-b { }
+.halo { background: radial-gradient(closest-side, rgb(255 255 255 / 0.3), transparent); }
+.fondu {
+  mask-image: linear-gradient(90deg, transparent, black 14%, black 86%, transparent);
+  opacity: 0.78;
+}
+.piste {
+  display: flex;
+  width: max-content;
+  animation: defile 46s linear infinite;
+}
+.piste.inverse {
+  animation-direction: reverse;
+  margin-left: -40px;
+}
+.projecteur { z-index: 1; }
+.halo { z-index: 2; }
+.centre { z-index: 3; }
+.verre { background: linear-gradient(160deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0.16)); }
+.centre { background: linear-gradient(155deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0.2) 55%, rgb(255 255 255 / 0.28)); }
+.icone { filter: drop-shadow(0 4px 14px rgb(255 255 255 / 0.45)); }
+.art-flotte { animation: flotte 5.6s ease-in-out infinite; }
+.pause .piste, .pause .art-flotte { animation-play-state: paused; }
+
+@keyframes defile {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes flotte {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .piste, .art-flotte { animation: none; }
+}
+
+/* Popin : fondu de 150 ms (linéaire) et
+   apparition de 180 ms depuis 0,96 (opacité et échelle, cubicOut), à
+   l'entrée puis à la sortie. */
+@keyframes popin-fade-in { from { opacity: 0; } }
+@keyframes popin-fade-out { to { opacity: 0; } }
+@keyframes popin-scale-in { from { opacity: 0; transform: scale(0.96); } }
+@keyframes popin-scale-out { to { opacity: 0; transform: scale(0.96); } }
+/* Panneaux latéraux (file, paroles) : glissés depuis le bord droit. */
+@keyframes panel-slide-in { from { transform: translateX(100%); } }
+@keyframes panel-slide-out { to { transform: translateX(100%); } }
+
+/* Popin : le corps défile sans barre visible. */
+.scrollbar-none { scrollbar-width: none; }
+
+/* ProfilSelectorPopin : pastille de couleur choisie, halo et double anneau (--pf). */
+.pf-pastille-on { box-shadow: 0 0 16px var(--pf, rgba(34, 197, 94, 0.5)), 0 0 0 2.5px rgba(0, 0, 0, 0.4), 0 0 0 4.5px var(--pf, rgba(34, 197, 94, 0.5)); }
+
+/* Mots mis en avant dans les confirmations (réinitialisation, suppression de profil) :
+   alerte (rouge), alerte adoucie (sous un texte déjà rouge) et texte fort. */
+.emphasis-alert { color: rgb(248 113 113); }
+.emphasis-soft-alert { color: rgb(252 165 165); }
+.emphasis-strong { color: #edf1ee; }
+@media (prefers-color-scheme: light) {
+    .emphasis-alert { color: #dc2626; }
+    .emphasis-soft-alert { color: #b91c1c; }
+    .emphasis-strong { color: #1a1c1a; }
+}
+@media (prefers-color-scheme: light) and (prefers-contrast: more) {
+    .emphasis-strong { color: #000000; }
+}

@@ -1,0 +1,20 @@
+{#if let Some(cover) = vm.details.cover_path.as_ref().filter(|_| self.views.cover_zoom)}
+    <dialog class="w-auto p-0 bg-transparent shadow-none border-0" closedby="any" onclose={Msg::CoverZoom(false)} backdrop="rgba(0,0,0,0.85)" aria-label={t("tags.cover")}>
+        <button class="cursor-pointer animate-[popin-scale-in_200ms_cubic-bezier(0.33,1,0.68,1)]" data-exit="popin-scale-out 160ms cubic-bezier(0.33, 1, 0.68, 1)"
+                aria-label={t("common.close")} onclick={Msg::CoverZoom(false)}
+                oncontextmenu={|r: ContextMenuRequest| Msg::CoverMenu(Some(TrackMenuAt::from_request(&r)))}>
+            <img class="w-[72vh] h-[72vh] object-cover rounded-2xl shadow-2xl shadow-black/50 border border-white/10"
+                 src={cx.resources.cover(cover)} alt={t("tags.cover")}>
+        </button>
+        {#if let Some(at) = &self.views.cover_menu}
+            <k-popover anchor={at.anchor()} menu placement="bottom-start" offset="0" aria-label={t("tags.cover")}
+                       onclose={Msg::CoverMenu(None)}
+                       class="w-55 py-1.5 bg-(--rg-s2) border border-(--rg-bd) dark:border-[#2a312d] rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+                <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx) transition-colors"
+                        onclick={Msg::CoverCopy}>
+                    <div class="flex opacity-60"><Icon icon="material-symbols:content-copy-outline-rounded" width={14} /></div><div>{t("menu.copy_cover")}</div>
+                </button>
+            </k-popover>
+        {/if}
+    </dialog>
+{/if}

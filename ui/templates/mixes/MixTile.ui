@@ -1,0 +1,78 @@
+<div class="group relative min-w-0" style:--h={m.h}>
+    <button class="w-full flex flex-col gap-3 text-left cursor-pointer min-w-0 disabled:cursor-default"
+            title={m.help.as_str()} onclick={Msg::Mixes(MixesMsg::Play(m.key.clone()))}>
+        <div class="relative w-full aspect-square overflow-hidden shrink-0 rounded-2xl shadow-[0_12px_32px_rgba(0,0,0,0.28)] ring-1 ring-black/5 dark:ring-white/[0.07]
+                    transition-transform duration-300 group-hover:-translate-y-1">
+            {#if !m.ready}
+                <div class="absolute inset-0 bg-neutral-200 dark:bg-white/6 animate-pulse"></div>
+            {:else if let Some(four) = mosaic(&m.covers_list)}
+                <div class="absolute inset-0 grid grid-cols-2 grid-rows-2">
+                    {#each four as p (p.as_str())}
+                        <img class="w-full aspect-square object-cover" src={cx.resources.cover_small_path(&p)} alt="">
+                    {/each}
+                </div>
+            {:else if let Some(cover) = m.covers_list.first()}
+                <img class="absolute inset-0 w-full h-full object-cover" src={cx.resources.cover(cover)} alt="">
+            {:else}
+                <div class="absolute inset-0 bg-[oklch(0.22_0_0)]"></div>
+            {/if}
+            <div class="mix-voile absolute inset-0"></div>
+            {#if m.decade}
+                <div class="absolute left-3.5 bottom-3 flex flex-col">
+                    <div class="mix-accent text-[10.5px] font-bold uppercase tracking-[0.14em]">{m.pre}</div>
+                    <div class="text-[40px] font-black tracking-[-0.04em] leading-[0.95] text-white">{m.short}</div>
+                </div>
+                <div class="absolute rounded-full bg-accent-500 text-(--rg-on-g) flex items-center justify-center shadow-[0_8px_20px_rgba(0,0,0,0.4)] transition-all duration-200
+                            right-3 bottom-3 w-10 h-10 opacity-0 translate-y-1.5 group-hover:opacity-100 group-hover:translate-y-0">
+                    <Icon icon="mynaui:play-solid" width={18} />
+                </div>
+            {:else}
+                <div class="absolute left-4 right-16 bottom-4 flex flex-col gap-0.5">
+                    <div class="mix-accent text-[11px] font-bold uppercase tracking-[0.1em] truncate">{m.kind}</div>
+                    <div class="text-[20px] font-extrabold tracking-[-0.02em] leading-[1.1] text-white line-clamp-2">{m.name}</div>
+                </div>
+                <div class="absolute rounded-full bg-accent-500 text-(--rg-on-g) flex items-center justify-center shadow-[0_8px_20px_rgba(0,0,0,0.4)] transition-all duration-200
+                            right-3.5 bottom-3.5 w-12 h-12 opacity-0 translate-y-1.5 group-hover:opacity-100 group-hover:translate-y-0">
+                    <Icon icon="mynaui:play-solid" width={20} />
+                </div>
+            {/if}
+        </div>
+        <div class="w-full flex flex-col gap-1 px-0.5 min-w-0 flex-1">
+            {#if m.ready}
+                {#if m.decade}
+                    <p class="m-0 text-[13px] leading-snug text-neutral-700 dark:text-neutral-200 line-clamp-2">{m.description}</p>
+                    <p class="m-0 text-xs text-neutral-500 dark:text-[#9aa39e]">{m.meta}</p>
+                {:else}
+                    <p class="m-0 text-[14px] leading-snug text-neutral-700 dark:text-neutral-200 line-clamp-2">{m.description}</p>
+                    <p class="m-0 text-[12.5px] text-neutral-500 dark:text-[#9aa39e]">{m.meta}</p>
+                {/if}
+            {:else}
+                <div class="h-3.5 w-4/5 rounded bg-neutral-200 dark:bg-white/6 animate-pulse"></div>
+                <div class="h-3 w-2/5 rounded bg-neutral-200 dark:bg-white/6 animate-pulse"></div>
+            {/if}
+        </div>
+    </button>
+
+    <div class="absolute right-2.5 top-2.5">
+        {#if m.menu}
+            <button id={ElementId::named(&m.menu_id())} class="w-8 h-8 flex items-center justify-center rounded-full cursor-pointer bg-black/55 text-white hover:bg-black/75 transition"
+                    title={t("mix_view.actions")} aria-label={t("mix_view.actions")} onclick={Msg::Mixes(MixesMsg::Menu(m.key.clone()))}>
+                <Icon icon="material-symbols:more-horiz" width={20} />
+            </button>
+            <k-popover anchor={Anchor::Element(ElementId::named(&m.menu_id()))} menu placement="bottom-end" offset="6"
+                       aria-label={t("mix_view.actions")} onclose={Msg::CloseMenu} class="rg-menu w-60">
+                <MenuItem icon="material-symbols:refresh-rounded" onclick={Msg::Mixes(MixesMsg::Redraw(Some(m.key.clone())))}>{t("mix_view.redraw")}</MenuItem>
+                <MenuItem icon="material-symbols:playlist-add-rounded" onclick={Msg::Mixes(MixesMsg::Keep(m.key.clone()))}>{t("mix_view.keep")}</MenuItem>
+                {#each m.playlist.iter() as id (*id)}
+                    <MenuItem icon="material-symbols:tune-rounded" onclick={Msg::Smart(SmartMsg::Open(Some(*id), true))}>{t("mix_view.edit")}</MenuItem>
+                    <MenuItem icon="material-symbols:delete-outline-rounded" danger onclick={Msg::Mixes(MixesMsg::Delete(*id))}>{t("mix_view.delete")}</MenuItem>
+                {/each}
+            </k-popover>
+        {:else}
+            <button id={ElementId::named(&m.menu_id())} class="w-8 h-8 flex items-center justify-center rounded-full cursor-pointer bg-black/55 text-white hover:bg-black/75 transition opacity-0 group-hover:opacity-100"
+                    title={t("mix_view.actions")} aria-label={t("mix_view.actions")} onclick={Msg::Mixes(MixesMsg::Menu(m.key.clone()))}>
+                <Icon icon="material-symbols:more-horiz" width={20} />
+            </button>
+        {/if}
+    </div>
+</div>

@@ -1,0 +1,9 @@
+<div class="flex items-center justify-between gap-2 pt-3 pb-1 px-1">
+    {#if self.onclick != Msg::Noop}
+        <h3 class="min-w-0 cursor-pointer text-xs font-bold uppercase tracking-[.08em] text-(--sb-hd) hover:text-(--sb-g) truncate"
+            onclick={self.onclick.clone()} title={self.help.as_str()}>{self.title}</h3>
+    {:else}
+        <h3 class="text-xs font-bold uppercase tracking-[.08em] truncate text-(--sb-hd)">{self.title}</h3>
+    {/if}
+    <div class="flex gap-0.5"><slot name="actions" /></div>
+</div>

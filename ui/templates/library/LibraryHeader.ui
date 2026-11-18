@@ -1,0 +1,85 @@
+{#each self.library_header() as head (head.id)}
+<div class="shrink-0 flex flex-wrap items-center gap-x-5 gap-y-4 px-4 md:pl-8 md:pr-14 pt-6 pb-4">
+    <div class="w-16 h-16 shrink-0 rounded-2xl border flex items-center justify-center text-(--rg-g)
+                bg-(--rg-gbg) border-(--rg-gbd) dark:bg-linear-145 dark:from-[#15402a] dark:to-[#0e2519] max-sm:w-12 max-sm:h-12">
+        <Icon icon={head.icon} width={30} />
+    </div>
+
+    <div class="flex-[1_1_240px] min-w-60">
+        <p class="text-xs font-bold uppercase tracking-widest text-(--rg-mu) m-0">{head.kicker}</p>
+        <div class="mt-0.5 mb-1.5 flex items-center gap-2 text-[34px] max-sm:text-2xl font-extrabold tracking-[-0.02em] leading-tight text-(--rg-tx)">
+            <div class="truncate">{head.name}</div>
+            {#if head.many_libraries}
+                <div class="relative">
+                    <button id="lib.switch" class="w-7.5 h-7.5 flex items-center justify-center rounded-lg cursor-pointer text-(--rg-mu) hover:bg-(--rg-carte) hover:text-(--rg-tx)"
+                            title={t("library_head.switch")} aria-label={t("library_head.switch")} aria-expanded={self.popup("lib.switch")}
+                            onclick={Msg::Menu(Menu::Popup("lib.switch"))}>
+                        <Icon icon="material-symbols:expand-more-rounded" width={24} />
+                    </button>
+                    {#if self.popup("lib.switch")}
+                        <k-popover anchor="lib.switch" menu placement="bottom-start" offset="8" aria-label={t("library_head.switch")}
+                                   onclose={Msg::CloseMenu} class="rg-menu w-64 text-base font-normal tracking-normal">
+                            {#each head.libraries as lib (lib.0)}
+                                <MenuItem icon="material-symbols:library-music-outline-rounded" active={lib.3} onclick={Msg::Library(LibraryMsg::Switch(lib.0))}>
+                                    {lib.1}
+                                    <div slot="fin" class="font-mono text-[11px] text-(--rg-mu2)">{lib.2}</div>
+                                </MenuItem>
+                            {/each}
+                        </k-popover>
+                    {/if}
+                </div>
+            {/if}
+        </div>
+        <div class="flex flex-wrap items-baseline gap-x-4.5 gap-y-1.5 text-sm text-(--rg-mu)">
+            {#each head.digits as c (c.1.as_str())}
+                <span class="whitespace-nowrap"><b class="font-bold text-(--rg-tx)">{c.0}</b> {c.1}</span>
+            {/each}
+            {#if let Some(e) = &head.extra}
+                <span class="whitespace-nowrap"><b class="font-bold text-(--rg-tx)">{e.0}</b> {e.1}</span>
+            {/if}
+            {#if let Some(s) = &head.scan_ago}
+                <span class="whitespace-nowrap font-mono text-xs">{s}</span>
+            {/if}
+        </div>
+    </div>
+
+    <div class="flex items-center gap-2 shrink-0">
+        <button class="h-10 pl-3 pr-4 rounded-[10px] flex items-center gap-2 text-sm font-bold whitespace-nowrap cursor-pointer transition-colors
+                       bg-(--rg-g) text-(--rg-on-g) hover:bg-[#34d673]"
+                onclick={Msg::Library(LibraryMsg::Primary)}>
+            <Icon icon={head.primary_icon} width={20} />
+            <div class="w-auto max-sm:hidden">{head.primary_label}</div>
+        </button>
+
+        <div class="relative">
+            {#if self.popup("lib.manage")}
+                <button id="lib.manage" class="h-10 pl-3 pr-4 rounded-[10px] flex items-center gap-2 text-sm font-semibold whitespace-nowrap cursor-pointer transition-colors border
+                               text-(--rg-tx) border-(--rg-bd2) bg-(--rg-carte)"
+                        aria-expanded="true" onclick={Msg::Menu(Menu::Popup("lib.manage"))}>
+                    <Icon icon="material-symbols:more-horiz" width={20} />
+                    <div class="w-auto">{t("library_head.manage")}</div>
+                </button>
+            {:else}
+                <button id="lib.manage" class="h-10 pl-3 pr-4 rounded-[10px] flex items-center gap-2 text-sm font-semibold whitespace-nowrap cursor-pointer transition-colors border
+                               text-(--rg-tx2) border-(--rg-bd2) hover:text-(--rg-tx) hover:bg-(--rg-carte)"
+                        aria-expanded="false" onclick={Msg::Menu(Menu::Popup("lib.manage"))}>
+                    {#if head.state == "scanning"}
+                        <Spinner width={20.} />
+                    {:else}
+                        <Icon icon="material-symbols:more-horiz" width={20} />
+                    {/if}
+                    <div class="w-auto">{t("library_head.manage")}</div>
+                </button>
+            {/if}
+            {#if self.popup("lib.manage")}
+            {#if let Some(m) = self.manage_menu(head.id)}
+                <k-popover anchor="lib.manage" menu placement="bottom-end" offset="8" aria-label={t("library_head.manage")}
+                           onclose={Msg::CloseMenu} class="rg-menu w-85 p-0 overflow-hidden rounded-2xl bg-linear-to-b from-[#1c2220] to-[#161a18]">
+                    {@include "LibraryManageMenu.ui"}
+                </k-popover>
+            {/if}
+            {/if}
+        </div>
+    </div>
+</div>
+{/each}

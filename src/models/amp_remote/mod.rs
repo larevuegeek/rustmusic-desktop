@@ -1,0 +1,21 @@
+pub(crate) mod amp_choice;
+pub(crate) mod amp_digit;
+pub(crate) mod amp_dock;
+pub(crate) mod amp_net_line;
+pub(crate) mod amp_remote_msg;
+pub(crate) mod amp_remote_state;
+pub(crate) mod amp_remote_view;
+pub(crate) mod amp_tab;
+pub(crate) mod amp_tone_row;
+pub(crate) mod amp_zone_view;
+
+pub(crate) use amp_choice::*;
+pub(crate) use amp_digit::*;
+pub(crate) use amp_dock::*;
+pub(crate) use amp_net_line::*;
+pub(crate) use amp_remote_msg::*;
+pub(crate) use amp_remote_state::*;
+pub(crate) use amp_remote_view::*;
+pub(crate) use amp_tab::*;
+pub(crate) use amp_tone_row::*;
+pub(crate) use amp_zone_view::*;

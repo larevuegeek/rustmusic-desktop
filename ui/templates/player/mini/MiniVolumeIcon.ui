@@ -1,0 +1,7 @@
+{#if muted}
+    <Icon icon="material-symbols:volume-off-rounded" width={22} />
+{:else if self.volume_low()}
+    <Icon icon="material-symbols:volume-down-rounded" width={22} />
+{:else}
+    <Icon icon="material-symbols:volume-up-rounded" width={22} />
+{/if}

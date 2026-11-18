@@ -1,0 +1,27 @@
+{#if !vm.genres.is_empty()}
+<section class="flex flex-col gap-4">
+    <div class="flex items-start justify-between gap-4">
+        <h2 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">{t("home.explore_genres")}</h2>
+        <button class="text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer mt-[9.5px]"
+                onclick={Msg::Go(Route::Library(Section::Genres))}><div>{t("home.all_genres")}</div></button>
+    </div>
+
+    <div class="grid grid-cols-2 @xl:grid-cols-3 @6xl:grid-cols-6 gap-3.5">
+        {#each vm.genres as g (g.name.as_str())}
+            <button class="genre-tuile group relative w-full min-w-0 h-33 flex items-start rounded-2xl overflow-hidden text-left cursor-pointer
+                           transition-transform duration-300 hover:-translate-y-1"
+                    onclick={Msg::Go(Route::Genre(g.name.clone()))} style:--h={hue(&g.name)}>
+                <div class="genre-icone absolute right-2 -bottom-2 -rotate-12
+                            transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110 w-22 h-22" aria-hidden="true">
+                    <Icon icon={g.icon} width={88} />
+                </div>
+
+                <div class="relative flex flex-col gap-1 p-4 pr-16">
+                    <div class="genre-titre text-[19px] font-extrabold tracking-[-0.01em] leading-tight line-clamp-2">{g.name}</div>
+                    <div class="genre-compte text-[12.5px] font-semibold">{t_count(g.total, "home.track_one", "home.tracks_n")}</div>
+                </div>
+            </button>
+        {/each}
+    </div>
+</section>
+{/if}

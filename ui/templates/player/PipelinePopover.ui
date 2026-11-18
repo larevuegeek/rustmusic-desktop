@@ -1,0 +1,95 @@
+{#if self.popup("player.chain")}
+{#if let Some(pv) = self.pipeline_view()}
+    <k-popover anchor="player.chain" placement="top-start" offset="10" aria-label={t("player.audio_chain")} onclose={Msg::CloseMenu}
+               class="w-95 p-0 rounded-[18px] border overflow-hidden text-left bg-(--lc-menu) border-(--lc-menu-bd) text-(--lc-tx)
+                      shadow-[0_28px_70px_rgba(0,0,0,0.45),0_0_0_1px_rgba(255,255,255,0.03)] animate-[popin-scale-in_170ms_cubic-bezier(0.33,1,0.68,1)]">
+        <div class="relative px-4.5 pt-4 pb-3.5">
+            {#if pv.mode == "bit-perfect"}
+                <div class="absolute inset-x-0 top-0 h-28 pointer-events-none bg-linear-to-b from-emerald-500/18 to-transparent"></div>
+            {:else if pv.mode == "exclusive"}
+                <div class="absolute inset-x-0 top-0 h-28 pointer-events-none bg-linear-to-b from-sky-500/16 to-transparent"></div>
+            {:else if pv.mode == "dop"}
+                <div class="absolute inset-x-0 top-0 h-28 pointer-events-none bg-linear-to-b from-violet-500/18 to-transparent"></div>
+            {:else if pv.mode == "shared"}
+                <div class="absolute inset-x-0 top-0 h-28 pointer-events-none bg-linear-to-b from-white/6 to-transparent"></div>
+            {:else}
+                <div class="absolute inset-x-0 top-0 h-28 pointer-events-none bg-linear-to-b from-amber-500/16 to-transparent"></div>
+            {/if}
+            <div class="relative flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-(--lc-mu)">
+                    <Icon icon="material-symbols:graphic-eq-rounded" width={14} />
+                    <div>{t("player.audio_chain")}</div>
+                </div>
+                {#if pv.mode == "bit-perfect"}
+                    <div class="h-6 px-2.5 flex items-center gap-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap bg-emerald-500/12 border-emerald-600/25 text-emerald-800 dark:border-emerald-400/25 dark:text-emerald-300"><div class="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_8px_currentColor]"></div><div>{pv.label}</div></div>
+                {:else if pv.mode == "exclusive"}
+                    <div class="h-6 px-2.5 flex items-center gap-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap bg-sky-500/12 border-sky-600/25 text-sky-800 dark:border-sky-400/25 dark:text-sky-300"><div class="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_8px_currentColor]"></div><div>{pv.label}</div></div>
+                {:else if pv.mode == "dop"}
+                    <div class="h-6 px-2.5 flex items-center gap-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap bg-violet-500/12 border-violet-600/25 text-violet-800 dark:border-violet-400/30 dark:text-violet-300"><div class="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_8px_currentColor]"></div><div>{pv.label}</div></div>
+                {:else if pv.mode == "shared"}
+                    <div class="h-6 px-2.5 flex items-center gap-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap bg-(--lc-survol) border-(--lc-trait) text-(--lc-tx2)"><div class="w-1.5 h-1.5 rounded-full bg-current"></div><div>{pv.label}</div></div>
+                {:else}
+                    <div class="h-6 px-2.5 flex items-center gap-1.5 rounded-full border text-[11px] font-semibold whitespace-nowrap bg-amber-500/14 border-amber-600/30 text-amber-800 dark:border-amber-400/25 dark:text-amber-300"><div class="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_8px_currentColor]"></div><div>{pv.label}</div></div>
+                {/if}
+            </div>
+            <div class="relative mt-3 font-(--font-mono) text-[17px] font-semibold tracking-tight text-(--lc-tx) truncate" title={pv.summary.as_str()}>{pv.summary}</div>
+            <p class="relative m-0 mt-1 text-[12px] leading-snug text-(--lc-mu)">{pv.description}</p>
+        </div>
+
+        {#if let Some(fallback) = &pv.fallback}
+            <div class="mx-3 mb-2 flex gap-2.5 px-3 py-2.5 rounded-xl border text-[11.5px] leading-snug bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-200">
+                <div class="shrink-0 mt-px text-amber-600 dark:text-amber-400"><Icon icon="material-symbols:warning-outline-rounded" width={16} /></div>
+                <p class="m-0">{fallback}</p>
+            </div>
+        {/if}
+
+        <div class="flex flex-col px-2 pb-2">
+            {#each pv.steps as (i, step) (step.title.as_str())}
+                <div class="group/step relative flex items-center gap-3 px-2.5 py-2 rounded-xl transition-colors hover:bg-(--lc-survol)">
+                    {#if i + 1 < pv.steps.len()}
+                        <div class="absolute left-[23px] top-[42px] -bottom-[10px] w-px bg-linear-to-b from-(--lc-menu-bd) to-transparent"></div>
+                    {/if}
+                    {#if step.tone == StepTone::Amber}
+                        <div class="relative shrink-0 w-7.5 h-7.5 rounded-[10px] flex items-center justify-center ring-1 ring-amber-500/25 bg-amber-500/14 text-amber-700 dark:text-amber-300"><Icon icon={step.icon} width={17} /></div>
+                    {:else if step.tone == StepTone::Violet}
+                        <div class="relative shrink-0 w-7.5 h-7.5 rounded-[10px] flex items-center justify-center ring-1 ring-violet-500/25 bg-violet-500/14 text-violet-700 dark:text-violet-300"><Icon icon={step.icon} width={17} /></div>
+                    {:else}
+                        <div class="relative shrink-0 w-7.5 h-7.5 rounded-[10px] flex items-center justify-center ring-1 ring-(--lc-trait) bg-(--lc-survol) text-(--lc-tx2)"><Icon icon={step.icon} width={17} /></div>
+                    {/if}
+                    <div class="min-w-0 flex-1 flex flex-col leading-[1.3]">
+                        <div class="text-[10px] font-bold uppercase tracking-[0.1em] text-(--lc-mu)">{step.title}</div>
+                        {#if step.mono}
+                            <div class="truncate font-(--font-mono) font-medium text-[12.5px] text-(--lc-tx)" title={step.value.as_str()}>{step.value}</div>
+                        {:else}
+                            <div class="truncate text-[13px] font-semibold text-(--lc-tx)" title={step.value.as_str()}>{step.value}</div>
+                        {/if}
+                        {#if let Some(detail) = &step.detail}
+                            <div class="truncate text-[11px] text-(--lc-mu)" title={detail.as_str()}>{detail}</div>
+                        {/if}
+                    </div>
+                    <button class="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer opacity-0 group-hover/step:opacity-100 focus-visible:opacity-100 transition-opacity text-(--lc-mu) hover:text-(--lc-tx) hover:bg-(--lc-survol)"
+                            title={t("pipeline.copy_value")} aria-label={t("pipeline.copy_value")} onclick={Msg::CopyText(step.value.clone())}>
+                        <Icon icon="material-symbols:content-copy-outline-rounded" width={14} />
+                    </button>
+                </div>
+            {/each}
+        </div>
+
+        <div class="flex items-center justify-between gap-3 px-4.5 py-3 border-t border-(--lc-menu-bd) bg-(--lc-survol)/40">
+            {#if let Some(profile) = &pv.profile}
+                <div class="min-w-0 flex items-center gap-2 text-[11.5px]">
+                    <div class="text-(--lc-mu)">{t("pipeline.profile")}</div>
+                    <div class="truncate font-semibold text-(--lc-tx2)">{profile}</div>
+                </div>
+            {:else}
+                <div></div>
+            {/if}
+            <button class="shrink-0 h-7.5 px-3 flex items-center gap-1.5 rounded-lg border cursor-pointer text-[11.5px] font-semibold transition-colors border-(--lc-menu-bd) text-(--lc-tx2) hover:text-(--lc-tx) hover:bg-(--lc-survol)"
+                    onclick={Msg::CopyText(pv.clipboard.clone())}>
+                <Icon icon="material-symbols:content-copy-outline-rounded" width={14} />
+                <div>{t("pipeline.copy_all")}</div>
+            </button>
+        </div>
+    </k-popover>
+{/if}
+{/if}

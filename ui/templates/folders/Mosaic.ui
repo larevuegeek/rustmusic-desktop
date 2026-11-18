@@ -1,0 +1,23 @@
+<div class="absolute inset-0 flex gap-px bg-(--rg-bd)">
+    {#if let [one] = covers.as_slice()}
+        <img class="w-full h-full object-cover" src={cx.resources.cover(one)} alt="">
+    {:else if let [first, second] = covers.as_slice()}
+        <div class="flex-1 min-w-0 bg-(--rg-s2)"><img class="w-full h-full object-cover" src={cx.resources.cover_small_path(first)} alt=""></div>
+        <div class="flex-1 min-w-0 bg-(--rg-s2)"><img class="w-full h-full object-cover" src={cx.resources.cover_small_path(second)} alt=""></div>
+    {:else if let [first, second, third] = covers.as_slice()}
+        <div class="flex-1 min-w-0 bg-(--rg-s2)"><img class="w-full h-full object-cover" src={cx.resources.cover_small_path(first)} alt=""></div>
+        <div class="flex-1 min-w-0 flex flex-col gap-px">
+            <div class="flex-1 min-h-0 bg-(--rg-s2)"><img class="w-full h-full object-cover" src={cx.resources.cover_small_path(second)} alt=""></div>
+            <div class="flex-1 min-h-0 bg-(--rg-s2)"><img class="w-full h-full object-cover" src={cx.resources.cover_small_path(third)} alt=""></div>
+        </div>
+    {:else if let [first, second, third, fourth, ..] = covers.as_slice()}
+        <div class="flex-1 min-w-0 flex flex-col gap-px">
+            <div class="flex-1 min-h-0 bg-(--rg-s2)"><img class="w-full h-full object-cover" src={cx.resources.cover_small_path(first)} alt=""></div>
+            <div class="flex-1 min-h-0 bg-(--rg-s2)"><img class="w-full h-full object-cover" src={cx.resources.cover_small_path(third)} alt=""></div>
+        </div>
+        <div class="flex-1 min-w-0 flex flex-col gap-px">
+            <div class="flex-1 min-h-0 bg-(--rg-s2)"><img class="w-full h-full object-cover" src={cx.resources.cover_small_path(second)} alt=""></div>
+            <div class="flex-1 min-h-0 bg-(--rg-s2)"><img class="w-full h-full object-cover" src={cx.resources.cover_small_path(fourth)} alt=""></div>
+        </div>
+    {/if}
+</div>

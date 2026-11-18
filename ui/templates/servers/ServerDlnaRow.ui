@@ -1,0 +1,14 @@
+<div class="flex-1 min-w-0 flex items-center gap-3 pl-3.5 py-2.5 cursor-pointer" onclick={Msg::Dlna(DlnaMsg::Toggle(i))}>
+    {@const on = dp.is_selected(&f.id)}{@include "../shared/inputs/Checkbox.ui"}
+    <div class="flex shrink-0 text-(--rg-mu)"><Icon icon="material-symbols:folder-outline-rounded" width={18} /></div>
+    <div class="flex-1 min-w-0 truncate text-sm font-semibold text-(--rg-tx)">{f.name}</div>
+    {#if let Some(items) = f.items_label()}
+        <div class="shrink-0 text-xs text-(--rg-mu)">{items}</div>
+    {/if}
+</div>
+{#if f.children != Some(0)}
+    <button class="w-10 h-10 shrink-0 mr-0.5 rounded-lg flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+            title={t("servers.dlna_open")} aria-label={t_with("servers.dlna_open_named", &[("name", &f.name)])} onclick={Msg::Dlna(DlnaMsg::Open(i))}>
+        <Icon icon="material-symbols:chevron-right-rounded" width={20} />
+    </button>
+{/if}

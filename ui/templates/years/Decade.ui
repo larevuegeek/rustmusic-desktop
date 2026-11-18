@@ -1,0 +1,56 @@
+<div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+    <div class="rg-icone-teinte shrink-0 w-14 h-14 flex items-center justify-center rounded-2xl text-xl font-extrabold tracking-tight" style:--h={dec.hue}>{dec.short}</div>
+    <div class="min-w-0">
+        <div class="flex text-[26px] leading-tight font-extrabold tracking-[-0.01em] text-(--rg-tx)">
+            <button class="hover:underline cursor-pointer" onclick={Msg::Years(YearsMsg::Open(dec.d, dec.head.year))}><div>{dec.name}</div></button>
+        </div>
+        <div class="flex gap-1 text-[13px] text-(--rg-mu)">
+            <div class="font-semibold text-(--rg-tx2)">{dec.albums_n.0}</div><div>{dec.albums_n.1}</div>
+            <div>·</div><div class="font-semibold text-(--rg-tx2)">{dec.tracks_n.0}</div><div>{dec.tracks_n.1}</div>
+            <div>·</div><div class="font-semibold text-(--rg-tx2)">{dec.artists_n.0}</div><div>{dec.artists_n.1}</div>
+        </div>
+    </div>
+    <div class="flex-1"></div>
+    <button class="h-10 px-4 inline-flex items-center gap-2 rounded-full border text-sm font-bold cursor-pointer transition-colors border-(--rg-bd2) text-(--rg-tx) hover:border-(--rg-gbd) hover:text-(--rg-gtx)"
+            title={t("period_view.explore_title")} onclick={Msg::Years(YearsMsg::Open(dec.d, dec.head.year))}>
+        <Icon icon="material-symbols:explore-outline-rounded" width={19} /><div>{t("period_view.explore")}</div>
+    </button>
+    <button class="h-10 pl-3.5 pr-4.5 inline-flex items-center gap-2 rounded-full cursor-pointer text-sm font-bold bg-(--rg-g) text-(--rg-on-g) hover:brightness-110 transition"
+            onclick={Msg::Years(YearsMsg::Mix(dec.d, dec.head.year))}>
+        <Icon icon="material-symbols:play-arrow-rounded" width={22} /><div>{dec.mix}</div>
+    </button>
+</div>
+
+<div class="mt-4">
+    {@const ph = &dec.head}
+    {@const chip_msg = |d: i64, y: Option<i64>| Msg::Years(YearsMsg::Year(d, y))}
+    {@include "YearChips.ui"}
+</div>
+
+<div class="relative mt-5">
+    <div class="flex gap-4.5 pb-1 overflow-hidden">
+        {#each dec.cards as album (album.id.as_str())}
+            <div class="w-44 shrink-0">{@include "../albums/AlbumCard.ui"}</div>
+        {/each}
+    </div>
+    {#if dec.start > 0}
+        <button class="absolute z-10 left-1 top-[88px] w-10 h-10 -mt-5 rounded-full flex items-center justify-center cursor-pointer transition duration-200
+                       bg-white text-neutral-800 shadow-[0_6px_18px_rgba(0,0,0,0.22)] ring-1 ring-black/8 hover:scale-105
+                       dark:bg-[#1c211e] dark:text-white dark:ring-white/12 dark:shadow-[0_6px_18px_rgba(0,0,0,0.6)]"
+                title={t("common.previous")} aria-label={t("common.previous")} onclick={Msg::Years(YearsMsg::Slide(dec.d, false))}>
+            <Icon icon="material-symbols:chevron-left-rounded" width={26} />
+        </button>
+    {/if}
+    {#if dec.start + 6 < dec.total}
+        <button class="absolute z-10 right-1 top-[88px] w-10 h-10 -mt-5 rounded-full flex items-center justify-center cursor-pointer transition duration-200
+                       bg-white text-neutral-800 shadow-[0_6px_18px_rgba(0,0,0,0.22)] ring-1 ring-black/8 hover:scale-105
+                       dark:bg-[#1c211e] dark:text-white dark:ring-white/12 dark:shadow-[0_6px_18px_rgba(0,0,0,0.6)]"
+                title={t("common.next")} aria-label={t("common.next")} onclick={Msg::Years(YearsMsg::Slide(dec.d, true))}>
+            <Icon icon="material-symbols:chevron-right-rounded" width={26} />
+        </button>
+    {/if}
+</div>
+<button class="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-(--rg-gtx) hover:underline cursor-pointer"
+        onclick={Msg::Years(YearsMsg::Open(dec.d, dec.head.year))}>
+    <div>{dec.see}</div><div>→</div>
+</button>

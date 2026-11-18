@@ -1,0 +1,26 @@
+{@const ck = row.check}{@include "TagSourceBox.ui"}
+<div class="text-[14px] font-bold">{row.label.clone()}</div>
+<div class="min-w-0 flex items-center gap-2.5 text-[13.5px] text-(--rg-tx2)">
+    {#if row.from.1 == 1}<div class="truncate text-(--rg-mu)">{row.from.0.clone()}</div>
+    {:else if row.from.1 == 2}<div class="truncate italic text-(--rg-mu2)">{row.from.0.clone()}</div>
+    {:else}<div class="truncate">{row.from.0.clone()}</div>{/if}
+</div>
+<div class="flex text-(--rg-mu2)"><Icon icon="material-symbols:arrow-forward-rounded" width={17} /></div>
+{#if row.check != 0}
+    <div class="min-w-0 flex items-center text-[13.5px] font-semibold text-(--rg-gtx)"><div class="truncate">{row.to.clone()}</div></div>
+{:else}
+    <div class="min-w-0 flex items-center text-[13.5px] font-semibold text-(--rg-tx)"><div class="truncate">{row.to.clone()}</div></div>
+{/if}
+{#if row.effect.1}
+    <div class="flex items-center gap-1.25 text-[12px] font-bold whitespace-nowrap text-(--rg-gtx)"><Icon icon="material-symbols:add-rounded" width={15} /><div>{row.effect.0.clone()}</div></div>
+{:else}
+    <div class="flex items-center gap-1.25 text-[12px] font-bold whitespace-nowrap text-(--rg-am)"><Icon icon="material-symbols:warning-outline-rounded" width={15} /><div>{row.effect.0.clone()}</div></div>
+{/if}
+{#if so.has_many_targets()}
+    <button class="w-7.5 h-7.5 rounded-lg flex items-center justify-center cursor-pointer transition text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)" class:rotate-180={row.open}
+            title={t("source.per_track")} aria-label={t("source.per_track")} onclick={Msg::Source(SourceMsg::Open1(row.field.clone()))}>
+        <Icon icon="material-symbols:expand-more-rounded" width={20} />
+    </button>
+{:else}
+    <div></div>
+{/if}

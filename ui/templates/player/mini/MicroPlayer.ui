@@ -1,0 +1,85 @@
+<div class="lecteur group fixed inset-0 overflow-hidden select-none bg-black cursor-grab" data-drag-region
+     onwheel={MiniMsg::wheel(self.mini_dop(), true)}>
+    {#if self.has_track()}
+        <img class="absolute inset-0 w-full h-full object-cover pointer-events-none" src={cx.resources.cover_opt(&vm.details.cover_path)} alt="">
+    {:else}
+        <img class="absolute inset-0 w-full h-full object-cover pointer-events-none" src={cx.resources.cover_opt(&None)} alt="">
+    {/if}
+
+    <div class="absolute inset-0 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                bg-[linear-gradient(180deg,rgba(0,0,0,0.7),rgba(0,0,0,0.5)_35%,rgba(0,0,0,0.5)_65%,rgba(0,0,0,0.75))]">
+        <div class="flex items-center gap-0.5 p-1.5">
+            {#if self.has_track()}
+                <div class="flex-1 pl-1.5 font-(--font-mono) text-[10px] tabular-nums text-white/80">{vm.position_label} / {vm.duration_label}</div>
+            {:else}
+                <div class="flex-1"></div>
+            {/if}
+            {#if self.views.mini.pinned}
+                <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-white/85 hover:text-white hover:bg-white/15 text-(--lc-acc)! hover:text-(--lc-acc)!"
+                        title={t("mini.pin")} aria-label={t("mini.pin")} aria-pressed="true" onclick={Msg::Mini(MiniMsg::Pin)}>
+                    <Icon icon="material-symbols:keep" width={16} />
+                </button>
+            {:else}
+                <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-white/85 hover:text-white hover:bg-white/15"
+                        title={t("mini.pin")} aria-label={t("mini.pin")} aria-pressed="false" onclick={Msg::Mini(MiniMsg::Pin)}>
+                    <Icon icon="material-symbols-light:keep-outline" width={16} />
+                </button>
+            {/if}
+            <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-white/85 hover:text-white hover:bg-white/15"
+                    title={t("mini.back_to_mini")} aria-label={t("mini.back_to_mini")} onclick={Msg::Mini(MiniMsg::BackToMini)}>
+                <Icon icon="material-symbols-light:open-in-full-rounded" width={16} />
+            </button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-white/85 hover:text-white hover:bg-white/15 hover:bg-[#c42b1c]!"
+                    title={t("common.close")} aria-label={t("common.close")} onclick={Msg::Mini(MiniMsg::Close)}>
+                <Icon icon="material-symbols-light:close-rounded" width={18} />
+            </button>
+        </div>
+
+        <div class="flex-1 flex items-center justify-center gap-1.5">
+            <button class="w-10 h-10 flex items-center justify-center rounded-full cursor-pointer transition-colors text-white hover:bg-white/15"
+                    title={t("player.prev")} aria-label={t("player.prev")} onclick={Msg::Previous}>
+                <Icon icon="material-symbols:skip-previous-rounded" width={28} />
+            </button>
+            <button class="relative w-14 h-14 flex items-center justify-center rounded-full cursor-pointer transition-transform hover:scale-105 active:scale-95 bg-white/92 text-black shadow-[0_6px_18px_rgba(0,0,0,0.4)]"
+                    title={if self.playing() {t("player.pause")} else {t("player.play")}} aria-label={if self.playing() {t("player.pause")} else {t("player.play")}}
+                    onclick={Msg::TogglePlay}>
+                {#if self.playing()}<Icon icon="material-symbols:pause-rounded" width={32} />{:else}<Icon icon="material-symbols:play-arrow-rounded" width={32} />{/if}
+            </button>
+            <button class="w-10 h-10 flex items-center justify-center rounded-full cursor-pointer transition-colors text-white hover:bg-white/15"
+                    title={t("player.next")} aria-label={t("player.next")} onclick={Msg::Next}>
+                <Icon icon="material-symbols:skip-next-rounded" width={28} />
+            </button>
+        </div>
+
+        <div class="flex items-center gap-1.5 pl-3 pr-1.5 pb-3.5" data-no-drag>
+            <div class="flex-1 min-w-0">
+                {@include "../PlayerProgressBar.ui"}
+            </div>
+            {@const above = true}{@include "MiniVolume.ui"}
+        </div>
+    </div>
+
+    <div class="absolute bottom-0 right-0 w-4 h-4 flex items-end justify-end p-0.5 cursor-nwse-resize text-white/70 opacity-0 group-hover:opacity-100 transition-opacity"
+         data-no-drag data-resize-region="bottom-right" title={t("mini.resize")}>
+        <svg viewBox="0 0 10 10" class="w-2.5 h-2.5" aria-hidden="true"><path d="M9 3L3 9M9 6L6 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" /></svg>
+    </div>
+
+    {#if self.views.mini.volume_hint}
+        <div class="absolute top-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2.5 h-7 rounded-full bg-black/70 text-white pointer-events-none">
+            {#if muted}
+                <Icon icon="material-symbols:volume-off-rounded" width={15} />
+            {:else if self.volume_low()}
+                <Icon icon="material-symbols:volume-down-rounded" width={15} />
+            {:else}
+                <Icon icon="material-symbols:volume-up-rounded" width={15} />
+            {/if}
+            <div class="font-(--font-mono) text-[11px] tabular-nums">{self.volume()}</div>
+        </div>
+    {/if}
+
+    {#if self.has_track()}
+        <div class="absolute inset-x-0 bottom-0 h-0.75 bg-white/20 pointer-events-none group-hover:opacity-0 transition-opacity">
+            <div class="h-full bg-(--lc-play)" style:width={Length::Percent(progress)}></div>
+        </div>
+    {/if}
+</div>

@@ -1,0 +1,7 @@
+{#if row.cover.is_some()}
+    <img class="w-full h-full object-cover" src={cx.resources.cover_small(&row.cover)} alt="">
+{:else}
+    <div class="w-full h-full flex items-center justify-center text-(--rg-mu2) bg-(--rg-s2)">
+        <Icon icon="material-symbols:image-search-rounded" width={16} />
+    </div>
+{/if}

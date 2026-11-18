@@ -1,0 +1,13 @@
+<div class="group/progress relative w-full h-4.5 flex items-center">
+    <div class="relative w-full h-0.75 group-hover/progress:h-1.25 transition-[height] duration-150">
+        <div class="absolute inset-0 rounded-full overflow-hidden bg-(--lc-rail)">
+            <div class="absolute inset-y-0 left-0 rounded-full bg-(--lc-acc)"
+                 style:width={Length::Percent(progress)}></div>
+        </div>
+        <div class="absolute top-1/2 w-3 h-3 -mt-1.5 -ml-1.5 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.5)]
+                    opacity-0 group-hover/progress:opacity-100 transition-opacity duration-150 pointer-events-none"
+             style:left={Length::Percent(progress)}></div>
+    </div>
+    <input id="player.progress" class="absolute inset-0 w-full h-full cursor-pointer opacity-0" type="range" min="0" max={vm.details.duration.max(0.1)} step="0.1"
+           value={self.position()} onchange={Msg::Seek} aria-label={t("common.progress")}>
+</div>

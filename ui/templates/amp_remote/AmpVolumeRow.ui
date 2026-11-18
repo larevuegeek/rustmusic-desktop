@@ -1,0 +1,39 @@
+<div class="flex items-center gap-1.5">
+    {#if z.muted}
+        <button class="amp-muted w-10 h-10 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors"
+                title={t("amp_remote.mute")} aria-label={t("amp_remote.mute")}
+                onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Mute { zone: z.zone, on: false }))}>
+            <Icon icon="material-symbols:volume-off-rounded" width={20} />
+        </button>
+    {:else}
+        <button class="amp-key w-10 h-10 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx)"
+                title={t("amp_remote.mute")} aria-label={t("amp_remote.mute")}
+                onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Mute { zone: z.zone, on: true }))}>
+            <Icon icon="material-symbols:volume-up-rounded" width={20} />
+        </button>
+    {/if}
+    <button class="amp-key w-10 h-10 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx)"
+            aria-label={format!("{} −", t("amp_remote.volume"))}
+            onpress={{ let zone = z.zone; move |p: bool| Msg::AmpRemote(AmpRemoteMsg::Step(zone, false, p)) }} onclick={Msg::AmpRemote(AmpRemoteMsg::StepClick(z.zone, false))}>
+        <Icon icon="material-symbols:remove-rounded" width={21} />
+    </button>
+    <div class="relative flex-1 min-w-0 h-10 flex items-center" style:--fill={z.fill}>
+        <div class="relative w-full h-2 rounded-full bg-(--rg-line)">
+            {#if z.muted}
+                <div class="absolute inset-y-0 left-0 rounded-full bg-(--rg-mu2) w-[calc((100%-22px)*var(--fill,0)+11px)]"></div>
+            {:else}
+                <div class="absolute inset-y-0 left-0 rounded-full bg-(--rg-g) w-[calc((100%-22px)*var(--fill,0)+11px)]"></div>
+            {/if}
+        </div>
+        <div class="absolute top-1/2 -mt-2.75 w-5.5 h-5.5 rounded-full bg-[#ecefed] shadow-[0_2px_10px_rgba(0,0,0,0.5)] pointer-events-none left-[calc((100%-22px)*var(--fill,0))]"></div>
+        <input class="absolute inset-0 w-full h-full cursor-pointer opacity-0" type="range" min="0" max={f64::from(z.max)} step={f64::from(z.step)}
+               value={f64::from(z.volume)} aria-label={t("amp_remote.volume")}
+               oninput={{ let zone = z.zone; move |v: f64| Msg::AmpRemote(AmpRemoteMsg::Drag(zone, v)) }}
+               onchange={{ let zone = z.zone; move |v: f64| Msg::AmpRemote(AmpRemoteMsg::Release(zone, v)) }}>
+    </div>
+    <button class="amp-key w-10 h-10 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx)"
+            aria-label={format!("{} +", t("amp_remote.volume"))}
+            onpress={{ let zone = z.zone; move |p: bool| Msg::AmpRemote(AmpRemoteMsg::Step(zone, true, p)) }} onclick={Msg::AmpRemote(AmpRemoteMsg::StepClick(z.zone, true))}>
+        <Icon icon="material-symbols:add-rounded" width={21} />
+    </button>
+</div>

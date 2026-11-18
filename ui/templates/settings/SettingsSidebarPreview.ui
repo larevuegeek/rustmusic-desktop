@@ -1,0 +1,54 @@
+<div class="flex-1 flex flex-col gap-1.5 p-4 bg-(--rg-creux)">
+    <p class="m-0 mb-1 text-[11px] font-bold tracking-[0.08em] uppercase leading-[1.2] text-(--rg-mu2)">{t("settings.preview")}</p>
+    {#if ap[0]}
+        <div class="flex items-center gap-1">
+            <div class="flex-1 h-4 rounded bg-[#ebe7df] dark:bg-[#1b211e] border border-(--rg-bd) dark:border-[#262d29]"></div>
+            <div class="flex-1 h-4 rounded bg-[#ebe7df] dark:bg-[#1b211e] border border-(--rg-bd) dark:border-[#262d29]"></div>
+            <div class="w-3 text-center text-[9px] leading-none whitespace-nowrap text-(--rg-mu2)">•••</div>
+        </div>
+        <div class="rg-filet-apercu h-px my-0.5"></div>
+    {/if}
+    <div class="grid grid-cols-3 gap-1">
+        <div class="h-5.5 rounded-[5px] bg-(--rg-gbg) border border-(--rg-gbd)"></div>
+        <div class="h-5.5 rounded-[5px] bg-[#ebe7df] dark:bg-[#1b211e]"></div>
+        <div class="h-5.5 rounded-[5px] bg-[#ebe7df] dark:bg-[#1b211e]"></div>
+        <div class="h-5.5 rounded-[5px] bg-[#ebe7df] dark:bg-[#1b211e]"></div>
+        <div class="h-5.5 rounded-[5px] bg-[#ebe7df] dark:bg-[#1b211e]"></div>
+        <div class="h-5.5 rounded-[5px] bg-[#ebe7df] dark:bg-[#1b211e]"></div>
+    </div>
+    {#if ap[1]}
+        <div class="flex flex-col gap-1 pt-1.5">
+            <p class="m-0 text-[9px] font-bold tracking-[0.08em] uppercase leading-[1.2] text-(--rg-mu2)">{t("nav.playlists")}</p>
+            <div class="flex items-center gap-1.5">
+                <div class="rg-teinte w-4 h-4 shrink-0 rounded-[3px]" style:--h={55}></div>
+                <div class="h-1.25 flex-1 rounded-[3px] bg-[#d8d3c8] dark:bg-[#2a312d]"></div>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <div class="rg-teinte w-4 h-4 shrink-0 rounded-[3px]" style:--h={290}></div>
+                <div class="h-1.25 flex-1 rounded-[3px] bg-[#d8d3c8] dark:bg-[#2a312d] max-w-[60%]"></div>
+            </div>
+        </div>
+    {/if}
+    {#if ap[2]}
+        <div class="flex flex-col gap-1 pt-1.5">
+            <p class="m-0 text-[9px] font-bold tracking-[0.08em] uppercase leading-[1.2] text-(--rg-mu2)">{t("library.albums")}</p>
+            <div class="flex items-center gap-1.5">
+                <div class="rg-teinte-vive w-4 h-4 shrink-0 rounded-[3px]" style:--h={25}></div>
+                <div class="h-1.25 flex-1 rounded-[3px] bg-[#d8d3c8] dark:bg-[#2a312d]"></div>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <div class="rg-teinte-vive w-4 h-4 shrink-0 rounded-[3px]" style:--h={290}></div>
+                <div class="h-1.25 flex-1 rounded-[3px] bg-[#d8d3c8] dark:bg-[#2a312d] max-w-[70%]"></div>
+            </div>
+        </div>
+    {/if}
+    {#if ap[3]}
+        <div class="flex flex-col gap-1 pt-1.5">
+            <p class="m-0 text-[9px] font-bold tracking-[0.08em] uppercase leading-[1.2] text-(--rg-mu2)">{t("library.artists")}</p>
+            <div class="flex gap-1.5">
+                <div class="rg-teinte-vive w-5 h-5 rounded-full" style:--h={230}></div>
+                <div class="rg-teinte-vive w-5 h-5 rounded-full" style:--h={300}></div>
+            </div>
+        </div>
+    {/if}
+</div>

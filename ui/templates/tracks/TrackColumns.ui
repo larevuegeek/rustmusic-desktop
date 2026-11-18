@@ -1,0 +1,122 @@
+{#if let Some(cp) = &self.views.columns}
+<div class="absolute inset-0 z-50 flex items-center justify-center animate-[popin-fade-in_150ms_linear]" data-exit="popin-fade-out 150ms linear">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default" onclick={Msg::Columns(ColumnsMsg::Close)}></div>
+    <div class="relative w-full max-w-3xl mx-4 max-h-[80vh] flex flex-col rounded-2xl overflow-hidden text-(--rg-tx) bg-(--rg-carte) border border-(--rg-bd) dark:border-[#2a312d] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] animate-[popin-scale-in_180ms_cubic-bezier(0.33,1,0.68,1)]" data-exit="popin-scale-out 180ms cubic-bezier(0.33, 1, 0.68, 1)"
+         aria-label={t("columns.popin_title")}>
+        <div class="rg-popin-tete shrink-0 flex items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-(--rg-bd)">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="shrink-0 w-8 h-8 rounded-[9px] flex items-center justify-center bg-(--rg-gbg) text-(--rg-g) border border-(--rg-gbd)"><Icon icon="lucide:columns-3" width={15} /></div>
+                <div class="min-w-0">
+                    <h2 class="m-0 text-[17px] font-extrabold tracking-[-0.01em] text-(--rg-tx) truncate">{t("columns.popin_title")}</h2>
+                    <p class="m-0 text-xs text-(--rg-mu) truncate">{t("columns.popin_hint")}</p>
+                </div>
+            </div>
+            <button class="shrink-0 -mr-1.5 w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-hover) transition-colors"
+                    aria-label={t("common.close")} onclick={Msg::Columns(ColumnsMsg::Close)}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+        </div>
+
+        <div class="min-h-0 grid grid-cols-[1fr_18rem] max-h-[calc(80vh_-_142px)]">
+            <div class="min-h-0 flex flex-col">
+                <div class="px-5 pt-4 pb-3">
+                    <div class="h-10 flex items-center gap-2 px-3.5 rounded-xl border bg-(--rg-champ) border-(--rg-bd) hover:border-(--rg-bd2)">
+                        <div class="flex shrink-0 text-(--rg-mu)"><Icon icon="material-symbols:search-rounded" width={18} /></div>
+                        <input class="flex-1 min-w-0 bg-transparent border-0 p-0 outline-0 text-sm text-(--rg-tx) placeholder:text-(--rg-ph)"
+                               type="text" value={cp.filter.as_str()} placeholder={t("columns.filter")} aria-label={t("columns.filter")}
+                               oninput={|v: String| Msg::Columns(ColumnsMsg::Filter(v))}>
+                    </div>
+                </div>
+                <div class="min-h-0 overflow-y-auto scrollbar-app px-5 pb-5 flex flex-col gap-6">
+                    <div>
+                        <h3 class="m-0 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("columns.library_fields")}</h3>
+                        <div class="grid grid-cols-2 gap-1">
+                            {#each cp.fields() as fd (fd.0.clone())}
+                                {#if fd.2}
+                                    <div class="relative flex items-center gap-2.5 h-9 px-2.5 rounded-xl cursor-pointer transition-colors bg-(--rg-creux-on)" onclick={Msg::Columns(ColumnsMsg::Toggle(fd.0.clone()))}>
+                                        {@const on = true}{@include "TrackColumnsTick.ui"}
+                                        <div class="text-[13px] truncate text-(--rg-tx) font-semibold">{fd.1.clone()}</div>
+                                    </div>
+                                {:else}
+                                    <div class="relative flex items-center gap-2.5 h-9 px-2.5 rounded-xl cursor-pointer transition-colors hover:bg-(--rg-hover)" onclick={Msg::Columns(ColumnsMsg::Toggle(fd.0.clone()))}>
+                                        {@const on = false}{@include "TrackColumnsTick.ui"}
+                                        <div class="text-[13px] truncate text-(--rg-tx2)">{fd.1.clone()}</div>
+                                    </div>
+                                {/if}
+                            {/each}
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="m-0 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("columns.file_tags")}</h3>
+                        {#if cp.tags.is_none()}
+                            <div class="flex items-center gap-2 py-4 text-xs text-(--rg-mu)">
+                                <div class="flex animate-spin"><Icon icon="lucide:loader-2" width={14} /></div><div>{t("columns.scanning_tags")}</div>
+                            </div>
+                        {:else if cp.tag_rows().is_empty()}
+                            <p class="m-0 text-xs text-(--rg-mu) py-3">{t(if cp.filter.trim().is_empty() { "columns.no_extra_tags" } else { "columns.no_tag_match" })}</p>
+                        {:else}
+                            <div class="grid grid-cols-2 gap-1">
+                                {#each cp.tag_rows() as tg (tg.0.clone())}
+                                    {#if tg.3}
+                                        <div class="relative flex items-center gap-2.5 h-9 px-2.5 rounded-xl cursor-pointer transition-colors bg-(--rg-creux-on)" onclick={Msg::Columns(ColumnsMsg::Toggle(tg.0.clone()))}>
+                                            {@const on = true}{@include "TrackColumnsTick.ui"}
+                                            <div class="text-[13px] truncate flex-1 text-(--rg-tx) font-semibold">{tg.1.clone()}</div>
+                                            <div class="text-[11px] tabular-nums text-(--rg-mu2) shrink-0">{tg.2}</div>
+                                        </div>
+                                    {:else}
+                                        <div class="relative flex items-center gap-2.5 h-9 px-2.5 rounded-xl cursor-pointer transition-colors hover:bg-(--rg-hover)" onclick={Msg::Columns(ColumnsMsg::Toggle(tg.0.clone()))}>
+                                            {@const on = false}{@include "TrackColumnsTick.ui"}
+                                            <div class="text-[13px] truncate flex-1 text-(--rg-tx2)">{tg.1.clone()}</div>
+                                            <div class="text-[11px] tabular-nums text-(--rg-mu2) shrink-0">{tg.2}</div>
+                                        </div>
+                                    {/if}
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+
+            <div class="min-h-0 flex flex-col border-l border-(--rg-bd) bg-(--rg-creux)">
+                <h3 class="m-0 px-5 pt-5 pb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{cp.shown()}</h3>
+                <div class="min-h-0 overflow-y-auto scrollbar-app px-3 pb-3 flex flex-col gap-1">
+                    {#if cp.choice.is_empty()}<p class="m-0 text-xs text-(--rg-mu) px-2 py-3">{t("columns.none_shown")}</p>{/if}
+                    {#each cp.rows() as row (row.index)}
+                        <div class="flex items-center gap-0.5 h-9 pl-2.5 pr-1 rounded-xl transition-colors bg-(--rg-carte) border border-(--rg-bd) hover:border-(--rg-bd2)">
+                            <div class="w-5 shrink-0 text-[11px] font-semibold tabular-nums text-(--rg-mu2)">{row.rank}</div>
+                            <div class="text-[13px] font-medium text-(--rg-tx) truncate flex-1">{row.title}</div>
+                            {#if row.first}
+                                <div class="w-7 h-7 rounded-lg flex items-center justify-center text-(--rg-mu) opacity-25"><Icon icon="lucide:chevron-up" width={14} /></div>
+                            {:else}
+                                <button class="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                                        aria-label={t("tags.move_up")} onclick={Msg::Columns(ColumnsMsg::Move(row.index, false))}><Icon icon="lucide:chevron-up" width={14} /></button>
+                            {/if}
+                            {#if row.last}
+                                <div class="w-7 h-7 rounded-lg flex items-center justify-center text-(--rg-mu) opacity-25"><Icon icon="lucide:chevron-down" width={14} /></div>
+                            {:else}
+                                <button class="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                                        aria-label={t("tags.move_down")} onclick={Msg::Columns(ColumnsMsg::Move(row.index, true))}><Icon icon="lucide:chevron-down" width={14} /></button>
+                            {/if}
+                            <button class="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu) hover:bg-red-500/8 hover:text-red-400"
+                                    aria-label={t("mini.remove")} onclick={Msg::Columns(ColumnsMsg::Toggle(row.key.clone()))}><Icon icon="lucide:x" width={14} /></button>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        </div>
+
+        <div class="shrink-0 flex items-center gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+            <div class="flex-1 min-w-0 flex items-center gap-2">
+                <button class="h-8 px-3 rounded-lg flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                        onclick={Msg::Columns(ColumnsMsg::Reset)}><Icon icon="material-symbols:restart-alt-rounded" width={15} /><div>{t("columns.reset_columns")}</div></button>
+                <button class="h-8 px-3 rounded-lg flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                        onclick={Msg::Columns(ColumnsMsg::ResetWidths)}><Icon icon="material-symbols:width-rounded" width={15} /><div>{t("columns.reset_widths")}</div></button>
+            </div>
+            <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                    onclick={Msg::Columns(ColumnsMsg::Close)}><div>{t("common.cancel")}</div></button>
+            <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition hover:brightness-110 bg-(--rg-g) text-(--rg-on-g)"
+                    onclick={Msg::Columns(ColumnsMsg::Apply)}><Icon icon="material-symbols:check-rounded" width={17} /><div>{t("source.apply")}</div></button>
+        </div>
+    </div>
+</div>
+{/if}

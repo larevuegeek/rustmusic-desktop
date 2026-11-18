@@ -1,0 +1,29 @@
+<div class="flex shrink-0">
+{#if let Some(p) = &self.p}
+{#if p.disabled && p.checked}
+    <div class="h-8 flex items-center gap-1.5 pl-2.5 pr-3 rounded-full border text-[13px] font-semibold whitespace-nowrap transition-colors cursor-not-allowed opacity-60 bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)"
+         role="switch" aria-checked="true" title={p.tooltip()}>
+        <Icon icon="material-symbols:check-rounded" width={16} />
+        <div>{p.label}</div>
+    </div>
+{:else if p.disabled}
+    <div class="h-8 flex items-center gap-1.5 pl-2.5 pr-3 rounded-full border text-[13px] font-semibold whitespace-nowrap transition-colors cursor-not-allowed opacity-60 border-(--rg-off) text-(--rg-mu)"
+         role="switch" aria-checked="false" title={p.tooltip()}>
+        <div class="flex opacity-35"><Icon icon="material-symbols:check-rounded" width={16} /></div>
+        <div>{p.label}</div>
+    </div>
+{:else if p.checked}
+    <button class="h-8 flex items-center gap-1.5 pl-2.5 pr-3 rounded-full border text-[13px] font-semibold whitespace-nowrap transition-colors cursor-pointer bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)"
+            role="switch" aria-checked="true" onclick={p.msg.clone()}>
+        <Icon icon="material-symbols:check-rounded" width={16} />
+        <div>{p.label}</div>
+    </button>
+{:else}
+    <button class="h-8 flex items-center gap-1.5 pl-2.5 pr-3 rounded-full border text-[13px] font-semibold whitespace-nowrap transition-colors cursor-pointer border-(--rg-off) text-(--rg-mu) hover:text-(--rg-tx)"
+            role="switch" aria-checked="false" onclick={p.msg.clone()}>
+        <div class="flex opacity-35"><Icon icon="material-symbols:check-rounded" width={16} /></div>
+        <div>{p.label}</div>
+    </button>
+{/if}
+{/if}
+</div>

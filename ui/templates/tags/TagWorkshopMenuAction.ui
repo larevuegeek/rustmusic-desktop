@@ -1,0 +1,18 @@
+{#if wv.selected == 0 && a.3 != 2}
+    <div class="w-full flex items-center gap-3 p-2 rounded-[10px] text-left">
+        <div class="w-8.5 h-8.5 shrink-0 rounded-[9px] border flex items-center justify-center bg-(--rg-s2) dark:bg-[#232a26] border-(--rg-bd) dark:border-[#2b332f] text-(--rg-mu2)"><Icon icon={a.0} width={18} /></div>
+        <div class="flex-1 min-w-0">
+            <div class="text-[13px] font-semibold text-(--rg-mu)">{t(a.1)}</div>
+            <div class="mt-0.5 text-[11.5px] leading-snug text-(--rg-mu)">{t("workshop.needs_selection")}</div>
+        </div>
+    </div>
+{:else}
+    <button class="group w-full flex items-center gap-3 p-2 rounded-[10px] text-left cursor-pointer transition-colors hover:bg-neutral-100 dark:hover:bg-white/5"
+            onclick={workshop_action(a.1)}>
+        <div class="w-8.5 h-8.5 shrink-0 rounded-[9px] border flex items-center justify-center transition-colors bg-(--rg-s2) dark:bg-[#232a26] border-(--rg-bd) dark:border-[#2b332f] text-(--rg-tx2) group-hover:bg-(--rg-gbg) group-hover:border-(--rg-gbd) group-hover:text-(--rg-g)"><Icon icon={a.0} width={18} /></div>
+        <div class="flex-1 min-w-0">
+            <div class="text-[13px] font-semibold text-(--rg-tx)">{t(a.1)}</div>
+            <div class="mt-0.5 text-[11.5px] leading-snug text-(--rg-mu)">{t(a.2)}</div>
+        </div>
+    </button>
+{/if}

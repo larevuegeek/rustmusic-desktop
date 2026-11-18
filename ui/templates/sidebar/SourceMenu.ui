@@ -1,0 +1,39 @@
+<div class="flex flex-col gap-0.5">
+{#each vm.sources as (i, s) (i)}
+    {#if i > 0}<div class="my-1 h-px bg-neutral-200/70 dark:bg-white/8" role="separator"></div>{/if}
+    {#if i == self.source}
+        <button class="flex items-center gap-3 px-2 py-2 rounded-xl text-left cursor-pointer transition-colors
+                       bg-neutral-100 dark:bg-white/6"
+                role="option" aria-selected="true" onclick={Msg::ChooseSource(i)}>
+            {#if s.tint == "serveur"}
+                <div class="w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-sky-500/12 text-sky-600 dark:text-sky-300"><Icon icon={s.icon} width={20} /></div>
+            {:else if s.tint == "toutes"}
+                <div class="w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-violet-500/12 text-violet-600 dark:text-violet-300"><Icon icon={s.icon} width={20} /></div>
+            {:else}
+                <div class="w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)"><Icon icon={s.icon} width={20} /></div>
+            {/if}
+            {@include "SourceOption.ui"}
+            <div class="flex shrink-0 text-green-600 dark:text-green-400"><Icon icon="material-symbols:check-rounded" width={18} /></div>
+        </button>
+    {:else}
+        <button class="flex items-center gap-3 px-2 py-2 rounded-xl text-left cursor-pointer transition-colors
+                       hover:bg-neutral-100/70 dark:hover:bg-white/4 dark:focus-visible:bg-white/4"
+                role="option" aria-selected="false" onclick={Msg::ChooseSource(i)}>
+            {#if s.tint == "serveur"}
+                <div class="w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-sky-500/12 text-sky-600 dark:text-sky-300"><Icon icon={s.icon} width={20} /></div>
+            {:else if s.tint == "toutes"}
+                <div class="w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-violet-500/12 text-violet-600 dark:text-violet-300"><Icon icon={s.icon} width={20} /></div>
+            {:else}
+                <div class="w-9 h-9 rounded-[9px] shrink-0 flex items-center justify-center bg-(--sb-gbg) text-(--sb-g)"><Icon icon={s.icon} width={20} /></div>
+            {/if}
+            {@include "SourceOption.ui"}
+        </button>
+    {/if}
+{/each}
+<button class="mt-1 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer
+               text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100/70 dark:hover:bg-white/4 dark:focus-visible:bg-white/4"
+        role="option" onclick={Msg::Go(Route::Settings(SettingsPage::Online))}>
+    <Icon icon="material-symbols:add-rounded" width={17} />
+    <div>{t("servers.add")}</div>
+</button>
+</div>

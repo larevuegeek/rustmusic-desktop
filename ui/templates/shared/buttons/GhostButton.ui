@@ -1,0 +1,23 @@
+<div class="flex shrink-0">
+{#if let Some(g) = &self.g}
+{#if g.inert() && g.danger}
+    <div class="shrink-0 h-8 px-3 flex items-center gap-1.5 rounded-lg border text-[13px] font-semibold whitespace-nowrap opacity-60 cursor-wait border-red-500/40 text-red-400">
+        <div class="flex items-center gap-1.5">{#if g.busy}     <div class="flex animate-spin"><Icon icon={g.shown_icon()} width={17} /></div> {:else if !g.icon.is_empty()}     <Icon icon={g.icon} width={17} /> {/if} <div>{g.label}</div></div>
+    </div>
+{:else if g.inert()}
+    <div class="shrink-0 h-8 px-3 flex items-center gap-1.5 rounded-lg border text-[13px] font-semibold whitespace-nowrap opacity-60 cursor-wait border-(--rg-off) text-(--rg-tx2)">
+        <div class="flex items-center gap-1.5">{#if g.busy}     <div class="flex animate-spin"><Icon icon={g.shown_icon()} width={17} /></div> {:else if !g.icon.is_empty()}     <Icon icon={g.icon} width={17} /> {/if} <div>{g.label}</div></div>
+    </div>
+{:else if g.danger}
+    <button class="shrink-0 h-8 px-3 flex items-center gap-1.5 rounded-lg border cursor-pointer transition-colors text-[13px] font-semibold whitespace-nowrap border-red-500/40 text-red-400 hover:bg-red-500/10 hover:border-red-500/60"
+            title={g.tooltip()} onclick={g.msg.clone()}>
+        <div class="flex items-center gap-1.5">{#if g.busy}     <div class="flex animate-spin"><Icon icon={g.shown_icon()} width={17} /></div> {:else if !g.icon.is_empty()}     <Icon icon={g.icon} width={17} /> {/if} <div>{g.label}</div></div>
+    </button>
+{:else}
+    <button class="shrink-0 h-8 px-3 flex items-center gap-1.5 rounded-lg border cursor-pointer transition-colors text-[13px] font-semibold whitespace-nowrap border-(--rg-off) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+            title={g.tooltip()} onclick={g.msg.clone()}>
+        <div class="flex items-center gap-1.5">{#if g.busy}     <div class="flex animate-spin"><Icon icon={g.shown_icon()} width={17} /></div> {:else if !g.icon.is_empty()}     <Icon icon={g.icon} width={17} /> {/if} <div>{g.label}</div></div>
+    </button>
+{/if}
+{/if}
+</div>

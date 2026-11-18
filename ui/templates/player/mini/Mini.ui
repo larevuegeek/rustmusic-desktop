@@ -1,0 +1,7 @@
+<div class="w-screen h-screen font-sans text-[16px]">
+    {#if self.views.mini.micro}
+        {@include "MicroPlayer.ui"}
+    {:else}
+        {@include "MiniPlayer.ui"}
+    {/if}
+</div>

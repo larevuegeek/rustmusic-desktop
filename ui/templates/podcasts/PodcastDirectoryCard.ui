@@ -1,0 +1,32 @@
+<div class="group relative min-w-0">
+    <button class="w-full min-w-0 flex flex-col gap-2.5 text-left cursor-pointer" onclick={r.open.clone()}>
+        <div class="relative w-full aspect-square overflow-hidden rounded-2xl bg-(--rg-s2) shadow-[0_10px_26px_rgba(0,0,0,0.16)] dark:shadow-[0_10px_26px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-0.5">
+            <PodcastCover cover={r.image.clone()} icon={40} />
+            <div class="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/8 dark:ring-white/8 pointer-events-none"></div>
+            {#if let Some(rank) = &r.rank}
+                <div class="absolute left-2 top-2 min-w-7 h-7 px-1.5 inline-flex items-center justify-center rounded-full text-[12px] font-extrabold tabular-nums bg-black/60 text-white backdrop-blur-sm">{rank}</div>
+            {/if}
+        </div>
+        <div class="w-full min-w-0 pl-0.5 pr-8">
+            <div class="truncate text-[14.5px] font-bold text-(--rg-tx)">{r.title}</div>
+            <div class="truncate text-[12.5px] text-(--rg-mu)">{r.sub}</div>
+        </div>
+    </button>
+    {#if r.tracked}
+        <div class="absolute right-2 top-2 w-8.5 h-8.5 rounded-full flex items-center justify-center backdrop-blur-sm bg-(--rg-g) text-(--rg-on-g)" title={t("podcasts.following")}>
+            <Icon icon="material-symbols:check-rounded" width={20} />
+        </div>
+    {:else if r.busy}
+        <div class="absolute right-2 top-2 w-8.5 h-8.5 rounded-full flex items-center justify-center backdrop-blur-sm bg-black/60 text-white"><Spinner width={20.} /></div>
+    {:else}
+        <button class="absolute right-2 top-2 w-8.5 h-8.5 rounded-full flex items-center justify-center transition backdrop-blur-sm bg-black/60 text-white cursor-pointer hover:bg-violet-600 opacity-0 group-hover:opacity-100"
+                title={t("podcasts.follow")} aria-label={t("podcasts.follow")} onclick={r.follow.clone()}>
+            <Icon icon="material-symbols:add-rounded" width={20} />
+        </button>
+    {/if}
+    <button class="absolute right-0 bottom-0.5 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100"
+            id={ElementId::named(&r.more_id())}
+            title={t("common.menu")} aria-label={t("common.menu")} onclick={Msg::PodcastMenu(PodcastMenuMsg::OpenDirectory(TrackMenuAt::Named(r.more_id()), r.list, r.index))}>
+        <Icon icon="material-symbols:more-horiz" width={20} />
+    </button>
+</div>

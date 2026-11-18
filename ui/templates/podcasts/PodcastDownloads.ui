@@ -1,0 +1,162 @@
+{@const dv = self.downloads_view()}
+{#if dv.loading}
+    <div class="flex items-center justify-center h-full text-(--rg-mu)"><Spinner width={26.} /></div>
+{:else}
+<div class="h-full overflow-y-auto scrollbar-app">
+    <div class="relative px-4 md:px-8 pt-6 pb-8 overflow-hidden" style:margin_top={-self.export_offset}>
+        <div class="header-glow header-glow-violet absolute inset-0 pointer-events-none"></div>
+        <div class="relative">
+            <button class="inline-flex items-center gap-1.5 text-[13.5px] font-semibold cursor-pointer text-(--rg-tx2) hover:text-(--rg-tx)" onclick={Msg::Go(Route::Podcasts)}>
+                <Icon icon="material-symbols:arrow-back-rounded" width={18} /><div>{t("podcasts.title")}</div>
+            </button>
+            <div class="mt-5 flex items-center gap-5">
+                <div class="w-20 h-20 shrink-0 rounded-[22px] flex items-center justify-center text-white bg-linear-to-br from-violet-500 to-fuchsia-600 shadow-[0_14px_34px_rgba(139,92,246,0.35)]">
+                    <Icon icon="material-symbols:download-for-offline-rounded" width={40} />
+                </div>
+                <div class="min-w-0">
+                    <h1 class="m-0 text-[44px] font-extrabold tracking-[-0.03em] leading-none text-(--rg-tx)">{t("podcasts.downloads")}</h1>
+                    <p class="m-0 mt-2.5 text-[15px] text-(--rg-tx2)">{t("podcasts.downloads_tagline")}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-4 md:px-8 pb-24">
+        {#if dv.empty}
+            <div class="mt-2 flex flex-col items-center text-center gap-4 px-6 py-14 rounded-3xl border border-(--rg-bd2)">
+                <div class="w-18 h-18 rounded-full flex items-center justify-center bg-violet-500/12 text-violet-600 dark:text-violet-300 ring-8 ring-violet-500/5">
+                    <Icon icon="material-symbols:cloud-download-outline-rounded" width={36} />
+                </div>
+                <div>
+                    <h2 class="m-0 text-[20px] font-extrabold text-(--rg-tx)">{t("podcasts.downloads_empty_title")}</h2>
+                    <p class="m-0 mt-1.5 max-w-md text-sm leading-relaxed text-(--rg-mu)">{t("podcasts.no_downloads")}</p>
+                </div>
+                <button class="mt-1 h-10.5 px-5 inline-flex items-center gap-2 rounded-full text-sm font-bold cursor-pointer transition bg-violet-600 text-white hover:bg-violet-500" onclick={Msg::Go(Route::Podcasts)}>
+                    <Icon icon="material-symbols:podcasts-rounded" width={19} /><div>{t("podcasts.browse_podcasts")}</div>
+                </button>
+            </div>
+        {:else}
+            <section class="p-5 md:p-6 rounded-3xl border border-(--rg-bd) bg-(--rg-carte)">
+                <div class="flex flex-wrap items-end gap-x-10 gap-y-4">
+                    <div><p class="m-0 text-[30px] font-extrabold leading-none tabular-nums text-(--rg-tx)">{dv.episodes.0}</p><p class="m-0 mt-1.5 text-[13px] text-(--rg-mu)">{dv.episodes.1}</p></div>
+                    <div><p class="m-0 text-[30px] font-extrabold leading-none tabular-nums text-(--rg-tx)">{dv.total}</p><p class="m-0 mt-1.5 text-[13px] text-(--rg-mu)">{t("podcasts.on_disk")}</p></div>
+                    <div>
+                        <p class="m-0 text-[30px] font-extrabold leading-none tabular-nums text-(--rg-tx)">{dv.listens}</p>
+                        <div class="mt-1.5 flex gap-1 text-[13px] text-(--rg-mu)">
+                            <div>{t("podcasts.stat_played")}</div>
+                            {#if let Some(r) = &dv.recoverable}<div>·</div><div class="font-semibold text-violet-600 dark:text-violet-300">{r}</div>{/if}
+                        </div>
+                    </div>
+                </div>
+                <h2 class="m-0 mt-6 mb-2.5 text-[12px] font-bold uppercase tracking-widest text-(--rg-mu)">{t("podcasts.space_by_show")}</h2>
+                <div class="flex h-3 rounded-full overflow-hidden gap-0.5 bg-(--rg-s2)">
+                    {#each dv.segments as s (s.key.as_str())}
+                        <div class="h-full min-w-1" style:flex_grow={s.weight} style:flex_basis={Length::Px(0.)} style:background_color={s.color}></div>
+                    {/each}
+                </div>
+                <div class="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
+                    {#each dv.segments as s (s.key.as_str())}
+                        <div class="flex items-center gap-2 min-w-0 text-[13px]">
+                            <div class="w-2.5 h-2.5 shrink-0 rounded-full" style:background_color={s.color}></div>
+                            <div class="truncate max-w-48 text-(--rg-tx2)">{s.title}</div>
+                            <div class="tabular-nums text-(--rg-mu)">{s.size}</div>
+                        </div>
+                    {/each}
+                </div>
+                <div class="mt-6 pt-5 border-t border-(--rg-line) flex flex-wrap items-center gap-2.5">
+                    {#if let Some(k) = &dv.confirm}
+                        <div class="min-h-10 py-1.5 pl-4 pr-1.5 inline-flex flex-wrap items-center gap-2 rounded-xl border text-[13px] bg-red-500/8 border-red-500/35 text-(--rg-tx)">
+                            <div class="text-red-500"><Icon icon="material-symbols:warning-outline-rounded" width={18} /></div>
+                            {#if *k == 'a'}<div>{t("podcasts.delete_all_confirm")}</div>{:else}<div>{t("podcasts.delete_played_confirm")}</div>{/if}
+                            <button class="flex items-center justify-center h-7.5 px-2.5 rounded-lg cursor-pointer font-semibold text-(--rg-tx2) hover:bg-(--rg-s2)" onclick={Msg::Downloads(DownloadsMsg::Confirm(None, None))}><div>{t("common.cancel")}</div></button>
+                            <button class="h-7.5 pl-2 pr-3 inline-flex items-center gap-1.5 rounded-lg cursor-pointer font-bold bg-red-600 text-white hover:bg-red-500"
+                                    onclick={Msg::Downloads(DownloadsMsg::Clear(None, *k == 'p'))}>
+                                <Icon icon="material-symbols:delete-outline-rounded" width={17} /><div>{t("common.delete")}</div>
+                            </button>
+                        </div>
+                    {/if}
+                    {#if dv.confirm.is_none()}
+                        {#if let Some(label) = &dv.delete_listens}
+                            <button class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border cursor-pointer text-sm font-semibold transition-colors border-(--rg-bd2) text-(--rg-tx) hover:border-violet-400/60 hover:text-violet-600 dark:hover:text-violet-300"
+                                    onclick={Msg::Downloads(DownloadsMsg::Confirm(Some('p'), None))}>
+                                <Icon icon="material-symbols:done-all-rounded" width={18} /><div>{label}</div>
+                            </button>
+                        {/if}
+                        <button class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border cursor-pointer text-sm font-semibold transition-colors border-(--rg-bd2) text-(--rg-tx) hover:border-red-400/60 hover:text-red-500"
+                                onclick={Msg::Downloads(DownloadsMsg::Confirm(Some('a'), None))}>
+                            <Icon icon="material-symbols:delete-outline-rounded" width={18} /><div>{t("podcasts.delete_all")}</div>
+                        </button>
+                    {/if}
+                </div>
+            </section>
+
+            {#each dv.groups as g (g.id)}
+                <section class="mt-5 rounded-3xl border border-(--rg-bd) bg-(--rg-carte) overflow-hidden">
+                    <div class="flex items-center gap-4 p-4 md:px-5">
+                        <button class="group flex items-center gap-4 min-w-0 flex-1 text-left cursor-pointer" onclick={Msg::Go(Route::Podcast(g.id))}>
+                            <div class="relative w-14 h-14 shrink-0 rounded-xl overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.18)]"><PodcastCover cover={g.cover.clone()} icon={22} /></div>
+                            <div class="min-w-0">
+                                <div class="truncate text-[16.5px] font-extrabold text-(--rg-tx) group-hover:underline underline-offset-2">{g.title}</div>
+                                <div class="mt-0.5 flex items-center gap-2 text-[13px] text-(--rg-mu)">
+                                    <div class="w-2 h-2 shrink-0 rounded-full" style:background_color={g.color}></div><div>{g.subline}</div>
+                                </div>
+                            </div>
+                        </button>
+                        {#if g.confirm}
+                            <button class="flex items-center justify-center h-8.5 px-3 rounded-lg cursor-pointer text-[13px] font-semibold text-(--rg-tx2) hover:bg-(--rg-s2)" onclick={Msg::Downloads(DownloadsMsg::Confirm(None, None))}><div>{t("common.cancel")}</div></button>
+                            <button class="h-8.5 pl-2.5 pr-3.5 text-[13px] inline-flex items-center gap-1.5 rounded-lg cursor-pointer font-bold bg-red-600 text-white hover:bg-red-500"
+                                    onclick={Msg::Downloads(DownloadsMsg::Clear(Some(g.id), false))}>
+                                <Icon icon="material-symbols:delete-outline-rounded" width={17} /><div>{t("common.delete")}</div>
+                            </button>
+                        {:else}
+                            <button class="w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full border cursor-pointer transition-colors border-(--rg-bd2) text-(--rg-tx2) hover:border-red-400/60 hover:text-red-500"
+                                    title={t("podcasts.delete_podcast_downloads")} aria-label={t("podcasts.delete_podcast_downloads")} onclick={Msg::Downloads(DownloadsMsg::Confirm(None, Some(g.id)))}>
+                                <Icon icon="material-symbols:delete-outline-rounded" width={19} />
+                            </button>
+                        {/if}
+                    </div>
+                    <div>
+                        {#each g.items as d (d.id)}
+                            <div class="group flex items-center gap-3.5 px-4 md:px-5 py-3 border-t border-(--rg-line) transition-colors hover:bg-(--rg-s2)/50">
+                                {#if d.playback}
+                                    <button class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition bg-violet-600 text-white shadow-[0_6px_18px_rgba(139,92,246,0.4)]"
+                                            title={t("podcasts.play")} onclick={Msg::Downloads(DownloadsMsg::Play(d.id))}>
+                                        {#if d.playing}<Icon icon="material-symbols:pause-rounded" width={22} />{:else}<Icon icon="material-symbols:play-arrow-rounded" width={22} />{/if}
+                                    </button>
+                                {:else}
+                                    <button class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition bg-(--rg-s2) text-(--rg-tx) hover:bg-violet-600 hover:text-white"
+                                            title={t("podcasts.play")} onclick={Msg::Downloads(DownloadsMsg::Play(d.id))}><Icon icon="material-symbols:play-arrow-rounded" width={22} /></button>
+                                {/if}
+                                <div class="flex-1 min-w-0">
+                                    {#if d.playback}
+                                        <div class="truncate text-[14.5px] font-semibold text-violet-600 dark:text-violet-300">{d.title}</div>
+                                    {:else if d.played}
+                                        <div class="truncate text-[14.5px] font-semibold text-(--rg-mu)">{d.title}</div>
+                                    {:else}
+                                        <div class="truncate text-[14.5px] font-semibold text-(--rg-tx)">{d.title}</div>
+                                    {/if}
+                                    <div class="mt-0.5 flex items-center gap-2 min-w-0 text-[12.5px] text-(--rg-mu)">
+                                        <div class="truncate">{d.meta}</div>
+                                        {#if d.played}
+                                            <div class="shrink-0 h-5 px-2 inline-flex items-center gap-1 rounded-full text-[11px] font-bold bg-(--rg-s2) text-(--rg-tx2)"><Icon icon="material-symbols:check-rounded" width={13} /><div>{t("podcasts.played")}</div></div>
+                                        {:else}
+                                            {#if let Some(p) = &d.progress}
+                                                <div class="shrink-0 w-16 h-1 rounded-full overflow-hidden bg-(--rg-s2)"><div class="h-full rounded-full bg-violet-500" style:width={Length::Percent(*p)}></div></div>
+                                            {/if}
+                                        {/if}
+                                    </div>
+                                </div>
+                                <div class="shrink-0 text-[12.5px] tabular-nums text-(--rg-mu)">{d.size}</div>
+                                <button class="shrink-0 w-8.5 h-8.5 flex items-center justify-center rounded-full cursor-pointer transition text-(--rg-mu) opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500"
+                                        title={t("podcasts.delete_download")} aria-label={t("podcasts.delete_download")} onclick={Msg::Downloads(DownloadsMsg::Delete(d.id))}>
+                                    <Icon icon="material-symbols:delete-outline-rounded" width={18} />
+                                </button>
+                            </div>
+                        {/each}
+                    </div>
+                </section>
+            {/each}
+        {/if}
+    </div>
+</div>
+{/if}

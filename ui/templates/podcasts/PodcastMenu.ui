@@ -1,0 +1,36 @@
+{#if let Some(m) = &self.views.podcast_menu}
+    <k-popover anchor={m.at.anchor()} menu placement="bottom-start" offset="0" aria-label={m.title.as_str()}
+               onclose={Msg::PodcastMenu(PodcastMenuMsg::Close)}
+               class="w-57.5 py-1.5 bg-(--rg-s2) border border-(--rg-bd) dark:border-[#2a312d] rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                onclick={Msg::PodcastMenu(PodcastMenuMsg::Preview)}>
+            <div class="flex opacity-60"><Icon icon="material-symbols:visibility-outline-rounded" width={17} /></div><div>{t("podcasts.quick_preview")}</div>
+        </button>
+        {#if let Some(tracked) = &m.followed}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                    onclick={Msg::PodcastMenu(PodcastMenuMsg::Go)}>
+                <div class="flex opacity-60"><Icon icon="material-symbols:arrow-forward-rounded" width={17} /></div><div>{t("podcasts.open")}</div>
+            </button>
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                    onclick={Msg::PodcastMenu(PodcastMenuMsg::Pin)}>
+                {#if tracked.1}
+                    <div class="flex text-amber-300"><Icon icon="material-symbols:star-rounded" width={17} /></div><div>{t("podcasts.unfavorite")}</div>
+                {:else}
+                    <div class="flex opacity-60"><Icon icon="material-symbols:star-outline-rounded" width={17} /></div><div>{t("podcasts.favorite")}</div>
+                {/if}
+            </button>
+            <div class="h-px mx-2 my-1 bg-white/8"></div>
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-red-400 hover:bg-red-500/10"
+                    onclick={Msg::PodcastMenu(PodcastMenuMsg::Unfollow)}>
+                <div class="flex opacity-70"><Icon icon="material-symbols:do-not-disturb-on-outline-rounded" width={17} /></div>
+                {#if m.confirm}<div>{t("podcasts.unsubscribe_sure")}</div>{:else}<div>{t("podcasts.unsubscribe")}</div>{/if}
+            </button>
+        {/if}
+        {#if m.followed.is_none()}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28] hover:text-violet-300"
+                    onclick={Msg::PodcastMenu(PodcastMenuMsg::Follow)}>
+                <div class="flex opacity-60"><Icon icon="material-symbols:add-rounded" width={17} /></div><div>{t("podcasts.follow")}</div>
+            </button>
+        {/if}
+    </k-popover>
+{/if}

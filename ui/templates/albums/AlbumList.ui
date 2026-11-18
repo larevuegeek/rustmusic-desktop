@@ -1,0 +1,150 @@
+<div class="biblio-maquette flex flex-col h-full relative">
+    {@include "../library/LibraryHeader.ui"}
+    <div class="flex-1 min-h-0 overflow-hidden">
+    {#if self.albums_empty()}
+        <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <div class="w-16 h-16 mb-5 rounded-2xl border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+                <Icon icon="material-symbols:album-outline-rounded" width={30} />
+            </div>
+            <h3 class="text-base font-semibold text-(--rg-tx) mb-1.5">{t("library.no_album")}</h3>
+            <p class="text-sm text-(--rg-mu) max-w-xs leading-relaxed mb-6">{t("library.no_album_desc")}</p>
+            <div class="flex items-center gap-2">
+                <button class="h-10 px-4 flex items-center gap-2 rounded-[10px] text-sm font-bold cursor-pointer bg-(--rg-g) text-(--rg-on-g) hover:bg-[#34d673]"
+                        onclick={Msg::Library(LibraryMsg::AddFiles(self.library_id()))}>
+                    <Icon icon="material-symbols:upload-file-outline-rounded" width={18} /><div>{t("library.import_files")}</div>
+                </button>
+                <button class="h-10 px-4 flex items-center gap-2 rounded-[10px] text-sm font-semibold cursor-pointer border border-(--rg-bd2) text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-carte)"
+                        onclick={Msg::LibraryFolders(LibraryFoldersMsg::Open)}>
+                    <Icon icon="material-symbols:create-new-folder-outline-rounded" width={18} /><div>{t("library.import_folder")}</div>
+                </button>
+            </div>
+        </div>
+    {:else}
+    {#if let Some(av) = self.albums_view()}
+    {#each self.views.albums.iter() as page (page.library_id)}
+    <div class="flex flex-col h-full">
+        <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+                <SearchField class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" value={page.search.clone()}
+                             placeholder={av.placeholder.clone()} clear_label={t("albums_view.clear_filters")} field={Field::AlbumsSearch} />
+
+                <div class="order-2 @max-6xl:order-4 @max-6xl:basis-full flex flex-wrap items-center gap-2.5">
+                    <FilterChip icon="material-symbols:high-quality-outline-rounded" pressed={page.hires} title={t("albums_view.hires")} onclick={Msg::Albums(AlbumsMsg::Hires)}>
+                        <div class="w-auto @max-xl:hidden">{t("albums_view.hires")}</div>
+                    </FilterChip>
+                    <FilterChip icon="material-symbols:library-music-outline-rounded" pressed={page.compilations} title={t("albums_view.compilations")} onclick={Msg::Albums(AlbumsMsg::Compilations)}>
+                        <div class="w-auto @max-xl:hidden">{t("albums_view.compilations")}</div>
+                    </FilterChip>
+                    <FilterChip icon="material-symbols:hide-image-outline-rounded" pressed={page.without_cover} title={t("albums_view.no_cover")} onclick={Msg::Albums(AlbumsMsg::NoCover)}>
+                        <div class="w-auto @max-xl:hidden">{t("albums_view.no_cover")}</div>
+                    </FilterChip>
+                    {#if !av.genres.is_empty()}
+                        <div class="relative">
+                            <FilterChip anchor="albums.genre" icon="material-symbols:sell-outline-rounded" pressed={page.genre.is_some()} menu
+                                        title={t("albums_view.genre")} onclick={Msg::Albums(AlbumsMsg::GenreMenu)}>
+                                <div class="w-auto max-w-40 truncate">{av.genre_label}</div>
+                            </FilterChip>
+                            {#if self.popup("albums.genre")}
+                                <k-popover anchor="albums.genre" menu placement="bottom-start" offset="8" aria-label={t("albums_view.genre")}
+                                           onclose={Msg::CloseMenu} class="rg-menu w-60">
+                                    <div class="flex flex-col max-h-80 overflow-y-auto scrollbar-app">
+                                        <MenuItem active={page.genre.is_none()} onclick={Msg::Albums(AlbumsMsg::Genre(None))}>{t("albums_view.all_genres")}</MenuItem>
+                                        <MenuItem active={page.genre.as_deref() == Some(NO_GENRE)} onclick={Msg::Albums(AlbumsMsg::Genre(Some(NO_GENRE.to_string())))}>{t("albums_view.untagged")}</MenuItem>
+                                        {#each av.genres as g (g.0.as_str())}
+                                            <MenuItem active={g.2} onclick={Msg::Albums(AlbumsMsg::Genre(Some(g.0.clone())))}>
+                                                {g.0}
+                                                <div slot="fin" class="font-mono text-[11px] text-(--rg-mu2)">{g.1}</div>
+                                            </MenuItem>
+                                        {/each}
+                                    </div>
+                                </k-popover>
+                            {/if}
+                        </div>
+                    {/if}
+                    {#if !av.years.is_empty() || page.year.is_some()}
+                        <div class="relative">
+                            <FilterChip anchor="albums.year" icon="material-symbols:calendar-month-outline-rounded" pressed={page.year.is_some()} menu
+                                        title={t("albums_view.year")} onclick={Msg::Albums(AlbumsMsg::YearMenu)}>
+                                <div class="w-auto">{page.year_label()}</div>
+                            </FilterChip>
+                            {#if self.popup("albums.year")}
+                                <k-popover anchor="albums.year" menu placement="bottom-start" offset="8" aria-label={t("albums_view.year")}
+                                           onclose={Msg::CloseMenu} class="rg-menu w-48">
+                                    <div class="flex flex-col max-h-80 overflow-y-auto scrollbar-app">
+                                        <MenuItem active={page.year.is_none()} onclick={Msg::Albums(AlbumsMsg::Year(None))}>{t("albums_view.all_years")}</MenuItem>
+                                        {#each av.years as y (y.0)}
+                                            <MenuItem active={y.2} onclick={Msg::Albums(AlbumsMsg::Year(Some(y.0)))}>
+                                                <div class="tabular-nums">{y.0}</div>
+                                                <div slot="fin" class="font-mono text-[11px] text-(--rg-mu2)">{y.1}</div>
+                                            </MenuItem>
+                                        {/each}
+                                    </div>
+                                </k-popover>
+                            {/if}
+                        </div>
+                    {/if}
+                    {#if page.active_filters()}
+                        <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={t("albums_view.clear_filters")} onclick={Msg::Albums(AlbumsMsg::ClearFilters)} />
+                    {/if}
+                </div>
+
+                <div class="order-3 flex-1 @max-6xl:hidden"></div>
+
+                <div class="order-3 flex items-center gap-2.5">
+                    <MenuSelect anchor="albums.sort" open={self.popup("albums.sort")} label={av.sort_label.clone()} icon={av.sort_icon} options={av.sorts.clone()} />
+                    <SegmentedControl subtle label={t("albums_view.grid_or_list")} options={av.views.clone()} />
+                    <ToolbarButton icon="material-symbols:select-check-box-rounded" label={t("albums_view.select")} title={t("albums_view.select")} pressed={self.selecting()} onclick={Msg::Selection(SelectionMsg::Toggle)} />
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 relative min-h-0">
+            {#each [page.window.view] as view (view)}
+            <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16"
+                 onscroll={|s: ScrollMetrics| Msg::Albums(AlbumsMsg::Scrolled(s.offset, s.max_offset()))}>
+                {#if av.items.is_empty()}
+                    <EmptyResult message={av.empty.clone()} clear_label={t("albums_view.clear_filters")}
+                                 onclear={if page.active_filters() {Some(Msg::Albums(AlbumsMsg::ClearFilters))} else {None}} />
+                {:else}
+                    {#if self.views.view_mode == ViewMode::Grid}
+                        <div class="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-5 gap-y-6.5 pt-3">
+                            {#each av.items as album (album.id.as_str())}
+                                <div class="relative min-w-0" memo={(debug_key(album), av.target.as_deref() == Some(album.id.as_str()), cx.resources.cover_id(&album.cover))} style:scroll_initial_target={av.target.as_deref() == Some(album.id.as_str())}>
+                                    {@include "AlbumCard.ui"}
+                                </div>
+                            {/each}
+                        </div>
+                    {:else}
+                        <div class="flex flex-col pt-2">
+                            {#each av.items as (i, album) (album.id.as_str())}
+                                <div class="flex flex-col" memo={(i, debug_key(album), av.target.as_deref() == Some(album.id.as_str()), cx.resources.cover_id(&album.cover))} style:scroll_initial_target={av.target.as_deref() == Some(album.id.as_str())}>{@include "AlbumRow.ui"}</div>
+                            {/each}
+                        </div>
+                    {/if}
+                {/if}
+            </div>
+            {/each}
+
+            {#if page.sort == "title" && !av.items.is_empty()}
+                <div class="absolute right-2.5 inset-y-2 z-20 flex items-center pointer-events-none">
+                    <div class="pointer-events-auto max-h-full overflow-hidden flex flex-col items-center py-1.5 px-0.75 rounded-xl
+                                bg-(--rg-carte)/70 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-none">
+                        {#each av.letters as l (l.0)}
+                            {#if l.1}
+                                <button class="w-5.5 h-4.75 min-h-0 shrink flex items-center justify-center text-[11px] leading-none font-bold rounded-[5px] transition-all duration-150
+                                               text-(--rg-tx2) hover:bg-(--rg-g) hover:text-(--rg-on-g) cursor-pointer"
+                                        onclick={Msg::Albums(AlbumsMsg::Letter(l.0.to_string()))}><div>{l.0}</div></button>
+                            {:else}
+                                <div class="w-5.5 h-4.75 min-h-0 shrink flex items-center justify-center text-[11px] leading-none font-bold rounded-[5px] text-(--rg-bd2) cursor-default">{l.0}</div>
+                            {/if}
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+        </div>
+    </div>
+    {/each}
+    {/if}
+    {/if}
+    </div>
+</div>

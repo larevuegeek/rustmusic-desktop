@@ -1,0 +1,54 @@
+<div class="relative z-30 flex items-center h-15 select-none shrink-0
+            bg-(--c-barre) dark:bg-zinc-950/50 backdrop-blur-md
+            border-b border-(--c-bord) dark:border-white/6" data-drag-region>
+    <div class="sidebar flex items-center gap-1 h-full pl-5 pr-3 shrink-0">
+        <div class="flex pointer-events-none">{@include "../shared/display/LogoRustMusic.ui"}</div>
+        {#if self.with_sidebar}
+            <div id="titlebar.sidebar" class="hidden md:flex">
+                <SidebarButton icon={if self.collapsed {"material-symbols:left-panel-open-outline-rounded"} else {"material-symbols:left-panel-close-outline-rounded"}}
+                               label={if self.collapsed {t("sidebar.expand")} else {t("sidebar.collapse")}}
+                               size={18} onclick={Msg::ToggleSidebar} />
+            </div>
+        {/if}
+    </div>
+
+    <div class="w-px h-6 shrink-0 bg-(--c-bord) dark:bg-white/10"></div>
+    <div class="flex-1 min-w-0 h-full flex items-center gap-2 md:gap-3 px-3 md:px-4">
+        <slot />
+    </div>
+    <div class="w-px h-6 shrink-0 bg-(--c-bord) dark:bg-white/10"></div>
+
+    <div class="flex items-center h-full ml-auto">
+        <button class="cursor-pointer transition-colors
+                       flex items-center justify-center w-11 h-full text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200/60 dark:hover:bg-white/8 hover:text-neutral-700 dark:hover:text-neutral-200
+                       order-first"
+                onclick={Msg::Mini(MiniMsg::Toggle)} aria-label={t("mini.enter")} title={t("mini.enter")}>
+            <Icon icon="lucide:picture-in-picture-2" width={13} />
+        </button>
+        <button class="flex items-center justify-center w-11 h-full cursor-pointer
+                       text-[#5e625d] dark:text-neutral-300
+                       hover:bg-[#e5e1d8] dark:hover:bg-white/8
+                       transition-colors"
+                onclick={Msg::Minimize} aria-label={t("window.minimize")}>
+            <div class="w-2 h-px bg-current" aria-hidden="true"></div>
+        </button>
+        <button class="flex items-center justify-center w-11 h-full cursor-pointer
+                       text-[#5e625d] dark:text-neutral-300
+                       hover:bg-[#e5e1d8] dark:hover:bg-white/8
+                       transition-colors"
+                onclick={Msg::Maximize} aria-label={t("window.maximize")}>
+            <div class="w-[7.3px] h-[7.3px] border border-current" aria-hidden="true"></div>
+        </button>
+        <button id="window.close"
+                class="flex items-center justify-center w-11 h-full cursor-pointer
+                       text-[#5e625d] dark:text-neutral-300
+                       hover:bg-red-500 hover:text-white
+                       transition-colors"
+                onclick={Msg::Close} aria-label={t("common.close")}>
+            <div class="w-[7px] h-[7px] relative" aria-hidden="true">
+                <div class="absolute -left-px top-[3px] w-[9px] h-px bg-current rotate-45"></div>
+                <div class="absolute -left-px top-[3px] w-[9px] h-px bg-current -rotate-45"></div>
+            </div>
+        </button>
+    </div>
+</div>

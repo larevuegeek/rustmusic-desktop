@@ -1,0 +1,69 @@
+<aside id="sidebar" memo={self.sidebar_key(&vm, cx.resources)}
+       class="sidebar h-full shrink-0 flex flex-col gap-3 overflow-y-auto overflow-x-hidden smart-scroll
+              bg-(--sb-bg) border-r border-(--sb-sep) transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] pb-3"
+       class:w-19={self.sidebar_collapsed} class:items-center={self.sidebar_collapsed} class:pt-3={self.sidebar_collapsed}
+       class:w-72={!self.sidebar_collapsed} class:px-4={!self.sidebar_collapsed} class:pt-4={!self.sidebar_collapsed}>
+    <div class="shrink-0 flex flex-col gap-3 animate-[sidebar-in_320ms_cubic-bezier(0.32,0.72,0,1)]" data-replay={self.sidebar_collapsed} class:items-center={self.sidebar_collapsed}>
+        {#if vm.many_sources}
+            {@include "SourceSwitcher.ui"}
+        {/if}
+        {#if vm.open_buttons && !vm.current_source.id.is_some_and(|i| i > 0) && !self.sidebar_collapsed}
+            <div class="flex items-center gap-2">
+                {#each [("material-symbols:audio-file-outline-rounded", t("nav.import_file"), Msg::OpenFile), ("material-symbols:create-new-folder-outline-rounded", t("nav.import_folder"), Msg::OpenFolder)] as button (button.0)}
+                    <button class="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-lg cursor-pointer transition-colors
+                                   text-xs font-semibold bg-(--sb-s1) border border-(--sb-bd) text-(--sb-tx2)
+                                   hover:border-(--sb-bd2) hover:text-(--sb-tx)"
+                            onclick={button.2.clone()}>
+                        <Icon icon={button.0} width={17} />
+                        <div>{button.1}</div>
+                    </button>
+                {/each}
+                <div id="sidebar.ouvrir" class="flex shrink-0">
+                    <SidebarButton icon="material-symbols:more-horiz" label={t("nav.open")} onclick={Msg::Menu(Menu::Open)} />
+                </div>
+            </div>
+            {@include "OpenZoneMenu.ui"}
+            <div class="h-px bg-linear-to-r from-transparent via-(--sb-mu)/40 to-transparent" aria-hidden="true"></div>
+        {/if}
+
+        {@include "SidebarNav.ui"}
+
+        {#if !vm.current_library.is_empty()}
+            <div class="flex gap-2" class:justify-center={self.sidebar_collapsed}>
+                {@include "../library/LibrarySelector.ui"}
+                {#if !self.sidebar_collapsed && !vm.open_buttons && !vm.current_source.id.is_some_and(|i| i > 0)}
+                    <button id="sidebar.library.options"
+                            class="w-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer transition-colors
+                                   bg-(--sb-s1) border border-(--sb-bd) text-(--sb-tx2) hover:border-(--sb-bd2) hover:text-(--sb-tx)"
+                            onclick={Msg::Menu(Menu::Popup("sidebar.library.options"))}
+                            title={t("sidebar.library_options")} aria-label={t("sidebar.library_options")}>
+                        <Icon icon="material-symbols:more-vert" width={20} />
+                    </button>
+                {/if}
+            </div>
+            {@include "LibraryZoneMenu.ui"}
+        {/if}
+    </div>
+
+    {#if self.sidebar_collapsed}
+        <div class="flex flex-col border-t border-(--sb-sep) flex-1 min-h-0 w-full animate-[sidebar-in_320ms_cubic-bezier(0.32,0.72,0,1)]
+                    overflow-y-auto overflow-x-hidden [scrollbar-width:none]">
+            <div class="flex flex-col items-center gap-2 py-2">
+                {@include "SidebarSections.ui"}
+            </div>
+        </div>
+    {:else}
+        <div class="flex flex-col border-t border-(--sb-sep) flex-[1_0_140px] min-h-35 -mx-2 animate-[sidebar-in_320ms_cubic-bezier(0.32,0.72,0,1)]
+                    overflow-y-auto overflow-x-hidden smart-scroll sb-liste-fondu">
+            <div class="flex flex-col gap-0.5 px-2 pb-8">
+                {#if self.views.sidebar.organize}
+                    {@include "SidebarOrganize.ui"}
+                {:else}
+                    {@include "SidebarSections.ui"}
+                {/if}
+            </div>
+        </div>
+    {/if}
+
+    {@include "SidebarFooter.ui"}
+</aside>

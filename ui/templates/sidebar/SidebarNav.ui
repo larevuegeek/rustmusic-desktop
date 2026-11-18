@@ -1,0 +1,71 @@
+{#if self.tabs_in_sidebar() && self.sidebar_collapsed}
+    <nav class="grid grid-cols-[48px] gap-1.5 justify-center">
+        {#if *self.route() == Route::Home}
+            <button class="flex flex-col items-center justify-center gap-1 rounded-xl border cursor-pointer transition-colors
+                           text-xs font-semibold w-12 h-12 text-center bg-(--sb-gbg) border-(--sb-gbd) text-(--sb-g)"
+                    aria-current="page" onclick={Msg::Go(Route::Home)} title={t("nav.home")} aria-label={t("nav.home")}>
+                <Icon icon="material-symbols:home-outline-rounded" width={22} thick />
+            </button>
+        {:else}
+            <button class="flex flex-col items-center justify-center gap-1 rounded-xl border cursor-pointer transition-colors
+                           text-xs font-semibold w-12 h-12 text-center
+                           bg-(--sb-s1) border-(--sb-bd) text-(--sb-tx2) hover:border-(--sb-bd2) hover:text-(--sb-tx)"
+                    onclick={Msg::Go(Route::Home)} title={t("nav.home")} aria-label={t("nav.home")}>
+                <Icon icon="material-symbols:home-outline-rounded" width={22} thick />
+            </button>
+        {/if}
+        {#each vm.tiles as tile (tile.key)}
+            {#if tile.active}
+                <button class="flex flex-col items-center justify-center gap-1 rounded-xl border cursor-pointer transition-colors
+                               text-xs font-semibold w-12 h-12 text-center bg-(--sb-gbg) border-(--sb-gbd) text-(--sb-g)"
+                        aria-current="page" onclick={Msg::Go(tile.route.clone())} title={tile.label.clone()} aria-label={tile.label.clone()}>
+                    <Icon icon={tile.icon} width={22} thick />
+                </button>
+            {:else}
+                <button class="flex flex-col items-center justify-center gap-1 rounded-xl border cursor-pointer transition-colors
+                               text-xs font-semibold w-12 h-12 text-center
+                               bg-(--sb-s1) border-(--sb-bd) text-(--sb-tx2) hover:border-(--sb-bd2) hover:text-(--sb-tx)"
+                        onclick={Msg::Go(tile.route.clone())} title={tile.label.clone()} aria-label={tile.label.clone()}>
+                    <Icon icon={tile.icon} width={22} thick />
+                </button>
+            {/if}
+        {/each}
+    </nav>
+{:else if self.tabs_in_sidebar()}
+    <nav class="grid grid-cols-3 gap-1.5">
+        {#if *self.route() == Route::Home}
+            <button class="flex flex-col items-center justify-center gap-1 rounded-xl border cursor-pointer transition-colors
+                           text-xs font-semibold h-16.5 px-1 text-center bg-(--sb-gbg) border-(--sb-gbd) text-(--sb-g)"
+                    aria-current="page" onclick={Msg::Go(Route::Home)} title={t("nav.home")} aria-label={t("nav.home")}>
+                <Icon icon="material-symbols:home-outline-rounded" width={22} thick />
+                <span class="max-w-full truncate w-auto">{t("nav.home")}</span>
+            </button>
+        {:else}
+            <button class="flex flex-col items-center justify-center gap-1 rounded-xl border cursor-pointer transition-colors
+                           text-xs font-semibold h-16.5 px-1 text-center
+                           bg-(--sb-s1) border-(--sb-bd) text-(--sb-tx2) hover:border-(--sb-bd2) hover:text-(--sb-tx)"
+                    onclick={Msg::Go(Route::Home)} title={t("nav.home")} aria-label={t("nav.home")}>
+                <Icon icon="material-symbols:home-outline-rounded" width={22} thick />
+                <span class="max-w-full truncate w-auto">{t("nav.home")}</span>
+            </button>
+        {/if}
+        {#each vm.tiles as tile (tile.key)}
+            {#if tile.active}
+                <button class="flex flex-col items-center justify-center gap-1 rounded-xl border cursor-pointer transition-colors
+                               text-xs font-semibold h-16.5 px-1 text-center bg-(--sb-gbg) border-(--sb-gbd) text-(--sb-g)"
+                        aria-current="page" onclick={Msg::Go(tile.route.clone())} title={tile.label.clone()} aria-label={tile.label.clone()}>
+                    <Icon icon={tile.icon} width={22} thick />
+                    <span class="max-w-full truncate w-auto">{tile.label}</span>
+                </button>
+            {:else}
+                <button class="flex flex-col items-center justify-center gap-1 rounded-xl border cursor-pointer transition-colors
+                               text-xs font-semibold h-16.5 px-1 text-center
+                               bg-(--sb-s1) border-(--sb-bd) text-(--sb-tx2) hover:border-(--sb-bd2) hover:text-(--sb-tx)"
+                        onclick={Msg::Go(tile.route.clone())} title={tile.label.clone()} aria-label={tile.label.clone()}>
+                    <Icon icon={tile.icon} width={22} thick />
+                    <span class="max-w-full truncate w-auto">{tile.label}</span>
+                </button>
+            {/if}
+        {/each}
+    </nav>
+{/if}

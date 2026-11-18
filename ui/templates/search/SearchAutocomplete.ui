@@ -1,0 +1,66 @@
+<div class="relative w-full">
+    <div id="header.recherche"
+         class="group relative flex items-center gap-2.5 h-9 pl-3 pr-1.5 rounded-[10px] border
+                transition-[background-color,border-color,box-shadow] duration-150
+                bg-white border-(--c-bord) hover:border-(--c-bord2)
+                focus-within:border-emerald-500/60 focus-within:shadow-[0_0_0_3px_rgba(34,197,94,0.14)]
+                dark:bg-[#131715] dark:border-[#1f2522] dark:hover:border-[#2e3632]
+                dark:focus-within:bg-[#151a17] dark:focus-within:border-emerald-500/50
+                dark:focus-within:shadow-[0_0_0_3px_rgba(34,197,94,0.12)]">
+        <div class="h-4 w-4 shrink-0 transition-colors text-[#5e625d] dark:text-[#8b948f]
+                    group-focus-within:text-emerald-500" aria-hidden="true"><Icon icon="mynaui:search" width={16} /></div>
+
+        <input class="w-full bg-transparent outline-none text-[13px]
+                      dark:text-neutral-100 dark:placeholder:text-[#8b948f]
+                      text-[#1a1c1a] placeholder:text-[#6f736d]
+                      h-[34px] p-0 border-0"
+               type="search" value={self.search.as_str()} oninput={Msg::Search}
+               onkeydown={Msg::SearchKey} placeholder={t("search.placeholder")}
+               aria-label={t("search.label")} aria-haspopup="listbox" aria-expanded={self.open(Menu::Search)}>
+        {#if self.search.is_empty()}
+            <div class="hidden lg:inline-flex group-focus-within:hidden shrink-0 items-center h-5.5 px-1.5 rounded-md border pointer-events-none
+                        font-mono text-[10.5px] leading-none text-[#5e625d] dark:text-[#8b948f]
+                        border-(--c-bord) dark:border-[#2e3632] bg-(--c-kbd) dark:bg-[#0b0d0c]" aria-hidden="true">
+                <div>Ctrl K</div>
+            </div>
+        {/if}
+    </div>
+
+    {#if self.open(Menu::Search)}
+        <k-popover anchor="header.recherche" combobox match-width placement="bottom-start" offset="8"
+                   aria-label={t("search.results_aria")} onclose={Msg::CloseMenu}
+                   class="menu p-0
+                          bg-white dark:bg-neutral-900
+                          border border-neutral-200/60 dark:border-white/10
+                          rounded-xl shadow-2xl shadow-black/20
+                          overflow-hidden">
+            <div class="recherche-liste flex flex-col max-h-[398px] overflow-y-auto">
+                {#each vm.results as (i, r) (i)}
+                    {#if self.suggestion == Some(i)}
+                        <div class="w-full flex items-center gap-3 px-4 py-2.5 text-left cursor-pointer
+                                    transition-colors duration-100
+                                    bg-green-500/10 dark:bg-green-500/15"
+                             role="option" aria-selected="true" onclick={Msg::SearchPick(i)}>
+                            {@include "SearchResult.ui"}
+                        </div>
+                    {:else}
+                        <div class="w-full flex items-center gap-3 px-4 py-2.5 text-left cursor-pointer
+                                    transition-colors duration-100
+                                    hover:bg-neutral-50 dark:hover:bg-white/5"
+                             role="option" aria-selected="false" onclick={Msg::SearchPick(i)}>
+                            {@include "SearchResult.ui"}
+                        </div>
+                    {/if}
+                {/each}
+                <button class="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs
+                               text-green-600 dark:text-green-400 font-medium
+                               border-t border-neutral-200/60 dark:border-white/5
+                               hover:bg-green-500/5 cursor-pointer transition-colors"
+                        role="option" onclick={Msg::SearchAll}>
+                    <Icon icon="lucide:search" width={12} />
+                    <div>{t("search.see_all")}</div>
+                </button>
+            </div>
+        </k-popover>
+    {/if}
+</div>

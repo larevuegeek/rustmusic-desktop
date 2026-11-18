@@ -1,0 +1,25 @@
+<div class="flex items-center gap-3.5 px-5 py-4">
+    {#if av.lastfm}
+        <div class="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center border bg-red-500/12 border-red-500/30 text-red-300">
+            <Icon icon="simple-icons:lastdotfm" width={20} />
+        </div>
+    {:else}
+        <div class="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center border bg-orange-500/12 border-orange-500/30 text-orange-300">
+            <Icon icon="material-symbols:graphic-eq-rounded" width={22} />
+        </div>
+    {/if}
+    <div class="flex-1 min-w-0">
+        <p class="m-0 text-[15px] font-semibold truncate text-(--rg-tx)">{av.user}</p>
+        {#if let Some(w) = &av.warning}
+            <p class="m-0 mt-0.5 text-[12.5px] font-medium text-red-400">{w}</p>
+        {/if}
+        {#if av.warning.is_none()}
+            <div class="mt-0.5 flex flex-wrap items-baseline gap-1 text-[12.5px] text-(--rg-mu)">
+                <div>{av.sub}</div>
+                <div>·</div>
+                <button class="font-semibold text-(--rg-gtx) hover:underline cursor-pointer" onclick={av.profile.clone()}><div>{t("scrobble.see_profile")}</div></button>
+            </div>
+        {/if}
+    </div>
+    {#each av.buttons as g (g.label.as_str())}<GhostButton g={Some(Ghost::clone(g))} />{/each}
+</div>

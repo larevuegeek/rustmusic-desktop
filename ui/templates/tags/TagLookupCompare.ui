@@ -1,0 +1,51 @@
+<div class="shrink-0 flex items-center gap-2.5 px-4 py-2.5 border-b border-neutral-200/60 dark:border-white/8">
+    <button class="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:bg-white/8"
+            title={t("source.back_to_results")} aria-label={t("source.back_to_results")} onclick={Msg::Lookup(LookupMsg::Back)}>
+        <Icon icon="lucide:arrow-left" width={13} />
+    </button>
+    <div class="min-w-0 flex-1">
+        <div class="text-[12.5px] font-medium truncate text-neutral-900 dark:text-neutral-100">{pk.0.title}</div>
+        <div class="text-[10.5px] truncate text-neutral-500">{pk.0.summary()}</div>
+    </div>
+</div>
+<div class="min-h-0 overflow-y-auto scrollbar-none px-4 py-3">
+    <div class="flex items-center gap-2.5 px-2 pb-1.5">
+        <div class="shrink-0 w-4"></div>
+        <div class="shrink-0 w-24"></div>
+        <div class="flex-1 min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-neutral-500">{t("source.your_file")}</div>
+        <div class="shrink-0 w-3"></div>
+        <div class="flex-1 min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-emerald-400/70">{lk.source_name()}</div>
+    </div>
+    {#if lk.cover.is_some() || lk.cover_loading || e.cover().is_some()}
+        {#if lk.take_cover}
+            <div class="flex items-center gap-2.5 px-2 py-2 mb-1 rounded-lg bg-emerald-500/8">{@include "TagLookupCompareCover.ui"}</div>
+        {:else}
+            <div class="flex items-center gap-2.5 px-2 py-2 mb-1 rounded-lg bg-neutral-50 dark:bg-white/3">{@include "TagLookupCompareCover.ui"}</div>
+        {/if}
+    {/if}
+    <div class="flex flex-col gap-0.5">
+        {#each pk.1 as (i, row) (i)}
+            {#if row.state == 0 && lk.is_checked(row.key)}
+                <div class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg bg-emerald-500/8">{@include "TagLookupCompareRow.ui"}</div>
+            {:else if row.state == 0}
+                <div class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg bg-neutral-50 dark:bg-white/3">{@include "TagLookupCompareRow.ui"}</div>
+            {:else}
+                <div class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg bg-neutral-50 dark:bg-white/3 opacity-60">{@include "TagLookupCompareRow.ui"}</div>
+            {/if}
+        {/each}
+    </div>
+    <p class="m-0 mt-2.5 px-2 text-[10px] leading-relaxed text-neutral-500">{t(if lk.musicbrainz { "source.limits_musicbrainz" } else { "source.limits_deezer" })}</p>
+</div>
+<div class="shrink-0 flex items-center gap-2 px-4 py-2.5 border-t border-neutral-200/60 dark:border-white/8">
+    {#if !lk.selectable().is_empty()}
+        <button class="text-[11px] cursor-pointer underline underline-offset-2 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+                onclick={Msg::Lookup(LookupMsg::ToggleAll)}><div>{t(if lk.all_checked() { "source.select_none" } else { "source.select_all" })}</div></button>
+    {/if}
+    <div class="flex-1 min-w-0 text-[11.5px] text-neutral-400">{lookup_changes(lk.change_count())}</div>
+    {#if lk.change_count() > 0}
+        <button class="flex items-center gap-1.5 px-3.5 h-8 rounded-lg text-[12.5px] font-medium cursor-pointer transition-all bg-emerald-500 text-white hover:bg-emerald-600"
+                onclick={Msg::Lookup(LookupMsg::Apply)}><Icon icon="lucide:check" width={12} /><div>{t("source.apply")}</div></button>
+    {:else}
+        <div class="flex items-center gap-1.5 px-3.5 h-8 rounded-lg text-[12.5px] font-medium bg-emerald-500 text-white opacity-35 cursor-not-allowed"><Icon icon="lucide:check" width={12} /><div>{t("source.apply")}</div></div>
+    {/if}
+</div>

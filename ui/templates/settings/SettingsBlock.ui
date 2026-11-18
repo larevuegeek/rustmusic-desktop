@@ -1,0 +1,62 @@
+{#if let Some(cards) = &r.cards()}
+    <div class="p-4">
+        {#if cards.0 == 4}
+            <div class="grid grid-cols-4 gap-3" role="radiogroup" aria-label={r.title.as_str()}>
+                {#each cards.1 as c (c.label.as_str())}<ChoiceCard c={Some(Card::clone(c))} />{/each}
+            </div>
+        {:else}
+            <div class="grid grid-cols-3 gap-3" role="radiogroup" aria-label={r.title.as_str()}>
+                {#each cards.1 as c (c.label.as_str())}<ChoiceCard c={Some(Card::clone(c))} />{/each}
+            </div>
+        {/if}
+    </div>
+{/if}
+{#if let Some(acc) = &r.accent()}
+    <div class="px-5 py-4">
+        <p class="m-0 text-[15px] font-semibold leading-[1.2] text-(--rg-tx)">{r.title}</p>
+        <p class="m-0 mt-0.75 mb-3.5 text-[13px] leading-[1.25] text-(--rg-mu)">{r.desc}</p>
+        <div class="flex flex-wrap items-center gap-2.5" role="radiogroup">
+            {#each acc.0 as sw (sw.label.as_str())}
+                {#if sw.selected}
+                    <button class="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-110 ring-2 ring-offset-2 ring-(--rg-tx) ring-offset-(--rg-carte) text-white"
+                            role="radio" aria-checked="true" style:background_color={sw.color} title={sw.label.as_str()} aria-label={sw.label.as_str()} onclick={sw.msg.clone()}>
+                        <Icon icon="material-symbols:check-rounded" width={18} />
+                    </button>
+                {:else}
+                    <button class="w-8 h-8 rounded-full cursor-pointer transition-transform hover:scale-110"
+                            role="radio" aria-checked="false" style:background_color={sw.color} title={sw.label.as_str()} aria-label={sw.label.as_str()} onclick={sw.msg.clone()}></button>
+                {/if}
+            {/each}
+            {#if let Some(free) = &acc.1}
+                <div class="w-8 h-8 rounded-full flex items-center justify-center ring-2 ring-offset-2 ring-(--rg-tx) ring-offset-(--rg-carte) text-white"
+                     style:background_color={*free} title={t("settings.accent_custom")}>
+                    <Icon icon="material-symbols:check-rounded" width={18} />
+                </div>
+            {/if}
+            {#if acc.1.is_none()}
+                <div class="rg-arc-en-ciel w-8 h-8 rounded-full flex items-center justify-center text-white" title={t("settings.accent_custom")}>
+                    <Icon icon="material-symbols:add-rounded" width={18} />
+                </div>
+            {/if}
+        </div>
+    </div>
+{/if}
+{#if let Some(pills) = &r.pills_block()}
+    <div class="px-5 py-4 leading-[1.2]">
+        <p class="m-0 text-[15px] font-semibold text-(--rg-tx)">{r.title}</p>
+        <p class="m-0 mt-0.75 text-[13px] leading-[1.25] text-(--rg-mu)">{r.desc}</p>
+        <div class="mt-3 flex flex-wrap gap-1.5">
+            {#each pills as p (p.label.as_str())}<TogglePill p={Some(Pill::clone(p))} />{/each}
+        </div>
+    </div>
+{/if}
+{#if let Some(icon) = &r.info()}
+    <div class="flex gap-3.5 px-5 py-4 leading-[1.25]">
+        <div class="shrink-0 mt-px text-(--rg-mu)"><Icon icon={*icon} width={20} /></div>
+        <div class="min-w-0">
+            <p class="m-0 text-[15px] font-semibold text-(--rg-tx)">{r.title}</p>
+            <p class="m-0 mt-0.75 text-[13px] text-(--rg-mu)">{r.desc}</p>
+        </div>
+    </div>
+{/if}
+{#if !r.custom().is_empty()}{@include "SettingsCustomBlock.ui"}{/if}

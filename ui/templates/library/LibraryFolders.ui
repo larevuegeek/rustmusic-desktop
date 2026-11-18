@@ -1,0 +1,67 @@
+{#if let Some(lf) = &self.views.library_folders}
+<div class="absolute inset-0 z-[60] flex items-center justify-center p-4 animate-[popin-fade-in_150ms_linear]" data-exit="popin-fade-out 150ms linear">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default" onclick={Msg::LibraryFolders(LibraryFoldersMsg::Close)}></div>
+    <div class="relative w-full max-w-xl max-h-[80vh] flex flex-col overflow-hidden rounded-2xl text-(--rg-tx) bg-(--rg-carte) border border-(--rg-bd) dark:border-[#2a312d] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] animate-[popin-scale-in_180ms_cubic-bezier(0.33,1,0.68,1)]" data-exit="popin-scale-out 180ms cubic-bezier(0.33, 1, 0.68, 1)"
+         aria-label={t("folders_popin.title")}>
+        <div class="rg-popin-tete shrink-0 flex items-center gap-3 px-6 pt-5 pb-4 border-b border-(--rg-bd)">
+            <div class="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center bg-(--rg-gbg) border border-(--rg-gbd) text-(--rg-g)"><Icon icon="material-symbols:folder-managed-outline-rounded" width={21} /></div>
+            <div class="flex-1 min-w-0">
+                <h2 class="m-0 text-[17px] font-extrabold tracking-[-0.01em] leading-tight text-(--rg-tx)">{t("folders_popin.title")}</h2>
+                <p class="m-0 mt-0.5 text-xs text-(--rg-mu) truncate">{lf.summary()}</p>
+            </div>
+            <button class="-mr-1.5 w-8 h-8 shrink-0 rounded-[9px] flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                    title={t("common.close")} aria-label={t("common.close")} onclick={Msg::LibraryFolders(LibraryFoldersMsg::Close)}><Icon icon="material-symbols:close-rounded" width={18} /></button>
+        </div>
+
+        <div class="min-h-0 overflow-y-auto px-6 py-4 smart-scroll">
+            {#if lf.loading}
+                <div class="flex items-center justify-center py-12"><div class="flex animate-spin text-(--rg-mu)"><Icon icon="lucide:loader-2" width={20} /></div></div>
+            {:else if lf.dirs.is_empty()}
+                <div class="flex flex-col items-center justify-center py-10 text-center rounded-2xl border border-(--rg-bd2) bg-(--rg-creux)">
+                    <div class="flex text-(--rg-mu2) mb-2"><Icon icon="material-symbols:folder-open-outline-rounded" width={32} /></div>
+                    <p class="m-0 text-sm font-semibold text-(--rg-tx2)">{t("folders_popin.empty")}</p>
+                    <p class="m-0 text-xs text-(--rg-mu) mt-0.5">{t("folders_popin.empty_desc")}</p>
+                </div>
+            {:else}
+                <div class="flex flex-col gap-2">
+                    {#each lf.dirs as d (d.id.as_str())}
+                        {@const pl = lf.pills(d)}
+                        <div class="flex items-center gap-3 p-3 rounded-2xl bg-(--rg-creux) border border-(--rg-bd) transition-colors hover:border-(--rg-bd2)">
+                            <div class="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center bg-(--rg-gbg) border border-(--rg-gbd) text-(--rg-g)"><Icon icon="material-symbols:folder-outline-rounded" width={20} /></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="m-0 text-sm font-bold truncate text-(--rg-tx)">{d.name}</p>
+                                <p class="m-0 font-mono text-[11px] truncate text-(--rg-mu2)" title={d.path.as_str()}>{d.path}</p>
+                                <div class="flex flex-wrap items-center gap-1.5 mt-2 text-[11px] font-medium">
+                                    {#if let Some(x) = &pl.0}<div class="px-2 py-0.5 rounded-md bg-(--rg-s2) text-(--rg-tx2)">{x}</div>{/if}
+                                    {#if let Some(x) = &pl.1}<div class="px-2 py-0.5 rounded-md bg-(--rg-s2) text-(--rg-tx2)">{x}</div>{/if}
+                                    <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-(--rg-s2) text-(--rg-tx2)">
+                                        {#if pl.3 == 1}<div class="w-1.5 h-1.5 rounded-full bg-(--rg-am) animate-pulse"></div>{:else if pl.3 == 0}<div class="w-1.5 h-1.5 rounded-full bg-(--rg-g)"></div>{:else}<div class="w-1.5 h-1.5 rounded-full bg-(--rg-mu2)"></div>{/if}
+                                        <div>{pl.2.clone()}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-0.5 shrink-0 self-start">
+                                {#if pl.3 == 1}
+                                    <div class="w-8 h-8 rounded-[9px] flex items-center justify-center opacity-50 text-(--rg-am)"><div class="flex animate-spin"><Icon icon="material-symbols:refresh-rounded" width={18} /></div></div>
+                                {:else}
+                                    <button class="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                                            title={t("folders_popin.rescan")} aria-label={t("folders_popin.rescan")} onclick={Msg::LibraryFolders(LibraryFoldersMsg::Rescan(d.id.clone()))}><Icon icon="material-symbols:refresh-rounded" width={18} /></button>
+                                {/if}
+                                <button class="w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu) hover:bg-red-500/8 hover:text-red-400"
+                                        title={t("folders_popin.remove")} aria-label={t("folders_popin.remove")} onclick={Msg::LibraryFolders(LibraryFoldersMsg::Remove(d.id.clone()))}><Icon icon="material-symbols:delete-outline-rounded" width={18} /></button>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+        </div>
+
+        <div class="shrink-0 flex items-center justify-between gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+            <button class="flex items-center gap-2 h-10 pl-4 pr-5 rounded-xl cursor-pointer text-sm font-bold transition bg-(--rg-g) text-(--rg-on-g) hover:brightness-110"
+                    onclick={Msg::LibraryFolders(LibraryFoldersMsg::Add)}><Icon icon="material-symbols:add-rounded" width={18} /><div>{t("folders_popin.add")}</div></button>
+            <button class="h-10 px-4 flex items-center rounded-xl cursor-pointer text-sm font-semibold transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                    onclick={Msg::LibraryFolders(LibraryFoldersMsg::Close)}><div>{t("common.close")}</div></button>
+        </div>
+    </div>
+</div>
+{/if}

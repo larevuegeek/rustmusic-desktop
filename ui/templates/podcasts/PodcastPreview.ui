@@ -1,0 +1,120 @@
+<div class="relative grid grid-cols-[minmax(0,19rem)_minmax(0,1fr)] h-[min(84vh,640px)]">
+    <button class="absolute right-3 top-3 z-20 w-8.5 h-8.5 rounded-full flex items-center justify-center cursor-pointer transition-colors bg-black/30 text-white hover:bg-black/50 backdrop-blur-sm"
+            aria-label={t("common.close")} title={t("common.close")} onclick={Msg::ClosePopin}>
+        <Icon icon="material-symbols:close-rounded" width={20} />
+    </button>
+
+    <div class="relative overflow-hidden min-h-0 border-r border-(--rg-line)">
+        {#if let Some(img) = &pp.image}
+            <img class="absolute inset-0 w-full h-full object-cover scale-150 blur-3xl opacity-35" src={cx.resources.cover(img)} alt="">
+        {/if}
+        <div class="absolute inset-0 bg-linear-to-b from-transparent via-(--rg-carte)/60 to-(--rg-carte)"></div>
+        <div class="relative h-full overflow-y-auto scrollbar-none flex flex-col p-6 pt-7">
+            <div class="flex justify-center">
+                <div class="relative shrink-0 w-36 h-36 overflow-hidden rounded-2xl bg-(--rg-s2) shadow-[0_18px_44px_rgba(0,0,0,0.35)]">
+                    <PodcastCover cover={pp.image.clone()} icon={48} />
+                </div>
+            </div>
+            <p class="m-0 mt-4 text-[11.5px] font-bold uppercase tracking-widest text-violet-300">{pp.kicker()}</p>
+            <h2 class="m-0 mt-1 text-[22px] font-extrabold leading-tight tracking-[-0.01em] text-(--rg-tx) line-clamp-3">{pp.title}</h2>
+            {#if let Some(a) = &pp.author}<p class="m-0 mt-1 text-[14px] font-semibold text-(--rg-tx2) truncate">{a}</p>{/if}
+            <div class="mt-3 flex flex-wrap gap-1.5">
+                {#if let Some(ap) = &pp.preview}
+                    <div class="h-7 px-2.5 flex items-center gap-1.5 rounded-full text-[12px] font-semibold bg-white/8 text-(--rg-tx2)">
+                        <Icon icon="material-symbols:podcasts-rounded" width={14} />
+                        <div>{ap.episodes_label()}</div>
+                    </div>
+                {/if}
+                {#if let Some(d) = &pp.latest()}
+                    <div class="h-7 px-2.5 flex items-center gap-1.5 rounded-full text-[12px] font-semibold bg-white/8 text-(--rg-tx2)">
+                        <Icon icon="material-symbols:schedule-outline-rounded" width={14} /><div>{episode_date(Some(d))}</div>
+                    </div>
+                {/if}
+            </div>
+            <div class="mt-4 flex flex-col gap-2">
+                {#if pp.followed(self).is_some()}
+                    <div class="h-10.5 flex items-center justify-center gap-1.5 rounded-full text-[13.5px] font-bold border border-(--rg-bd2) text-(--rg-gtx)">
+                        <Icon icon="material-symbols:check-rounded" width={18} /><div>{t("podcasts.following")}</div>
+                    </div>
+                {:else if pp.adding}
+                    <div class="h-10.5 flex items-center justify-center gap-2 rounded-full text-[13.5px] font-bold bg-violet-600 text-white opacity-70 cursor-wait">
+                        <div class="flex animate-spin"><Icon icon="material-symbols:progress-activity" width={19} /></div><div>{t("podcasts.follow")}</div>
+                    </div>
+                {:else}
+                    <button class="h-10.5 flex items-center justify-center gap-2 rounded-full cursor-pointer text-[13.5px] font-bold transition bg-violet-600 text-white hover:bg-violet-500 shadow-[0_8px_22px_rgba(139,92,246,0.35)]"
+                            onclick={Msg::PodcastPreview(PodcastPreviewMsg::Follow)}>
+                        <Icon icon="material-symbols:add-rounded" width={19} /><div>{t("podcasts.follow")}</div>
+                    </button>
+                {/if}
+                <div class="flex gap-2">
+                    <button class="flex-1 h-10 flex items-center justify-center gap-1.5 rounded-full border cursor-pointer text-[13px] font-bold transition-colors border-(--rg-bd2) text-(--rg-tx) hover:bg-(--rg-s2)"
+                            onclick={Msg::PodcastPreview(PodcastPreviewMsg::OpenPage)}>
+                        <div>{t("podcasts.open_page")}</div><Icon icon="material-symbols:arrow-forward-rounded" width={17} />
+                    </button>
+                    {#if pp.site().is_some()}
+                        <button class="w-10 h-10 shrink-0 rounded-full flex items-center justify-center transition-colors border border-(--rg-bd2) text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                                title={t("podcasts.website")} aria-label={t("podcasts.website")} onclick={Msg::PodcastPreview(PodcastPreviewMsg::Site)}>
+                            <Icon icon="material-symbols:language" width={19} />
+                        </button>
+                    {/if}
+                </div>
+            </div>
+            {#if let Some(d) = &pp.description()}
+                {#if pp.open_desc}
+                    <p class="m-0 mt-4 text-[13.5px] leading-relaxed text-(--rg-tx2)">{d}</p>
+                {:else}
+                    <p class="m-0 mt-4 text-[13.5px] leading-relaxed text-(--rg-tx2) line-clamp-3">{d}</p>
+                {/if}
+                <div class="flex">
+                    <button class="mt-1 text-[12.5px] font-semibold cursor-pointer text-(--rg-tx) hover:underline underline-offset-2" onclick={Msg::PodcastPreview(PodcastPreviewMsg::ToggleDesc)}>
+                        <div>{t(if pp.open_desc { "podcasts.show_less" } else { "podcasts.show_more" })}</div>
+                    </button>
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    <div class="min-h-0 overflow-y-auto scrollbar-app px-6 pt-7 pb-6">
+        <h3 class="m-0 mb-3 pr-10 text-[12px] font-bold uppercase tracking-widest text-(--rg-mu)">{t("podcasts.preview_latest")}</h3>
+        {#if pp.error}
+            <p class="m-0 py-6 text-sm text-(--rg-mu)">{t("podcasts.preview_error")}</p>
+        {:else if pp.preview.is_none()}
+            <div class="flex flex-col gap-3">
+                {#each [85.0f32, 78., 71., 64., 57., 50.] as (i, w) (i)}
+                    <div class="flex gap-3.5 py-2">
+                        <div class="w-12 h-12 shrink-0 rounded-xl bg-(--rg-s2) animate-pulse"></div>
+                        <div class="flex-1 flex flex-col gap-2 pt-1">
+                            <div class="h-3.5 rounded bg-(--rg-s2) animate-pulse" style:width={Length::Percent(w)}></div>
+                            <div class="h-3 w-1/2 rounded bg-(--rg-s2) animate-pulse"></div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        {:else}
+            {#if let Some(ap) = &pp.preview}
+                <div class="flex flex-col">
+                    {#each ap.episodes as (i, e) (i)}
+                        <div class="flex gap-3.5 py-3 border-b border-(--rg-line) last:border-b-0">
+                            <div class="w-12 h-12 shrink-0 rounded-xl flex flex-col items-center justify-center leading-none bg-violet-500/10 text-violet-200">
+                                {#if let Some(dm) = &podcast_day_month(e.published_at.as_deref())}
+                                    <div class="w-full text-center text-[17px] font-extrabold tabular-nums">{dm.0.clone()}</div>
+                                    <div class="w-full text-center mt-0.5 text-[10px] font-bold uppercase tracking-wide">{dm.1.clone()}</div>
+                                {/if}
+                                {#if podcast_day_month(e.published_at.as_deref()).is_none()}<Icon icon="material-symbols:podcasts-rounded" width={20} />{/if}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="m-0 text-[14px] font-semibold leading-snug text-(--rg-tx) line-clamp-2">{e.title}</p>
+                                {#if let Some(s) = &e.summary}<p class="m-0 mt-0.5 text-[12.5px] leading-relaxed text-(--rg-mu) line-clamp-2">{s}</p>{/if}
+                                {#if let Some(du) = &e.duration}
+                                    <div class="mt-1 flex items-center gap-1 text-[12px] font-semibold text-(--rg-tx2)">
+                                        <Icon icon="material-symbols:schedule-outline-rounded" width={13} /><div>{episode_duration(*du as f64)}</div>
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+        {/if}
+    </div>
+</div>

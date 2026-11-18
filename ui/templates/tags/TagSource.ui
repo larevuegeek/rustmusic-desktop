@@ -1,0 +1,88 @@
+<div class="h-[min(740px,calc(88vh_-_2px))] flex flex-col min-h-0 bg-(--rg-carte)">
+    <div class="shrink-0 flex flex-wrap items-center gap-4 pl-5.5 pr-4.5 py-4.5 border-b border-(--rg-bd)">
+        <div class="w-10 h-10 shrink-0 rounded-[11px] border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)"><Icon icon="material-symbols:cloud-download-outline-rounded" width={21} /></div>
+        <div class="min-w-0">
+            <h2 class="m-0 text-[19px] font-extrabold tracking-[-0.01em] whitespace-nowrap">{t("workshop.complete_online")}</h2>
+            <p class="m-0 text-[13px] text-(--rg-mu) truncate">{self.source_subtitle(so)}</p>
+        </div>
+        <div class="ml-auto flex items-center gap-1.5">
+            {#if so.step == 1}
+                <div class="flex items-center gap-2 h-8 pl-1.5 pr-3 rounded-2xl text-[13px] font-bold whitespace-nowrap bg-(--rg-s2) text-(--rg-tx)">
+                    <div class="w-5.5 h-5.5 rounded-full flex items-center justify-center text-[11.5px] bg-(--rg-g) text-(--rg-on-g)">1</div><div>{t("source.step_edition")}</div>
+                </div>
+            {:else}
+                <button class="flex items-center gap-2 h-8 pl-1.5 pr-3 rounded-2xl text-[13px] font-bold whitespace-nowrap cursor-pointer text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-champ)" onclick={Msg::Source(SourceMsg::Step1)}>
+                    <div class="w-5.5 h-5.5 rounded-full border-[1.5px] flex items-center justify-center border-(--rg-gbd) text-(--rg-g)"><Icon icon="material-symbols:check-rounded" width={14} /></div><div>{t("source.step_edition")}</div>
+                </button>
+            {/if}
+            <div class="w-4.5 h-px bg-(--rg-bd2)"></div>
+            {#if so.step == 2}
+                <div class="flex items-center gap-2 h-8 pl-1.5 pr-3 rounded-2xl text-[13px] font-bold whitespace-nowrap bg-(--rg-s2) text-(--rg-tx)">
+                    <div class="w-5.5 h-5.5 rounded-full flex items-center justify-center text-[11.5px] bg-(--rg-g) text-(--rg-on-g)">2</div><div>{t("source.step_fields")}</div>
+                </div>
+            {:else}
+                <button class="flex items-center gap-2 h-8 pl-1.5 pr-3 rounded-2xl text-[13px] font-bold whitespace-nowrap cursor-pointer text-(--rg-mu2)" onclick={Msg::Source(SourceMsg::Next)}>
+                    <div class="w-5.5 h-5.5 rounded-full border-[1.5px] border-(--rg-bd2) flex items-center justify-center text-[11.5px]">2</div><div>{t("source.step_fields")}</div>
+                </button>
+            {/if}
+        </div>
+        <button class="w-9 h-9 rounded-[9px] flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                title={t("common.close")} aria-label={t("common.close")} onclick={Msg::ClosePopin}><Icon icon="material-symbols:close-rounded" width={20} /></button>
+    </div>
+
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app px-5.5 pt-5 pb-6">
+        {#if let Some(er) = &so.error}
+            <div class="mb-4 flex items-start gap-2 px-3.5 py-2.5 rounded-xl text-[13px] bg-red-500/10 text-red-400">
+                <div class="flex shrink-0"><Icon icon="material-symbols:error-outline-rounded" width={17} /></div><div class="min-w-0">{er}</div>
+            </div>
+        {/if}
+        {#if so.step == 1}
+            {@include "TagSourceStep1.ui"}
+        {:else}
+            {@include "TagSourceStep2.ui"}
+        {/if}
+    </div>
+
+    <div class="shrink-0 flex flex-wrap items-center gap-2.5 pl-5.5 pr-4.5 py-3.5 border-t border-(--rg-bd) bg-(--rg-champ)">
+        <div class="flex-[1_1_260px] min-w-0 flex items-center gap-2.5 text-[13.5px] text-(--rg-mu)">
+            {#if so.step == 1}
+                {#if let Some(ph) = &so.picked_hit()}
+                    <div class="w-2 h-2 shrink-0 rounded-full bg-(--rg-g) shadow-[0_0_0_4px_rgba(34,197,94,0.15)]"></div>
+                    <div class="flex gap-1 min-w-0 truncate"><div class="font-bold text-(--rg-tx) truncate">{ph.display_title()}</div><div class="shrink-0">· {ph.tracks_label()}</div></div>
+                {/if}
+                {#if so.picked.is_none()}<div>{t("source.pick_edition")}</div>{/if}
+            {:else}
+                {@const ct = self.source_counts()}
+                {#if ct.0 > 0}
+                    <div class="w-2 h-2 shrink-0 rounded-full bg-(--rg-g) shadow-[0_0_0_4px_rgba(34,197,94,0.15)]"></div>
+                    <div class="flex gap-1 min-w-0 truncate"><div class="font-bold text-(--rg-tx)">{src_plural(ct.0, "source.value_one", "source.value_many")}</div><div>{t_with("source.on_files", &[("n", &src_plural(ct.1, "workshop.file_one", "workshop.file_many"))])}</div></div>
+                {:else}
+                    <div>{t("source.nothing_selected")}</div>
+                {/if}
+            {/if}
+        </div>
+        {#if so.step == 1}
+            <button class="h-10.5 px-4.5 rounded-[11px] flex items-center gap-2 text-[14px] font-bold whitespace-nowrap cursor-pointer text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)" onclick={Msg::ClosePopin}><div>{t("profil.cancel")}</div></button>
+            {#if so.picked.is_none() || so.searching || so.matching}
+                <div class="h-10.5 px-4.5 rounded-[11px] flex items-center gap-2 text-[14px] font-bold whitespace-nowrap bg-(--rg-s2) text-(--rg-mu2)">
+                    <div>{t("source.continue")}</div>{#if so.matching}<div class="flex animate-spin"><Icon icon="material-symbols:progress-activity" width={20} /></div>{:else}<Icon icon="material-symbols:arrow-forward-rounded" width={20} />{/if}
+                </div>
+            {:else}
+                <button class="h-10.5 px-4.5 rounded-[11px] flex items-center gap-2 text-[14px] font-bold whitespace-nowrap cursor-pointer bg-(--rg-g) text-(--rg-on-g) hover:brightness-110" onclick={Msg::Source(SourceMsg::Next)}>
+                    <div>{t("source.continue")}</div><Icon icon="material-symbols:arrow-forward-rounded" width={20} />
+                </button>
+            {/if}
+        {:else}
+            <button class="h-10.5 px-4.5 rounded-[11px] flex items-center gap-2 text-[14px] font-bold whitespace-nowrap cursor-pointer text-(--rg-tx2) hover:bg-(--rg-s2) hover:text-(--rg-tx)" onclick={Msg::Source(SourceMsg::Step1)}>
+                <Icon icon="material-symbols:arrow-back-rounded" width={20} /><div>{t("source.back")}</div>
+            </button>
+            {#if self.source_counts().0 == 0}
+                <div class="h-10.5 px-4.5 rounded-[11px] flex items-center gap-2 text-[14px] font-bold whitespace-nowrap bg-(--rg-s2) text-(--rg-mu2)"><Icon icon="material-symbols:check-rounded" width={20} /><div>{t("source.apply")}</div></div>
+            {:else}
+                <button class="h-10.5 px-4.5 rounded-[11px] flex items-center gap-2 text-[14px] font-bold whitespace-nowrap cursor-pointer bg-(--rg-g) text-(--rg-on-g) hover:brightness-110" onclick={Msg::Source(SourceMsg::Apply)}>
+                    <Icon icon="material-symbols:check-rounded" width={20} /><div>{t("source.apply")}</div>
+                </button>
+            {/if}
+        {/if}
+    </div>
+</div>

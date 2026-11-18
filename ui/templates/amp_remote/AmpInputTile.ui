@@ -1,0 +1,13 @@
+{#if c.selected}
+    <button class="amp-tile-on min-w-0 h-14 px-1 flex flex-col justify-center gap-1 rounded-xl border cursor-pointer transition duration-150 active:scale-[0.96]"
+            title={c.name.as_str()} aria-pressed="true" onclick={c.msg.clone()}>
+        <div class="flex justify-center"><Icon icon={c.icon} width={20} /></div>
+        <div class="max-w-full truncate text-center text-[11px] font-semibold">{c.name}</div>
+    </button>
+{:else}
+    <button class="min-w-0 h-14 px-1 flex flex-col justify-center gap-1 rounded-xl border cursor-pointer transition duration-150 border-(--rg-bd) bg-(--rg-s2)/50 text-(--rg-tx2) hover:text-(--rg-tx) hover:border-(--rg-bd2) active:scale-[0.96]"
+            title={c.name.as_str()} aria-pressed="false" onclick={c.msg.clone()}>
+        <div class="flex justify-center"><Icon icon={c.icon} width={20} /></div>
+        <div class="max-w-full truncate text-center text-[11px] font-semibold">{c.name}</div>
+    </button>
+{/if}

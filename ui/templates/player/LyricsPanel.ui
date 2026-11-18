@@ -1,0 +1,132 @@
+{#if self.open(Menu::Lyrics)}
+    <div class="absolute inset-0 z-40 bg-black/50 backdrop-blur-md cursor-default animate-[popin-fade-in_220ms_linear]" data-exit="popin-fade-out 200ms linear" onclick={Msg::CloseMenu}></div>
+    <div class="absolute right-0 top-0 bottom-0 z-50 w-xl overflow-hidden flex flex-col shadow-[-12px_0_60px_rgba(0,0,0,0.5)] animate-[panel-slide-in_340ms_cubic-bezier(0.32,0.72,0,1)]" data-exit="panel-slide-out 220ms cubic-bezier(0.4, 0, 1, 1)">
+        {@const ly = &self.views.lyrics}
+        <div class="absolute inset-0 overflow-hidden">
+            {#if let Some(background) = self.current_cover()}
+                <img class="absolute -inset-10 object-cover blur-[60px] saturate-[1.5] scale-110 opacity-90" src={cx.resources.cover_opt(&Some(background.clone()))} alt="">
+            {:else}
+                <div class="absolute inset-0" style:background_layers={lyrics_fallback(ly.path.as_deref())}></div>
+                <div class="absolute -top-20 -left-20 w-96 h-96 rounded-full bg-white/10 blur-3xl"></div>
+                <div class="absolute -bottom-20 -right-20 w-96 h-96 rounded-full bg-black/30 blur-3xl"></div>
+            {/if}
+        </div>
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-xl"></div>
+        <div class="absolute inset-0 bg-linear-to-b from-black/30 via-transparent to-black/40"></div>
+
+        <div class="relative z-20 shrink-0 flex items-center justify-between px-6 py-4 border-b border-neutral-200/60 dark:border-white/8">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center shrink-0 text-white"><Icon icon="lucide:mic-vocal" width={17} /></div>
+                <div class="min-w-0">
+                    <div class="text-sm font-semibold text-white">{t("player.lyrics")}</div>
+                    {#if ly.status == LyricsStatus::Ready}
+                        <div class="flex items-center gap-1.5 text-[10px] text-white/60 mt-0.5">
+                            {#if !ly.lines.is_empty()}<div class="px-1.5 py-px rounded bg-emerald-500/20 text-emerald-300 font-medium">{t("lyrics.synced")}</div>{/if}
+                            <div>{lyrics_source_label(&ly.source)}</div>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+                {#if ly.status == LyricsStatus::Ready || ly.status == LyricsStatus::Empty}
+                    <button class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                            aria-label={t("lyrics.search_again")} title={t("lyrics.search_again")} onclick={Msg::LyricsRefresh}>
+                        {#if ly.refreshing}<div class="flex animate-spin"><Icon icon="lucide:refresh-cw" width={14} /></div>{:else}<Icon icon="lucide:refresh-cw" width={14} />{/if}
+                    </button>
+                {/if}
+                <button class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                        aria-label={t("common.close")} title={t("common.close")} onclick={Msg::CloseMenu}>
+                    <Icon icon="lucide:x" width={16} />
+                </button>
+            </div>
+        </div>
+
+        {#if let Some(now) = &self.now_playing_card()}
+            <div class="relative z-10 shrink-0 px-6 pt-4 pb-2">
+                <div class="mb-3 flex items-center gap-2.5">
+                    <div class="relative flex h-2.5 w-2.5 items-center justify-center">
+                        {#if self.playing()}<div class="absolute inset-0 rounded-full bg-emerald-400 opacity-40 animate-ping"></div>{/if}
+                        <div class="relative h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></div>
+                    </div>
+                    <h3 class="m-0 text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-400">{t("home.now_playing")}</h3>
+                </div>
+                <div class="relative flex items-center gap-4 rounded-2xl p-3.5 border bg-white/8 backdrop-blur-md border-white/12 shadow-[0_2px_12px_rgba(0,0,0,0.3)]">
+                    <div class="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-neutral-200 dark:bg-neutral-800 shadow-[0_2px_12px_rgba(0,0,0,0.4)] ring-1 ring-white/10">
+                        <img class="h-full w-full object-cover" src={cx.resources.cover_opt(&now.cover)} alt="">
+                    </div>
+                    <div class="min-w-0 flex-1 flex flex-col justify-center gap-0.5">
+                        <div class="truncate text-[14px] font-bold leading-tight text-white" title={now.title.as_str()}>{now.title}</div>
+                        <div class="truncate text-[12px] font-medium text-white/70">{now.artist}</div>
+                    </div>
+                    <div class="shrink-0 w-14 flex flex-col justify-center gap-2.5 pr-1">
+                        {#if self.playing()}
+                            <div class="w-full flex items-end justify-end gap-0.75 h-5">
+                                <span class="w-0.75 rounded-full bg-emerald-500 animate-[eq-bar-1_0.8s_ease-in-out_infinite]"></span>
+                                <span class="w-0.75 rounded-full bg-emerald-500 animate-[eq-bar-2_0.6s_ease-in-out_infinite_0.1s]"></span>
+                                <span class="w-0.75 rounded-full bg-emerald-500 animate-[eq-bar-3_0.7s_ease-in-out_infinite_0.2s]"></span>
+                                <span class="w-0.75 rounded-full bg-emerald-500/60 animate-[eq-bar-1_0.9s_ease-in-out_infinite_0.15s]"></span>
+                            </div>
+                        {:else}
+                            <div class="w-full flex justify-end text-white/60"><Icon icon="mynaui:pause" width={18} /></div>
+                        {/if}
+                        <div class="w-full text-right text-[11px] font-semibold tabular-nums text-white/60">{now.duration}</div>
+                    </div>
+                </div>
+            </div>
+        {/if}
+
+        <div class="relative z-10 flex-1 min-h-0 overflow-hidden px-6">
+            {#if ly.path.is_none() || ly.status == LyricsStatus::Idle}
+                <div class="flex flex-col items-center justify-center h-full text-center">
+                    <div class="flex text-white/30 mb-3"><Icon icon="lucide:music" width={36} /></div>
+                    <p class="m-0 text-sm text-white/60">{t("lyrics.no_track")}</p>
+                </div>
+            {:else if ly.status == LyricsStatus::Loading}
+                <div class="flex flex-col items-center justify-center h-full text-center">
+                    <div class="relative mb-4">
+                        <div class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white"><div class="flex animate-spin"><Icon icon="lucide:loader-2" width={20} /></div></div>
+                        <div class="absolute inset-0 rounded-full bg-emerald-500/30 blur-xl animate-pulse"></div>
+                    </div>
+                    <p class="m-0 text-sm text-white/80 font-medium mb-1">{t("lyrics.searching")}</p>
+                    <p class="m-0 text-xs text-white/40">{t("lyrics.searching_desc")}</p>
+                </div>
+            {:else if ly.status == LyricsStatus::Error}
+                <div class="flex flex-col items-center justify-center h-full text-center px-4">
+                    <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mb-3 text-red-300"><Icon icon="lucide:wifi-off" width={20} /></div>
+                    <p class="m-0 text-sm font-medium text-white mb-1">{t("lyrics.offline")}</p>
+                    <p class="m-0 text-xs text-white/50 mb-5">{ly.error_text()}</p>
+                    <button class="text-xs px-4 py-2 rounded-full cursor-pointer bg-white/15 backdrop-blur-md text-white hover:bg-white/25 border border-white/15 transition-colors"
+                            onclick={Msg::LyricsRetry}><div>{t("common.retry")}</div></button>
+                </div>
+            {:else if ly.status == LyricsStatus::Empty}
+                <div class="flex flex-col items-center justify-center h-full text-center px-4">
+                    <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-3 text-white/60"><Icon icon="lucide:file-x" width={20} /></div>
+                    <p class="m-0 text-sm font-medium text-white mb-1">{t("lyrics.empty")}</p>
+                    <p class="m-0 text-xs text-white/50 mb-5 max-w-65">{t("lyrics.empty_desc")}</p>
+                    <button class="text-xs px-4 py-2 rounded-full cursor-pointer bg-white/15 backdrop-blur-md text-white hover:bg-white/25 border border-white/15 transition-colors"
+                            onclick={Msg::LyricsRefresh}><div>{t("lyrics.search_again")}</div></button>
+                </div>
+            {:else if !ly.lines.is_empty()}
+                {@const active = self.lyrics_active()}
+                <div class="h-full -mx-6 px-6 overflow-y-auto [scrollbar-width:none]">
+                    <div class="flex flex-col gap-1">
+                        <div class="h-12 shrink-0"></div>
+                        {#each ly.lines as (i, line) (i)}
+                            <div class="rg-parole w-full px-2 py-3 rounded-lg cursor-pointer text-5xl leading-[1.1] font-black tracking-tight origin-left scroll-mt-[140px] transition-[color,transform,background-color] duration-500 ease-out hover:bg-neutral-100 dark:hover:bg-white/5"
+                                 class:rg-parole-active={active == Some(i)} class:rg-parole-passee={active.is_some_and(|a| i < a)}
+                                 style:scroll_into_view={active == Some(i)}
+                                 onclick={Msg::Seek(line.0 / 1000.)}>{if line.1.is_empty() { "♪".to_string() } else { line.1.clone() }}</div>
+                        {/each}
+                        <div class="h-[55vh] shrink-0"></div>
+                    </div>
+                </div>
+            {:else}
+                {#if let Some(text) = &ly.plain}
+                    <div class="h-full overflow-y-auto scrollbar-app">
+                        <p class="m-0 py-12 text-xl leading-relaxed font-semibold text-white/85 whitespace-pre-wrap tracking-tight">{text}</p>
+                    </div>
+                {/if}
+            {/if}
+        </div>
+    </div>
+{/if}

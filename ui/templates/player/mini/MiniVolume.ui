@@ -1,0 +1,100 @@
+<div id={if above {"micro.volume"} else {"mini.volume"}} class="relative shrink-0" data-no-drag>
+    {#if above}
+        <button class="w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-white/85 hover:text-white hover:bg-white/15"
+                title={self.mini_volume_title()}
+                aria-label={t("common.volume")} onwheel={MiniMsg::wheel(self.mini_dop(), false)} onclick={Msg::Mini(MiniMsg::VolumeMenu(!self.views.mini.volume_open))}>
+            <div class="flex">{@include "MiniVolumeIcon.ui"}</div>
+        </button>
+    {:else if self.views.mini.volume_open}
+        <button class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic-fort) hover:bg-(--lc-survol) text-(--lc-acc)"
+                title={self.mini_volume_title()}
+                aria-label={t("common.volume")} onwheel={MiniMsg::wheel(self.mini_dop(), false)} onclick={Msg::Mini(MiniMsg::VolumeMenu(false))}>
+            <div class="flex">{@include "MiniVolumeIcon.ui"}</div>
+        </button>
+    {:else if muted && !self.mini_dop()}
+        <button class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic-fort) hover:bg-(--lc-survol) text-red-400/85"
+                title={vm.volume_title.as_str()}
+                aria-label={t("common.volume")} onwheel={MiniMsg::wheel(self.mini_dop(), false)} onclick={Msg::Mini(MiniMsg::VolumeMenu(true))}>
+            <div class="flex">{@include "MiniVolumeIcon.ui"}</div>
+        </button>
+    {:else}
+        <button class="w-9 h-9 flex items-center justify-center rounded-full cursor-pointer transition-colors text-(--lc-ic-fort) hover:bg-(--lc-survol)"
+                title={self.mini_volume_title()}
+                aria-label={t("common.volume")} onwheel={MiniMsg::wheel(self.mini_dop(), false)} onclick={Msg::Mini(MiniMsg::VolumeMenu(true))}>
+            <div class="flex">{@include "MiniVolumeIcon.ui"}</div>
+        </button>
+    {/if}
+
+    {#if self.views.mini.volume_open}
+        {#if self.mini_dop() && above}
+            <k-popover anchor="micro.volume" placement="top-end" offset="8" aria-label={t("common.volume")}
+                       onclose={Msg::Mini(MiniMsg::VolumeMenu(false))}
+                       class="lecteur-menu p-0 w-44 px-3 py-2 rounded-xl border bg-(--lc-menu) border-(--lc-menu-bd) shadow-[0_12px_30px_rgba(0,0,0,0.35)] text-(--lc-tx)">
+                <p class="m-0 text-[12px] leading-snug text-(--lc-tx2)">{t("player.volume_dop_locked")}</p>
+            </k-popover>
+        {:else if self.mini_dop()}
+            <k-popover anchor="mini.volume" placement="top-end" offset="8" aria-label={t("common.volume")}
+                       onclose={Msg::Mini(MiniMsg::VolumeMenu(false))}
+                       class="lecteur-menu p-0 w-44 px-3 py-2 rounded-xl border bg-(--lc-menu) border-(--lc-menu-bd) shadow-[0_12px_30px_rgba(0,0,0,0.35)] text-(--lc-tx)">
+                <p class="m-0 text-[12px] leading-snug text-(--lc-tx2)">{t("player.volume_dop_locked")}</p>
+            </k-popover>
+        {:else if !above && self.mini_volume_horizontal()}
+            <k-popover anchor="mini.volume" placement="top-end" offset="8" aria-label={t("common.volume")}
+                       onclose={Msg::Mini(MiniMsg::VolumeMenu(false))}
+                       class="lecteur-menu p-0 w-56 flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl border bg-(--lc-menu) border-(--lc-menu-bd) shadow-[0_12px_30px_rgba(0,0,0,0.35)] text-(--lc-tx)">
+                {@include "MiniVolumeMute.ui"}
+                <div class="group/vol relative flex-1 h-5 flex items-center" style:--volume={volume}>
+                    <div class="relative w-full h-1.25 group-hover/vol:h-1.5 rounded-full bg-(--lc-rail) transition-[height] duration-150">
+                        {#if muted}
+                            <div class="absolute inset-y-0 left-0 rounded-full bg-red-500/60 w-[calc((100%-12px)*var(--volume,0.8)+6px)]"></div>
+                        {:else}
+                            <div class="absolute inset-y-0 left-0 rounded-full bg-(--lc-acc) w-[calc((100%-12px)*var(--volume,0.8)+6px)]"></div>
+                        {/if}
+                        <div class="absolute top-1/2 w-3 h-3 -mt-1.5 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.45)] pointer-events-none left-[calc((100%-12px)*var(--volume,0.8))]"></div>
+                    </div>
+                    <input class="absolute inset-0 w-full h-full cursor-pointer opacity-0" type="range" min="0" max="100" step="1"
+                           value={self.volume_value()} oninput={Msg::Volume} onwheel={MiniMsg::wheel(self.mini_dop(), false)} aria-label={t("common.volume")}>
+                </div>
+                <div class="w-8 shrink-0 text-right font-(--font-mono) text-[11px] tabular-nums text-(--lc-tx2)">{self.volume()}</div>
+            </k-popover>
+        {:else if above}
+            <k-popover anchor="micro.volume" placement="top-end" offset="6" aria-label={t("common.volume")}
+                       onclose={Msg::Mini(MiniMsg::VolumeMenu(false))}
+                       class="lecteur-menu p-0 w-11 flex flex-col items-center gap-1.5 py-2 rounded-xl border bg-(--lc-menu) border-(--lc-menu-bd) shadow-[0_12px_30px_rgba(0,0,0,0.35)] text-(--lc-tx)">
+                <div class="font-(--font-mono) text-[11px] tabular-nums text-(--lc-tx2)">{self.volume()}</div>
+                <div class="group/vol relative w-5 h-18 flex justify-center" style:--volume={volume}>
+                    <div class="relative w-1.25 h-full group-hover/vol:w-1.5 rounded-full bg-(--lc-rail) transition-[width] duration-150">
+                        {#if muted}
+                            <div class="absolute inset-x-0 bottom-0 rounded-full bg-red-500/60 h-[calc((100%-12px)*var(--volume,0.8)+6px)]"></div>
+                        {:else}
+                            <div class="absolute inset-x-0 bottom-0 rounded-full bg-(--lc-acc) h-[calc((100%-12px)*var(--volume,0.8)+6px)]"></div>
+                        {/if}
+                        <div class="absolute left-1/2 w-3 h-3 -ml-1.5 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.45)] pointer-events-none bottom-[calc((100%-12px)*var(--volume,0.8))]"></div>
+                    </div>
+                    <input class="absolute inset-0 w-full h-full cursor-pointer opacity-0" type="range" orient="vertical" min="0" max="100" step="1"
+                           value={self.volume_value()} oninput={Msg::Volume} onwheel={MiniMsg::wheel(self.mini_dop(), false)} aria-label={t("common.volume")}>
+                </div>
+                {@include "MiniVolumeMute.ui"}
+            </k-popover>
+        {:else}
+            <k-popover anchor="mini.volume" placement="left-center" offset="6" aria-label={t("common.volume")}
+                       onclose={Msg::Mini(MiniMsg::VolumeMenu(false))}
+                       class="lecteur-menu p-0 w-11 flex flex-col items-center gap-1.5 py-2 rounded-xl border bg-(--lc-menu) border-(--lc-menu-bd) shadow-[0_12px_30px_rgba(0,0,0,0.35)] text-(--lc-tx)">
+                <div class="font-(--font-mono) text-[11px] tabular-nums text-(--lc-tx2)">{self.volume()}</div>
+                <div class="group/vol relative w-5 h-18 flex justify-center" style:--volume={volume}>
+                    <div class="relative w-1.25 h-full group-hover/vol:w-1.5 rounded-full bg-(--lc-rail) transition-[width] duration-150">
+                        {#if muted}
+                            <div class="absolute inset-x-0 bottom-0 rounded-full bg-red-500/60 h-[calc((100%-12px)*var(--volume,0.8)+6px)]"></div>
+                        {:else}
+                            <div class="absolute inset-x-0 bottom-0 rounded-full bg-(--lc-acc) h-[calc((100%-12px)*var(--volume,0.8)+6px)]"></div>
+                        {/if}
+                        <div class="absolute left-1/2 w-3 h-3 -ml-1.5 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.45)] pointer-events-none bottom-[calc((100%-12px)*var(--volume,0.8))]"></div>
+                    </div>
+                    <input class="absolute inset-0 w-full h-full cursor-pointer opacity-0" type="range" orient="vertical" min="0" max="100" step="1"
+                           value={self.volume_value()} oninput={Msg::Volume} onwheel={MiniMsg::wheel(self.mini_dop(), false)} aria-label={t("common.volume")}>
+                </div>
+                {@include "MiniVolumeMute.ui"}
+            </k-popover>
+        {/if}
+    {/if}
+</div>

@@ -1,0 +1,5 @@
+{#if checked}
+    <div class="shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"><Icon icon="material-symbols:check-rounded" width={14} /></div>
+{:else}
+    <div class="shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors bg-(--rg-carte) border-(--rg-bd2)"></div>
+{/if}

@@ -1,0 +1,24 @@
+{#if let Some(m) = &self.views.column_menu}
+    <k-popover anchor={m.at.anchor()} menu placement="bottom-start" offset="0" aria-label={t("tracks_view.column_menu")}
+               onclose={Msg::Columns(ColumnsMsg::CloseMenu)}
+               class="w-60 py-1.5 bg-(--rg-s2) border border-(--rg-bd) dark:border-[#2a312d] rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+        {#if m.fit}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx) transition-colors"
+                    onclick={Msg::Columns(ColumnsMsg::Fit(m.key.clone()))}>
+                <div class="flex opacity-60"><Icon icon="material-symbols:width-rounded" width={14} /></div><div>{t("tracks_view.fit_content")}</div>
+            </button>
+        {/if}
+        {#if m.resizable}
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx) transition-colors"
+                    onclick={Msg::Columns(ColumnsMsg::Original(m.key.clone()))}>
+                <div class="flex opacity-60"><Icon icon="material-symbols:undo-rounded" width={14} /></div>
+                <div>{if m.flexible { t("tracks_view.auto_width") } else { t("tracks_view.original_width") }}</div>
+            </button>
+            <div class="h-px my-1 bg-(--rg-bd) dark:bg-[#2a312d]"></div>
+        {/if}
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx) transition-colors"
+                onclick={Msg::Columns(ColumnsMsg::ResetWidths)}>
+            <div class="flex opacity-60"><Icon icon="material-symbols:restart-alt-rounded" width={14} /></div><div>{t("columns.reset_widths")}</div>
+        </button>
+    </k-popover>
+{/if}

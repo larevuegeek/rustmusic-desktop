@@ -1,0 +1,13 @@
+{#if col.widget != Widget::Cover && col.widget != Widget::Index}
+    {@const hint = if col.widget == Widget::Title { t("tracks_view.resize_title") } else { t("tracks_view.resize") }}
+    <button class="absolute top-0 -right-2 w-3 h-full z-20 flex items-center justify-center cursor-col-resize"
+            title={hint.as_str()} aria-label={hint.as_str()} onclick={Msg::Noop}
+            onpan={{ let key = col.key.clone(); move |e: PanEvent| Msg::Columns(ColumnsMsg::Resize(key.clone(), e)) }}
+            ondblclick={Msg::Columns(ColumnsMsg::Original(col.key.clone()))}>
+        {#if self.column_resize.as_ref().is_some_and(|r| r.key == col.key)}
+            <div class="w-0.5 h-4 rounded-full bg-(--rg-g)"></div>
+        {:else}
+            <div class="w-px h-3.5 rounded-full transition-colors bg-transparent group-hover/col:bg-(--rg-bd2)"></div>
+        {/if}
+    </button>
+{/if}

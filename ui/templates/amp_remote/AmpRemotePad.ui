@@ -1,0 +1,87 @@
+<div class="relative flex flex-col gap-3">
+    <div class="flex justify-end">
+        <div class="flex items-center gap-0.5 p-0.5 rounded-full border border-(--rg-bd) bg-(--rg-s2)/50" aria-label={t("amp_remote.pad")}>
+            {#if r.wheel}
+                <button class="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer bg-(--rg-carte) text-(--rg-tx) transition duration-150 active:scale-[0.96]"
+                        title={t("amp_remote.pad_wheel")} aria-label={t("amp_remote.pad_wheel")} aria-pressed="true" onclick={Msg::AmpRemote(AmpRemoteMsg::Pad(true))}>
+                    <Icon icon="material-symbols:trip-origin" width={15} />
+                </button>
+                <button class="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) transition duration-150 active:scale-[0.96]"
+                        title={t("amp_remote.pad_keys")} aria-label={t("amp_remote.pad_keys")} aria-pressed="false" onclick={Msg::AmpRemote(AmpRemoteMsg::Pad(false))}>
+                    <Icon icon="material-symbols:more-horiz" width={15} />
+                </button>
+            {:else}
+                <button class="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) transition duration-150 active:scale-[0.96]"
+                        title={t("amp_remote.pad_wheel")} aria-label={t("amp_remote.pad_wheel")} aria-pressed="false" onclick={Msg::AmpRemote(AmpRemoteMsg::Pad(true))}>
+                    <Icon icon="material-symbols:trip-origin" width={15} />
+                </button>
+                <button class="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer bg-(--rg-carte) text-(--rg-tx) transition duration-150 active:scale-[0.96]"
+                        title={t("amp_remote.pad_keys")} aria-label={t("amp_remote.pad_keys")} aria-pressed="true" onclick={Msg::AmpRemote(AmpRemoteMsg::Pad(false))}>
+                    <Icon icon="material-symbols:more-horiz" width={15} />
+                </button>
+            {/if}
+        </div>
+    </div>
+
+    {#if r.wheel}
+        <div class="flex justify-center">
+            <div class="amp-wheel relative w-38 h-38 rounded-full border border-(--rg-bd)" aria-label={t("amp_remote.wheel")} onwheel={wheel_nav()}>
+                {#each [(NavKey::Up, "material-symbols:keyboard-arrow-up-rounded", "amp_remote.up"), (NavKey::Down, "material-symbols:keyboard-arrow-down-rounded", "amp_remote.down"), (NavKey::Left, "material-symbols:keyboard-arrow-left-rounded", "amp_remote.left"), (NavKey::Right, "material-symbols:keyboard-arrow-right-rounded", "amp_remote.right")] as key (key.2)}
+                    {#if key.0 == NavKey::Up}
+                        <button class="absolute top-1 left-1/2 -ml-5 w-10 h-10 flex items-center justify-center rounded-full cursor-pointer transition duration-150 text-(--rg-tx2) hover:text-(--rg-gtx) active:scale-[0.96]"
+                                title={t(key.2)} aria-label={t(key.2)} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: key.0 }))}>
+                            <Icon icon={key.1} width={24} />
+                        </button>
+                    {:else if key.0 == NavKey::Down}
+                        <button class="absolute bottom-1 left-1/2 -ml-5 w-10 h-10 flex items-center justify-center rounded-full cursor-pointer transition duration-150 text-(--rg-tx2) hover:text-(--rg-gtx) active:scale-[0.96]"
+                                title={t(key.2)} aria-label={t(key.2)} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: key.0 }))}>
+                            <Icon icon={key.1} width={24} />
+                        </button>
+                    {:else if key.0 == NavKey::Left}
+                        <button class="absolute left-1 top-1/2 -mt-5 w-10 h-10 flex items-center justify-center rounded-full cursor-pointer transition duration-150 text-(--rg-tx2) hover:text-(--rg-gtx) active:scale-[0.96]"
+                                title={t(key.2)} aria-label={t(key.2)} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: key.0 }))}>
+                            <Icon icon={key.1} width={24} />
+                        </button>
+                    {:else}
+                        <button class="absolute right-1 top-1/2 -mt-5 w-10 h-10 flex items-center justify-center rounded-full cursor-pointer transition duration-150 text-(--rg-tx2) hover:text-(--rg-gtx) active:scale-[0.96]"
+                                title={t(key.2)} aria-label={t(key.2)} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: key.0 }))}>
+                            <Icon icon={key.1} width={24} />
+                        </button>
+                    {/if}
+                {/each}
+                <button class="amp-ok absolute top-1/2 left-1/2 -mt-7.5 -ml-7.5 w-15 h-15 flex items-center justify-center rounded-full cursor-pointer text-[13px] font-bold transition-colors hover:text-(--rg-gtx)"
+                        title={t("amp_remote.ok")} aria-label={t("amp_remote.ok")} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: NavKey::Enter }))}>
+                    <div>OK</div>
+                </button>
+            </div>
+        </div>
+    {:else}
+        <div class="flex items-center justify-center gap-1.5">
+            {#each [(NavKey::Left, "material-symbols:keyboard-arrow-left-rounded", "amp_remote.left"), (NavKey::Up, "material-symbols:keyboard-arrow-up-rounded", "amp_remote.up"), (NavKey::Enter, "", "amp_remote.ok"), (NavKey::Down, "material-symbols:keyboard-arrow-down-rounded", "amp_remote.down"), (NavKey::Right, "material-symbols:keyboard-arrow-right-rounded", "amp_remote.right")] as key (key.2)}
+                {#if key.1.is_empty()}
+                    <button class="amp-ok w-12 h-9 flex items-center justify-center rounded-[10px] cursor-pointer text-[12.5px] font-bold transition-colors hover:text-(--rg-gtx)"
+                            title={t(key.2)} aria-label={t(key.2)} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: key.0 }))}>
+                        <div>OK</div>
+                    </button>
+                {:else}
+                    <button class="amp-key w-9 h-9 flex items-center justify-center rounded-[10px] cursor-pointer transition-colors text-(--rg-tx2) hover:text-(--rg-tx)"
+                            title={t(key.2)} aria-label={t(key.2)} onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: key.0 }))}>
+                        <Icon icon={key.1} width={22} />
+                    </button>
+                {/if}
+            {/each}
+        </div>
+    {/if}
+
+    {#if !r.on_net}
+        <div class="flex gap-1.5">
+            {#each [(NavKey::Back, "material-symbols:arrow-back-rounded", "amp_remote.back"), (NavKey::Home, "material-symbols:home-outline-rounded", "amp_remote.home"), (NavKey::Menu, "material-symbols:menu-rounded", "amp_remote.menu")] as key (key.2)}
+                <button class="amp-key h-8.5 flex-1 flex items-center justify-center gap-1.5 rounded-[11px] cursor-pointer text-[11.5px] font-semibold text-(--rg-tx2) hover:text-(--rg-tx) transition-colors"
+                        onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Nav { key: key.0 }))}>
+                    <Icon icon={key.1} width={15} />
+                    <div>{t(key.2)}</div>
+                </button>
+            {/each}
+        </div>
+    {/if}
+</div>

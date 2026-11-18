@@ -1,0 +1,32 @@
+<div class="px-4 pt-4">
+    <div class="flex gap-1 p-1 rounded-xl bg-(--rg-creux) border border-(--rg-line)" role="radiogroup">
+        {#each pn.0 as o (o.label.as_str())}
+            {@const lk = o.look()}
+            {#if o.active}
+                <button class="flex-1 basis-0 h-14 min-w-0 px-1 flex flex-col items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold leading-[1.2] transition-colors"
+                        style:background_color={lk.background} style:border_color={lk.border} style:color={lk.text} role="radio" aria-checked="true" onclick={o.msg.clone()}>
+                    {@include "PanelGlyph.ui"}
+                    <div class="w-full text-center truncate">{o.label}</div>
+                </button>
+            {:else}
+                <button class="flex-1 basis-0 h-14 min-w-0 px-1 flex flex-col items-center justify-center gap-1.5 rounded-[9px] border border-transparent text-[13px] font-semibold leading-[1.2] transition-colors text-(--rg-mu) hover:text-(--rg-tx) cursor-pointer"
+                        role="radio" aria-checked="false" onclick={o.msg.clone()}>
+                    {@include "PanelGlyph.ui"}
+                    <div class="w-full text-center truncate">{o.label}</div>
+                </button>
+            {/if}
+        {/each}
+    </div>
+</div>
+{#if let Some(note) = &pn.1}
+    <div class="flex items-start gap-3 px-5 pt-3.5 pb-4 text-sm leading-normal text-(--rg-tx2)">
+        <div class="shrink-0 mt-0.5 text-(--rg-mu)"><Icon icon="material-symbols:info-outline-rounded" width={18} /></div>
+        <div class="min-w-0 flex-1">
+            {#if let Some(bold) = &note.bold}
+                <p class="m-0">{note.before}<b class="font-semibold" style:color={note_color(note.tone)}>{bold}</b>{note.after}</p>
+            {/if}
+            {#if note.bold.is_none()}<p class="m-0">{note.before}</p>{/if}
+            {#if let Some(hint) = &note.hint}<p class="m-0 text-[13px] text-(--rg-mu)">{hint}</p>{/if}
+        </div>
+    </div>
+{/if}

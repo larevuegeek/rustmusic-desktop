@@ -1,0 +1,185 @@
+<div class="h-full overflow-y-auto scrollbar-app py-6 px-4 md:px-10">
+    <div class="@container max-w-350 mx-auto flex flex-col gap-6 pb-16" style:margin_top={-self.export_offset}>
+        <div class="flex items-center gap-3">
+            <button class="w-9 h-9 flex items-center justify-center rounded-[10px] cursor-pointer transition-colors text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                    aria-label={t("settings.back")} title={t("settings.back")} onclick={Msg::Back}>
+                <Icon icon="material-symbols:arrow-back-rounded" width={20} />
+            </button>
+            <h1 class="m-0 text-[28px] font-extrabold tracking-tight text-(--rg-tx)">{t("stats.title")}</h1>
+        </div>
+        {#if self.stats_loading()}
+            <div class="flex items-center justify-center py-20 text-(--rg-mu)"><Spinner width={24.} /></div>
+        {/if}
+        {#if let Some(sv) = &self.stats_view()}
+            <div class="relative overflow-hidden flex flex-wrap items-end gap-x-12 gap-y-8 px-8 py-9 rounded-3xl border bg-(--rg-carte) border-(--rg-bd)">
+                <div class="absolute -top-36 -left-24 w-[460px] h-[460px] rounded-full blur-[130px] opacity-20" style:background_color={sv.color}></div>
+                <div class="relative min-w-0 flex-[1_1_360px] flex flex-col gap-2">
+                    <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-(--rg-mu)">{sv.kicker}</div>
+                    <div class="flex flex-wrap items-baseline gap-x-3">
+                        <div class="text-[64px] max-sm:text-[44px] font-extrabold tracking-[-0.03em] leading-none text-(--rg-tx)">{sv.duration}</div>
+                        <div class="text-[17px] font-semibold text-(--rg-tx2)">{t("stats.music_total")}</div>
+                    </div>
+                    <p class="m-0 mt-1 text-[14px] text-(--rg-mu)">{sv.listen_plan}</p>
+                </div>
+                <div class="relative flex flex-wrap gap-3">
+                    {#each sv.counts as c (c.1.as_str())}
+                        <div class="min-w-32 px-5 py-4 rounded-2xl border bg-(--rg-creux) border-(--rg-line)">
+                            <div class="text-[28px] font-extrabold tracking-[-0.02em] leading-none text-(--rg-tx)">{c.0}</div>
+                            <div class="mt-1.5 text-[12px] font-semibold uppercase tracking-[0.1em] text-(--rg-mu)">{c.1}</div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 @3xl:grid-cols-3 @6xl:grid-cols-6 gap-3">
+                {#each sv.tiles as tile (tile.icon)}
+                    <div class="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl border bg-(--rg-carte) border-(--rg-bd)">
+                        <div class="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center bg-(--rg-creux) text-(--rg-tx2)"><Icon icon={tile.icon} width={19} /></div>
+                        <div class="min-w-0">
+                            <div class="truncate text-[20px] font-bold tracking-[-0.01em] leading-tight text-(--rg-tx)">{tile.value}</div>
+                            <div class="truncate mt-0.5 text-[12px] text-(--rg-mu)">{tile.label}</div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+
+            <div class="grid grid-cols-1 @3xl:grid-cols-2 gap-4">
+                <section class="flex flex-col gap-5 p-6 rounded-2xl border bg-(--rg-carte) border-(--rg-bd)">
+                    <div>
+                        <h3 class="m-0 text-[17px] font-bold text-(--rg-tx)">{t("stats.audio_quality")}</h3>
+                        <p class="m-0 mt-1 text-[13px] text-(--rg-mu)">{t("stats.quality_hint")}</p>
+                    </div>
+                    <div class="flex gap-0.5 h-7" role="img" aria-label={t("stats.audio_quality")}>
+                        {#each sv.quality as seg (seg.tone)}
+                            {#if seg.tone == 0}
+                                <div class="min-w-1 h-full rounded-[4px] flex items-center px-2 overflow-hidden bg-[#2a78d6] dark:bg-[#3987e5] text-white" style:width={Length::Percent(seg.pct)} title={format!("{} · {} · {}", seg.name, seg.count, seg.share)}>
+                                    {#if seg.labeled}<div class="text-[12px] font-bold whitespace-nowrap">{seg.share}</div>{/if}
+                                </div>
+                            {:else if seg.tone == 1}
+                                <div class="min-w-1 h-full rounded-[4px] flex items-center px-2 overflow-hidden bg-[#eb6834] dark:bg-[#d95926] text-white" style:width={Length::Percent(seg.pct)} title={format!("{} · {} · {}", seg.name, seg.count, seg.share)}>
+                                    {#if seg.labeled}<div class="text-[12px] font-bold whitespace-nowrap">{seg.share}</div>{/if}
+                                </div>
+                            {:else}
+                                <div class="min-w-1 h-full rounded-[4px] flex items-center px-2 overflow-hidden bg-[#1baf7a] dark:bg-[#199e70] text-neutral-950" style:width={Length::Percent(seg.pct)} title={format!("{} · {} · {}", seg.name, seg.count, seg.share)}>
+                                    {#if seg.labeled}<div class="text-[12px] font-bold whitespace-nowrap">{seg.share}</div>{/if}
+                                </div>
+                            {/if}
+                        {/each}
+                    </div>
+                    <div class="flex flex-col">
+                        {#each sv.quality as seg (seg.tone)}
+                            <div class="flex items-center gap-3 py-2.5 border-t border-(--rg-line)">
+                                {#if seg.tone == 0}
+                                    <div class="w-2.5 h-2.5 shrink-0 rounded-[3px] bg-[#2a78d6] dark:bg-[#3987e5]"></div>
+                                {:else if seg.tone == 1}
+                                    <div class="w-2.5 h-2.5 shrink-0 rounded-[3px] bg-[#eb6834] dark:bg-[#d95926]"></div>
+                                {:else}
+                                    <div class="w-2.5 h-2.5 shrink-0 rounded-[3px] bg-[#1baf7a] dark:bg-[#199e70]"></div>
+                                {/if}
+                                <div class="min-w-0 flex-1 truncate text-[13.5px] font-medium text-(--rg-tx)">{seg.name}</div>
+                                {#if !seg.labeled}<div class="text-[12.5px] font-semibold text-(--rg-tx2)">{seg.share}</div>{/if}
+                                <div class="w-20 text-right text-[12.5px] tabular-nums text-(--rg-mu)">{seg.count}</div>
+                            </div>
+                        {/each}
+                    </div>
+                </section>
+
+                <section class="flex flex-col gap-5 p-6 rounded-2xl border bg-(--rg-carte) border-(--rg-bd)">
+                    <div>
+                        <h3 class="m-0 text-[17px] font-bold text-(--rg-tx)">{t("stats.audio_formats")}</h3>
+                        <p class="m-0 mt-1 text-[13px] text-(--rg-mu)">{t("stats.formats_hint")}</p>
+                    </div>
+                    <div class="flex flex-col gap-3.5">
+                        {#each sv.formats as b (b.rank)}
+                            <div class="flex flex-col gap-1.5">
+                                <div class="flex items-baseline gap-3">
+                                    <div class="min-w-0 flex-1 truncate font-mono text-[13px] font-semibold text-(--rg-tx)">{b.name}</div>
+                                    <div class="text-[12px] tabular-nums text-(--rg-mu)">{b.count}</div>
+                                    {#if let Some(share) = &b.share}<div class="w-12 text-right text-[13px] font-semibold tabular-nums text-(--rg-tx2)">{share}</div>{/if}
+                                </div>
+                                <div class="h-2 rounded-full overflow-hidden bg-(--rg-creux)">
+                                    <div class="min-w-1 h-full rounded-full" style:width={Length::Percent(b.pct)} style:background_color={sv.color}></div>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </section>
+            </div>
+
+            <div class="grid grid-cols-1 @3xl:grid-cols-2 gap-4">
+                {#each [("stats.top_genres", &sv.top_genres), ("stats.top_artists", &sv.top_artists)] as block (block.0)}
+                    <section class="flex flex-col gap-4 p-6 rounded-2xl border bg-(--rg-carte) border-(--rg-bd)">
+                        <div>
+                            <h3 class="m-0 text-[17px] font-bold text-(--rg-tx)">{t(block.0)}</h3>
+                            <p class="m-0 mt-1 text-[13px] text-(--rg-mu)">{t("stats.count_hint")}</p>
+                        </div>
+                        <div class="flex flex-col -mx-2">
+                            {#each block.1.iter() as b (b.rank)}
+                                {#if let Some(open) = &b.open}
+                                    <button class="group flex items-center gap-3 px-2 py-2 rounded-lg text-left cursor-pointer transition-colors hover:bg-(--rg-s2)" onclick={open.clone()}>
+                                        <div class="w-5 shrink-0 text-right font-mono text-[11px] text-(--rg-mu)">{b.rank}</div>
+                                        <div class="min-w-0 flex-1 flex flex-col gap-1.5">
+                                            <div class="flex items-baseline gap-3">
+                                                <div class="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-(--rg-tx) group-hover:underline">{b.name}</div>
+                                                <div class="shrink-0 text-[12px] tabular-nums text-(--rg-mu)">{b.count}</div>
+                                            </div>
+                                            <div class="h-1.5 rounded-full overflow-hidden bg-(--rg-creux)">
+                                                <div class="min-w-1 h-full rounded-full" style:width={Length::Percent(b.pct)} style:background_color={sv.color}></div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                {:else}
+                                    <div class="flex items-center gap-3 px-2 py-2">
+                                        <div class="w-5 shrink-0 text-right font-mono text-[11px] text-(--rg-mu)">{b.rank}</div>
+                                        <div class="min-w-0 flex-1 flex flex-col gap-1.5">
+                                            <div class="flex items-baseline gap-3">
+                                                <div class="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-(--rg-tx)">{b.name}</div>
+                                                <div class="shrink-0 text-[12px] tabular-nums text-(--rg-mu)">{b.count}</div>
+                                            </div>
+                                            <div class="h-1.5 rounded-full overflow-hidden bg-(--rg-creux)">
+                                                <div class="min-w-1 h-full rounded-full" style:width={Length::Percent(b.pct)} style:background_color={sv.color}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {/if}
+                            {/each}
+                        </div>
+                    </section>
+                {/each}
+            </div>
+
+            {#if !sv.top_played.is_empty()}
+                <section class="flex flex-col gap-4 p-6 rounded-2xl border bg-(--rg-carte) border-(--rg-bd)">
+                    <div>
+                        <h3 class="m-0 text-[17px] font-bold text-(--rg-tx)">{t("stats.most_played")}</h3>
+                        <p class="m-0 mt-1 text-[13px] text-(--rg-mu)">{t("stats.most_played_hint")}</p>
+                    </div>
+                    <div class="grid grid-cols-1 @3xl:grid-cols-2 gap-x-6 gap-y-1 -mx-2">
+                        {#each sv.top_played as p (p.rank)}
+                            <div class="flex items-center gap-3 px-2 py-2 rounded-lg transition-colors hover:bg-(--rg-s2)">
+                                <div class="w-5 shrink-0 text-right font-mono text-[11px] text-(--rg-mu)">{p.rank}</div>
+                                {#if p.cover.is_some()}
+                                    <img class="w-11 h-11 rounded-md object-cover shrink-0" src={cx.resources.cover_small(&p.cover)} alt="">
+                                {:else}
+                                    <div class="w-11 h-11 rounded-md shrink-0 flex items-center justify-center bg-(--rg-creux) text-(--rg-mu)"><Icon icon="lucide:music" width={16} /></div>
+                                {/if}
+                                <div class="min-w-0 flex-1 flex flex-col gap-1">
+                                    <div class="flex items-baseline gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <div class="truncate text-[13.5px] font-semibold text-(--rg-tx)" title={p.title.as_str()}>{p.title}</div>
+                                            <div class="truncate text-[12px] text-(--rg-mu)">{p.artist}</div>
+                                        </div>
+                                        <div class="shrink-0 text-[12px] tabular-nums text-(--rg-tx2)">{p.count}</div>
+                                    </div>
+                                    <div class="h-1 rounded-full overflow-hidden bg-(--rg-creux)">
+                                        <div class="min-w-1 h-full rounded-full" style:width={Length::Percent(p.pct)} style:background_color={sv.color}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                </section>
+            {/if}
+        {/if}
+    </div>
+</div>

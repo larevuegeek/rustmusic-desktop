@@ -1,0 +1,11 @@
+<div class="flex flex-wrap items-center gap-x-1 gap-y-1 min-w-0 text-[12px]">
+    {#each nm.0 as (i, p) (i)}
+        {#if i > 0}<div class="text-(--rg-mu2)">+</div>{/if}
+        <div class="px-2 py-0.5 rounded-md border border-(--rg-bd) bg-(--rg-champ) font-medium text-(--rg-tx2)">{p}</div>
+    {/each}
+    {#if nm.1}
+        <div class="ml-1 flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold border border-(--rg-ambd) text-(--rg-am)" title={t("artist_split.truncated_hint")}>
+            <Icon icon="material-symbols:content-cut-rounded" width={11} /><div>{t("artist_split.truncated")}</div>
+        </div>
+    {/if}
+</div>

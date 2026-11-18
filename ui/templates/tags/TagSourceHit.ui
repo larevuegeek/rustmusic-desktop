@@ -1,0 +1,13 @@
+{#if so.picked.as_deref() == Some(h.id.as_str())}
+<button class="grid grid-cols-[20px_64px_minmax(0,1fr)_auto] gap-4 items-center w-full py-3 pl-3.5 pr-4 rounded-[14px] border cursor-pointer transition-colors border-(--rg-g) bg-(--rg-creux-on) shadow-[0_0_0_3px_rgba(34,197,94,0.12)]"
+        onclick={Msg::Source(SourceMsg::Pick(h.id.clone()))}>
+    <div class="w-5 h-5 rounded-full border-[6px] border-(--rg-g)"></div>
+    {@include "TagSourceHitBody.ui"}
+</button>
+{:else}
+<button class="grid grid-cols-[20px_64px_minmax(0,1fr)_auto] gap-4 items-center w-full py-3 pl-3.5 pr-4 rounded-[14px] border cursor-pointer transition-colors border-(--rg-bd) bg-(--rg-champ) hover:border-(--rg-bd2)"
+        onclick={Msg::Source(SourceMsg::Pick(h.id.clone()))}>
+    <div class="w-5 h-5 rounded-full border-2 border-(--rg-bd2)"></div>
+    {@include "TagSourceHitBody.ui"}
+</button>
+{/if}

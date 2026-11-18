@@ -1,0 +1,27 @@
+{#if col.widget == Widget::Cover}
+    <div></div>
+{:else if col.widget == Widget::Index}
+    <div class="block text-center">#</div>
+{:else if col.sorted && col.right}
+    <button class="w-full flex items-center gap-1 cursor-pointer whitespace-nowrap uppercase transition-colors justify-end text-(--rg-g)"
+            title={col.label.as_str()} onclick={Msg::Row(RowMsg::Sort(col.key.clone()))}>
+        {#if col.key == "duration"}<Icon icon="material-symbols:schedule-outline-rounded" width={16} />{:else}<div class="truncate">{col.label}</div>{/if}
+        <div class="flex shrink-0"><Icon icon={if col.asc {"material-symbols:arrow-upward-rounded"} else {"material-symbols:arrow-downward-rounded"}} width={14} /></div>
+    </button>
+{:else if col.sorted}
+    <button class="w-full flex items-center gap-1 cursor-pointer whitespace-nowrap uppercase transition-colors text-(--rg-g)"
+            title={col.label.as_str()} onclick={Msg::Row(RowMsg::Sort(col.key.clone()))}>
+        <div class="truncate">{col.label}</div>
+        <div class="flex shrink-0"><Icon icon={if col.asc {"material-symbols:arrow-upward-rounded"} else {"material-symbols:arrow-downward-rounded"}} width={14} /></div>
+    </button>
+{:else if col.right}
+    <button class="w-full flex items-center gap-1 cursor-pointer whitespace-nowrap uppercase transition-colors hover:text-(--rg-tx2) justify-end"
+            title={col.label.as_str()} onclick={Msg::Row(RowMsg::Sort(col.key.clone()))}>
+        {#if col.key == "duration"}<Icon icon="material-symbols:schedule-outline-rounded" width={16} />{:else}<div class="truncate">{col.label}</div>{/if}
+    </button>
+{:else}
+    <button class="w-full flex items-center gap-1 cursor-pointer whitespace-nowrap uppercase transition-colors hover:text-(--rg-tx2)"
+            title={col.label.as_str()} onclick={Msg::Row(RowMsg::Sort(col.key.clone()))}>
+        <div class="truncate">{col.label}</div>
+    </button>
+{/if}

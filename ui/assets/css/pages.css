@@ -1,0 +1,85 @@
+/* Pages d'import et d'avis (app.css, thème sombre). */
+.hero-vert {
+    background: linear-gradient(120deg, oklch(0.36 0.08 155) 0%, oklch(0.22 0.04 155) 55%, #121614 100%);
+}
+
+/* Page d'import : `.carte` levée au survol. */
+.rg-carte-import {
+    transition: transform 160ms ease, border-color 160ms ease;
+}
+.rg-carte-import:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.45);
+}
+
+/* Atelier de tags (`.atelier-menu`). `color-mix` précalculé sur le fond
+   `--rg-champ` du thème sombre. */
+.rg-atelier-menu {
+    background: var(--rg-carte);
+    border: 1px solid var(--rg-bd2);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.rg-tt-rangee {
+    cursor: default;
+}
+.rg-tt-rangee:hover {
+    background: var(--rg-hover);
+}
+.rg-tt-trait {
+    box-shadow: inset 0 1px 0 var(--rg-line);
+}
+.rg-tt-on {
+    background: #14231a;
+}
+.rg-tt-on:hover {
+    background: #15281c;
+}
+.rg-tt-cellule:hover {
+    box-shadow: inset 0 0 0 1px var(--rg-bd2);
+    border-radius: 8px;
+    cursor: text;
+}
+.rg-tt-modifiee {
+    color: var(--rg-gtx);
+    background: rgba(34, 197, 94, 0.08);
+    font-weight: 600;
+}
+.rg-tt-editeur {
+    background: #232725;
+    color: var(--rg-tx);
+    border: 1.5px solid var(--rg-g);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+/* File d'attente : lueur verte en lecture, trait sous l'en-tête (sans son reflet animé). */
+.rg-file-lueur {
+    background: linear-gradient(180deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.05) 50%, rgba(16, 185, 129, 0) 100%);
+}
+.rg-file-trait {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0) 0%, rgba(16, 185, 129, 0.3) 50%, rgba(16, 185, 129, 0) 100%);
+}
+
+/* Paroles : ligne, ligne en cours, lignes passées ; sans ombre portée du texte ni flou
+   des lignes passées. */
+.rg-parole {
+    color: rgba(255, 255, 255, 0.55);
+    transform: scale(0.97);
+}
+.rg-parole-active {
+    color: rgb(255, 255, 255);
+    transform: scale(1);
+}
+.rg-parole-passee {
+    color: rgba(255, 255, 255, 0.22);
+    transform: scale(0.93);
+}
+
+/* Bandeau vert de l'import en clair (`:root:not(.dark) .hero-vert`), aperçu de l'atelier
+   (`color-mix` sur le fond clair `--rg-champ`). */
+@media (prefers-color-scheme: light) {
+    .hero-vert { background: linear-gradient(120deg, #dcefe1 0%, #eef6f0 55%, #f8f6f1 100%); }
+    .rg-tt-on { background: color-mix(in oklch, var(--rg-g) 7%, var(--rg-champ)); }
+    .rg-tt-on:hover { background: color-mix(in oklch, var(--rg-g) 10%, var(--rg-champ)); }
+    .rg-tt-modifiee { background: color-mix(in oklch, var(--rg-g) 8%, transparent); }
+    .rg-tt-editeur { background: var(--rg-carte); }
+}

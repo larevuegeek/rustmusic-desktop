@@ -1,0 +1,22 @@
+<div class="z-10 flex items-center gap-3.5 h-9.5 px-2.5 border-b border-(--rg-bd)
+            bg-(--c-fond) dark:bg-zinc-950 text-[11px] font-bold uppercase tracking-[0.08em] text-(--rg-mu2)">
+    {#each table.head as (i, col) (col.key.as_str())}
+        {#if col.flexible}
+            <div class="group/col relative flex-1 min-w-0" style:min_width={col.min_width}
+                 oncontextmenu={{ let key = col.key.clone(); move |r: ContextMenuRequest| Msg::Columns(ColumnsMsg::Menu(key.clone(), TrackMenuAt::from_request(&r))) }}>
+                {@include "TrackTableHeadCell.ui"}
+                {@include "TrackColumnHandle.ui"}
+            </div>
+        {:else}
+            <div class="group/col relative shrink-0" style:width={Length::Px(col.width)}
+                 oncontextmenu={{ let key = col.key.clone(); move |r: ContextMenuRequest| Msg::Columns(ColumnsMsg::Menu(key.clone(), TrackMenuAt::from_request(&r))) }}>
+                {@include "TrackTableHeadCell.ui"}
+                {@include "TrackColumnHandle.ui"}
+            </div>
+        {/if}
+    {/each}
+    {#if table.filler}
+        <div class="flex-1 min-w-0"></div>
+    {/if}
+    <div class="w-[78px] shrink-0"></div>
+</div>

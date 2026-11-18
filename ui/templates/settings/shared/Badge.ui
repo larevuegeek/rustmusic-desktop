@@ -1,0 +1,11 @@
+<div class="flex shrink-0">
+{#if self.tone == "amber"}
+    <div class="shrink-0 flex items-center px-1.75 py-0.5 rounded-[5px] border text-[11px] font-bold leading-[1.2] whitespace-nowrap bg-(--rg-ambg) text-(--rg-am) border-(--rg-ambd)">{self.text}</div>
+{:else if self.tone == "green"}
+    <div class="shrink-0 flex items-center px-1.75 py-0.5 rounded-[5px] border text-[11px] font-bold leading-[1.2] whitespace-nowrap bg-(--rg-gbg) text-(--rg-gtx) border-(--rg-gbd)">{self.text}</div>
+{:else if self.tone == "purple"}
+    <div class="shrink-0 flex items-center px-1.75 py-0.5 rounded-[5px] border text-[11px] font-bold leading-[1.2] whitespace-nowrap bg-purple-500/12 text-purple-300 border-purple-500/30">{self.text}</div>
+{:else}
+    <div class="shrink-0 flex items-center px-1.75 py-0.5 rounded-[5px] border text-[11px] font-bold leading-[1.2] whitespace-nowrap bg-(--rg-s2) text-(--rg-mu) border-(--rg-bd2)">{self.text}</div>
+{/if}
+</div>

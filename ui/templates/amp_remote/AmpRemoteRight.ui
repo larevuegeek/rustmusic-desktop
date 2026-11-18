@@ -1,0 +1,21 @@
+{#if open == 1 && r.slide}
+    <div data-pan-frame class="absolute z-30 flex items-start animate-[amp-dock-in_300ms_ease-out]" data-exit="amp-dock-out 300ms ease-out"
+         style:top={Length::Px(r.dock.top)} style:right={Length::Px(r.dock.inset)}>
+        {@include "AmpRemoteHandle.ui"}
+        {@include "AmpRemotePanel.ui"}
+    </div>
+{:else if open == 1}
+    <div data-pan-frame class="absolute z-30 flex items-start" style:top={Length::Px(r.dock.top)} style:right={Length::Px(r.dock.inset)}>
+        {@include "AmpRemoteHandle.ui"}
+        {@include "AmpRemotePanel.ui"}
+    </div>
+{:else if r.slide}
+    <div data-pan-frame class="absolute z-30 flex items-start animate-[amp-handle-in_300ms_ease-out]" data-exit="amp-handle-out 300ms ease-out"
+         style:top={Length::Px(r.dock.top)} style:right={Length::Px(r.dock.inset)}>
+        {@include "AmpRemoteHandle.ui"}
+    </div>
+{:else}
+    <div data-pan-frame class="absolute z-30 flex items-start" style:top={Length::Px(r.dock.top)} style:right={Length::Px(r.dock.inset)}>
+        {@include "AmpRemoteHandle.ui"}
+    </div>
+{/if}

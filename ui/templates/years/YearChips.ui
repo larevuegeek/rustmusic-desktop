@@ -1,0 +1,25 @@
+<div class="flex flex-wrap gap-1.5" role="radiogroup" aria-label={ph.label.as_str()}>
+    {#if ph.year.is_none()}
+        <button class="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text-[13px] font-semibold transition-colors cursor-pointer bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)"
+                role="radio" aria-checked="true" onclick={chip_msg(ph.decade, None)}>
+            <div>{t("years_view.all")}</div><div class="text-[11px] font-medium opacity-70">{ph.total}</div>
+        </button>
+    {:else}
+        <button class="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text-[13px] font-semibold transition-colors cursor-pointer border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2)"
+                role="radio" aria-checked="false" onclick={chip_msg(ph.decade, None)}>
+            <div>{t("years_view.all")}</div><div class="text-[11px] font-medium opacity-70">{ph.total}</div>
+        </button>
+    {/if}
+    {#each ph.chips as chip (chip.0)}
+        {#if ph.year == Some(chip.0)}
+            <button class="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text-[13px] font-semibold font-mono tabular-nums transition-colors cursor-pointer bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)"
+                    role="radio" aria-checked="true" title={chip.2.as_str()} onclick={chip_msg(ph.decade, Some(chip.0))}><div>{chip.0}</div></button>
+        {:else if chip.1 == 0}
+            <div class="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text-[13px] font-semibold font-mono tabular-nums opacity-35 cursor-default border-(--rg-bd) text-(--rg-tx2)"
+                 role="radio" aria-checked="false" title={chip.2.as_str()}><div>{chip.0}</div></div>
+        {:else}
+            <button class="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text-[13px] font-semibold font-mono tabular-nums transition-colors cursor-pointer border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2)"
+                    role="radio" aria-checked="false" title={chip.2.as_str()} onclick={chip_msg(ph.decade, Some(chip.0))}><div>{chip.0}</div></button>
+        {/if}
+    {/each}
+</div>

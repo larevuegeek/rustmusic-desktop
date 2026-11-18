@@ -1,0 +1,40 @@
+use crate::models::tags::*;
+
+pub struct WorkshopView {
+    pub head_cover: Option<String>,
+    pub source: String,
+    pub artist: Option<String>,
+    pub year: Option<String>,
+    pub files_label: String,
+    pub changes: usize,
+    pub changes_label: String,
+    pub undo: usize,
+    pub pending: usize,
+    pub write_label: String,
+    pub launching: bool,
+    pub panel: bool,
+    pub leave: Option<String>,
+    pub error: Option<String>,
+    pub selected: usize,
+    pub total: usize,
+    /// Points à vérifier : clé, nombre, action (« online », « fill_album_artist », « clean »).
+    pub issues: Vec<(&'static str, usize, &'static str)>,
+    pub issue_count: usize,
+    /// « 3 points à vérifier ».
+    pub issues_label: String,
+    /// La portée, coupée autour du nombre sélectionné : « Sur », « titres sur 12 ».
+    pub scope_before: String,
+    pub scope_after: String,
+    pub only_issues: bool,
+    pub menu: Option<String>,
+    pub columns: Vec<Column>,
+    pub all_columns: Vec<(usize, String, bool)>,
+    pub rows: Vec<Row>,
+    pub all_selected: bool,
+    pub some_selected: bool,
+    pub min_width: f32,
+    pub editing: bool,
+    pub draft: String,
+    pub inspector: Option<Inspector>,
+    pub notice: Option<(String, bool)>,
+}

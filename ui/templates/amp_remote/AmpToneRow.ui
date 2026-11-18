@@ -1,0 +1,26 @@
+<div class="flex-1 min-w-0 text-[13px] text-(--rg-tx)">{row.label}</div>
+{#if let Some(m) = &row.minus}
+    <button class="amp-key w-9 h-9 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx)"
+            aria-label={format!("{} −", row.label)} onclick={m.clone()}>
+        <Icon icon="material-symbols:remove-rounded" width={19} />
+    </button>
+{:else}
+    <div class="amp-key w-9 h-9 shrink-0 flex items-center justify-center rounded-[11px] border opacity-40 border-(--rg-bd) text-(--rg-tx)">
+        <Icon icon="material-symbols:remove-rounded" width={19} />
+    </div>
+{/if}
+{#if row.zero}
+    <div class="w-15 shrink-0 text-center tabular-nums font-mono text-[12.5px] text-(--rg-mu)">{row.value}</div>
+{:else}
+    <div class="w-15 shrink-0 text-center tabular-nums font-mono text-[12.5px] text-(--rg-tx)">{row.value}</div>
+{/if}
+{#if let Some(m) = &row.plus}
+    <button class="amp-key w-9 h-9 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx)"
+            aria-label={format!("{} +", row.label)} onclick={m.clone()}>
+        <Icon icon="material-symbols:add-rounded" width={19} />
+    </button>
+{:else}
+    <div class="amp-key w-9 h-9 shrink-0 flex items-center justify-center rounded-[11px] border opacity-40 border-(--rg-bd) text-(--rg-tx)">
+        <Icon icon="material-symbols:add-rounded" width={19} />
+    </div>
+{/if}

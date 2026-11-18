@@ -1,0 +1,42 @@
+<section class="mt-12">
+    <div class="flex flex-wrap items-end gap-3 mb-4">
+        <div class="min-w-0">
+            <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{c.title}</h2>
+            {#if !c.subtitle.is_empty()}<div class="mt-1 text-[13px] text-(--rg-mu)">{c.subtitle}</div>{/if}
+        </div>
+        <div class="ml-auto flex items-center gap-3">
+        {#if let (Some(by_year), Some(sort_msgs)) = (c.by_year, &c.by_year_msg)}
+            <div class="flex shrink-0 p-0.75 rounded-[10px] border bg-(--rg-carte) border-(--rg-bd)" role="radiogroup" aria-label={t("album_view.sort_year")}>
+                {#each [(true, "album_view.sort_year", sort_msgs.0.clone()), (false, "album_view.sort_title", sort_msgs.1.clone())] as o (o.1)}
+                    {#if by_year == o.0}
+                        <button role="radio" aria-checked="true" class="flex items-center justify-center rounded-[7px] text-[13px] font-semibold cursor-pointer whitespace-nowrap h-7 px-3 bg-(--rg-s2) text-(--rg-tx)"
+                                onclick={o.2.clone()}><div>{t(o.1)}</div></button>
+                    {:else}
+                        <button role="radio" aria-checked="false" class="flex items-center justify-center rounded-[7px] text-[13px] font-semibold cursor-pointer whitespace-nowrap h-7 px-3 text-(--rg-mu) hover:text-(--rg-tx)"
+                                onclick={o.2.clone()}><div>{t(o.1)}</div></button>
+                    {/if}
+                {/each}
+            </div>
+        {/if}
+        {#if self.views.view_mode == ViewMode::Grid && (c.back || c.forward)}
+            {@include "../shared/buttons/CarouselArrows.ui"}
+        {/if}
+        </div>
+    </div>
+    {#if self.views.view_mode == ViewMode::Grid}
+        {#each [c.view] as view (view)}
+        <div class="flex gap-4.5 pb-1 overflow-x-auto [scrollbar-width:none]"
+             onscroll={{ let id = c.id; move |s: ScrollMetrics| Msg::CarouselScrolled(id, CarouselGeometry::of(s)) }}
+             onscrollrange={{ let id = c.id; move |s: ScrollMetrics| Msg::CarouselScrolled(id, CarouselGeometry::of(s)) }}
+             style:scroll_request={c.request}>
+            {#each c.items as album (album.id.as_str())}
+                <div class="shrink-0 w-[150px] @5xl:w-[165px] @6xl:w-[185px] @7xl:w-[200px]">{@include "AlbumCard.ui"}</div>
+            {/each}
+        </div>
+        {/each}
+    {:else}
+        <div class="flex flex-col">
+            {#each c.items as (i, album) (album.id.as_str())}{@include "AlbumRow.ui"}{/each}
+        </div>
+    {/if}
+</section>

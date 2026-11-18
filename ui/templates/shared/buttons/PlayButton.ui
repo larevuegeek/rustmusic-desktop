@@ -1,0 +1,20 @@
+<div class="flex shrink-0">
+{#if self.large}
+    <button class="h-12 pl-4.5 pr-6 flex items-center gap-2 rounded-full cursor-pointer transition-transform hover:scale-[1.02]
+                   bg-(--rg-g) text-(--rg-on-g) text-[15px] font-extrabold"
+            title={title.as_str()} onclick={onclick}>
+        <Icon icon="material-symbols:play-arrow-rounded" width={26} />
+        <div>{self.label}</div>
+    </button>
+{:else if self.muted}
+    <button class="w-9.5 h-9.5 shrink-0 rounded-full flex items-center justify-center cursor-pointer transition-colors bg-(--rg-s2) text-(--rg-tx2) hover:bg-(--rg-g) hover:text-(--rg-on-g)"
+            title={title.as_str()} aria-label={title.as_str()} onclick={onclick}>
+        <Icon icon="material-symbols:play-arrow-rounded" width={24} />
+    </button>
+{:else}
+    <button class="w-9.5 h-9.5 shrink-0 rounded-full flex items-center justify-center cursor-pointer transition-colors bg-(--rg-g) text-(--rg-on-g) hover:brightness-110"
+            title={title.as_str()} aria-label={title.as_str()} onclick={onclick}>
+        <Icon icon="material-symbols:play-arrow-rounded" width={24} />
+    </button>
+{/if}
+</div>

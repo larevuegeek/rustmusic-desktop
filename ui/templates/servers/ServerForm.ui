@@ -1,0 +1,150 @@
+<div class="flex flex-col gap-5">
+{#if sf.probe.is_none()}
+    <div class="grid grid-cols-3 gap-2.5" role="radiogroup" aria-label={t("servers.kind")}>
+        {#each server_kinds() as (k, kd) (k)}
+            {#if sf.kind == k}
+                <div class="min-w-0 flex flex-col gap-1.5 px-4 py-3.5 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-g) bg-(--rg-creux-on)"
+                     role="radio" aria-checked="true" onclick={Msg::ServerForm(ServerFormMsg::Kind(k))}>
+                    <div class="flex items-center justify-between gap-2"><div class="text-[15px] font-semibold leading-[1.2] text-(--rg-tx)">{kd.0.clone()}</div><RadioCheck checked={true} /></div>
+                    <div class="text-[13px] leading-[1.4] text-(--rg-mu)">{kd.1.clone()}</div>
+                </div>
+            {:else}
+                <div class="min-w-0 flex flex-col gap-1.5 px-4 py-3.5 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-bd) bg-(--rg-creux) hover:border-(--rg-bd2)"
+                     role="radio" aria-checked="false" onclick={Msg::ServerForm(ServerFormMsg::Kind(k))}>
+                    <div class="flex items-center justify-between gap-2"><div class="text-[15px] font-semibold leading-[1.2] text-(--rg-tx)">{kd.0.clone()}</div><RadioCheck checked={false} /></div>
+                    <div class="text-[13px] leading-[1.4] text-(--rg-mu)">{kd.1.clone()}</div>
+                </div>
+            {/if}
+        {/each}
+    </div>
+
+    {#if sf.is_dlna()}
+        <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+                <p class="m-0 flex-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("servers.dlna_found")}</p>
+                <GhostButton g={Some(Ghost::new("material-symbols:refresh-rounded", t("servers.dlna_search_again"), Msg::ServerForm(ServerFormMsg::Discover)).busy(sf.searching))} />
+            </div>
+            {#if sf.searching && sf.found.is_empty()}
+                <div class="flex items-center gap-2 text-sm text-(--rg-mu)">
+                    <div class="flex animate-spin"><Icon icon="material-symbols:progress-activity" width={16} /></div><div>{t("servers.dlna_searching")}</div>
+                </div>
+            {:else if sf.found.is_empty()}
+                <p class="m-0 text-sm text-(--rg-mu)">{t("servers.dlna_none")}</p>
+            {:else}
+                {#each sf.found as (i, s) (i)}
+                    <button class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-bd) hover:border-(--rg-gbd) hover:bg-(--rg-gbg)"
+                            onclick={Msg::ServerForm(ServerFormMsg::Found(i))}>
+                        <div class="flex shrink-0 text-(--rg-mu)"><Icon icon="material-symbols:dns-outline-rounded" width={20} /></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="truncate text-sm font-semibold text-(--rg-tx)">{s.name}</div>
+                            <div class="truncate text-xs text-(--rg-mu)">{server_found_detail(s)}</div>
+                        </div>
+                        <div class="flex shrink-0 text-(--rg-mu)"><Icon icon="material-symbols:chevron-right-rounded" width={20} /></div>
+                    </button>
+                {/each}
+            {/if}
+        </div>
+    {/if}
+
+    <div class="flex flex-col gap-2">
+        <div class="flex gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)"><div>{t("servers.address")}</div>{#if !sf.is_dlna()}<div class="text-red-500">*</div>{/if}</div>
+        <input class="w-full h-11 px-4 rounded-xl font-mono text-[13px] outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2)"
+               type="text" value={sf.url.as_str()} aria-label={t("servers.address")}
+               placeholder={if sf.is_dlna() { "http://nas.local:8200" } else if sf.jellyfin() { "http://nas.local:8096" } else { "https://music.example.com" }}
+               oninput={|v: String| Msg::ServerForm(ServerFormMsg::Url(v))}>
+    </div>
+
+    {#if sf.is_dlna()}
+        <div class="flex gap-2 text-xs leading-relaxed text-(--rg-mu)">
+            <div class="flex shrink-0 mt-0.5"><Icon icon="material-symbols:info-outline-rounded" width={15} /></div><div class="min-w-0">{t("servers.dlna_address_note")}</div>
+        </div>
+    {:else}
+        {#if sf.with_key}
+            <div class="grid gap-4" class:grid-cols-2={sf.jellyfin()}>
+                {#if sf.jellyfin()}
+                    <div class="flex flex-col gap-2">
+                        <div class="flex gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)"><div>{t("servers.username")}</div><div class="text-red-500">*</div></div>
+                        <input class="w-full h-11 px-4 rounded-xl font-mono text-[13px] outline-none bg-(--rg-champ) text-(--rg-tx) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                               type="text" value={sf.username.as_str()} aria-label={t("servers.username")} oninput={|v: String| Msg::ServerForm(ServerFormMsg::User(v))}>
+                    </div>
+                {/if}
+                <div class="flex flex-col gap-2">
+                    <div class="flex gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)"><div>{t("servers.api_key")}</div><div class="text-red-500">*</div></div>
+                    <input class="w-full h-11 px-4 rounded-xl font-mono text-[13px] outline-none bg-(--rg-champ) text-(--rg-tx) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                           type="password" value={sf.api_key.as_str()} aria-label={t("servers.api_key")} oninput={|v: String| Msg::ServerForm(ServerFormMsg::Key(v))}>
+                </div>
+            </div>
+        {:else}
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                    <div class="flex gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)"><div>{t("servers.username")}</div><div class="text-red-500">*</div></div>
+                    <input class="w-full h-11 px-4 rounded-xl font-mono text-[13px] outline-none bg-(--rg-champ) text-(--rg-tx) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                           type="text" value={sf.username.as_str()} aria-label={t("servers.username")} oninput={|v: String| Msg::ServerForm(ServerFormMsg::User(v))}>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div class="flex gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)"><div>{t("servers.password")}</div>{#if !sf.jellyfin()}<div class="text-red-500">*</div>{/if}</div>
+                    <input class="w-full h-11 px-4 rounded-xl text-sm outline-none bg-(--rg-champ) text-(--rg-tx) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                           type="password" value={sf.password.as_str()} aria-label={t("servers.password")} oninput={|v: String| Msg::ServerForm(ServerFormMsg::Pass(v))}>
+                </div>
+            </div>
+        {/if}
+        <div class="flex flex-wrap items-start gap-x-4 gap-y-2">
+            <div class="flex-1 min-w-60 flex gap-2 text-xs leading-relaxed text-(--rg-mu)">
+                <div class="flex shrink-0 mt-0.5"><Icon icon="material-symbols:lock-outline" width={15} /></div><div class="min-w-0">{sf.note()}</div>
+            </div>
+            <button class="text-xs font-semibold cursor-pointer text-(--rg-gtx) hover:underline underline-offset-2" onclick={Msg::ServerForm(ServerFormMsg::ToggleKey)}>
+                <div>{t(if sf.with_key { "servers.use_password" } else { "servers.use_api_key" })}</div>
+            </button>
+        </div>
+    {/if}
+{/if}
+{#if let Some(pr) = &sf.probe}
+    <div class="flex items-center gap-4 p-3.5 rounded-2xl border border-sky-500/30 bg-linear-135 from-sky-500/10 to-transparent">
+        <div class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center bg-sky-500/15 border border-sky-500/30 text-sky-300"><Icon icon="material-symbols:cloud-outline-rounded" width={26} /></div>
+        <div class="min-w-0">
+            <p class="m-0 text-[15px] font-bold truncate text-(--rg-tx)">{sf.display_name(pr)}</p>
+            <p class="m-0 mt-0.5 text-xs truncate text-(--rg-mu)">{pr.subtitle()}</p>
+        </div>
+        <div class="ml-auto flex shrink-0 text-(--rg-g)"><Icon icon="material-symbols:check-circle-rounded" width={22} /></div>
+    </div>
+    <div class="flex flex-col gap-2">
+        <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("servers.name")}</div>
+        <input class="w-full h-11 px-4 rounded-xl text-sm outline-none bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2)"
+               type="text" value={sf.name.as_str()} placeholder={pr.name.clone()} aria-label={t("servers.name")} oninput={|v: String| Msg::ServerForm(ServerFormMsg::Name(v))}>
+    </div>
+    <div class="flex flex-col gap-2">
+        <p class="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t(if sf.is_dlna() { "servers.dlna_choose" } else { "servers.choose_libraries" })}</p>
+        {#if let Some(dp) = &sf.dlna}{@include "ServerDlnaPicker.ui"}{/if}
+        {#if !sf.is_dlna()}
+            {#if pr.folders.is_empty()}
+                <p class="m-0 text-sm text-(--rg-mu)">{t("servers.no_folders")}</p>
+            {:else}
+                <div class="flex flex-col gap-1.5">
+                    {#each pr.folders as (i, fo) (i)}
+                        {@const on = sf.chosen.contains(&fo.0)}
+                        {#if on}
+                            <div class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border cursor-pointer transition-colors border-(--rg-gbd) bg-(--rg-gbg)" onclick={Msg::ServerForm(ServerFormMsg::Toggle(fo.0.clone()))}>
+                                {@include "../shared/inputs/Checkbox.ui"}
+                                <div class="flex shrink-0 text-(--rg-mu)"><Icon icon="material-symbols:cloud-outline-rounded" width={18} /></div>
+                                <div class="flex-1 min-w-0 truncate text-sm font-semibold text-(--rg-tx)">{fo.1}</div>
+                            </div>
+                        {:else}
+                            <div class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border cursor-pointer transition-colors border-(--rg-bd) hover:border-(--rg-bd2)" onclick={Msg::ServerForm(ServerFormMsg::Toggle(fo.0.clone()))}>
+                                {@include "../shared/inputs/Checkbox.ui"}
+                                <div class="flex shrink-0 text-(--rg-mu)"><Icon icon="material-symbols:cloud-outline-rounded" width={18} /></div>
+                                <div class="flex-1 min-w-0 truncate text-sm font-semibold text-(--rg-tx)">{fo.1}</div>
+                            </div>
+                        {/if}
+                    {/each}
+                </div>
+            {/if}
+        {/if}
+        <p class="m-0 text-xs leading-relaxed text-(--rg-mu)">{t(if sf.is_dlna() { "servers.dlna_choose_hint" } else { "servers.libraries_note" })}</p>
+    </div>
+{/if}
+{#if let Some(e) = &sf.error}
+    <div class="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-500/25 bg-red-500/8 text-sm text-red-400">
+        <div class="flex shrink-0"><Icon icon="material-symbols:warning-outline-rounded" width={17} /></div><div class="min-w-0">{e}</div>
+    </div>
+{/if}
+</div>

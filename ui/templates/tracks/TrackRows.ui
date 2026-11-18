@@ -1,0 +1,31 @@
+<div class="pt-1.5" style:vars={table.width_vars()}>
+    {#each table.rows as row (row.id.as_str())}
+        {#if table.detailed && !row.first}
+            <div class="ligne-morceau row-track-detail group relative flex items-center gap-3.5 px-2.5 rounded-[10px] transition-colors h-23 cursor-default hover:bg-(--rg-carte)
+                        after:absolute after:left-2.5 after:right-2.5 after:top-0 after:h-px after:bg-(--rg-line) hover:after:opacity-0"
+                 memo={(row, table.detailed, self.selecting(), self.selected(row.n), table.target == Some(row.n))}
+                 style:scroll_initial_target={table.target == Some(row.n)} onclick={Msg::Row(RowMsg::Click(row.n))} oncontextmenu={{ let n = row.n; move |r: ContextMenuRequest| Msg::Row(RowMsg::Menu(n, TrackMenuAt::from_request(&r))) }}>
+                {@include "TrackCells.ui"}
+            </div>
+        {:else if table.detailed}
+            <div class="ligne-morceau row-track-detail group relative flex items-center gap-3.5 px-2.5 rounded-[10px] transition-colors h-23 cursor-default hover:bg-(--rg-carte)"
+                 memo={(row, table.detailed, self.selecting(), self.selected(row.n), table.target == Some(row.n))}
+                 style:scroll_initial_target={table.target == Some(row.n)} onclick={Msg::Row(RowMsg::Click(row.n))} oncontextmenu={{ let n = row.n; move |r: ContextMenuRequest| Msg::Row(RowMsg::Menu(n, TrackMenuAt::from_request(&r))) }}>
+                {@include "TrackCells.ui"}
+            </div>
+        {:else if !row.first}
+            <div class="ligne-morceau row-track group relative flex items-center gap-3.5 px-2.5 rounded-[10px] transition-colors h-14.5 cursor-default hover:bg-(--rg-carte)
+                        after:absolute after:left-2.5 after:right-2.5 after:top-0 after:h-px after:bg-(--rg-line) hover:after:opacity-0"
+                 memo={(row, table.detailed, self.selecting(), self.selected(row.n), table.target == Some(row.n))}
+                 style:scroll_initial_target={table.target == Some(row.n)} onclick={Msg::Row(RowMsg::Click(row.n))} oncontextmenu={{ let n = row.n; move |r: ContextMenuRequest| Msg::Row(RowMsg::Menu(n, TrackMenuAt::from_request(&r))) }}>
+                {@include "TrackCells.ui"}
+            </div>
+        {:else}
+            <div class="ligne-morceau row-track group relative flex items-center gap-3.5 px-2.5 rounded-[10px] transition-colors h-14.5 cursor-default hover:bg-(--rg-carte)"
+                 memo={(row, table.detailed, self.selecting(), self.selected(row.n), table.target == Some(row.n))}
+                 style:scroll_initial_target={table.target == Some(row.n)} onclick={Msg::Row(RowMsg::Click(row.n))} oncontextmenu={{ let n = row.n; move |r: ContextMenuRequest| Msg::Row(RowMsg::Menu(n, TrackMenuAt::from_request(&r))) }}>
+                {@include "TrackCells.ui"}
+            </div>
+        {/if}
+    {/each}
+</div>

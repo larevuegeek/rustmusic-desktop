@@ -1,0 +1,33 @@
+<div class="flex items-center gap-2">
+    <select class="h-9 px-2.5 rounded-lg text-[13px] cursor-pointer min-w-0 flex-1 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
+            value={r.field} aria-label={t("smart.condition")}
+            onchange={{ let p = r.path.clone(); move |i: u64| Msg::Smart(SmartMsg::Field(p.clone(), i)) }}>
+        {#each r.fields as (i, label) (i)}<option value={i as u64}>{label}</option>{/each}
+    </select>
+    <select class="h-9 px-2.5 rounded-lg text-[13px] cursor-pointer w-40 shrink-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
+            value={r.op} aria-label={t("smart.condition")}
+            onchange={{ let p = r.path.clone(); move |i: u64| Msg::Smart(SmartMsg::Op(p.clone(), i)) }}>
+        {#each r.ops as (i, label) (i)}<option value={i as u64}>{label}</option>{/each}
+    </select>
+    {#if r.arity == 1}
+        <input class="h-9 px-2.5 rounded-lg text-[13px] w-40 shrink-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) placeholder:text-(--rg-ph)"
+               type="text" value={r.value.as_str()} placeholder={t("smart.value")} aria-label={t("smart.value")}
+               oninput={{ let p = r.path.clone(); move |v: String| Msg::Smart(SmartMsg::Value(p.clone(), v)) }}>
+    {:else if r.arity == 2}
+        <div class="flex items-center gap-1 w-40 shrink-0">
+            <input class="h-9 px-2.5 rounded-lg text-[13px] w-full min-w-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
+                   type="text" value={r.low.as_str()} aria-label={t("smart.value")}
+                   oninput={{ let p = r.path.clone(); move |v: String| Msg::Smart(SmartMsg::Low(p.clone(), v)) }}>
+            <div class="text-xs text-(--rg-mu) shrink-0">{t("smart.and")}</div>
+            <input class="h-9 px-2.5 rounded-lg text-[13px] w-full min-w-0 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
+                   type="text" value={r.high.as_str()} aria-label={t("smart.value")}
+                   oninput={{ let p = r.path.clone(); move |v: String| Msg::Smart(SmartMsg::High(p.clone(), v)) }}>
+        </div>
+    {:else}
+        <div class="w-40 shrink-0"></div>
+    {/if}
+    <button class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer shrink-0 text-(--rg-mu) hover:text-red-500 hover:bg-red-500/10"
+            aria-label={t("smart.remove_condition")} onclick={Msg::Smart(SmartMsg::Remove(r.path.clone()))}>
+        <Icon icon="lucide:x" width={14} />
+    </button>
+</div>

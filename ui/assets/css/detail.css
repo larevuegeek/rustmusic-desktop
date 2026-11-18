@@ -1,0 +1,62 @@
+/* Fiches (album, artiste, genre, playlist, morceau) : deux halos teintés par la pochette, --h (teinte) et
+   --s (intensité, 0 = gris, 1 = franche), posés par le template ; fondus vers le bas. */
+.album-lueur {
+    background: radial-gradient(60% 90% at 18% 20%, oklch(0.4 calc(0.02 + 0.1 * var(--s, 0)) var(--h, 150) / 0.45), oklch(0.4 calc(0.02 + 0.1 * var(--s, 0)) var(--h, 150) / 0) 70%),
+        radial-gradient(40% 70% at 60% 0%, oklch(0.4 calc(0.08 * var(--s, 0)) calc(var(--h, 150) - 60) / 0.25), oklch(0.4 calc(0.08 * var(--s, 0)) calc(var(--h, 150) - 60) / 0) 70%);
+    mask-image: linear-gradient(180deg, #000 40%, transparent);
+}
+
+/* Avatar d'artiste sans portrait : initiales sur une teinte tirée du nom (--h). */
+.avatar-artiste {
+    background: oklch(0.34 0.05 var(--h, 150));
+    color: oklch(0.88 0.06 var(--h, 150));
+}
+
+/* Teintes de décennie (app.css, variantes .dark) : pastille de l'index, vignette du déroulé. */
+.rg-teinte-vive {
+    background: oklch(0.42 0.1 var(--h, 150));
+}
+.rg-icone-teinte {
+    background: oklch(0.3 0.08 var(--h, 150));
+    color: oklch(0.8 0.14 var(--h, 150));
+}
+
+/* Halo d'en-tête des radios et des podcasts : deux halos en haut de l'en-tête, .rose (radios) ou .violet
+   (podcasts), fondus vers le bas. */
+.header-glow {
+    mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+.header-glow-violet {
+    background: radial-gradient(55% 120% at 12% 0%, rgb(139 92 246 / 0.28), rgb(139 92 246 / 0) 70%),
+        radial-gradient(40% 90% at 70% -10%, rgb(217 70 239 / 0.14), rgb(217 70 239 / 0) 70%);
+}
+.header-glow-rose {
+    background: radial-gradient(55% 120% at 12% 0%, rgb(244 63 94 / 0.24), rgb(244 63 94 / 0) 70%),
+        radial-gradient(40% 90% at 70% -10%, rgb(249 115 22 / 0.13), rgb(249 115 22 / 0) 70%);
+}
+
+/* Ligne d'un morceau marqué : le morceau de la fiche ouverte. */
+.rg-titre-marque {
+    background: var(--rg-carte);
+    box-shadow: inset 0 0 0 1px var(--rg-bd);
+}
+
+/* Teintes de décennie et avatars en thème clair (`.rg-teinte-vive`, `.rg-icone-teinte`,
+   avatars d'artiste). */
+@media (prefers-color-scheme: light) {
+    .album-lueur {
+        background: radial-gradient(60% 90% at 18% 20%, oklch(0.9 calc(0.02 + 0.07 * var(--s, 0)) var(--h, 150) / 0.85), oklch(0.9 calc(0.02 + 0.07 * var(--s, 0)) var(--h, 150) / 0) 70%),
+            radial-gradient(40% 70% at 60% 0%, oklch(0.9 calc(0.06 * var(--s, 0)) calc(var(--h, 150) - 60) / 0.5), oklch(0.9 calc(0.06 * var(--s, 0)) calc(var(--h, 150) - 60) / 0) 70%);
+    }
+    .header-glow-violet {
+        background: radial-gradient(55% 120% at 12% 0%, rgb(139 92 246 / 0.16), rgb(139 92 246 / 0) 70%),
+            radial-gradient(40% 90% at 70% -10%, rgb(217 70 239 / 0.1), rgb(217 70 239 / 0) 70%);
+    }
+    .header-glow-rose {
+        background: radial-gradient(55% 120% at 12% 0%, rgb(244 63 94 / 0.14), rgb(244 63 94 / 0) 70%),
+            radial-gradient(40% 90% at 70% -10%, rgb(249 115 22 / 0.1), rgb(249 115 22 / 0) 70%);
+    }
+    .avatar-artiste { background: oklch(0.92 0.04 var(--h, 150)); color: oklch(0.42 0.1 var(--h, 150)); }
+    .rg-teinte-vive { background: oklch(0.8 0.09 var(--h, 150)); }
+    .rg-icone-teinte { background: oklch(0.93 0.04 var(--h, 150)); color: oklch(0.55 0.16 var(--h, 150)); }
+}

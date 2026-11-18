@@ -1,0 +1,5 @@
+{#if on}
+    <div class="shrink-0 w-4.5 h-4.5 rounded-md flex items-center justify-center border-[1.5px] transition-colors bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"><Icon icon="material-symbols:check-rounded" width={14} /></div>
+{:else}
+    <div class="shrink-0 w-4.5 h-4.5 rounded-md flex items-center justify-center border-[1.5px] transition-colors border-(--rg-bd2)"></div>
+{/if}

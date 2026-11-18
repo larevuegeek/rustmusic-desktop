@@ -1,0 +1,9 @@
+<div class="text-[13.5px] whitespace-nowrap text-(--rg-mu)">{x.label}</div>
+<div class="min-w-0 flex justify-end gap-0 text-sm font-semibold text-right tabular-nums">
+    {#if let Some(route) = &x.route}
+        <button class="truncate text-(--rg-tx) hover:underline underline-offset-2 cursor-pointer" onclick={Msg::Go(route.clone())}><div class="truncate">{x.value}</div></button>
+    {/if}
+    {#if x.route.is_none() && x.subtle}<div class="truncate font-medium text-(--rg-mu)">{x.value}</div>{/if}
+    {#if x.route.is_none() && !x.subtle}<div class="truncate text-(--rg-tx)">{x.value}</div>{/if}
+    {#if let Some(extra) = &x.extra}<div class="font-medium text-(--rg-mu) whitespace-pre">{extra}</div>{/if}
+</div>

@@ -1,0 +1,9 @@
+<div class="flex items-center gap-1">
+    {#each combo as (j, cap) (j)}
+        {#if j > 0}<div class="text-xs text-(--rg-mu2)">+</div>{/if}
+        <div class="min-w-7.5 h-7.5 px-2 flex items-center justify-center rounded-lg bg-(--rg-s2) border border-(--rg-bd2) border-b-2 font-sans text-[13px] font-semibold text-(--rg-tx2)">
+            {#if let Some(arrow) = &cap.arrow}<Icon icon={*arrow} width={16} />{/if}
+            {#if cap.arrow.is_none()}<div>{cap.label}</div>{/if}
+        </div>
+    {/each}
+</div>

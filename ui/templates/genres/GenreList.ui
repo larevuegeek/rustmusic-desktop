@@ -1,0 +1,93 @@
+<div class="biblio-maquette flex flex-col h-full relative">
+    {@include "../library/LibraryHeader.ui"}
+    <div class="flex-1 min-h-0 overflow-hidden">
+    {#if self.genres_loading()}
+        <div class="flex items-center justify-center py-20 text-(--rg-mu)"><Spinner width={26.} /></div>
+    {:else if self.genres_empty()}
+        <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <div class="w-16 h-16 mb-5 rounded-2xl border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+                <Icon icon="material-symbols:sell-outline-rounded" width={30} />
+            </div>
+            <h3 class="text-base font-semibold text-(--rg-tx) mb-1.5">{t("library.no_genre")}</h3>
+            <p class="text-sm text-(--rg-mu) max-w-xs leading-relaxed">{t("library.no_genre_desc")}</p>
+        </div>
+    {:else}
+    {#if let Some(gv) = self.genres_view()}
+    {#each self.views.genres.iter() as page (page.library_id)}
+    <div class="flex flex-col h-full">
+        <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+                <SearchField class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" value={page.search.clone()}
+                             placeholder={gv.placeholder.clone()} clear_label={t("genres_view.clear_filters")} field={Field::GenresSearch} />
+
+                <div class="order-2 @max-6xl:order-4 @max-6xl:basis-full flex flex-wrap items-center gap-2.5">
+                    <FilterChip icon="material-symbols:trending-up-rounded" pressed={page.main_items} title={t("genres_view.main")} onclick={Msg::Genres(GenresMsg::Main)}>
+                        <div class="w-auto @max-xl:hidden">{t("genres_view.main")}</div>
+                    </FilterChip>
+                    {#if gv.untagged > 0}
+                        <FilterChip icon="material-symbols:label-off-outline-rounded" pressed={page.without_genre} title={t("genres_view.untagged_hint")} onclick={Msg::Genres(GenresMsg::Untagged)}>
+                            <div class="w-auto @max-xl:hidden">{t("genres_view.untagged")}</div>
+                            <div class="w-auto text-[11px] font-medium text-(--rg-mu2)">{gv.untagged_n}</div>
+                        </FilterChip>
+                    {/if}
+                    {#if page.active_filters()}
+                        <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={t("genres_view.clear_filters")} onclick={Msg::Genres(GenresMsg::ClearFilters)} />
+                    {/if}
+                </div>
+
+                <div class="order-3 flex-1 @max-6xl:hidden"></div>
+
+                <div class="order-3 flex items-center gap-2.5">
+                    <MenuSelect anchor="genres.sort" open={self.popup("genres.sort")} label={gv.sort_label.clone()} icon={gv.sort_icon} options={gv.sorts.clone()} />
+                    <SegmentedControl subtle label={t("albums_view.grid_or_list")} options={gv.views.clone()} />
+                    <ToolbarButton icon="material-symbols:select-check-box-rounded" label={t("albums_view.select")} title={t("albums_view.select")} pressed={self.selecting()} onclick={Msg::Selection(SelectionMsg::Toggle)} />
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 relative min-h-0">
+            {#each [page.window.view] as view (view)}
+            <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16"
+                 onscroll={|s: ScrollMetrics| Msg::Genres(GenresMsg::Scrolled(s.offset, s.max_offset()))}>
+                {#if gv.items.is_empty()}
+                    <EmptyResult message={t("genres_view.no_match")} clear_label={t("genres_view.clear_filters")}
+                                 onclear={if page.active_filters() {Some(Msg::Genres(GenresMsg::ClearFilters))} else {None}} />
+                {:else if self.views.view_mode == ViewMode::Grid}
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] max-[900px]:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-x-4.5 gap-y-5.5 pt-3">
+                        {#each gv.items as genre (genre.name.as_str())}
+                            <div class="relative min-w-0" memo={(genre, gv.target.as_deref() == Some(genre.name.as_str()), genre.covers.iter().map(|c| cx.resources.cover_small_id(c)).collect::<Vec<_>>())} style:scroll_initial_target={gv.target.as_deref() == Some(genre.name.as_str())}>{@include "GenreCard.ui"}</div>
+                        {/each}
+                    </div>
+                {:else}
+                    <div class="flex flex-col pt-2">
+                        {#each gv.items as (i, genre) (genre.name.as_str())}
+                            <div class="flex flex-col" memo={(i, genre, gv.target.as_deref() == Some(genre.name.as_str()), genre.covers.iter().map(|c| cx.resources.cover_small_id(c)).collect::<Vec<_>>())} style:scroll_initial_target={gv.target.as_deref() == Some(genre.name.as_str())}>{@include "GenreRow.ui"}</div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+            {/each}
+
+            {#if page.sort == "name" && !gv.items.is_empty()}
+                <div class="absolute right-2.5 inset-y-2 z-20 flex items-center pointer-events-none">
+                    <div class="pointer-events-auto max-h-full overflow-hidden flex flex-col items-center py-1.5 px-0.75 rounded-xl
+                                bg-(--rg-carte)/70 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-none">
+                        {#each gv.letters as l (l.0)}
+                            {#if l.1}
+                                <button class="w-5.5 h-4.75 min-h-0 shrink flex items-center justify-center text-[11px] leading-none font-bold rounded-[5px] transition-all duration-150
+                                               text-(--rg-tx2) hover:bg-(--rg-g) hover:text-(--rg-on-g) cursor-pointer"
+                                        onclick={Msg::Genres(GenresMsg::Letter(l.0.to_string()))}><div>{l.0}</div></button>
+                            {:else}
+                                <div class="w-5.5 h-4.75 min-h-0 shrink flex items-center justify-center text-[11px] leading-none font-bold rounded-[5px] text-(--rg-bd2) cursor-default">{l.0}</div>
+                            {/if}
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+        </div>
+    </div>
+    {/each}
+    {/if}
+    {/if}
+    </div>
+</div>

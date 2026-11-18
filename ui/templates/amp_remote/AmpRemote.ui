@@ -1,0 +1,9 @@
+{#if let Some(r) = self.amp_remote_view()}
+    {#each [u64::from(r.open)] as open (open)}
+        {#if r.dock.left}
+            {@include "AmpRemoteLeft.ui"}
+        {:else}
+            {@include "AmpRemoteRight.ui"}
+        {/if}
+    {/each}
+{/if}

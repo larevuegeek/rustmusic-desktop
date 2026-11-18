@@ -1,0 +1,8 @@
+{#if r.is_block()}
+    {@include "SettingsBlock.ui"}
+{:else}
+    <div class="flex items-center gap-4 px-5 py-4 leading-[1.2] transition-colors" class:rg-ligne-active={r.click().is_some()} class:rg-ligne-inerte={r.disabled}
+         onclick={r.click().unwrap_or(Msg::Noop)}>
+        {@include "SettingsRowBody.ui"}
+    </div>
+{/if}

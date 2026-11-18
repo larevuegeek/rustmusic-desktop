@@ -1,0 +1,8 @@
+<ToolbarButton icon="material-symbols:select-check-box-rounded" label={t("albums_view.select")} title={t("albums_view.select")} pressed={self.selecting()} onclick={Msg::Selection(SelectionMsg::Toggle)} />
+{#if self.selecting()}
+    {#if self.all_selected()}
+        <ToolbarButton icon="material-symbols:remove-done-rounded" label={t("actions.deselect_all")} title={t("actions.deselect_all")} onclick={Msg::Selection(SelectionMsg::DeselectAll)} />
+    {:else}
+        <ToolbarButton icon="material-symbols:done-all-rounded" label={t("actions.select_all")} title={t("actions.select_all")} onclick={Msg::Selection(SelectionMsg::SelectAll)} />
+    {/if}
+{/if}

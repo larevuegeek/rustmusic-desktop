@@ -1,0 +1,42 @@
+{#if r.custom() == "shortcut"}
+    <div class="shrink-0 flex items-center gap-2">
+        {#if self.shortcut_overridden(&r.key) && !self.shortcut_editing(&r.key)}
+            <button class="flex items-center justify-center h-7.5 px-2.5 rounded-lg cursor-pointer text-[12px] font-semibold transition-colors text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-hover)"
+                    onclick={self.shortcut_reset_msg(&r.key)}><div>{t("settings.shortcut_reset")}</div></button>
+        {/if}
+        {#if self.shortcut_editing(&r.key)}
+            <button class="flex items-center gap-1.5 p-1 -m-1 rounded-xl cursor-pointer transition-colors ring-2 ring-(--rg-g)"
+                    title={t("settings.shortcut_edit")} onclick={self.shortcut_edit_msg(&r.key)}>
+                <div class="h-7.5 px-3 flex items-center rounded-lg text-[13px] font-semibold animate-pulse text-(--rg-gtx)">{t("settings.shortcut_waiting")}</div>
+            </button>
+        {:else}
+            <button class="flex items-center gap-1.5 p-1 -m-1 rounded-xl cursor-pointer transition-colors hover:bg-(--rg-hover)"
+                    title={t("settings.shortcut_edit")} onclick={self.shortcut_edit_msg(&r.key)}>
+                {#each self.shortcut_combos(&r.key) as (i, combo) (i)}
+                    {#if i > 0}<div class="text-xs text-(--rg-mu2)">{t("settings.key_or")}</div>{/if}
+                    {@include "Combo.ui"}
+                {/each}
+            </button>
+        {/if}
+    </div>
+{:else if r.custom() == "shortcut-range"}
+    {@const combo = shortcut_caps(&[t("settings.key_shift"), t("settings.key_click")])}{@include "Combo.ui"}
+{:else if r.custom() == "shortcut-close"}
+    {@const combo = shortcut_caps(&[t("settings.key_escape")])}{@include "Combo.ui"}
+{:else if r.custom() == "shortcut-reset-all"}
+    {#if r.disabled}
+        <div class="h-8 px-3 flex items-center rounded-lg text-[13px] font-semibold border border-(--rg-bd2) text-(--rg-tx) opacity-40">{t("settings.shortcut_reset")}</div>
+    {:else}
+        <button class="flex items-center justify-center h-8 px-3 rounded-lg cursor-pointer text-[13px] font-semibold transition-colors border border-(--rg-bd2) text-(--rg-tx) hover:bg-(--rg-hover)"
+                onclick={Msg::Settings(SettingsMsg::ShortcutResetAll)}><div>{t("settings.shortcut_reset")}</div></button>
+    {/if}
+{:else if r.custom() == "media-enable"}
+    <button class="flex items-center justify-center h-8 px-3 rounded-lg cursor-pointer text-[13px] font-semibold transition-colors bg-(--rg-g) text-(--rg-on-g) hover:brightness-110"
+            onclick={Msg::Settings(SettingsMsg::Set("system_media_controls", "true".into()))}><div>{t("settings.enable")}</div></button>
+{:else if r.custom() == "media-key"}
+    {#if self.setting_or_default("system_media_controls") == "true"}
+        <div class="w-9.5 h-7.5 flex items-center justify-center rounded-lg bg-(--rg-s2) border border-(--rg-bd2) border-b-2 text-(--rg-tx2)"><Icon icon={r.key.as_str()} width={22} /></div>
+    {:else}
+        <div class="w-9.5 h-7.5 flex items-center justify-center rounded-lg bg-(--rg-s2) border border-(--rg-bd2) border-b-2 text-(--rg-tx2) opacity-50"><Icon icon={r.key.as_str()} width={22} /></div>
+    {/if}
+{/if}

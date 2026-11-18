@@ -1,0 +1,30 @@
+{#if cell.idx == 12}
+    <div class="h-full min-w-0 shrink-0 flex items-center gap-1.5 px-3 font-mono text-[12.5px] text-(--rg-mu)" title={cell.title.as_str()}
+         style:width={cell.width} style:flex_grow={cell.grow}>
+        {#if !row.readable}<div class="shrink-0 flex text-red-500"><Icon icon="material-symbols:error-outline-rounded" width={15} /></div>{/if}
+        <div class="truncate">{cell.value}</div>
+    </div>
+{:else if cell.editing}
+    <div class="h-full min-w-0 shrink-0 flex items-center px-1" style:width={cell.width} style:flex_grow={cell.grow}>
+        <input class="rg-tt-editeur w-full h-9 px-2 rounded-lg outline-none text-[14px]" class:text-right={cell.numeric}
+               type="text" value={wv.draft.as_str()} aria-label={t("workshop.title")}
+               oninput={|v: String| Msg::Tags(TagsMsg::Draft(v))} onchange={Msg::Tags(TagsMsg::Commit)}>
+    </div>
+{:else}
+    <div class="rg-tt-cellule h-full min-w-0 shrink-0 flex items-center px-3 text-[14px]" class:justify-end={cell.numeric} class:rg-tt-modifiee={cell.dirty}
+         title={cell.title.as_str()} style:width={cell.width} style:flex_grow={cell.grow}
+         onclick={self.workshop_edit_msg(&row.path, cell.idx)}>
+        {#if !cell.value.is_empty() && cell.numeric}
+            <div class="truncate tabular-nums text-(--rg-tx2)">{cell.value}</div>
+        {:else if !cell.value.is_empty()}
+            <div class="truncate text-(--rg-tx)">{cell.value}</div>
+        {:else if cell.missing}
+            <div class="flex items-center gap-1.5 text-[12.5px] font-semibold text-(--rg-am)">
+                <div class="w-1.5 h-1.5 rounded-full bg-(--rg-am)"></div>
+                <div>{t("workshop.missing")}</div>
+            </div>
+        {:else}
+            <div class="text-(--rg-mu2)">—</div>
+        {/if}
+    </div>
+{/if}

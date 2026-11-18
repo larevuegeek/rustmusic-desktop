@@ -1,0 +1,20 @@
+<div class="flex items-center gap-0.5">
+    {#each [1., 2., 3., 4., 5.] as (i, star) (i)}
+        <div class="relative shrink-0 w-4 h-4 transition-transform duration-100 hover:scale-110">
+            {#if row.rated}
+                <div class="absolute inset-0 text-neutral-300 dark:text-neutral-600"><Icon icon="lucide:star" width={16} /></div>
+            {:else}
+                <div class="absolute inset-0 text-neutral-300 dark:text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity"><Icon icon="lucide:star" width={16} /></div>
+            {/if}
+            {#if row.rating >= star}
+                <div class="absolute inset-y-0 left-0 w-4 overflow-hidden pointer-events-none text-amber-500 dark:text-[#e8c46a]"><Icon icon="mynaui:star-solid" width={16} /></div>
+            {:else if row.rating >= star - 0.5}
+                <div class="absolute inset-y-0 left-0 w-2 overflow-hidden pointer-events-none text-amber-500 dark:text-[#e8c46a]"><Icon icon="mynaui:star-solid" width={16} /></div>
+            {/if}
+            <button class="absolute inset-y-0 left-0 w-1/2 cursor-pointer" aria-label={t_with("actions.stars_n", &[("n", &(star - 0.5).to_string())])}
+                    onclick={Msg::Row(RowMsg::Rate(row.n, star - 0.5))}><div class="w-full h-full"></div></button>
+            <button class="absolute inset-y-0 right-0 w-1/2 cursor-pointer" aria-label={t_with("actions.stars_n", &[("n", &star.to_string())])}
+                    onclick={Msg::Row(RowMsg::Rate(row.n, star))}><div class="w-full h-full"></div></button>
+        </div>
+    {/each}
+</div>

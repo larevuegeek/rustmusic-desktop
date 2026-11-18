@@ -1,0 +1,35 @@
+{#if let Some(m) = &self.views.sidebar.item_menu}
+    <k-popover anchor={m.at.anchor()} menu placement="bottom-start" offset={m.at.offset()} aria-label={m.title.as_str()}
+               onclose={Msg::Sidebar(SidebarMsg::Item(ItemMsg::Close))}
+               class="w-58 py-1.5
+                      bg-(--rg-carte) dark:bg-(--rg-s2)
+                      border border-(--rg-bd) dark:border-[#2a312d]
+                      rounded-xl shadow-[0_18px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.6)]
+                      overflow-hidden">
+        <div class="px-3.5 pt-1 pb-1.5 text-[10px] uppercase tracking-widest text-(--rg-mu) truncate">{m.title}</div>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-green-500/15 hover:text-(--rg-gtx)"
+                onclick={Msg::Sidebar(SidebarMsg::Item(ItemMsg::Play))}>
+            <div class="flex opacity-60"><Icon icon="lucide:play" width={14} /></div><div>{t("sidebar.play")}</div>
+        </button>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                onclick={Msg::Sidebar(SidebarMsg::Item(ItemMsg::Open))}>
+            <div class="flex opacity-60"><Icon icon="lucide:arrow-up-right" width={14} /></div><div>{t("sidebar.open")}</div>
+        </button>
+        <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8" role="separator"></div>
+        <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                onclick={Msg::Sidebar(SidebarMsg::Item(ItemMsg::Pin))}>
+            {#if m.pinned}
+                <div class="flex opacity-60"><Icon icon="material-symbols:keep-off-outline-rounded" width={15} /></div><div>{t("sidebar.unpin")}</div>
+            {:else}
+                <div class="flex opacity-60"><Icon icon="material-symbols:keep-outline-rounded" width={15} /></div><div>{t("sidebar.pin")}</div>
+            {/if}
+        </button>
+        {#if m.doubtful}
+            <div class="h-px mx-2 my-1 bg-(--rg-bd) dark:bg-white/8" role="separator"></div>
+            <button role="menuitem" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left cursor-pointer transition-colors text-(--rg-tx) hover:bg-(--rg-s2) dark:hover:bg-[#252b28]"
+                    onclick={Msg::Sidebar(SidebarMsg::Item(ItemMsg::Check))}>
+                <div class="flex opacity-60"><Icon icon="material-symbols:group-search-rounded" width={15} /></div><div>{t("artist_split.menu")}</div>
+            </button>
+        {/if}
+    </k-popover>
+{/if}

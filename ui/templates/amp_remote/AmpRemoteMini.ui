@@ -1,0 +1,72 @@
+<button class="amp-vfd relative h-14.5 px-3 pr-7.5 flex items-center justify-between gap-2.5 rounded-xl overflow-hidden cursor-pointer text-left transition duration-150 active:scale-[0.96]"
+        title={t("amp_remote.expand")} aria-label={t("amp_remote.expand")}
+        onclick={Msg::AmpRemote(AmpRemoteMsg::Mini)} onwheel={wheel_volume()}>
+    <div class="absolute top-1.5 right-1.75 flex text-[#4fa98c]"><Icon icon="material-symbols:open-in-full-rounded" width={15} /></div>
+    <div class="min-w-0 flex flex-col gap-1.25">
+        {#if r.on}
+            <div class="amp-dot text-[20px] leading-none tracking-[0.08em] truncate text-[#8cf7d4]">{r.code}</div>
+            <div class="amp-dot text-[11px] leading-none tracking-[0.08em] truncate text-[#4fa98c]">{r.mini_line}</div>
+        {:else}
+            <div class="amp-dot text-[20px] leading-none tracking-[0.08em] truncate text-[#2f6a58]">{if r.connected { "STANDBY" } else { "OFFLINE" }}</div>
+            <div class="amp-dot text-[11px] leading-none tracking-[0.08em] truncate text-[#1d4a3c]">{r.mini_line}</div>
+        {/if}
+    </div>
+    <div class="shrink-0 flex items-end gap-1">
+        {#each r.digits as (i, d) (i)}
+            <div class="relative w-[17px] h-[30px]">{@include "AmpDigit.ui"}</div>
+            {#if d.dot}<div class="amp-seg-off w-[3.5px] h-[3.5px] rounded-full" class:amp-seg-lit={r.lit} class:amp-seg-muted={!r.lit}></div>{/if}
+        {/each}
+    </div>
+    <div class="amp-glare absolute inset-x-0 top-0 h-[42%] pointer-events-none"></div>
+</button>
+<div class="flex items-center gap-1.5">
+    <div class="w-9.5 h-9.5 shrink-0 flex">{@include "AmpPower.ui"}</div>
+    <div class="flex-1 min-w-0 h-9.5 flex items-center rounded-[11px] border border-(--rg-bd) bg-(--rg-s2)/50">
+        <button class="w-6 h-9.5 shrink-0 flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) disabled:opacity-40 disabled:cursor-default transition duration-150 active:scale-[0.96]"
+                aria-label={t("amp_remote.prev_input")} title={t("amp_remote.prev_input")} disabled={!r.on}
+                onclick={Msg::AmpRemote(AmpRemoteMsg::StepInput(-1))}>
+            <Icon icon="material-symbols:chevron-left-rounded" width={20} />
+        </button>
+        {#if r.on}
+            <div class="flex-1 min-w-0 flex items-center justify-center gap-1.25 text-[12.5px] font-semibold text-(--rg-gtx)">
+                <div class="shrink-0 flex"><Icon icon={r.input_icon} width={17} /></div>
+                <div class="truncate">{r.input_name}</div>
+            </div>
+        {:else}
+            <div class="flex-1 min-w-0 flex items-center justify-center gap-1.25 text-[12.5px] font-semibold text-(--rg-mu)">
+                <div class="shrink-0 flex"><Icon icon={r.input_icon} width={17} /></div>
+                <div class="truncate">{r.input_name}</div>
+            </div>
+        {/if}
+        <button class="w-6 h-9.5 shrink-0 flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) disabled:opacity-40 disabled:cursor-default transition duration-150 active:scale-[0.96]"
+                aria-label={t("amp_remote.next_input")} title={t("amp_remote.next_input")} disabled={!r.on}
+                onclick={Msg::AmpRemote(AmpRemoteMsg::StepInput(1))}>
+            <Icon icon="material-symbols:chevron-right-rounded" width={20} />
+        </button>
+    </div>
+    {#if r.on}
+        {#if r.main.muted}
+            <button class="amp-muted w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors"
+                    title={t("amp_remote.mute")} aria-label={t("amp_remote.mute")}
+                    onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Mute { zone: Zone::Main, on: false }))}>
+                <Icon icon="material-symbols:volume-off-rounded" width={20} />
+            </button>
+        {:else}
+            <button class="amp-key w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx)"
+                    title={t("amp_remote.mute")} aria-label={t("amp_remote.mute")}
+                    onclick={Msg::AmpRemote(AmpRemoteMsg::Send(Command::Mute { zone: Zone::Main, on: true }))}>
+                <Icon icon="material-symbols:volume-up-rounded" width={20} />
+            </button>
+        {/if}
+        <button class="amp-key w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx)"
+                aria-label={format!("{} −", t("amp_remote.volume"))}
+                onpress={|p: bool| Msg::AmpRemote(AmpRemoteMsg::Step(Zone::Main, false, p))} onclick={Msg::AmpRemote(AmpRemoteMsg::StepClick(Zone::Main, false))}>
+            <Icon icon="material-symbols:remove-rounded" width={21} />
+        </button>
+        <button class="amp-key w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-[11px] border cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx)"
+                aria-label={format!("{} +", t("amp_remote.volume"))}
+                onpress={|p: bool| Msg::AmpRemote(AmpRemoteMsg::Step(Zone::Main, true, p))} onclick={Msg::AmpRemote(AmpRemoteMsg::StepClick(Zone::Main, true))}>
+            <Icon icon="material-symbols:add-rounded" width={21} />
+        </button>
+    {/if}
+</div>

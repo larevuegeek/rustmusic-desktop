@@ -1,0 +1,7 @@
+<div class="flex shrink-0">
+    <button class="h-7 px-3 flex items-center whitespace-nowrap rounded-full border text-[12.5px] font-semibold cursor-pointer transition-colors
+                   border-(--rg-bd2) text-(--rg-tx2) hover:text-(--rg-tx) hover:border-(--rg-mu2)"
+            title={self.title.as_str()} onclick={onclick}>
+        <div>{self.label}</div>
+    </button>
+</div>

@@ -1,0 +1,20 @@
+{#if c.back}
+    <button class="w-8.5 h-8.5 rounded-full border flex items-center justify-center cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+            title={t("common.previous")} aria-label={t("common.previous")} onclick={Msg::Slide(c.id, false, c.total)}>
+        <Icon icon="material-symbols:chevron-left-rounded" width={22} />
+    </button>
+{:else}
+    <div class="w-8.5 h-8.5 rounded-full border flex items-center justify-center opacity-30 border-(--rg-bd) text-(--rg-tx2)">
+        <Icon icon="material-symbols:chevron-left-rounded" width={22} />
+    </div>
+{/if}
+{#if c.forward}
+    <button class="w-8.5 h-8.5 rounded-full border flex items-center justify-center cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+            title={t("common.next")} aria-label={t("common.next")} onclick={Msg::Slide(c.id, true, c.total)}>
+        <Icon icon="material-symbols:chevron-right-rounded" width={22} />
+    </button>
+{:else}
+    <div class="w-8.5 h-8.5 rounded-full border flex items-center justify-center opacity-30 border-(--rg-bd) text-(--rg-tx2)">
+        <Icon icon="material-symbols:chevron-right-rounded" width={22} />
+    </div>
+{/if}

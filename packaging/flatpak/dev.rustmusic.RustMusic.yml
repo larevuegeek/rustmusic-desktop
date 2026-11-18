@@ -1,6 +1,7 @@
 # Manifeste Flatpak de RustMusic (Flathub). Construit depuis les sources, hors ligne :
-# dépendances npm et Cargo listées dans node-sources.json et cargo-sources.json
-# (générés par packaging/flatpak/generer-sources.sh, à chaque version).
+# dépendances Cargo listées dans cargo-sources.json (généré par
+# packaging/flatpak/generer-sources.sh, à chaque version). Depuis la 0.5, plus de
+# frontend web ni de Tauri : un seul binaire Rust, le projet Cargo à la racine.
 id: dev.rustmusic.RustMusic
 runtime: org.gnome.Platform
 # Version du runtime GNOME : prendre la plus récente encore suivie (le linter refuse une version en fin de vie).
@@ -8,11 +9,10 @@ runtime-version: '50'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
-  - org.freedesktop.Sdk.Extension.node22
 command: rustmusic
 
 finish-args:
-  # Fenêtre et affichage accéléré (WebKitGTK).
+  # Fenêtre et affichage accéléré (karbon-ui : Wayland ou X11, Vulkan).
   - --share=ipc
   - --socket=wayland
   - --socket=fallback-x11
@@ -33,17 +33,13 @@ finish-args:
   # Contrôles média du bureau (MPRIS) et notifications de changement de morceau.
   - --own-name=org.mpris.MediaPlayer2.rustmusic
   - --talk-name=org.freedesktop.Notifications
-  # Icône de la barre système (StatusNotifierItem, via libayatana-appindicator).
+  # Icône de la barre système (StatusNotifierItem), quand karbon-ui la proposera.
   - --talk-name=org.kde.StatusNotifierWatcher
 
 build-options:
-  append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node22/bin
+  append-path: /usr/lib/sdk/rust-stable/bin
 
 modules:
-  # Icône de la barre système : Tauri charge libayatana-appindicator3 au démarrage, et
-  # le runtime GNOME ne la fournit pas. `shared-modules` : sous-module git de Flathub.
-  - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
-
   - name: rustmusic
     buildsystem: simple
     build-options:
@@ -53,23 +49,17 @@ modules:
       cflags-override: true
       env:
         CARGO_HOME: /run/build/rustmusic/cargo
-        XDG_CACHE_HOME: /run/build/rustmusic/flatpak-node/cache
-        npm_config_cache: /run/build/rustmusic/flatpak-node/npm-cache
-        npm_config_nodedir: /usr/lib/sdk/node22
-        npm_config_offline: 'true'
     build-commands:
-      # Interface (SvelteKit) : produit build/, embarqué dans le binaire à la compilation.
-      - npm ci --offline
-      - npm run build
-      # Moteur (Rust). `tauri/custom-protocol` : l'interface embarquée, pas le serveur de développement.
-      - cargo --offline build --release --features tauri/custom-protocol --manifest-path src-tauri/Cargo.toml
-      - install -Dm755 src-tauri/target/release/rustmusic /app/bin/rustmusic
+      # karbon-ui est une dépendance par chemin (`../karbon-ui`) : à publier ou à
+      # ajouter aux sources avant la prochaine version Flathub.
+      - cargo --offline build --release
+      - install -Dm755 target/release/rustmusic /app/bin/rustmusic
       - install -Dm644 packaging/flatpak/dev.rustmusic.RustMusic.desktop /app/share/applications/dev.rustmusic.RustMusic.desktop
       - install -Dm644 dev.rustmusic.RustMusic.metainfo.xml /app/share/metainfo/dev.rustmusic.RustMusic.metainfo.xml
-      - install -Dm644 src-tauri/icons/icon-source.svg /app/share/icons/hicolor/scalable/apps/dev.rustmusic.RustMusic.svg
-      - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/dev.rustmusic.RustMusic.png
-      - install -Dm644 src-tauri/icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/dev.rustmusic.RustMusic.png
-      - install -Dm644 src-tauri/icons/icon.png /app/share/icons/hicolor/512x512/apps/dev.rustmusic.RustMusic.png
+      - install -Dm644 icons/icon-source.svg /app/share/icons/hicolor/scalable/apps/dev.rustmusic.RustMusic.svg
+      - install -Dm644 icons/128x128.png /app/share/icons/hicolor/128x128/apps/dev.rustmusic.RustMusic.png
+      - install -Dm644 icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/dev.rustmusic.RustMusic.png
+      - install -Dm644 icons/icon.png /app/share/icons/hicolor/512x512/apps/dev.rustmusic.RustMusic.png
     sources:
       # Pour Flathub : la version publiée (tag + commit). Pour un essai, construire-local.sh
       # remplace cette source par le dossier de travail.
@@ -81,5 +71,4 @@ modules:
       # version s'écrivent souvent après son tag.
       - type: file
         path: dev.rustmusic.RustMusic.metainfo.xml
-      - node-sources.json
       - cargo-sources.json

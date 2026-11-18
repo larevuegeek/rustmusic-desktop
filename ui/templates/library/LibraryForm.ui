@@ -1,0 +1,39 @@
+<div class="flex flex-col gap-6">
+    <div class="flex items-center gap-4 p-3.5 rounded-2xl border border-(--rg-gbd) bg-linear-135 from-(--rg-gbg) to-transparent">
+        <div class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center bg-(--rg-gbg) border border-(--rg-gbd) text-(--rg-g)"><Icon icon="material-symbols:library-music-outline-rounded" width={24} /></div>
+        <div class="min-w-0">
+            <p class="m-0 text-[15px] font-bold truncate text-(--rg-tx)">{lf.preview_name()}</p>
+            <p class="m-0 mt-0.5 text-xs text-(--rg-mu)">{lf.preview_detail()}</p>
+        </div>
+    </div>
+    <div class="flex flex-col gap-2">
+        <div class="flex gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)"><div>{t("popins.library_name")}</div><div class="text-red-500">*</div></div>
+        {#if lf.error.is_some()}
+            <input class="w-full h-11 px-4 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-red-500/60"
+                   type="text" value={lf.name.as_str()} placeholder={t("popins.library_name_placeholder")} aria-label={t("popins.library_name")}
+                   oninput={|v: String| Msg::LibraryForm(LibraryFormMsg::Name(v))} onchange={Msg::LibraryForm(LibraryFormMsg::Submit)}>
+        {:else}
+            <input class="w-full h-11 px-4 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                   type="text" value={lf.name.as_str()} placeholder={t("popins.library_name_placeholder")} aria-label={t("popins.library_name")}
+                   oninput={|v: String| Msg::LibraryForm(LibraryFormMsg::Name(v))} onchange={Msg::LibraryForm(LibraryFormMsg::Submit)}>
+        {/if}
+        {#if let Some(e) = &lf.error}
+            <div class="flex items-center gap-1.5 text-xs text-red-400"><div class="flex shrink-0"><Icon icon="material-symbols:error-outline-rounded" width={15} /></div><div>{t(e)}</div></div>
+        {/if}
+    </div>
+    {#if lf.edit.is_none()}
+        <div class="flex flex-col gap-2">
+            <div class="flex gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">
+                <div>{t("forms.description")}</div><div class="normal-case font-medium tracking-normal text-(--rg-mu2)">{t("forms.optional")}</div>
+            </div>
+            <textarea class="w-full px-4 py-3 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                      rows="3" value={lf.desc.as_str()} placeholder={t("forms.description_placeholder")} aria-label={t("forms.description")}
+                      oninput={|v: String| Msg::LibraryForm(LibraryFormMsg::Desc(v))}></textarea>
+        </div>
+    {/if}
+    {#if let Some(e) = &lf.global_error}
+        <div class="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-500/25 bg-red-500/8 text-sm text-red-400">
+            <div class="flex shrink-0"><Icon icon="material-symbols:warning-outline-rounded" width={17} /></div><div>{t(e)}</div>
+        </div>
+    {/if}
+</div>

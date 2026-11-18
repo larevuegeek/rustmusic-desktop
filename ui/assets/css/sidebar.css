@@ -1,0 +1,52 @@
+/* Barre latérale : la mise en page est dans les classes Tailwind des gabarits (sidebar/,
+   library/). Restent ici les classes propres à RustMusic ; leurs
+   jetons de couleur (.dark .sidebar, contraste élevé) sont dans theme.css (:root). */
+
+/* .sidebar { font-family: 'Figtree Variable', … } ; line-height: 1.5 de la feuille de base
+   de Tailwind (html), que les tailles arbitraires (text-[10.5px]) héritent. */
+.sidebar { font-family: var(--font-maquette); line-height: 1.5; }
+/* .smart-scroll : défilement, gouttière de 8 px (::-webkit-scrollbar) réservée quand la
+   zone déborde, pouce transparent (visible au survol dans Tauri, pas ici : scrollbar-color
+   n'est pas conditionnel). */
+.smart-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.smart-scroll::-webkit-scrollbar { width: 8px; }
+
+/* .sb-liste-fondu : bas de la liste en fondu, la languette du pied la chevauche.
+   #000 calc(100% - 22px) : arrêts en % seulement, 22 px ≈ 7,5 % de la liste à 1280 × 900. */
+.sb-liste-fondu { mask-image: linear-gradient(to bottom, #000 92.5%, transparent); }
+
+/* .sb-vignette, puis .dark .sb-vignette : carré de la couleur `--c` (mélange en oklab). */
+.sb-vignette {
+    display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+    background: color-mix(in oklab, var(--c, #8b5cf6) 24%, #0b0d0c);
+    color: color-mix(in oklab, var(--c, #8b5cf6) 80%, #ffffff);
+}
+
+/* .sb-pied-carte : halo de la couleur du profil `--profil`. */
+.sb-pied-carte {
+    background-color: var(--sb-pied);
+    background-image: radial-gradient(80% 170% at 0% 50%, color-mix(in oklch, var(--profil) 13%, transparent), transparent 72%);
+    box-shadow: inset 0px 1px 0px rgb(255 255 255 / 0.05);
+}
+/* .sb-avatar : dégradé du profil, anneau 2 px + 1 px, ombre portée. */
+.sb-avatar {
+    background: linear-gradient(150deg, color-mix(in oklch, var(--profil), #ffffff 16%), color-mix(in oklch, var(--profil), #000000 20%));
+    box-shadow: 0px 0px 0px 2px var(--sb-pied), 0px 0px 0px 3px color-mix(in oklch, var(--profil) 45%, transparent),
+                0px 6px 14px -6px color-mix(in oklch, var(--profil) 70%, transparent);
+}
+/* .sb-point { background: currentColor; box-shadow: 0 0 0 3px color-mix(… currentColor 22% …) } :
+   la couleur du point (text-(--sb-point) sur l'élément) est relue de sa variable, comme
+   dans la traduction d'avant. */
+.sb-point { background: var(--sb-point); box-shadow: 0px 0px 0px 3px color-mix(in oklch, var(--sb-point) 22%, transparent); }
+
+/* .sb-vignette en thème clair ; les jetons de .sidebar sont dans theme-modes.css. */
+@media (prefers-color-scheme: light) {
+    .sb-vignette {
+        background: color-mix(in oklab, var(--c, #8b5cf6) 30%, #ffffff);
+        color: color-mix(in oklab, var(--c, #8b5cf6) 75%, #000000);
+    }
+}
+
+/* Contenu de la barre repliée ou dépliée : il glisse depuis la gauche pendant que la
+   largeur suit (`transition-[width]` de la barre). */
+@keyframes sidebar-in { from { opacity: 0; transform: translateX(-12px); } }

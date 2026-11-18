@@ -1,0 +1,7 @@
+{#if ck == 0}
+    <div class="w-5 h-5 mx-auto rounded-md border-2 border-(--rg-bd2)"></div>
+{:else if ck == 1}
+    <div class="w-5 h-5 mx-auto rounded-md border-2 flex items-center justify-center bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"><Icon icon="material-symbols:check-rounded" width={15} /></div>
+{:else}
+    <div class="w-5 h-5 mx-auto rounded-md border-2 flex items-center justify-center bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"><Icon icon="material-symbols:remove-rounded" width={15} /></div>
+{/if}

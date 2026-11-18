@@ -1,0 +1,61 @@
+<div class="relative group aspect-square rounded-2xl overflow-hidden shrink-0 border border-(--rg-bd) bg-(--rg-s2) shadow-lg shadow-black/50">
+    {#if let Some(cv) = &e.cover()}
+        <img class="w-full h-full object-cover" src={cx.resources.cover(&cv.src)} alt="">
+        <div class="absolute inset-0 flex items-end justify-center pb-3 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-linear-to-t from-black/75 via-black/10 to-transparent"
+             aria-label={t("tags.zoom")} onclick={Msg::TagEditor(TagEditorMsg::Zoom(e.slots.iter().position(|s| s == *cv)))}>
+            <div class="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-[11px] font-semibold bg-black/75 text-white ring-1 ring-white/25">
+                <Icon icon="lucide:maximize-2" width={11} /><div>{t("tags.zoom")}</div>
+            </div>
+        </div>
+        {#if cv.picture_type == 3}
+            <div class="absolute top-2 left-2 pointer-events-none flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-(--rg-g) text-(--rg-on-g) shadow-md shadow-black/30">
+                <Icon icon="lucide:star" width={9} /><div>{t("tags.cover")}</div>
+            </div>
+        {/if}
+    {/if}
+    {#if e.cover().is_none()}
+        <div class="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors text-(--rg-mu) hover:text-(--rg-g) hover:bg-(--rg-gbg)" onclick={Msg::Noop}>
+            <Icon icon="lucide:image-plus" width={26} /><div class="text-[11px] font-semibold">{t("tags.add_image")}</div>
+        </div>
+    {/if}
+</div>
+
+<div class="shrink-0">
+    <div class="mb-1.5 flex items-center gap-1.5">
+        <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("tags.media")}</div>
+        <div class="px-1.5 rounded-md font-mono text-[10px] font-bold tabular-nums bg-(--rg-s2) text-(--rg-tx2)">{e.slot_count()}</div>
+        <div class="flex-1"></div>
+        {#if !e.slots.is_empty()}
+            <button class="w-6 h-6 rounded-lg flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu2) hover:text-(--rg-g) hover:bg-(--rg-gbg)"
+                    title={t("tags.add_image")} aria-label={t("tags.add_image")} onclick={Msg::Noop}><Icon icon="lucide:plus" width={13} /></button>
+        {/if}
+    </div>
+    {#if e.slots.is_empty()}
+        <p class="m-0 text-[11px] text-(--rg-mu)">{t("tags.no_media")}</p>
+    {:else}
+        <div class="flex flex-col gap-1">
+            {#each e.slots as (i, sl) (i)}
+                {#if sl.picture_type == 3}
+                    <div class="flex gap-2 p-1.5 rounded-xl border transition-colors bg-(--rg-creux-on) border-(--rg-gbd)">{@include "TagEditorMediaRow.ui"}</div>
+                {:else}
+                    <div class="flex gap-2 p-1.5 rounded-xl border transition-colors border-transparent hover:bg-(--rg-s2)">{@include "TagEditorMediaRow.ui"}</div>
+                {/if}
+            {/each}
+        </div>
+    {/if}
+</div>
+
+<div class="pt-3 shrink-0 border-t border-(--rg-bd)">
+    <p class="m-0 text-[11.5px] font-semibold text-(--rg-tx2) line-clamp-2" title={e.path.as_str()}>{e.filename()}</p>
+    <div class="mt-1.5 flex flex-wrap gap-1">
+        {#if let Some(x) = &e.extension()}
+            <div class="px-1.5 py-0.5 rounded-md font-mono text-[10px] font-bold tracking-wide bg-(--rg-s2) border border-(--rg-bd) text-(--rg-mu)">{x}</div>
+        {/if}
+        {#if e.media_bytes() > 0}
+            <div class="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-(--rg-s2) border border-(--rg-bd) text-(--rg-mu)"
+                 title={e.media_title()}>
+                <Icon icon="lucide:image" width={9} /><div>{e.media_size()}</div>
+            </div>
+        {/if}
+    </div>
+</div>

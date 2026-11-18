@@ -1,0 +1,23 @@
+<div class="flex flex-col gap-10 animate-pulse" aria-hidden="true">
+    <div class="flex flex-col gap-4">
+        <div class="w-56 h-7 rounded-lg bg-neutral-200 dark:bg-white/6"></div>
+        <div class="grid grid-cols-2 @xl:grid-cols-3 @6xl:grid-cols-6 gap-3.5">
+            {#each [0, 1, 2, 3, 4, 5] as tile (tile)}
+                <div class="h-33 rounded-2xl bg-neutral-200 dark:bg-white/6"></div>
+            {/each}
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-4">
+        <div class="w-48 h-7 rounded-lg bg-neutral-200 dark:bg-white/6"></div>
+        <div class="grid grid-cols-3 @3xl:grid-cols-4 @4xl:grid-cols-6 gap-[18px]">
+            {#each [0, 1, 2, 3, 4, 5] as album (album)}
+                <div class="min-w-0 flex flex-col gap-2">
+                    <div class="aspect-square rounded-[10px] bg-neutral-200 dark:bg-white/6"></div>
+                    <div class="w-[80%] h-3.5 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+                    <div class="w-[55%] h-3 rounded-full bg-neutral-200 dark:bg-white/6"></div>
+                </div>
+            {/each}
+        </div>
+    </div>
+</div>

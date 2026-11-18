@@ -1,0 +1,206 @@
+<div class="flex flex-col min-h-0 max-h-[calc(88vh_-_69px)]">
+{#if f.vocab.is_none()}
+    <div class="flex items-center justify-center py-16">
+        <div class="flex animate-spin text-(--rg-mu)"><Icon icon="lucide:loader-2" width={22} /></div>
+    </div>
+{:else}
+    <div class="min-h-0 overflow-y-auto scrollbar-app px-7 pt-6 pb-7 flex flex-col gap-7">
+        <div class="flex items-start gap-5">
+            <div class="relative shrink-0 w-24 h-24 rounded-2xl flex items-center justify-center text-white transition-colors"
+                 style:background_layers={smart_tile(f.color_hex())}>
+                <Icon icon={f.icon_id()} width={38} />
+                <div class="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/15"></div>
+            </div>
+            <div class="flex-1 min-w-0 pt-1">
+                <input class="w-full bg-transparent text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx) placeholder:text-(--rg-ph) border-b-2 border-(--rg-bd) focus:border-(--rg-g) outline-none pb-1.5 transition-colors"
+                       type="text" value={f.name.as_str()} aria-label={t("forms.name")}
+                       placeholder={t(if f.mix { "mix_view.name_placeholder" } else { "smart.name_placeholder" })}
+                       oninput={|v: String| Msg::Smart(SmartMsg::Name(v))}>
+                <div class="mt-2.5 flex gap-2 text-[13px] leading-snug text-(--rg-mu)">
+                    <div class="shrink-0 mt-px flex text-(--rg-g)"><Icon icon={if f.mix { "material-symbols:shuffle-rounded" } else { "lucide:sparkles" }} width={15} /></div>
+                    <div class="min-w-0">{t(if f.mix { "mix_view.explain_mix" } else { "mix_view.explain_smart" })}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-3.5">
+            <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("smart.color")}</div>
+            <div class="flex flex-wrap gap-2">
+                {#each playlist_form_colors() as (i, c) (i)}
+                    {#if i == f.color}
+                        <button class="w-6 h-6 rounded-full cursor-pointer transition-transform ring-2 ring-offset-2 ring-(--rg-tx) ring-offset-(--rg-carte) scale-110"
+                                style:background_color={hex(c)} aria-label={t("smart.color")} aria-pressed="true" onclick={Msg::Smart(SmartMsg::Color(i))}><div></div></button>
+                    {:else}
+                        <button class="w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110"
+                                style:background_color={hex(c)} aria-label={t("smart.color")} aria-pressed="false" onclick={Msg::Smart(SmartMsg::Color(i))}><div></div></button>
+                    {/if}
+                {/each}
+            </div>
+            <div class="text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("smart.icon")}</div>
+            <div class="flex flex-wrap gap-1">
+                {#each playlist_form_icons() as (i, ic) (i)}
+                    {#if i == f.icon}
+                        <button class="w-9 h-9 flex items-center justify-center rounded-xl cursor-pointer transition-colors text-white"
+                                style:background_color={hex(f.color_hex())} title={playlist_form_icon_label(ic)} aria-label={playlist_form_icon_label(ic)} aria-pressed="true" onclick={Msg::Smart(SmartMsg::Icon(i))}>
+                            <Icon icon={ic} width={18} />
+                        </button>
+                    {:else}
+                        <button class="w-9 h-9 flex items-center justify-center rounded-xl cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                                title={playlist_form_icon_label(ic)} aria-label={playlist_form_icon_label(ic)} aria-pressed="false" onclick={Msg::Smart(SmartMsg::Icon(i))}>
+                            <Icon icon={ic} width={18} />
+                        </button>
+                    {/if}
+                {/each}
+            </div>
+        </div>
+
+        <div>
+            <h3 class="m-0 mb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t(if f.playlist_id.is_none() { "smart.from_preset" } else { "smart.replace_with_preset" })}</h3>
+            <div class="grid grid-cols-4 gap-2">
+                {#each smart_presets() as p (p.0)}
+                    {#if f.preset == Some(p.1)}
+                        <button class="group min-w-0 flex flex-col gap-2 p-3 rounded-xl border text-left cursor-pointer transition-colors bg-(--rg-creux-on)"
+                                style:border_color={hex(p.5)} title={p.3.as_str()} onclick={Msg::Smart(SmartMsg::Preset(p.0))}>
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style:background_color={Color { alpha: 41, ..hex(p.5) }} style:color={hex(p.5)}><Icon icon={p.4} width={17} /></div>
+                            <div class="text-[13px] font-semibold leading-tight text-(--rg-tx)">{p.2}</div>
+                            <div class="text-[11.5px] leading-snug text-(--rg-mu) line-clamp-2">{p.3}</div>
+                        </button>
+                    {:else}
+                        <button class="group min-w-0 flex flex-col gap-2 p-3 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-bd) bg-(--rg-creux) hover:border-(--rg-bd2)"
+                                title={p.3.as_str()} onclick={Msg::Smart(SmartMsg::Preset(p.0))}>
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style:background_color={Color { alpha: 41, ..hex(p.5) }} style:color={hex(p.5)}><Icon icon={p.4} width={17} /></div>
+                            <div class="text-[13px] font-semibold leading-tight text-(--rg-tx)">{p.2}</div>
+                            <div class="text-[11.5px] leading-snug text-(--rg-mu) line-clamp-2">{p.3}</div>
+                        </button>
+                    {/if}
+                {/each}
+            </div>
+        </div>
+
+        <div>
+            <h3 class="m-0 mb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("smart.rules")}</h3>
+            <div class="p-4 rounded-2xl border border-(--rg-bd) bg-(--rg-creux)">
+                {@const g0 = f.tree()}
+                <div class="rounded-lg border border-transparent">
+                    <RuleGroupHead g={g0.head.clone()} />
+                    <div class="flex flex-col gap-2">
+                        {#each g0.nodes as (i, n0) (i)}
+                            {#if let Some(r) = &n0.rule}<RuleRow r={r.clone()} />{/if}
+                            {#if let Some(g1) = &n0.group}
+                                <div class="rounded-lg border border-(--rg-bd) bg-(--rg-carte) p-3">
+                                    <RuleGroupHead g={g1.head.clone()} />
+                                    <div class="flex flex-col gap-2">
+                                        {#each g1.nodes as (j, n1) (j)}
+                                            {#if let Some(r) = &n1.rule}<RuleRow r={r.clone()} />{/if}
+                                            {#if let Some(g2) = &n1.group}
+                                                <div class="rounded-lg border border-(--rg-bd) bg-(--rg-carte) p-3">
+                                                    <RuleGroupHead g={g2.head.clone()} />
+                                                    <div class="flex flex-col gap-2">
+                                                        {#each g2.nodes as (k, n2) (k)}
+                                                            {#if let Some(r) = &n2.rule}<RuleRow r={r.clone()} />{/if}
+                                                        {/each}
+                                                    </div>
+                                                    <RuleGroupFoot g={g2.head.clone()} />
+                                                </div>
+                                            {/if}
+                                        {/each}
+                                    </div>
+                                    <RuleGroupFoot g={g1.head.clone()} />
+                                </div>
+                            {/if}
+                        {/each}
+                    </div>
+                    <RuleGroupFoot g={g0.head.clone()} />
+                </div>
+            </div>
+        </div>
+
+        {#if f.mix}
+            <div>
+                <h3 class="m-0 mb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("mix_view.size")}</h3>
+                <div class="grid grid-cols-3 gap-2">
+                    {#each smart_sizes() as n (n)}
+                        {#if f.limit.count == Some(n)}
+                            <button class="relative h-18 flex flex-col items-center justify-center rounded-xl border cursor-pointer transition-colors border-(--rg-g) bg-(--rg-creux-on)"
+                                    aria-pressed="true" onclick={Msg::Smart(SmartMsg::Size(n))}>
+                                <div class="text-[22px] font-extrabold leading-none tabular-nums text-(--rg-gtx)">{n}</div>
+                                <div class="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--rg-mu)">{t("library_head.tracks_n")}</div>
+                                <div class="absolute top-2 right-2 flex text-(--rg-g)"><Icon icon="material-symbols:check-circle-rounded" width={18} /></div>
+                            </button>
+                        {:else}
+                            <button class="relative h-18 flex flex-col items-center justify-center rounded-xl border cursor-pointer transition-colors border-(--rg-bd) bg-(--rg-creux) hover:border-(--rg-bd2)"
+                                    aria-pressed="false" onclick={Msg::Smart(SmartMsg::Size(n))}>
+                                <div class="text-[22px] font-extrabold leading-none tabular-nums text-(--rg-tx)">{n}</div>
+                                <div class="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--rg-mu)">{t("library_head.tracks_n")}</div>
+                            </button>
+                        {/if}
+                    {/each}
+                </div>
+            </div>
+        {:else}
+            <div>
+                <h3 class="m-0 mb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-(--rg-mu)">{t("smart.limit_to")}</h3>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <input class="h-9 w-24 px-3 rounded-lg text-sm bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx) placeholder:text-(--rg-ph)"
+                           type="text" value={f.count_text.as_str()} placeholder="—" aria-label={t("smart.limit_to")}
+                           oninput={|v: String| Msg::Smart(SmartMsg::LimitCount(v))}>
+                    <div class="text-sm text-(--rg-mu)">{t("smart.tracks_sorted_by")}</div>
+                    {@const so = f.sort_options()}
+                    <select class="h-9 px-3 rounded-lg text-sm cursor-pointer max-w-52 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx)"
+                            value={so.1} aria-label={t("smart.tracks_sorted_by")} onchange={|i: u64| Msg::Smart(SmartMsg::LimitSort(i))}>
+                        {#each so.0 as (i, label) (i)}<option value={i as u64}>{label}</option>{/each}
+                    </select>
+                    {#if f.limit.sort.as_deref().is_some_and(|s| s != "random")}
+                        <button class="h-9 px-3 rounded-lg text-sm cursor-pointer flex items-center gap-1.5 bg-(--rg-champ) border border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2)"
+                                onclick={Msg::Smart(SmartMsg::LimitDesc)}>
+                            <Icon icon={if f.limit.desc { "lucide:arrow-down" } else { "lucide:arrow-up" }} width={14} />
+                            <div>{t(if f.limit.desc { "smart.descending" } else { "smart.ascending" })}</div>
+                        </button>
+                    {/if}
+                </div>
+                <p class="m-0 mt-2 text-xs text-(--rg-mu)">{t("smart.limit_hint")}</p>
+            </div>
+        {/if}
+    </div>
+
+    <div class="shrink-0 flex items-center justify-between gap-4 px-7 py-4 border-t border-(--rg-bd) bg-(--rg-creux)">
+        <div class="min-w-0 flex-1">
+            {#if let Some(error) = &f.error}
+                <p class="m-0 text-sm text-red-500 truncate" title={error.as_str()}>{error}</p>
+            {:else if f.counting}
+                <div class="text-sm text-(--rg-mu) flex items-center gap-2">
+                    <div class="flex animate-spin"><Icon icon="lucide:loader-2" width={14} /></div><div>{t("smart.counting")}</div>
+                </div>
+            {:else}
+                {#if let Some(c) = &f.count_lines()}
+                    <div class="flex items-baseline gap-2 text-(--rg-tx)">
+                        <div class="text-[22px] font-extrabold tabular-nums leading-none">{c.0}</div>
+                        <div class="text-sm text-(--rg-tx2)">{c.1}</div>
+                    </div>
+                    {#if let Some(x) = &c.2}
+                        {#if x.1}
+                            <p class="m-0 mt-1 text-xs text-(--rg-am)">{x.0}</p>
+                        {:else}
+                            <p class="m-0 mt-1 text-xs text-(--rg-mu)">{x.0}</p>
+                        {/if}
+                    {/if}
+                {/if}
+            {/if}
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+            <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx) transition-colors"
+                    onclick={Msg::ClosePopin}><div>{t("common.cancel")}</div></button>
+            {#if f.saving}
+                <div class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold flex items-center gap-2 bg-(--rg-g) text-(--rg-on-g) opacity-40 cursor-default">
+                    <Icon icon={smart_cta(f).0} width={18} /><div>{smart_cta(f).1}</div>
+                </div>
+            {:else}
+                <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 bg-(--rg-g) text-(--rg-on-g) hover:brightness-110 transition"
+                        onclick={Msg::Smart(SmartMsg::Submit)}>
+                    <Icon icon={smart_cta(f).0} width={18} /><div>{smart_cta(f).1}</div>
+                </button>
+            {/if}
+        </div>
+    </div>
+{/if}
+</div>

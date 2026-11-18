@@ -1,0 +1,122 @@
+<div class="biblio-maquette flex flex-col h-full relative">
+    {@include "../library/LibraryHeader.ui"}
+    <div class="flex-1 min-h-0 overflow-hidden">
+    {#if self.artists_empty()}
+        <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <div class="w-16 h-16 mb-5 rounded-full border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+                <Icon icon="material-symbols:mic-external-on-outline-rounded" width={30} />
+            </div>
+            <h3 class="text-base font-semibold text-(--rg-tx) mb-1.5">{t("library.no_artist")}</h3>
+            <p class="text-sm text-(--rg-mu) max-w-xs leading-relaxed mb-6">{t("library.no_artist_desc")}</p>
+            <div class="flex items-center gap-2">
+                <button class="h-10 px-4 flex items-center gap-2 rounded-[10px] text-sm font-bold cursor-pointer bg-(--rg-g) text-(--rg-on-g) hover:bg-[#34d673]"
+                        onclick={Msg::Library(LibraryMsg::AddFiles(self.library_id()))}>
+                    <Icon icon="material-symbols:upload-file-outline-rounded" width={18} /><div>{t("library.import_files")}</div>
+                </button>
+                <button class="h-10 px-4 flex items-center gap-2 rounded-[10px] text-sm font-semibold cursor-pointer border border-(--rg-bd2) text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-carte)"
+                        onclick={Msg::LibraryFolders(LibraryFoldersMsg::Open)}>
+                    <Icon icon="material-symbols:create-new-folder-outline-rounded" width={18} /><div>{t("library.import_folder")}</div>
+                </button>
+            </div>
+        </div>
+    {:else}
+    {#if let Some(av) = self.artists_view()}
+    {#each self.views.artists.iter() as page (page.library_id)}
+    <div class="flex flex-col h-full">
+        <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+                {#if let Some(m) = &av.modes}
+                    <div class="order-0 relative shrink-0 flex h-9.5 p-0.75 rounded-[11px] border bg-(--rg-carte) border-(--rg-bd)" role="radiogroup" aria-label={t("composers_view.mode_label")}>
+                        {#each [("artists", "composers_view.mode_artists", "material-symbols:artist-outline-rounded", m.0.clone()), ("composers", "composers_view.mode_composers", "material-symbols:stylus-note-rounded", m.1.clone())] as o (o.0)}
+                            {#if (o.0 == "composers") == av.by_composer}
+                                <button role="radio" aria-checked="true" class="relative z-1 flex items-center gap-2 h-full px-3 rounded-[8px] border text-[13px] font-semibold whitespace-nowrap cursor-pointer
+                                               bg-(--rg-gbg) border-(--rg-gbd) shadow-[0_1px_6px_rgba(0,0,0,0.12)] text-(--rg-gtx)"
+                                        title={t(o.1)} onclick={Msg::Artists(ArtistsMsg::Mode(o.0))}>
+                                    <Icon icon={o.2} width={18} />
+                                    <div class="@max-4xl:hidden">{t(o.1)}</div>
+                                    <div class="min-w-6 px-1.5 py-px rounded-full text-[11px] font-bold tabular-nums text-center bg-(--rg-g) text-(--rg-on-g) @max-4xl:hidden">{o.3}</div>
+                                </button>
+                            {:else}
+                                <button role="radio" aria-checked="false" class="relative z-1 flex items-center gap-2 h-full px-3 rounded-[8px] border border-transparent text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors
+                                               text-(--rg-mu) hover:text-(--rg-tx)"
+                                        title={t(o.1)} onclick={Msg::Artists(ArtistsMsg::Mode(o.0))}>
+                                    <Icon icon={o.2} width={18} />
+                                    <div class="@max-4xl:hidden">{t(o.1)}</div>
+                                    <div class="min-w-6 px-1.5 py-px rounded-full text-[11px] font-bold tabular-nums text-center bg-(--rg-s2) text-(--rg-mu) @max-4xl:hidden">{o.3}</div>
+                                </button>
+                            {/if}
+                        {/each}
+                    </div>
+                {/if}
+                <SearchField class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" value={page.search.clone()}
+                             placeholder={av.placeholder.clone()} clear_label={t("artists_view.clear_filters")} field={Field::ArtistsSearch} />
+
+                <div class="order-2 @max-2xl:order-4 @max-2xl:basis-full flex flex-wrap items-center gap-2.5">
+                    <FilterChip icon="material-symbols:no-accounts-outline-rounded" pressed={page.without_portrait} title={t("artists_view.no_portrait")} onclick={Msg::Artists(ArtistsMsg::NoPortrait)}>
+                        <div class="w-auto @max-6xl:hidden">{t("artists_view.no_portrait")}</div>
+                    </FilterChip>
+                    {#if page.active_filters()}
+                        <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={t("artists_view.clear_filters")} onclick={Msg::Artists(ArtistsMsg::ClearFilters)} />
+                    {/if}
+                </div>
+
+                <div class="order-3 flex-1 @max-6xl:hidden"></div>
+
+                <div class="order-3 flex items-center gap-2.5">
+                    <MenuSelect anchor="artists.sort" open={self.popup("artists.sort")} label={av.sort_label.clone()} icon={av.sort_icon} options={av.sorts.clone()} />
+                    <SegmentedControl subtle label={t("albums_view.grid_or_list")} options={av.views.clone()} />
+                    {#if !av.by_composer}
+                        <ToolbarButton icon="material-symbols:select-check-box-rounded" label={t("albums_view.select")} title={t("albums_view.select")} pressed={self.selecting()} onclick={Msg::Selection(SelectionMsg::Toggle)} />
+                    {/if}
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 relative min-h-0">
+            {#each [page.window.view] as view (view)}
+            <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16"
+                 onscroll={|s: ScrollMetrics| Msg::Artists(ArtistsMsg::Scrolled(s.offset, s.max_offset()))}>
+                {#if av.items.is_empty()}
+                    <EmptyResult message={t("artists_view.no_match")} clear_label={t("artists_view.clear_filters")}
+                                 onclear={if page.active_filters() {Some(Msg::Artists(ArtistsMsg::ClearFilters))} else {None}} />
+                {:else}
+                    {#if self.views.view_mode == ViewMode::Grid}
+                        <div class="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-x-5 gap-y-7 pt-3">
+                            {#each av.items as artist (artist.id.as_str())}
+                                <div class="relative min-w-0" memo={(debug_key(artist), av.target.as_deref() == Some(artist.id.as_str()), cx.resources.cover_id(&artist.portrait))} style:scroll_initial_target={av.target.as_deref() == Some(artist.id.as_str())}>{@include "ArtistCard.ui"}</div>
+                            {/each}
+                        </div>
+                    {:else}
+                        <div class="flex flex-col pt-2">
+                            {#each av.items as (i, artist) (artist.id.as_str())}
+                                <div class="flex flex-col" memo={(i, debug_key(artist), av.target.as_deref() == Some(artist.id.as_str()), cx.resources.cover_id(&artist.portrait))} style:scroll_initial_target={av.target.as_deref() == Some(artist.id.as_str())}>{@include "ArtistRow.ui"}</div>
+                            {/each}
+                        </div>
+                    {/if}
+                {/if}
+            </div>
+            {/each}
+
+            {#if page.sort == "name" && !av.items.is_empty()}
+                <div class="absolute right-2.5 inset-y-2 z-20 flex items-center pointer-events-none">
+                    <div class="pointer-events-auto max-h-full overflow-hidden flex flex-col items-center py-1.5 px-0.75 rounded-xl
+                                bg-(--rg-carte)/70 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-none">
+                        {#each av.letters as l (l.0)}
+                            {#if l.1}
+                                <button class="w-5.5 h-4.75 min-h-0 shrink flex items-center justify-center text-[11px] leading-none font-bold rounded-[5px] transition-all duration-150
+                                               text-(--rg-tx2) hover:bg-(--rg-g) hover:text-(--rg-on-g) cursor-pointer"
+                                        onclick={Msg::Artists(ArtistsMsg::Letter(l.0.to_string()))}><div>{l.0}</div></button>
+                            {:else}
+                                <div class="w-5.5 h-4.75 min-h-0 shrink flex items-center justify-center text-[11px] leading-none font-bold rounded-[5px] text-(--rg-bd2) cursor-default">{l.0}</div>
+                            {/if}
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+        </div>
+    </div>
+    {/each}
+    {/if}
+    {/if}
+    </div>
+</div>

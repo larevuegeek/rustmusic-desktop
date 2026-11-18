@@ -1,0 +1,50 @@
+<button class="group relative w-full grid items-center gap-4 py-2 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors
+               grid-cols-[56px_minmax(0,1fr)_90px_90px_90px_110px] max-[900px]:grid-cols-[48px_minmax(0,1fr)_80px_40px] hover:bg-(--rg-carte)"
+        onclick={Msg::Go(artist.route.clone())}>
+    {#if i > 0}
+        <div class="absolute top-0 left-19 right-3 h-px bg-(--rg-line) group-hover:opacity-0"></div>
+    {/if}
+    <div class="relative w-14 h-14 max-[900px]:w-12 max-[900px]:h-12 rounded-full overflow-hidden bg-(--rg-s2) shadow-[0_4px_12px_rgba(0,0,0,0.2)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+        {#if artist.portrait.is_some()}
+            <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&artist.portrait)} alt="">
+        {:else if artist.avatar.is_some()}
+            {#if let Some(av) = &artist.avatar}
+                <div class="avatar-artiste w-full h-full rounded-full flex items-center justify-center font-bold text-[18px]" style:--h={av.1}>{av.0}</div>
+            {/if}
+        {:else}
+            <div class="absolute inset-0 rounded-full flex items-center justify-center text-(--rg-mu2) shadow-[inset_0_0_0_1px_var(--rg-bd)] bg-(--rg-s2)">
+                <Icon icon="material-symbols:person-outline-rounded" width={22} />
+            </div>
+        {/if}
+        <button class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                title={t("artists_view.play")} aria-label={t_with("artists_view.play_named", &[("name", &artist.name)])} onclick={artist.play.clone()}>
+            <div class="w-8 h-8 rounded-full flex items-center justify-center bg-(--rg-g) text-(--rg-on-g)">
+                <Icon icon="material-symbols:play-arrow-rounded" width={20} />
+            </div>
+        </button>
+    </div>
+
+    <div class="min-w-0 truncate text-base font-semibold text-(--rg-tx)">{artist.name}</div>
+
+    <div class="flex justify-end gap-1 text-[13px] tabular-nums whitespace-nowrap text-(--rg-mu)">
+        <div class="font-medium text-(--rg-tx2)">{artist.albums_n}</div><div>{artist.albums_label}</div>
+    </div>
+    <div class="flex justify-end gap-1 text-[13px] tabular-nums whitespace-nowrap text-(--rg-mu) max-[900px]:hidden">
+        <div class="font-medium text-(--rg-tx2)">{artist.tracks_n}</div><div>{artist.tracks_label}</div>
+    </div>
+    <div class="text-right text-[13px] tabular-nums whitespace-nowrap text-(--rg-mu) max-[900px]:hidden">{artist.duration}</div>
+
+    <div class="flex items-center justify-end gap-0.5">
+        <button class="w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100 max-[900px]:hidden"
+                title={t("artists_view.enqueue")} aria-label={t("artists_view.enqueue")} onclick={artist.enqueue.clone()}>
+            <Icon icon="material-symbols:queue-music-rounded" width={19} />
+        </button>
+        <button class="w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100 max-[900px]:hidden"
+                title={t("artists_view.more")} aria-label={t("artists_view.more")} onclick={Msg::Noop}>
+            <Icon icon="material-symbols:more-horiz" width={19} />
+        </button>
+        <div class="w-8.5 h-8.5 flex items-center justify-center text-(--rg-mu2) group-hover:text-(--rg-tx2)" title={t("artists_view.open")}>
+            <Icon icon="material-symbols:chevron-right-rounded" width={19} />
+        </div>
+    </div>
+</button>

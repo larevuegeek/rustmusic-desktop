@@ -1,0 +1,151 @@
+<div class="h-full overflow-y-auto scrollbar-app py-6 px-4 md:px-10">
+    {@const fv = self.feedback_view()}
+    <div class="@container max-w-5xl mx-auto flex flex-col gap-10 pb-16" style:margin_top={-self.export_offset}>
+        <div class="flex items-center gap-3">
+            <button class="w-9 h-9 flex items-center justify-center rounded-[10px] cursor-pointer transition-colors text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                    aria-label={t("settings.back")} title={t("settings.back")} onclick={Msg::Back}>
+                <Icon icon="material-symbols:arrow-back-rounded" width={20} />
+            </button>
+            <h1 class="m-0 text-[28px] font-extrabold tracking-tight text-(--rg-tx)">{t("feedback.title")}</h1>
+        </div>
+
+        <div class="relative overflow-hidden rounded-3xl border px-8 py-10 @3xl:px-12 @3xl:py-12 bg-(--rg-carte) border-(--rg-bd)">
+            <div class="absolute -top-32 -right-20 w-[420px] h-[420px] rounded-full blur-[120px] opacity-25 bg-green-500"></div>
+            <div class="absolute -bottom-40 -left-24 w-80 h-80 rounded-full blur-[120px] opacity-10 bg-sky-500"></div>
+            <div class="relative flex flex-col gap-4 max-w-2xl">
+                <div class="flex">
+                    <div class="h-7 px-3 flex items-center gap-1.5 rounded-full border text-[11px] font-bold uppercase tracking-[0.12em] bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-gtx)">
+                        <Icon icon="lucide:message-square-heart" width={14} />
+                        <div>{t("feedback.kicker")}</div>
+                    </div>
+                </div>
+                <h2 class="m-0 text-[34px] @3xl:text-[40px] font-extrabold tracking-[-0.02em] leading-[1.1] text-(--rg-tx)">{t("feedback.intro_title")}</h2>
+                <p class="m-0 text-[15px] leading-relaxed text-(--rg-tx2)">{t("feedback.intro_desc")}</p>
+            </div>
+        </div>
+
+        <section class="flex flex-col gap-4">
+            <h3 class="m-0 text-[11px] font-bold uppercase tracking-[0.12em] text-(--rg-mu)">{t("feedback.channels")}</h3>
+            <div class="grid grid-cols-1 @3xl:grid-cols-3 gap-4">
+                <button class="group relative overflow-hidden flex flex-col items-start gap-4 p-6 rounded-2xl border text-left cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-rose-500/40"
+                        onclick={Msg::Settings(SettingsMsg::OpenUrl(crate::mapper::feedback::ISSUES_URL))}>
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center border bg-rose-500/10 border-rose-500/25 text-rose-600 dark:text-rose-300">
+                        <Icon icon="material-symbols:bug-report-outline-rounded" width={24} />
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <div class="text-[17px] font-bold text-(--rg-tx)">{t("feedback.bug_title")}</div>
+                        <p class="m-0 text-[13px] leading-relaxed text-(--rg-mu)">{t("feedback.bug_desc")}</p>
+                    </div>
+                    <div class="mt-auto flex items-center gap-1.5 text-[13px] font-semibold text-(--rg-tx2) group-hover:text-(--rg-tx)">
+                        <Icon icon="simple-icons:github" width={15} />
+                        <div>{t("feedback.bug_cta")}</div>
+                        <div class="flex transition-transform group-hover:translate-x-0.5"><Icon icon="lucide:arrow-right" width={14} /></div>
+                    </div>
+                </button>
+                <button class="group relative overflow-hidden flex flex-col items-start gap-4 p-6 rounded-2xl border text-left cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-amber-500/40"
+                        onclick={Msg::Settings(SettingsMsg::OpenUrl(crate::mapper::feedback::ISSUES_URL))}>
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center border bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-300">
+                        <Icon icon="material-symbols:lightbulb-outline-rounded" width={24} />
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <div class="text-[17px] font-bold text-(--rg-tx)">{t("feedback.idea_title")}</div>
+                        <p class="m-0 text-[13px] leading-relaxed text-(--rg-mu)">{t("feedback.idea_desc")}</p>
+                    </div>
+                    <div class="mt-auto flex items-center gap-1.5 text-[13px] font-semibold text-(--rg-tx2) group-hover:text-(--rg-tx)">
+                        <Icon icon="simple-icons:github" width={15} />
+                        <div>{t("feedback.idea_cta")}</div>
+                        <div class="flex transition-transform group-hover:translate-x-0.5"><Icon icon="lucide:arrow-right" width={14} /></div>
+                    </div>
+                </button>
+                <div class="group relative overflow-hidden flex flex-col items-start gap-4 p-6 rounded-2xl border transition-colors bg-(--rg-carte) border-(--rg-bd) hover:border-(--rg-gbd)">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center border bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+                        <Icon icon="material-symbols:mail-outline-rounded" width={24} />
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <div class="text-[17px] font-bold text-(--rg-tx)">{t("feedback.email_title")}</div>
+                        <p class="m-0 text-[13px] leading-relaxed text-(--rg-mu)">{t("feedback.email_desc")}</p>
+                    </div>
+                    <div class="mt-auto w-full flex items-center gap-2">
+                        <button class="h-8.5 min-w-0 flex-1 px-3 flex items-center gap-1.5 rounded-lg cursor-pointer transition-colors text-[13px] font-semibold bg-(--rg-g) text-(--rg-on-g) hover:bg-[#34d673]"
+                                onclick={Msg::Settings(SettingsMsg::OpenUrl("mailto:contact@rustmusic.dev"))}>
+                            <div class="truncate font-mono text-[12px]">{crate::mapper::feedback::CONTACT_EMAIL}</div>
+                        </button>
+                        <button class="w-8.5 h-8.5 shrink-0 flex items-center justify-center rounded-lg border cursor-pointer transition-colors border-(--rg-bd) text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                                title={t("feedback.copy_email")} aria-label={t("feedback.copy_email")}
+                                onclick={Msg::CopyText(crate::mapper::feedback::CONTACT_EMAIL.to_string())}>
+                            <Icon icon="material-symbols:content-copy-outline-rounded" width={15} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 @4xl:grid-cols-[1.25fr_1fr] gap-4">
+            <section class="flex flex-col gap-5 p-6 rounded-2xl border bg-(--rg-carte) border-(--rg-bd)">
+                <div>
+                    <h3 class="m-0 text-[17px] font-bold text-(--rg-tx)">{t("feedback.report_title")}</h3>
+                    <p class="m-0 mt-1 text-[13px] text-(--rg-mu)">{t("feedback.report_hint")}</p>
+                </div>
+                <div class="grid grid-cols-1 @2xl:grid-cols-2 gap-x-6 gap-y-5">
+                    {#each [(1, "feedback.step_doing", "feedback.step_doing_desc"), (2, "feedback.step_happened", "feedback.step_happened_desc"), (3, "feedback.step_expected", "feedback.step_expected_desc"), (4, "feedback.step_repeat", "feedback.step_repeat_desc")] as step (step.0)}
+                        <div class="flex gap-3">
+                            <div class="w-7 h-7 shrink-0 rounded-full flex items-center justify-center font-mono text-[12px] font-bold bg-(--rg-gbg) text-(--rg-gtx)">{step.0}</div>
+                            <div class="min-w-0 flex flex-col gap-0.5 pt-0.5">
+                                <div class="text-[14px] font-semibold text-(--rg-tx)">{t(step.1)}</div>
+                                <p class="m-0 text-[12.5px] leading-relaxed text-(--rg-mu)">{t(step.2)}</p>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </section>
+
+            <section class="flex flex-col gap-4 p-6 rounded-2xl border bg-(--rg-carte) border-(--rg-bd)">
+                <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center border bg-(--rg-creux) border-(--rg-line) text-(--rg-tx2)">
+                        <Icon icon="material-symbols:terminal-rounded" width={18} />
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="m-0 text-[17px] font-bold text-(--rg-tx)">{t("feedback.diag_title")}</h3>
+                        <p class="m-0 mt-1 text-[12.5px] leading-relaxed text-(--rg-mu)">{t("feedback.diag_hint")}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col rounded-xl border overflow-hidden bg-(--rg-creux) border-(--rg-line)">
+                    {#each fv.diagnostics as (i, d) (i)}
+                        {#if i == 0}
+                            <div class="flex items-center gap-3 px-3.5 py-2.5">
+                                <div class="w-28 shrink-0 text-[12px] text-(--rg-mu)">{d.0}</div>
+                                <div class="min-w-0 truncate font-mono text-[12px] text-(--rg-tx)" title={d.1.as_str()}>{d.1}</div>
+                            </div>
+                        {:else}
+                            <div class="flex items-center gap-3 px-3.5 py-2.5 border-t border-(--rg-line)">
+                                <div class="w-28 shrink-0 text-[12px] text-(--rg-mu)">{d.0}</div>
+                                <div class="min-w-0 truncate font-mono text-[12px] text-(--rg-tx)" title={d.1.as_str()}>{d.1}</div>
+                            </div>
+                        {/if}
+                    {/each}
+                </div>
+                <button class="self-start h-8.5 px-3 flex items-center gap-1.5 rounded-lg border cursor-pointer transition-colors text-[13px] font-semibold border-(--rg-bd) text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                        onclick={Msg::CopyText(fv.clipboard.clone())}>
+                    <Icon icon="material-symbols:content-copy-outline-rounded" width={15} />
+                    <div>{t("feedback.diag_copy")}</div>
+                </button>
+            </section>
+        </div>
+
+        <div class="relative overflow-hidden flex flex-wrap items-center gap-5 px-6 py-5 rounded-2xl border bg-(--rg-carte) border-(--rg-bd)">
+            <div class="absolute -top-20 -left-10 w-60 h-60 rounded-full blur-[90px] opacity-10 bg-amber-500"></div>
+            <div class="relative w-11 h-11 shrink-0 rounded-xl flex items-center justify-center bg-(--rg-creux) text-(--rg-tx)">
+                <Icon icon="simple-icons:github" width={22} />
+            </div>
+            <div class="relative min-w-0 flex-1">
+                <div class="text-[15px] font-bold text-(--rg-tx)">{t("feedback.star_title")}</div>
+                <p class="m-0 mt-0.5 text-[13px] text-(--rg-mu)">{t("feedback.star_desc")}</p>
+            </div>
+            <button class="relative h-9 px-3.5 flex items-center gap-2 rounded-lg border cursor-pointer transition-colors text-[13px] font-semibold bg-(--rg-creux) border-(--rg-line) text-(--rg-tx2) hover:text-(--rg-tx) hover:border-(--rg-bd2)"
+                    onclick={Msg::Settings(SettingsMsg::OpenUrl(crate::mapper::feedback::REPOSITORY_URL))}>
+                <Icon icon="lucide:star" width={15} />
+                <div>{t("feedback.star_cta")}</div>
+            </button>
+        </div>
+    </div>
+</div>

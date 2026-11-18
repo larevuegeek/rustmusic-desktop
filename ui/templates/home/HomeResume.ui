@@ -1,0 +1,124 @@
+{#each vm.hero as f (f.path.as_str())}
+<section class="hero-reprise relative overflow-hidden rounded-[20px] text-[#1a1c1a] dark:text-white
+                grid items-center gap-6 p-6 grid-cols-1
+                @2xl:grid-cols-[160px_minmax(0,1fr)]
+                @3xl:grid-cols-[176px_minmax(0,1fr)_250px]
+                @5xl:grid-cols-[220px_minmax(0,1fr)_260px] @5xl:gap-8 @5xl:p-8
+                @7xl:grid-cols-[260px_minmax(0,1fr)_300px]">
+
+    <div class="hero-fond absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div class="w-full h-full scale-125">
+            <img class="w-full h-full object-cover opacity-80 dark:hidden blur-[60px] saturate-[2.4]" src={cx.resources.cover_opt(&f.cover_path)} alt="">
+            <img class="w-full h-full object-cover opacity-80 hidden dark:block blur-[60px] saturate-[1.4]" src={cx.resources.cover_opt(&f.cover_path)} alt="">
+        </div>
+    </div>
+    <div class="hero-voile absolute inset-0 pointer-events-none" aria-hidden="true"></div>
+
+    <button class="group relative w-36 @2xl:w-full aspect-square rounded-xl overflow-hidden bg-white/5 cursor-pointer
+                   shadow-[0_18px_40px_rgba(0,0,0,0.2)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.5)] disabled:cursor-wait"
+            onclick={if vm.hero_loaded {Msg::TogglePlay} else {Msg::PlayRecent(f.path.clone())}}
+            aria-label={if vm.hero_loaded && self.playing() {t("home.pause_short")} else {t("home.play")}}>
+        <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&f.cover_path)} alt={f.album.as_str()}>
+        <div class="absolute inset-0 flex items-center justify-center bg-black/35
+                    opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div class="w-16 h-16 rounded-full bg-accent-500 text-(--rg-on-g) flex items-center justify-center shadow-xl">
+                <Icon icon={if vm.hero_loaded && self.playing() {"mynaui:pause-solid"} else {"mynaui:play-solid"}} width={28} />
+            </div>
+        </div>
+    </button>
+
+    <div class="relative flex flex-col gap-2.5 min-w-0">
+        <div class="text-[13px] font-semibold uppercase tracking-[0.08em] text-black/55 dark:text-white/75 truncate">{if !vm.hero_loaded {t("podcasts.resume_listening")} else if self.playing() {t("home.now_playing")} else {t("home.paused")}}</div>
+
+        <h2 class="text-[28px] @3xl:text-[32px] @5xl:text-[38px] @7xl:text-[44px]
+                   font-extrabold tracking-[-0.025em] leading-[1.05] line-clamp-2" title={f.title.as_str()}>{f.title}</h2>
+
+        <div class="text-[16px] @5xl:text-[18px] @7xl:text-[19px] text-[#3d403c] dark:text-white/85 truncate"
+             title={[f.artist_name.as_str(), f.album.as_str(), f.year.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" · ")}>{[f.artist_name.as_str(), f.album.as_str(), f.year.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" · ")}</div>
+
+        <div class="flex items-center gap-3 mt-2.5 text-sm font-mono [.home-maquette_&]:font-(family-name:--font-mono) tabular-nums text-[#5e625d] dark:text-white/75">
+            <div class="whitespace-nowrap">{vm.hero_position_label}</div>
+            <div class="flex-1 h-[5px] rounded-full overflow-hidden bg-black/10 dark:bg-white/18">
+                <div class="h-full bg-[#1a1c1a] dark:bg-white rounded-full" style:width={Length::Percent(if f.duration > 0. {(vm.hero_position / f.duration * 100.).min(100.) as f32} else {0.})}></div>
+            </div>
+            <div class="whitespace-nowrap">{f.duration_label}</div>
+        </div>
+
+        <div class="flex items-center gap-3 mt-3">
+            <button id="resume.play"
+                    class="h-[52px] px-[26px] rounded-full bg-[#1a1c1a] hover:bg-black text-white dark:bg-accent-500 dark:hover:bg-accent-400 dark:text-(--rg-on-g)
+                           font-bold text-[17px] flex items-center gap-2.5 cursor-pointer transition-colors shrink-0
+                           disabled:opacity-60 disabled:cursor-wait"
+                    onclick={if vm.hero_loaded {Msg::TogglePlay} else {Msg::PlayRecent(f.path.clone())}}>
+                <Icon icon={if vm.hero_loaded && self.playing() {"mynaui:pause-solid"} else {"mynaui:play-solid"}} width={20} />
+                <div class="w-auto whitespace-nowrap">{if vm.hero_loaded && self.playing() {t("home.pause_short")} else if vm.hero_loaded {t("home.play")} else {t("home.resume_at")}}</div>
+            </button>
+
+            <button class="flex @3xl:hidden @7xl:flex items-center h-[52px] px-[22px] rounded-full
+                           bg-white/70 hover:bg-white border border-black/8 text-[#1a1c1a]
+                           dark:bg-white/10 dark:hover:bg-white/16 dark:border-transparent dark:text-white whitespace-nowrap font-semibold text-base
+                           cursor-pointer transition-colors min-w-0 disabled:opacity-60 disabled:cursor-wait"
+                    onclick={Msg::PlayAlbumOf(f.path.clone(), true)}>
+                <div class="truncate min-w-0">{t("home.play_album")}</div>
+            </button>
+            <button class="hidden @3xl:flex @7xl:hidden shrink-0 w-[52px] h-[52px] rounded-full items-center justify-center
+                           bg-white/70 hover:bg-white border border-black/8 text-[#1a1c1a]
+                           dark:bg-white/10 dark:hover:bg-white/16 dark:border-transparent dark:text-white cursor-pointer transition-colors
+                           disabled:opacity-60 disabled:cursor-wait"
+                    onclick={Msg::PlayAlbumOf(f.path.clone(), true)} aria-label={t("home.play_album")} title={t("home.play_album")}>
+                <Icon icon="lucide:disc-3" width={20} />
+            </button>
+
+            {#if self.is_liked(&f.path)}
+                <button class="favori shrink-0 w-[52px] h-[52px] rounded-full flex items-center justify-center cursor-pointer
+                               bg-white/70 hover:bg-white border border-black/8 dark:bg-white/10 dark:hover:bg-white/16 dark:border-transparent transition-colors
+                               text-pink-500 dark:text-pink-400"
+                        onclick={Msg::Like(f.path.clone())} aria-label={t("home.like")} title={t("home.like")}>
+                    <Icon icon="mynaui:heart-solid" width={20} />
+                </button>
+            {:else}
+                <button class="favori shrink-0 w-[52px] h-[52px] rounded-full flex items-center justify-center cursor-pointer
+                               bg-white/70 hover:bg-white border border-black/8 dark:bg-white/10 dark:hover:bg-white/16 dark:border-transparent transition-colors
+                               text-[#1a1c1a] dark:text-white"
+                        onclick={Msg::Like(f.path.clone())} aria-label={t("home.like")} title={t("home.like")}>
+                    <Icon icon="mynaui:heart" width={20} />
+                </button>
+            {/if}
+        </div>
+    </div>
+
+    {#if !vm.up_next.is_empty()}
+    <div class="ensuite-panneau relative self-center min-w-0 col-span-full @3xl:col-span-1
+                rounded-2xl p-3.5 @5xl:p-4">
+        <div class="flex items-center justify-between gap-3 px-1.5 mb-1.5">
+            <div class="text-[11.5px] font-bold uppercase tracking-[0.11em] text-[#5e625d] dark:text-white/60 truncate min-w-0">{t("home.up_next")}</div>
+            <button class="shrink-0 text-[12px] font-semibold text-accent-700 hover:text-accent-800 dark:text-emerald-400 dark:hover:text-emerald-300 cursor-pointer transition-colors"
+                    onclick={Msg::Menu(Menu::File)}><div>{t("home.see_queue")}</div></button>
+        </div>
+        <div class="grid grid-cols-1 @2xl:grid-cols-2 @3xl:grid-cols-1 gap-x-3">
+            {#each vm.up_next as c (c.key.as_str())}
+                <button class="group grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 text-left
+                               rounded-xl px-1.5 py-1.5 cursor-pointer w-full min-w-0
+                               hover:bg-black/[0.04] dark:hover:bg-white/[0.07] transition-colors duration-150"
+                        onclick={c.launch.msg()} title={c.title.as_str()}>
+                    <div class="relative w-11 h-11 rounded-lg overflow-hidden bg-black/5 dark:bg-white/10
+                                shadow-[0_4px_10px_rgba(0,0,0,0.12)] dark:shadow-[0_6px_16px_rgba(0,0,0,0.4)]">
+                        <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&c.cover_path)} alt="">
+                        <div class="absolute inset-0 flex items-center justify-center bg-black/55 text-white
+                                    opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                            <Icon icon="mynaui:play-solid" width={16} />
+                        </div>
+                    </div>
+                    <div class="min-w-0 flex flex-col gap-px">
+                        <div class="text-[14px] font-semibold leading-tight text-[#1a1c1a] dark:text-white truncate">{c.title}</div>
+                        <div class="text-[12.5px] leading-tight text-[#5e625d] dark:text-white/55 truncate">{c.artist_name}</div>
+                    </div>
+                    <span class="hidden @5xl:inline text-[12px] font-mono [.home-maquette_&]:font-(family-name:--font-mono) tabular-nums text-[#5e625d] group-hover:text-[#1a1c1a]
+                                 dark:text-white/45 dark:group-hover:text-white/80 transition-colors whitespace-nowrap">{c.duration_label}</span>
+                </button>
+            {/each}
+        </div>
+    </div>
+    {/if}
+</section>
+{/each}

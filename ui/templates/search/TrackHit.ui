@@ -1,0 +1,24 @@
+<div class="group w-full grid grid-cols-[28px_44px_minmax(0,1fr)_auto_44px_32px] items-center gap-3 px-2.5 py-2 rounded-xl transition-colors hover:bg-(--rg-hover)">
+    <button class="w-7 h-7 flex items-center justify-center rounded-full cursor-pointer text-[13px] tabular-nums text-(--rg-mu)" aria-label={t("home.play")}
+            onclick={Msg::SearchPage(SearchMsg::Open(r.n))}>
+        <div class="group-hover:hidden">{i + 1}</div>
+        <div class="hidden group-hover:block text-(--rg-g)"><Icon icon="material-symbols:play-arrow-rounded" width={22} /></div>
+    </button>
+    {#if r.cover.is_some()}
+        <img class="w-11 h-11 rounded-lg object-cover" src={cx.resources.cover_small(&r.cover)} alt="">
+    {:else}
+        <div class="w-11 h-11 rounded-lg flex items-center justify-center bg-(--rg-s2) text-(--rg-mu)"><Icon icon="material-symbols:music-note-rounded" width={18} /></div>
+    {/if}
+    <div class="min-w-0">
+        <div class="text-[14px] font-semibold truncate text-(--rg-tx)" title={r.title.as_str()}>{r.title}</div>
+        <div class="text-[12.5px] truncate text-(--rg-mu)">{r.subtitle}</div>
+    </div>
+    <div class="max-md:hidden">
+        {#if let Some(q) = &r.quality}<QualityBadge tier={q.0} text={q.1.clone()} />{/if}
+    </div>
+    <div class="text-right text-[13px] tabular-nums text-(--rg-mu)">{r.duration}</div>
+    <button class="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+            aria-label={t("tracks_view.more")} onclick={Msg::Noop}>
+        <Icon icon="material-symbols:more-horiz" width={20} />
+    </button>
+</div>

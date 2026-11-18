@@ -1,0 +1,165 @@
+/* Variantes du thème de RustMusic (src/app.css) : `theme.css` et `tokens.css` posent l'état
+   de référence (sombre, contraste élevé) ; ces blocs le remplacent pour les autres états.
+   Compilés dans `css::root_variables(sombre, contraste_élevé)`, passé au contexte des
+   templates, et lus aussi par les dégradés et les ombres (à la construction de la vue).
+   Ordre des blocs : contraste normal, thème clair, puis clair + contraste élevé. */
+
+/* Contraste normal (sombre). `.dark`, `.dark .sidebar`, `.dark .lecteur`, `.dark .mini-lecteur`
+   sans leur surcharge `[data-contrast="high"]`. */
+@media (prefers-contrast: no-preference) {
+    :root {
+        --neutral-300: oklch(87% 0 0);
+        --neutral-400: oklch(70.8% 0 0);
+        --neutral-500: oklch(55.6% 0 0);
+        --neutral-600: oklch(43.9% 0 0);
+        --sb-tx: #f2f5f3;
+        --sb-tx2: #b7c0bb;
+        --sb-mu: #8b948f;
+        --sb-mu2: #6b746f;
+        --sb-hd: #9aa39e;
+        --rg-tx: #f2f5f3;
+        --rg-tx2: #cfd6d2;
+        --rg-nav: #e3e8e5;
+        --rg-sous: #9aa39e;
+        --rg-mu: #8b948f;
+        --rg-mu2: #6b746f;
+        --rg-ph: #7d8681;
+        --rg-muted2: #6b746f;
+        --lc-tx: #f4f6f5;
+        --lc-tx2: #c9d0cc;
+        --lc-mu: #848d88;
+        --lc-mu2: #5f6863;
+        --lc-ic: rgb(255 255 255 / 0.6);
+        --lc-ly: rgb(255 255 255 / 0.28);
+        --lc-ly-passe: rgb(255 255 255 / 0.45);
+    }
+}
+
+/* Thème clair, contraste normal : `:root`, `.sidebar`, `.lecteur`, `.mini-lecteur`
+   (teinte de pochette figée à --lh 267, --ls 0.07 comme le mode sombre, voir theme.css). */
+@media (prefers-color-scheme: light) {
+    :root {
+        --neutral-300: oklch(87% 0 0);
+        --neutral-400: oklch(70.8% 0 0);
+        --neutral-500: oklch(55.6% 0 0);
+        --neutral-600: oklch(43.9% 0 0);
+
+        --sb-bg: #efece5;
+        --sb-s1: #f8f6f1;
+        --sb-s2: #ebe7df;
+        --sb-hover: #e8e4dc;
+        --sb-bd: #e2ddd3;
+        --sb-bd2: #cfc9bd;
+        --sb-sep: #e2ddd3;
+        --sb-tx: #1a1c1a;
+        --sb-tx2: #3d403c;
+        --sb-mu: #5e625d;
+        --sb-mu2: #6f736d;
+        --sb-hd: #5e625d;
+        --sb-g: #166534;
+        --sb-gbg: #dcefe1;
+        --sb-gbd: #dcefe1;
+        --sb-point: #16a34a;
+        --sb-pied: #f8f6f1;
+        --sb-piedbd: #e2ddd3;
+
+        --rg-bg: #f6f4ef;
+        --rg-aside: #efece5;
+        --rg-aside-bd: #e2ddd3;
+        --rg-champ: #f8f6f1;
+        --rg-carte: #ffffff;
+        --rg-s2: #f1eee8;
+        --rg-hover: #faf8f4;
+        --rg-bd: #e2ddd3;
+        --rg-bd2: #cfc9bd;
+        --rg-line: #eeeae3;
+        --rg-tx: #1a1c1a;
+        --rg-tx2: #3d403c;
+        --rg-nav: #262925;
+        --rg-sous: #5e625d;
+        --rg-mu: #5e625d;
+        --rg-mu2: #6f736d;
+        --rg-ph: #8a8e88;
+        --rg-muted2: #6f736d;
+        --rg-g: #16a34a;
+        --rg-gtx: #166534;
+        --rg-gbg: #dcefe1;
+        --rg-gbd: #bcdcc6;
+        --rg-off: #d3cdc1;
+        --rg-ver: #f8f6f1;
+        --rg-verbd: #e2ddd3;
+        --rg-creux: #f8f6f1;
+        --rg-creux-on: #eef6f0;
+        --rg-on-g: #04140a;
+        --rg-am: #b86e00;
+        --rg-ambg: #fdf3e2;
+        --rg-ambd: #f0d7a8;
+        --rg-amtx: #6b4204;
+
+        --lc-acc: oklch(0.5 0.0098 267);
+        --lc-play: oklch(0.55 0.0105 267);
+        --lc-play-tx: #ffffff;
+        --lc-tx: #1a1c1a;
+        --lc-tx2: #3d403c;
+        --lc-mu: #5e625d;
+        --lc-mu2: #8a8e88;
+        --lc-ic: rgb(0 0 0 / 0.55);
+        --lc-ic-fort: rgb(0 0 0 / 0.85);
+        --lc-survol: rgb(0 0 0 / 0.05);
+        --lc-rail: rgb(0 0 0 / 0.12);
+        --lc-trait: rgb(0 0 0 / 0.08);
+        --lc-fmt-bg: oklch(0.87 0.0042 267);
+        --lc-fmt-tx: oklch(0.36 0.007 267);
+        --lc-statut: oklch(0.93 0.0021 267 / 0.7);
+        --lc-statut-bd: oklch(0.8 0.0028 267 / 0.5);
+        --lc-fond-1: oklch(0.9 0.0042 267);
+        --lc-fond-2: oklch(0.95 0.0021 267);
+        --lc-fond-3: oklch(0.975 0.00084 267);
+        --lc-ombre: oklch(0.45 0.0042 267 / 0.16);
+        --lc-reflet: rgb(255 255 255 / 0.7);
+        --lc-lisere: oklch(0.78 0.0035 267 / 0.6);
+        --mf-1: oklch(0.88 0.0049 267);
+        --mf-2: oklch(0.95 0.0021 267);
+        --mf-3: oklch(0.975 0.00084 267);
+        --lc-menu: #ffffff;
+        --lc-menu-bd: #e2ddd3;
+        --lc-seg: rgb(0 0 0 / 0.05);
+        --lc-seg-bd: rgb(0 0 0 / 0.06);
+        --lc-seg-on: #ffffff;
+        --lc-panneau: rgb(255 255 255 / 0.35);
+        --lc-encours: oklch(0.86 0.0042 267 / 0.6);
+        --lc-ly: rgb(0 0 0 / 0.3);
+        --lc-ly-passe: rgb(0 0 0 / 0.5);
+    }
+}
+
+/* Thème clair, contraste élevé : `:root[data-contrast="high"]`, `.sidebar`, `.lecteur`,
+   `.mini-lecteur` (les gris secondaires deviennent plus sombres, seul le texte monte). */
+@media (prefers-color-scheme: light) and (prefers-contrast: more) {
+    :root {
+        --neutral-300: oklch(0.55 0 0);
+        --neutral-400: oklch(0.45 0 0);
+        --neutral-500: oklch(0.38 0 0);
+        --neutral-600: oklch(0.32 0 0);
+        --sb-tx: #000000;
+        --sb-tx2: #262d29;
+        --sb-mu: #4a534e;
+        --sb-mu2: #4a534e;
+        --sb-hd: #3a433e;
+        --rg-tx: #000000;
+        --rg-tx2: #1f2421;
+        --rg-nav: #000000;
+        --rg-sous: #262d29;
+        --rg-mu: #3a433e;
+        --rg-mu2: #4a534e;
+        --rg-ph: #4a534e;
+        --rg-muted2: #4a534e;
+        --lc-tx: #000000;
+        --lc-tx2: #1f2421;
+        --lc-mu: #3a433e;
+        --lc-mu2: #4a534e;
+        --lc-ic: rgb(0 0 0 / 0.8);
+        --lc-ly: rgb(0 0 0 / 0.55);
+        --lc-ly-passe: rgb(0 0 0 / 0.72);
+    }
+}

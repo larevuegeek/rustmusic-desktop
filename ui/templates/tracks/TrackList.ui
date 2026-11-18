@@ -1,0 +1,119 @@
+<div class="biblio-maquette flex flex-col h-full relative">
+    {@include "../library/LibraryHeader.ui"}
+    <div class="flex-1 min-h-0 overflow-hidden">
+    {#if let Some(tv) = self.tracks_view()}
+    {#each self.views.tracks.iter() as page (page.library_id)}
+    <div class="flex flex-col h-full">
+        <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+                <SearchField class="order-1 w-65 @max-6xl:w-auto @max-6xl:flex-1 min-w-36" value={page.search.clone()}
+                             placeholder={t("tracks_view.search")} clear_label={t("tracks_view.clear_filters")} field={Field::TracksSearch} />
+
+                <div class="order-2 @max-6xl:order-4 @max-6xl:basis-full flex flex-wrap items-center gap-2.5">
+                    <FilterChip icon="material-symbols:high-quality-outline-rounded" pressed={page.hires} title={t("tracks_view.hires")} onclick={Msg::Tracks(TracksMsg::Hires)}>
+                        <div class="w-auto @max-xl:hidden">{t("tracks_view.hires")}</div>
+                    </FilterChip>
+                    <FilterChip icon="material-symbols:graphic-eq-rounded" pressed={page.lossless} title={t("tracks_view.lossless")} onclick={Msg::Tracks(TracksMsg::Lossless)}>
+                        <div class="w-auto @max-xl:hidden">{t("tracks_view.lossless")}</div>
+                    </FilterChip>
+                    <FilterChip icon="material-symbols:favorite-outline-rounded" pressed={page.favorites} title={t("tracks_view.favorites")} onclick={Msg::Tracks(TracksMsg::Favorites)}>
+                        <div class="w-auto @max-xl:hidden">{t("tracks_view.favorites")}</div>
+                    </FilterChip>
+                    <FilterChip icon="material-symbols:hide-image-outline-rounded" pressed={page.without_cover} title={t("tracks_view.no_cover")} onclick={Msg::Tracks(TracksMsg::NoCover)}>
+                        <div class="w-auto @max-xl:hidden">{t("tracks_view.no_cover")}</div>
+                    </FilterChip>
+                    <div class="relative">
+                        <FilterChip anchor="tracks.genre" icon="material-symbols:sell-outline-rounded" pressed={page.genre.is_some()} menu
+                                    title={t("tracks_view.genre")} onclick={Msg::Tracks(TracksMsg::GenreMenu)}>
+                            <div class="w-auto max-w-40 truncate">{tv.genre_label}</div>
+                        </FilterChip>
+                        {#if self.popup("tracks.genre")}
+                            <k-popover anchor="tracks.genre" menu placement="bottom-start" offset="8" aria-label={t("tracks_view.genre")}
+                                       onclose={Msg::CloseMenu} class="rg-menu w-60">
+                                <div class="flex flex-col max-h-80 overflow-y-auto scrollbar-app">
+                                    <MenuItem active={page.genre.is_none()} onclick={Msg::Tracks(TracksMsg::Genre(None))}>{t("tracks_view.all_genres")}</MenuItem>
+                                    {#if tv.genres.is_none()}
+                                        <p class="px-2.5 py-2 text-xs text-(--rg-mu) m-0">{t("common.loading")}</p>
+                                    {/if}
+                                    {#each tv.genres.iter().flatten() as g (g.0.as_str())}
+                                        <MenuItem active={g.2} onclick={Msg::Tracks(TracksMsg::Genre(Some(g.0.clone())))}>
+                                            {g.0}
+                                            <div slot="fin" class="font-mono text-[11px] text-(--rg-mu2)">{g.1}</div>
+                                        </MenuItem>
+                                    {/each}
+                                </div>
+                            </k-popover>
+                        {/if}
+                    </div>
+                    {#if page.active_filters()}
+                        <TextButton icon="material-symbols:filter-alt-off-outline-rounded" label={t("tracks_view.clear_filters")} onclick={Msg::Tracks(TracksMsg::ClearFilters)} />
+                    {/if}
+                </div>
+
+                <div class="order-3 flex-1 @max-6xl:hidden"></div>
+
+                <div class="order-3 flex items-center gap-2.5">
+                    <MenuSelect anchor="tracks.sort" open={self.popup("tracks.sort")} label={tv.sort_label.clone()} icon={tv.sort_icon}
+                                indicator={if page.asc {"material-symbols:arrow-upward-rounded"} else {"material-symbols:arrow-downward-rounded"}}
+                                options={tv.sorts.clone()}>
+                        <div slot="fin">
+                            <div class="h-px my-1 bg-(--rg-bd) dark:bg-[#2a312d]"></div>
+                            <MenuItem icon="material-symbols:swap-vert-rounded" onclick={Msg::Tracks(TracksMsg::Reverse)}>{t("tracks_view.reverse")}</MenuItem>
+                        </div>
+                    </MenuSelect>
+                    <SegmentedControl subtle label={t("tracks_view.detailed")} options={tv.densities.clone()} />
+                    <ToolbarButton icon="material-symbols:view-column-outline-rounded" title={t("tracks_view.columns")} onclick={Msg::Columns(ColumnsMsg::Open)} />
+                    {@include "SelectionButtons.ui"}
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 relative min-h-0 flex flex-col">
+            {#if !page.tracks.is_empty()}
+                <div class="shrink-0 pl-4 md:pl-8 pr-10 md:pr-14">
+                    {@const table = &tv.table}{@include "TrackTableHead.ui"}
+                </div>
+            {/if}
+            {#each [page.view] as view (view)}
+            <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16"
+                 onscroll={|s: ScrollMetrics| Msg::Tracks(TracksMsg::Scrolled(s.offset, s.max_offset()))}>
+                {#if page.loading_state && page.tracks.is_empty()}
+                    <div class="flex items-center justify-center py-20 text-(--rg-mu)"><Spinner width={26.} /></div>
+                {:else if page.tracks.is_empty()}
+                    <EmptyResult message={t("tracks_view.no_match")} clear_label={t("tracks_view.clear_filters")}
+                                 onclear={if page.active_filters() {Some(Msg::Tracks(TracksMsg::ClearFilters))} else {None}} />
+                {:else}
+                    {#if page.start > 0 && page.following}
+                        <div class="flex justify-center py-3 text-(--rg-mu)"><Spinner width={20.} /></div>
+                    {/if}
+                    {@const table = &tv.table}{@include "TrackRows.ui"}
+                    {#if page.following}
+                        <div class="flex justify-center py-4 text-(--rg-mu)"><Spinner width={20.} /></div>
+                    {/if}
+                    <p class="py-3 text-center text-[11px] tabular-nums text-(--rg-mu2) m-0">{tv.loaded}</p>
+                {/if}
+            </div>
+            {/each}
+
+            {#if page.sort == "title" && !page.letters.is_empty()}
+                <div class="absolute right-2.5 inset-y-2 z-20 flex items-center pointer-events-none">
+                    <div class="pointer-events-auto max-h-full overflow-hidden flex flex-col items-center py-1.5 px-0.75 rounded-xl
+                                bg-(--rg-carte)/70 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.08)] dark:shadow-none">
+                        {#each tv.letters as l (l.0)}
+                            {#if l.1}
+                                <button class="w-5.5 h-4.75 min-h-0 shrink flex items-center justify-center text-[11px] leading-none font-bold rounded-[5px] transition-all duration-150
+                                               text-(--rg-tx2) hover:bg-(--rg-g) hover:text-(--rg-on-g) cursor-pointer"
+                                        onclick={Msg::Tracks(TracksMsg::Letter(l.0.to_string()))}><div>{l.0}</div></button>
+                            {:else}
+                                <div class="w-5.5 h-4.75 min-h-0 shrink flex items-center justify-center text-[11px] leading-none font-bold rounded-[5px] text-(--rg-bd2) cursor-default">{l.0}</div>
+                            {/if}
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+        </div>
+    </div>
+    {/each}
+    {/if}
+    </div>
+</div>

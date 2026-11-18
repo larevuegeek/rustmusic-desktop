@@ -1,0 +1,9 @@
+<div class="relative w-35 h-5.5" aria-hidden="true">
+    <div class="absolute left-[0.8px] top-[0.8px] text-[#2bcc63]"><Icon icon="ph:headphones-fill" width={20} /></div>
+    <div class="absolute left-[23px] top-[-0.5px] text-neutral-900 dark:text-neutral-100">
+        <p class="m-0 whitespace-nowrap font-sans text-[17px] font-extrabold leading-[22px] tracking-[-0.93px]">Rust<span class="text-[#22c55e]">Music</span></p>
+    </div>
+    <div class="absolute left-[110px] top-[3px] w-[29px] h-3 rounded-[3px] bg-[rgb(34_197_94/0.85)] flex items-center justify-center">
+        <p class="m-0 font-sans text-[7px] font-bold text-white leading-[9px] tracking-[0.39px]">BETA</p>
+    </div>
+</div>

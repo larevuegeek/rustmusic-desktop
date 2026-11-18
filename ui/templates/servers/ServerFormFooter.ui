@@ -1,0 +1,16 @@
+<div class="shrink-0 flex items-center gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+    <div class="flex-1 min-w-0"></div>
+    <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+            onclick={Msg::ServerForm(ServerFormMsg::Back)}><div>{ft.0.clone()}</div></button>
+    {#if ft.3 && !ft.4}
+        <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition hover:brightness-110 bg-(--rg-g) text-(--rg-on-g)"
+                onclick={Msg::ServerForm(ServerFormMsg::Submit)}>
+            <Icon icon={ft.2} width={17} /><div>{ft.1.clone()}</div>
+        </button>
+    {:else}
+        <div class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold flex items-center gap-2 bg-(--rg-g) text-(--rg-on-g) opacity-40 cursor-default">
+            {#if ft.4}<div class="flex animate-spin"><Icon icon="lucide:loader-2" width={17} /></div>{:else}<Icon icon={ft.2} width={17} />{/if}
+            <div>{ft.1.clone()}</div>
+        </div>
+    {/if}
+</div>

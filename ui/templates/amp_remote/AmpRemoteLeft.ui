@@ -1,0 +1,21 @@
+{#if open == 1 && r.slide}
+    <div data-pan-frame class="absolute z-30 flex flex-row-reverse items-start animate-[amp-dock-in-left_300ms_ease-out]" data-exit="amp-dock-out-left 300ms ease-out"
+         style:top={Length::Px(r.dock.top)} style:left={Length::Px(r.dock.inset)}>
+        {@include "AmpRemoteHandle.ui"}
+        {@include "AmpRemotePanel.ui"}
+    </div>
+{:else if open == 1}
+    <div data-pan-frame class="absolute z-30 flex flex-row-reverse items-start" style:top={Length::Px(r.dock.top)} style:left={Length::Px(r.dock.inset)}>
+        {@include "AmpRemoteHandle.ui"}
+        {@include "AmpRemotePanel.ui"}
+    </div>
+{:else if r.slide}
+    <div data-pan-frame class="absolute z-30 flex flex-row-reverse items-start animate-[amp-handle-in-left_300ms_ease-out]" data-exit="amp-handle-out-left 300ms ease-out"
+         style:top={Length::Px(r.dock.top)} style:left={Length::Px(r.dock.inset)}>
+        {@include "AmpRemoteHandle.ui"}
+    </div>
+{:else}
+    <div data-pan-frame class="absolute z-30 flex flex-row-reverse items-start" style:top={Length::Px(r.dock.top)} style:left={Length::Px(r.dock.inset)}>
+        {@include "AmpRemoteHandle.ui"}
+    </div>
+{/if}

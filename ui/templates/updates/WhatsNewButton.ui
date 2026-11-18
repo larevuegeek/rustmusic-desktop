@@ -1,0 +1,8 @@
+<button class="relative w-8 h-8 flex items-center justify-center rounded-full cursor-pointer transition-colors
+               text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+        onclick={Msg::WhatsNew(WhatsNewMsg::Open)} aria-label={t("whats_new.title")} title={t("whats_new.title")}>
+    <Icon icon="material-symbols:campaign-outline-rounded" width={22} />
+    {#if !self.views.whats_new.viewed}
+        <div class="absolute top-1 right-1 w-2 h-2 rounded-full bg-violet-500 ring-2 ring-(--c-fond) dark:ring-zinc-950"></div>
+    {/if}
+</button>

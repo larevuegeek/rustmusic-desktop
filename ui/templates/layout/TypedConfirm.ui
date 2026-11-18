@@ -1,0 +1,92 @@
+{#if let Some(d) = &self.views.typed}
+<div class="absolute inset-0 z-50 flex items-center justify-center animate-[popin-fade-in_150ms_linear]" data-exit="popin-fade-out 150ms linear">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default" onclick={Msg::Typed(TypedMsg::Cancel)}></div>
+    <div class="relative w-full max-w-md mx-4 max-h-[88vh] flex flex-col rounded-2xl overflow-hidden text-(--rg-tx) bg-(--rg-carte) border border-(--rg-bd) dark:border-[#2a312d] shadow-[0_24px_60px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] animate-[popin-scale-in_180ms_cubic-bezier(0.33,1,0.68,1)]" data-exit="popin-scale-out 180ms cubic-bezier(0.33, 1, 0.68, 1)"
+         aria-label={d.title()}>
+        <div class="shrink-0 flex items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-(--rg-bd) bg-linear-135 from-red-500/8 to-transparent to-60%">
+            <div class="flex items-center gap-2.5 min-w-0 text-[17px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">
+                <div class="shrink-0 w-8 h-8 rounded-[9px] flex items-center justify-center bg-red-500/8 border border-red-500/25 text-red-600 dark:text-red-400">
+                    <Icon icon="material-symbols:warning-outline-rounded" width={16} />
+                </div>
+                <div class="truncate">{d.title()}</div>
+            </div>
+            <button class="shrink-0 -mr-1.5 w-8 h-8 rounded-[9px] flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-hover) transition-colors"
+                    aria-label={t("common.close")} onclick={Msg::Typed(TypedMsg::Cancel)}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+        </div>
+
+        <div class="min-h-0 overflow-y-auto scrollbar-none px-6 pt-5 pb-6 flex flex-col gap-5 text-sm">
+            {#if let Some(reset) = d.reset_view()}
+                <p class="m-0 leading-relaxed text-(--rg-tx2)">{reset.intro.before}<span class="emphasis-alert">{reset.intro.bold}</span>{reset.intro.after}</p>
+                <div class="px-4 py-3 rounded-2xl flex flex-col gap-2 border border-(--rg-bd) bg-(--rg-creux) text-(--rg-tx2)">
+                    {#each reset.items as (k, item) (k)}
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-1.5 h-1.5 rounded-full bg-red-500/70 shrink-0"></div>
+                            <p class="m-0">{item.before}<span class="emphasis-strong">{item.bold}</span>{item.after}</p>
+                        </div>
+                    {/each}
+                </div>
+                <div class="flex items-center gap-2 text-xs text-(--rg-mu)">
+                    <div class="flex shrink-0"><Icon icon="material-symbols:info-outline-rounded" width={15} /></div>
+                    <div>{t("settings.reset_admin_kept")}</div>
+                </div>
+            {/if}
+            {#if let Some(sv) = d.remove_server_view()}
+                <p class="m-0 leading-relaxed text-(--rg-tx2)">{sv.intro.before}<span class="emphasis-strong">{sv.intro.bold}</span>{sv.intro.after}</p>
+                <div class="flex flex-wrap gap-1.5">
+                    {#each sv.libraries as (i, l) (i)}
+                        <div class="h-7 px-2.5 flex items-center gap-1.5 rounded-full text-[12.5px] font-medium bg-(--rg-s2) text-(--rg-tx2)">
+                            <div class="flex text-(--rg-mu)"><Icon icon="material-symbols:cloud-outline-rounded" width={14} /></div>
+                            <div>{l.0}</div>
+                            <div class="text-(--rg-mu)">{l.1}</div>
+                        </div>
+                    {/each}
+                </div>
+                <div class="px-4 py-3 rounded-2xl flex flex-col gap-2 border border-(--rg-bd) bg-(--rg-creux) text-(--rg-tx2)">
+                    {#each sv.items as (k, item) (k)}
+                        <div class="flex items-start gap-2.5">
+                            <div class="w-1.5 h-1.5 mt-1.75 rounded-full bg-red-500/70 shrink-0"></div>
+                            <div>{item}</div>
+                        </div>
+                    {/each}
+                </div>
+                <div class="flex items-center gap-2 text-xs text-(--rg-mu)">
+                    <div class="flex shrink-0"><Icon icon="material-symbols:info-outline-rounded" width={15} /></div>
+                    <div>{t("servers.remove_kept")}</div>
+                </div>
+            {/if}
+
+            <div class="flex flex-col gap-2">
+                <div class="text-xs font-semibold text-(--rg-tx2)">{t_with("settings.reset_confirm_label", &[("word", &typed_word())])}</div>
+                {#if !d.typed.is_empty() && d.typed != typed_word()}
+                    <input class="w-full h-11 px-4 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-red-500/60"
+                           type="text" value={d.typed.as_str()} placeholder={typed_word()} aria-label={typed_word()}
+                           oninput={|v: String| Msg::Typed(TypedMsg::Input(v))} onchange={Msg::Typed(TypedMsg::Confirm)}>
+                {:else}
+                    <input class="w-full h-11 px-4 rounded-xl text-sm outline-none transition-colors bg-(--rg-champ) text-(--rg-tx) placeholder:text-(--rg-ph) border border-(--rg-bd) hover:border-(--rg-bd2)"
+                           type="text" value={d.typed.as_str()} placeholder={typed_word()} aria-label={typed_word()}
+                           oninput={|v: String| Msg::Typed(TypedMsg::Input(v))} onchange={Msg::Typed(TypedMsg::Confirm)}>
+                {/if}
+            </div>
+        </div>
+
+        <div class="shrink-0 flex items-center gap-3 px-6 py-3.5 border-t border-(--rg-bd) bg-(--rg-creux)">
+            <div class="flex-1 min-w-0"></div>
+            <button class="h-10 px-4 flex items-center rounded-xl text-sm font-semibold cursor-pointer transition-colors text-(--rg-tx2) hover:bg-(--rg-hover) hover:text-(--rg-tx)"
+                    onclick={Msg::Typed(TypedMsg::Cancel)}><div>{t("common.cancel")}</div></button>
+            {#if d.locked()}
+                <div class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold flex items-center gap-2 bg-red-600 text-white opacity-40 cursor-default">
+                    {#if d.busy}<div class="flex animate-spin"><Icon icon="lucide:loader-2" width={17} /></div>{:else}<Icon icon="material-symbols:delete-outline-rounded" width={17} />{/if}
+                    <div>{d.confirm_label()}</div>
+                </div>
+            {:else}
+                <button class="h-10 pl-4 pr-5 rounded-xl text-sm font-bold cursor-pointer flex items-center gap-2 transition hover:brightness-110 bg-red-600 text-white"
+                        onclick={Msg::Typed(TypedMsg::Confirm)}>
+                    <Icon icon="material-symbols:delete-outline-rounded" width={17} /><div>{d.confirm_label()}</div>
+                </button>
+            {/if}
+        </div>
+    </div>
+</div>
+{/if}

@@ -1,0 +1,32 @@
+{#if g.open}
+    <div class="group -mx-2 pl-2 pr-3 py-2.5 mb-1.5 flex items-center gap-3.5 rounded-xl cursor-pointer select-none transition-colors hover:bg-(--rg-carte)
+                border-b border-(--rg-bd) bg-(--c-fond) dark:bg-zinc-950"
+         onclick={Msg::Artist(ArtistMsg::Toggle(g.key.clone()))}>
+        <div class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-(--rg-mu) group-hover:text-(--rg-tx)">
+            <Icon icon="material-symbols:expand-more-rounded" width={22} />
+        </div>
+        {@include "ArtistGroupHead.ui"}
+        <PlayButton title={t("artist_view.play_album")} onclick={Msg::Artist(ArtistMsg::PlayGroup(g.key.clone()))} />
+    </div>
+    {#if self.views.view_mode == ViewMode::Grid}
+        <div class="grid grid-cols-2 gap-x-7 @max-[900px]:grid-cols-1">
+            <div class="flex flex-col gap-y-0.5 min-w-0">
+                {#each g.left as track (track.i)}{@include "../albums/AlbumTrackRow.ui"}{/each}
+            </div>
+            <div class="flex flex-col gap-y-0.5 min-w-0">
+                {#each g.right as track (track.i)}{@include "../albums/AlbumTrackRow.ui"}{/each}
+            </div>
+        </div>
+    {:else}
+        {#if let Some(table) = &g.table}{@include "../tracks/TrackRows.ui"}{/if}
+    {/if}
+{:else}
+    <div class="group -mx-2 pl-2 pr-3 py-2.5 flex items-center gap-3.5 rounded-xl cursor-pointer select-none transition-colors hover:bg-(--rg-carte)"
+         onclick={Msg::Artist(ArtistMsg::Toggle(g.key.clone()))}>
+        <div class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-(--rg-mu) group-hover:text-(--rg-tx) -rotate-90">
+            <Icon icon="material-symbols:expand-more-rounded" width={22} />
+        </div>
+        {@include "ArtistGroupHead.ui"}
+        <PlayButton muted title={t("artist_view.play_album")} onclick={Msg::Artist(ArtistMsg::PlayGroup(g.key.clone()))} />
+    </div>
+{/if}

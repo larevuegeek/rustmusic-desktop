@@ -1,0 +1,129 @@
+/* Thème de RustMusic (jetons et Tailwind 4) : thème sombre, contraste élevé.
+   Les couleurs sont écrites en oklch et color-mix ; le compilateur
+   les évalue. Les règles `.dark .sidebar`, `.dark .lecteur`… deviennent des jetons
+   `:root` : les dégradés et ombres ne lisent les variables qu'à la compilation. */
+:root {
+    /* Polices et leurs listes de repli. */
+    --font-sans: "Inter", system-ui, sans-serif;           /* 'Inter Variable', system-ui, sans-serif */
+    --font-maquette: "Figtree Light", "Inter", system-ui, sans-serif; /* 'Figtree Variable', 'Inter Variable', … */
+    --font-mono: "JetBrains Mono", ui-monospace, monospace; /* 'JetBrains Mono Variable', ui-monospace */
+
+    /* Tailwind 4 */
+    --zinc-950: oklch(14.1% 0.005 285.823);
+    --gray-100: oklch(96.7% 0.003 264.542);
+    --neutral-50: oklch(98.5% 0 0);
+    --neutral-100: oklch(97% 0 0);
+    --neutral-200: oklch(92.2% 0 0);
+    /* Gris secondaires du contraste élevé sombre (app.css, `:root[data-contrast="high"].dark`) ;
+       Tailwind : 87 %, 70.8 %, 55.6 %. */
+    --neutral-300: oklch(0.92 0 0);
+    --neutral-400: oklch(0.86 0 0);
+    --neutral-500: oklch(0.80 0 0);
+    --neutral-600: oklch(0.72 0 0);
+    --neutral-700: oklch(37.1% 0 0);
+    --neutral-800: oklch(26.9% 0 0);
+    --neutral-900: oklch(20.5% 0 0);
+    --emerald-300: oklch(84.5% 0.143 164.978);
+    --emerald-400: oklch(76.5% 0.177 163.223);
+    --emerald-500: oklch(69.6% 0.17 162.48);
+    --sky-300: oklch(82.8% 0.111 230.318);
+    --sky-400: oklch(74.6% 0.16 232.661);
+    --sky-500: oklch(68.5% 0.169 237.323);
+    --amber-300: oklch(87.9% 0.169 91.605);
+    --amber-400: oklch(82.8% 0.189 84.429);
+    --amber-500: oklch(76.9% 0.188 70.08);
+    --pink-400: oklch(71.8% 0.202 349.761);
+    --red-400: oklch(70.4% 0.191 22.216);
+    --red-500: oklch(63.7% 0.237 25.331);
+    /* @theme : accent vert de la marque. */
+    --accent-400: #4ade80;
+    --accent-500: #22c55e;
+    --rg-on-g: #04140a;
+
+    /* .dark .sidebar, puis :root[data-contrast="high"].dark .sidebar pour le texte. */
+    --sb-bg: #0b0d0c;
+    --sb-s1: #131715;
+    --sb-s2: #1b211e;
+    --sb-hover: #131715;
+    --sb-bd: #1f2522;
+    --sb-bd2: #2e3632;
+    --sb-sep: #1a1f1c;
+    --sb-tx: #ffffff;
+    --sb-tx2: #c8d0cc;
+    --sb-mu: #a3aca7;
+    --sb-mu2: #8f9893;
+    --sb-hd: #b0b9b4;
+    --sb-g: #22c55e;
+    --sb-gbg: #12301d;
+    --sb-gbd: #1c4a2c;
+    --sb-point: #22c55e;
+    --sb-pied: #111412;
+    --sb-piedbd: #1c211e;
+    /* Couleur du profil (SidebarFooter, ProfilSelectorInput). */
+    --profil: #22c55e;
+
+    /* .dark : réglages, partagés par les cartes de l'accueil ; texte de
+       :root[data-contrast="high"].dark (blanc, #b0b9b4 : icônes du menu des mix de la capture). */
+    --rg-tx: #ffffff;
+    --rg-mu: #b0b9b4;
+    /* .dark : surfaces et bordure du menu des mix (mixes/MixCard.ui). */
+    --rg-carte: #131715;
+    --rg-s2: #1b211e;
+    --rg-bd: #1f2522;
+
+    /* Teinte du morceau chargé (couleurMorceau, Led Zeppelin IV) : --lh 267, --ls 0.07.
+       Le lecteur teinte toutes ses couleurs par oklch(l calc(k * var(--ls)) var(--lh)) ;
+       un canal en calc() n'est pas accepté dans une couleur constante (dégradés, ombres,
+       bordure d'un côté) : chromas calculées ici, formule en commentaire. */
+    /* .dark .lecteur, puis :root[data-contrast="high"].dark .lecteur */
+    --lc-acc: oklch(0.8 0.0084 267);                     /* oklch(0.8 calc(0.12 * var(--ls)) var(--lh)) */
+    --lc-play: oklch(0.8 0.0084 267);                    /* 0.12 * ls */
+    --lc-play-tx: oklch(0.18 0.0028 267);                /* 0.04 * ls */
+    --lc-tx: #ffffff;
+    --lc-tx2: #e4e9e6;
+    --lc-mu: #b0b9b4;
+    --lc-mu2: #8f9893;
+    --lc-ic: rgb(255 255 255 / 0.82);
+    --lc-ic-fort: rgb(255 255 255 / 0.92);
+    --lc-survol: rgb(255 255 255 / 0.06);
+    --lc-rail: rgb(255 255 255 / 0.1);
+    --lc-trait: rgb(255 255 255 / 0.08);
+    --lc-fmt-bg: oklch(0.32 0.0049 267);                 /* 0.07 * ls */
+    --lc-fmt-tx: oklch(0.92 0.0049 267);                 /* 0.07 * ls */
+    --lc-statut: oklch(0.1 0.00105 267 / 0.45);          /* 0.015 * ls */
+    --lc-statut-bd: oklch(0.4 0.0035 267 / 0.25);        /* 0.05 * ls */
+    /* Fond et ombres de .dark .lecteur, .lecteur-pochette, .lecteur-lecture. */
+    --lc-fond-1: oklch(0.3 0.0049 267 / 0.95);           /* 0.07 * ls */
+    --lc-fond-2: oklch(0.18 0.0021 267 / 0.96);          /* 0.03 * ls */
+    --lc-fond-3: oklch(0.13 0.00084 267 / 0.97);         /* 0.012 * ls */
+    --lc-ombre: oklch(0.2 0.0042 267 / 0.6);             /* 0.06 * ls */
+    --lc-reflet: oklch(0.7 0.0056 267 / 0.18);           /* 0.08 * ls */
+    --lc-lisere: oklch(0.4 0.0042 267 / 0.35);           /* 0.06 * ls */
+    --lc-pochette-ombre: oklch(0.25 0.0056 267 / 0.55);  /* 0.08 * ls */
+    --lc-pochette-lisere: oklch(0.6 0.0056 267 / 0.25);  /* 0.08 * ls */
+    --lc-lecture-ombre: oklch(0.55 0.0091 267 / 0.4);    /* 0.13 * ls */
+    /* Menus Sortie et Réseau du lecteur (.dark .lecteur, puis .dark des réglages). */
+    --lc-menu: #131715;
+    --lc-menu-bd: #262d29;
+    /* .dark .mini-lecteur, puis :root[data-contrast="high"].dark .mini-lecteur : onglets,
+       panneau déroulé, titre en cours (0.07 * ls), paroles ; pastille de la chaîne audio. */
+    --mf-1: oklch(0.3 0.0049 267 / 0.97);                /* 0.07 * ls */
+    --mf-2: oklch(0.17 0.0021 267 / 0.98);               /* 0.03 * ls */
+    --mf-3: oklch(0.12 0.00084 267);                     /* 0.012 * ls */
+    --rg-muted2: #8f9893;
+    --lc-seg: rgb(0 0 0 / 0.25);
+    --lc-seg-bd: rgb(255 255 255 / 0.05);
+    --lc-seg-on: rgb(255 255 255 / 0.1);
+    --lc-panneau: rgb(0 0 0 / 0.18);
+    --lc-encours: oklch(0.35 0.0049 267 / 0.35);
+    --lc-ly: rgb(255 255 255 / 0.55);
+    --lc-ly-passe: rgb(255 255 255 / 0.72);
+    --mini-point: #8f9893;
+    --rg-g: #22c55e;
+    --rg-gtx: #22c55e;
+    --rg-off: #2a312d;
+    --rg-bd2: #2e3632;
+    --rg-am: #f0b35a;
+    --rg-ambg: #2a2113;
+    --rg-ambd: #4a3a1c;
+}

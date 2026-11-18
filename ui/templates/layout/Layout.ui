@@ -1,0 +1,132 @@
+<main style:--profil={hex(&vm.profile_color)} class="w-screen h-screen flex flex-col bg-(--c-fond) dark:bg-zinc-950 text-gray-900 dark:text-gray-100 overflow-hidden
+             font-sans text-[16px]">
+    <Titlebar with_sidebar={!full_page} collapsed={self.sidebar_collapsed}>
+        {#if !full_page}
+            <div class="hidden sm:flex items-center gap-0.5">
+                {#each [(t("common.back"), "heroicons:chevron-left", Msg::Back), (t("common.next"), "heroicons:chevron-right", Msg::Forward)] as nav (nav.1)}
+                    <button class="flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-colors
+                                   text-[#1a1c1a] dark:text-neutral-400 hover:text-black dark:hover:text-white
+                                   hover:bg-[#e5e1d8] dark:hover:bg-white/8"
+                            onclick={nav.2} aria-label={nav.0.clone()} title={nav.0}>
+                        <Icon icon={nav.1} width={20} />
+                    </button>
+                {/each}
+            </div>
+
+            <div class="flex-1 min-w-40 max-w-140" memo={self.search_key(&vm, cx.resources)}>
+                {@include "../search/SearchAutocomplete.ui"}
+            </div>
+
+            <div class="ml-auto shrink-0 flex items-center gap-1 md:gap-2" memo={self.title_actions_key(&vm)}>
+                {#if self.show_sleep_timer()}
+                    {@include "../player/SleepTimerButton.ui"}
+                {/if}
+                {#if self.show_whats_new()}
+                    {@include "../updates/WhatsNewButton.ui"}
+                {/if}
+                {#if self.show_theme_toggle()}
+                    {@include "ThemeSwitch.ui"}
+                {/if}
+                {@include "../profiles/ProfileSelector.ui"}
+            </div>
+        {/if}
+    </Titlebar>
+
+    <div class="flex grow overflow-hidden relative">
+        {#if !full_page}
+            <div class="relative h-full shrink-0">
+                {@include "../sidebar/Sidebar.ui"}
+            </div>
+        {/if}
+
+        <div id="app.main" class="grow overflow-hidden flex flex-col min-w-0">
+            <div class="flex-1 overflow-hidden">
+                {#if *self.route() == Route::Home}
+                    {@include "../home/Home.ui"}
+                {:else if *self.route() == Route::Library(Section::Tracks)}
+                    {@include "../tracks/TrackList.ui"}
+                {:else if *self.route() == Route::Library(Section::Albums)}
+                    {@include "../albums/AlbumList.ui"}
+                {:else if *self.route() == Route::Library(Section::Artists)}
+                    {@include "../artists/ArtistList.ui"}
+                {:else if *self.route() == Route::Library(Section::Genres)}
+                    {@include "../genres/GenreList.ui"}
+                {:else if *self.route() == Route::Podcasts}
+                    {@include "../podcasts/PodcastList.ui"}
+                {:else if *self.route() == Route::PodcastSubscriptions}
+                    {@include "../podcasts/PodcastSubscriptions.ui"}
+                {:else if matches!(self.route(), Route::Settings(_))}
+                    {@include "../settings/Settings.ui"}
+                {:else if *self.route() == Route::Stats}
+                    {@include "../library/LibraryStats.ui"}
+                {:else if *self.route() == Route::PodcastDownloads}
+                    {@include "../podcasts/PodcastDownloads.ui"}
+                {:else if matches!(self.route(), Route::Podcast(_))}
+                    {@include "../podcasts/PodcastShow.ui"}
+                {:else if *self.route() == Route::Radios}
+                    {@include "../radios/RadioList.ui"}
+                {:else if matches!(self.route(), Route::Search(_))}
+                    {@include "../search/SearchPage.ui"}
+                {:else if matches!(self.route(), Route::Playlist(_) | Route::Liked | Route::Recent)}
+                    {@include "../playlists/PlaylistDetail.ui"}
+                {:else if *self.route() == Route::Import}
+                    {@include "../library/LibraryImport.ui"}
+                {:else if *self.route() == Route::Feedback}
+                    {@include "../feedback/Feedback.ui"}
+                {:else if *self.route() == Route::Playlists}
+                    {@include "../playlists/PlaylistList.ui"}
+                {:else if *self.route() == Route::Library(Section::Mixes)}
+                    {@include "../mixes/Mixes.ui"}
+                {:else if *self.route() == Route::Library(Section::Folders)}
+                    {@include "../folders/Folders.ui"}
+                {:else if *self.route() == Route::Library(Section::Years)}
+                    {@include "../years/Years.ui"}
+                {:else if matches!(self.route(), Route::Genre(_) | Route::Decade(_) | Route::Composer(_))}
+                    {@include "../genres/GenreDetail.ui"}
+                {:else if matches!(self.route(), Route::Artist(_))}
+                    {@include "../artists/ArtistDetail.ui"}
+                {:else if matches!(self.route(), Route::Tags(_))}
+                    {@include "../tags/TagWorkshop.ui"}
+                {:else if matches!(self.route(), Route::Track(_))}
+                    {@include "../tracks/TrackDetail.ui"}
+                {:else if matches!(self.route(), Route::Album(_))}
+                    {@include "../albums/AlbumDetail.ui"}
+                {:else}
+                    {#if let Some(page) = self.current_page()}
+                        {#if page.kind == PageKind::Tracks}
+                            {@include "../tracks/TrackPage.ui"}
+                        {:else if page.kind == PageKind::Loading}
+                            <div class="h-full flex items-center justify-center text-[15px] text-neutral-500 dark:text-[#9aa39e]">{t("common.loading")}</div>
+                        {:else}
+                            {@include "Placeholder.ui"}
+                        {/if}
+                    {/if}
+                {/if}
+            </div>
+        </div>
+    </div>
+
+    {@include "../player/Player.ui"}
+    {@include "../player/QueuePanel.ui"}
+    {@include "../player/LyricsPanel.ui"}
+    {@include "../player/CoverZoom.ui"}
+    {@include "../tracks/TrackMenu.ui"}
+    {@include "../tracks/TrackColumnMenu.ui"}
+    {@include "../library/CollectionMenu.ui"}
+    {@include "../radios/RadioMenu.ui"}
+    {@include "../podcasts/PodcastMenu.ui"}
+    {@include "../playlists/PlaylistMenu.ui"}
+    {@include "BatchPanel.ui"}
+    {@include "Toasts.ui"}
+    {@include "Banners.ui"}
+    {@include "../tracks/TrackSelectionBar.ui"}
+    {@include "../tracks/TrackColumns.ui"}
+    {@include "../library/LibraryFolders.ui"}
+    {@include "Popin.ui"}
+    {@include "TypedConfirm.ui"}
+    {@include "../settings/audio/DeviceDetails.ui"}
+    {@include "../albums/AlbumCoverSearch.ui"}
+    {@include "../amp_remote/AmpRemote.ui"}
+    {@include "../profiles/Profiles.ui"}
+    {@include "Boot.ui"}
+</main>

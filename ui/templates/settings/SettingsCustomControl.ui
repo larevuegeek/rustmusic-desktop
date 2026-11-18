@@ -1,0 +1,17 @@
+{#if r.custom() == "dlna-name"}
+    <input class="shrink-0 w-56 h-9.5 px-3 rounded-[10px] outline-none transition-colors bg-(--rg-s2) border border-(--rg-off) hover:border-(--rg-bd2) text-sm font-semibold text-(--rg-tx)"
+           type="text" maxlength="64" value={self.views.settings.dlna.name_draft.as_str()} aria-label={t("settings.dlna_friendly_name")}
+           oninput={|v: String| Msg::Settings(SettingsMsg::DlnaName(v))} onchange={Msg::Settings(SettingsMsg::DlnaSave)}>
+{:else if r.custom() == "dlna-port"}
+    <input class="shrink-0 w-24 h-9.5 px-3 rounded-[10px] outline-none transition-colors bg-(--rg-s2) border border-(--rg-off) hover:border-(--rg-bd2) text-sm font-semibold text-(--rg-tx) font-mono tabular-nums text-right"
+           type="text" maxlength="5" value={self.views.settings.dlna.port_draft.as_str()} aria-label={t("settings.dlna_port")}
+           oninput={|v: String| Msg::Settings(SettingsMsg::DlnaPort(v))} onchange={Msg::Settings(SettingsMsg::DlnaSave)}>
+{:else if r.custom().starts_with("shortcut") || r.custom().starts_with("media-")}
+    {@include "shortcuts/Keys.ui"}
+{:else if r.custom() == "preamp"}
+    <div class="shrink-0 w-56 flex items-center gap-3">
+        <input class="flex-1 min-w-0 cursor-pointer accent-(--rg-g)" type="range" min="-15" max="15" step="0.5"
+               value={f64::from(self.preamp())} oninput={Msg::Preamp} onchange={Msg::PreampSet} aria-label={t("settings.replay_gain_preamp")}>
+        <div class="shrink-0 w-16 text-right font-mono text-xs tabular-nums text-(--rg-gtx)">{self.preamp_label()}</div>
+    </div>
+{/if}

@@ -1,0 +1,13 @@
+<button class="group w-full min-w-0 p-2.5 -m-2.5 rounded-2xl text-center cursor-pointer transition-colors hover:bg-(--rg-hover)" onclick={Msg::SearchPage(SearchMsg::Open(r.n))}>
+    <div class="w-full aspect-square rounded-full overflow-hidden mx-auto bg-(--rg-s2) shadow-[0_8px_24px_rgba(0,0,0,0.16)]">
+        {#if r.cover.is_some()}
+            <img class="w-full h-full object-cover" src={cx.resources.cover_opt(&r.cover)} alt="">
+        {:else if r.avatar.is_some()}
+            {#if let Some(av) = &r.avatar}<div class="avatar-artiste w-full h-full flex items-center justify-center font-bold text-[44px] tracking-[-0.02em]" style:--h={av.1}>{av.0}</div>{/if}
+        {:else}
+            <div class="w-full h-full flex items-center justify-center text-(--rg-mu)"><Icon icon="material-symbols:artist-outline-rounded" width={40} /></div>
+        {/if}
+    </div>
+    <div class="w-full mt-2.5 text-[14px] font-semibold truncate text-(--rg-tx)">{r.title}</div>
+    <div class="w-full text-[12.5px] text-(--rg-mu)">{r.type_label}</div>
+</button>

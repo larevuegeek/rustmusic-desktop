@@ -1,0 +1,42 @@
+<button class="group relative w-full grid grid-cols-[40px_minmax(0,1fr)_88px_90px_40px] items-center gap-4 py-1.5 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors hover:bg-(--rg-carte)"
+        onclick={entry.open.clone()}>
+    {#if i > 0}<div class="absolute left-16 right-3 top-0 h-px bg-(--rg-line) group-hover:opacity-0"></div>{/if}
+    {#if entry.is_dir && !entry.covers.is_empty()}
+        <div class="relative w-10 h-10">
+            <div class="absolute inset-0 rounded-[10px] overflow-hidden border border-(--rg-bd)">
+                <img class="w-full h-full object-cover" src={cx.resources.cover_small_path(&entry.covers[0])} alt="">
+            </div>
+            <div class="absolute -right-1 -bottom-1 w-4.5 h-4.5 flex items-center justify-center rounded-[5px] bg-(--rg-ambg) border border-(--rg-ambd) text-(--rg-am)">
+                <Icon icon="material-symbols:folder-rounded" width={11} />
+            </div>
+        </div>
+    {:else if entry.is_dir}
+        <div class="w-10 h-10">{@const music = entry.music}{@include "FolderArt.ui"}</div>
+    {:else if entry.cover.is_some()}
+        <img class="w-10 h-10 rounded-[10px] object-cover border border-(--rg-bd)" src={cx.resources.cover_small(&entry.cover)} alt="">
+    {:else}
+        <div class="w-10 h-10">{@include "FileArt.ui"}</div>
+    {/if}
+    {#if entry.is_dir}
+        <div class="min-w-0 truncate text-sm font-semibold text-(--rg-tx)" title={entry.name.as_str()}>{entry.name}</div>
+    {:else}
+        <div class="min-w-0 truncate text-sm text-(--rg-tx2)" title={entry.name.as_str()}>{entry.name}</div>
+    {/if}
+    <div class="justify-self-end">
+        {#if entry.is_dir && entry.quality.is_some()}
+            {#if let Some(q) = &entry.quality}<QualityBadge tier={q.0} text={q.1.clone()} />{/if}
+        {:else if !entry.format.is_empty()}
+            <div class="px-1.5 py-0.5 rounded-[5px] border text-[10px] font-bold uppercase tracking-[0.06em] bg-(--rg-s2) border-(--rg-bd) text-(--rg-mu)">{entry.format}</div>
+        {/if}
+    </div>
+    <div class="text-right text-[13px] tabular-nums text-(--rg-mu) whitespace-nowrap">{if entry.is_dir { entry.tracks.clone() } else { entry.size.clone() }}</div>
+    {#if entry.is_dir}
+        <div class="justify-self-end flex items-center justify-center w-8 h-8 rounded-full text-(--rg-mu2) group-hover:text-(--rg-tx2)" title={t("folders_view.open")}>
+            <Icon icon="material-symbols:chevron-right-rounded" width={19} />
+        </div>
+    {:else}
+        <div class="justify-self-end flex items-center justify-center w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 bg-(--rg-g) text-(--rg-on-g)" title={t("folders_view.play")}>
+            <Icon icon="material-symbols:play-arrow-rounded" width={20} />
+        </div>
+    {/if}
+</button>

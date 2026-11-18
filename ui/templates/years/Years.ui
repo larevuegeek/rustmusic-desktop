@@ -1,0 +1,52 @@
+<div class="biblio-maquette flex flex-col h-full relative">
+    {@include "../library/LibraryHeader.ui"}
+    <div class="flex-1 min-h-0 overflow-hidden">
+    {#if let Some(yv) = self.years_view()}
+    {#each self.views.years.iter() as page (page.library_id)}
+    {#if yv.index.is_empty() && self.stats_loading()}
+        <div class="flex items-center justify-center py-20 text-(--rg-mu)"><Spinner width={26.} /></div>
+    {:else if yv.index.is_empty()}
+        <div class="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <div class="w-16 h-16 mb-5 rounded-2xl border flex items-center justify-center bg-(--rg-gbg) border-(--rg-gbd) text-(--rg-g)">
+                <Icon icon="material-symbols:calendar-month-outline-rounded" width={30} />
+            </div>
+            <h3 class="text-base font-semibold text-(--rg-tx) mb-1.5">{t("years_view.empty")}</h3>
+            <p class="text-sm text-(--rg-mu) max-w-xs leading-relaxed">{t("years_view.empty_desc")}</p>
+        </div>
+    {:else}
+    <div class="flex flex-col h-full">
+        <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+                <div class="flex flex-wrap items-center gap-1.5" aria-label={t("years_view.jump")}>
+                    {#each yv.index as d (d.0)}
+                        {#if page.since == Some(d.0)}
+                            <button class="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text-[13px] font-semibold transition-colors cursor-pointer border-(--rg-gbd) bg-(--rg-gbg) text-(--rg-gtx)"
+                                    title={d.3.as_str()} onclick={Msg::Years(YearsMsg::Jump(None))}>
+                                <div class="w-2 h-2 rounded-full rg-teinte-vive" style:--h={d.2}></div><div>{d.1}</div>
+                            </button>
+                        {:else}
+                            <button class="h-8 px-3 inline-flex items-center gap-1.5 rounded-full border text-[13px] font-semibold transition-colors cursor-pointer border-(--rg-bd) bg-(--rg-creux) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
+                                    title={d.3.as_str()} onclick={Msg::Years(YearsMsg::Jump(Some(d.0)))}>
+                                <div class="w-2 h-2 rounded-full rg-teinte-vive" style:--h={d.2}></div><div>{d.1}</div>
+                            </button>
+                        {/if}
+                    {/each}
+                </div>
+                <div class="flex-1"></div>
+                <MenuSelect anchor="years.order" open={self.popup("years.order")} label={yv.order_label.clone()} icon={yv.order_icon} options={yv.orders.clone()} />
+            </div>
+        </div>
+
+        <div class="flex-1 relative min-h-0">
+            <div class="absolute inset-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-10 md:pr-14 pb-16">
+                {#each yv.decades as dec (dec.d)}
+                    <section class="pt-6 pb-9 border-b border-(--rg-line) last:border-b-0">{@include "Decade.ui"}</section>
+                {/each}
+            </div>
+        </div>
+    </div>
+    {/if}
+    {/each}
+    {/if}
+    </div>
+</div>

@@ -1,0 +1,18 @@
+<div class="flex shrink-0">
+{#if self.pressed}
+    <button class="w-12 h-12 shrink-0 rounded-full border flex items-center justify-center cursor-pointer transition-colors border-(--rg-gbd) text-(--rg-gtx) bg-(--rg-gbg)"
+            aria-pressed="true" title={self.title.as_str()} aria-label={self.title.as_str()} onclick={onclick}>
+        <Icon icon={self.icon.as_str()} width={22} />
+    </button>
+{:else if self.disabled}
+    <div class="w-12 h-12 shrink-0 rounded-full border flex items-center justify-center opacity-50 border-(--rg-bd2) text-(--rg-tx2) bg-white/40 dark:bg-black/25">
+        <Icon icon={self.icon.as_str()} width={22} />
+    </div>
+{:else}
+    <button class="w-12 h-12 shrink-0 rounded-full border flex items-center justify-center cursor-pointer transition-colors
+                   border-(--rg-bd2) text-(--rg-tx2) bg-white/40 dark:bg-black/25 hover:text-(--rg-tx) hover:bg-(--rg-carte)"
+            title={self.title.as_str()} aria-label={self.title.as_str()} onclick={onclick}>
+        <Icon icon={self.icon.as_str()} width={22} />
+    </button>
+{/if}
+</div>

@@ -1,0 +1,17 @@
+<button class="inline-flex items-center rounded-full p-1 transition-colors
+               bg-neutral-200 dark:bg-neutral-800"
+        role="switch" aria-checked={self.dark.get()} onclick={Msg::ToggleTheme} aria-label={if self.dark.get() {t("settings.theme_light")} else {t("settings.theme_dark")}}>
+    <div class="relative inline-flex h-7 w-12 items-center rounded-full transition-colors
+                bg-neutral-300 dark:bg-neutral-700">
+        <div class="absolute inline-flex h-6 w-6 items-center justify-center rounded-full bg-white shadow
+                    transition-transform
+                    top-0.5"
+             class:translate-x-6={self.dark.get()} class:translate-x-1={!self.dark.get()}>
+            {#if self.dark.get()}
+                <div class="text-neutral-800"><Icon icon="tabler:moon" width={16} /></div>
+            {:else}
+                <div class="text-amber-500"><Icon icon="tabler:sun" width={16} /></div>
+            {/if}
+        </div>
+    </div>
+</button>

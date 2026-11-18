@@ -1,0 +1,98 @@
+{@const sv = self.search_view()}
+<div class="biblio-maquette flex flex-col h-full">
+    <div class="shrink-0 flex flex-wrap items-center gap-x-5 gap-y-4 px-4 md:pl-8 md:pr-14 pt-6 pb-4">
+        <div class="w-16 h-16 shrink-0 rounded-2xl border flex items-center justify-center text-(--rg-g) bg-(--rg-gbg) border-(--rg-gbd)
+                    dark:bg-linear-145 dark:from-[#15402a] dark:to-[#0e2519]">
+            <Icon icon="material-symbols:search-rounded" width={30} />
+        </div>
+        <div class="flex-[1_1_240px] min-w-60">
+            <p class="m-0 text-xs font-bold uppercase tracking-widest text-(--rg-mu)">{t("search.results_for")}</p>
+            <h1 class="m-0 mt-0.5 mb-1.5 text-[34px] font-extrabold tracking-[-0.02em] leading-tight text-(--rg-tx) truncate">{t_with("search.query_quoted", &[("query", &sv.query)])}</h1>
+            <div class="flex flex-wrap items-baseline gap-x-4.5 gap-y-1.5 text-sm text-(--rg-mu)">
+                {#each sv.counts as c (c.1.as_str())}<div class="flex gap-1"><div class="font-bold text-(--rg-tx)">{c.0}</div><div>{c.1}</div></div>{/each}
+            </div>
+        </div>
+        {#if sv.has_tracks}
+            <button class="h-10 px-4 inline-flex items-center gap-2 rounded-xl cursor-pointer text-sm font-bold bg-(--rg-g) text-(--rg-on-g) hover:brightness-110 transition"
+                    onclick={Msg::SearchPage(SearchMsg::PlayAll)}>
+                <Icon icon="material-symbols:play-arrow-rounded" width={20} /><div>{t("library.play_all")}</div>
+            </button>
+        {/if}
+    </div>
+
+    {#if !sv.empty}
+        <div class="shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3 border-t border-(--rg-line)">
+            <SegmentedControl subtle label={t("search.results_for")} options={sv.filtres.clone()} />
+        </div>
+    {/if}
+
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-app pl-4 md:pl-8 pr-4 md:pr-14 pt-4 pb-16">
+        {#if sv.loading && sv.empty}
+            <div class="flex items-center justify-center h-full text-(--rg-mu)"><Spinner width={26.} /></div>
+        {:else if sv.empty}
+            <div class="flex flex-col items-center justify-center text-center py-20">
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-(--rg-s2) text-(--rg-mu)"><Icon icon="material-symbols:search-off-rounded" width={30} /></div>
+                <h3 class="m-0 text-lg font-bold text-(--rg-tx)">{t("search.no_result")}</h3>
+                <p class="m-0 mt-1 text-sm text-(--rg-mu)">{t("search.no_result_desc")}</p>
+            </div>
+        {:else if sv.filtre == "all"}
+            {#if let Some(top) = &sv.top}
+                {#if sv.has_tracks && top.kind != "track"}
+                    <div class="grid gap-x-8 gap-y-8 grid-cols-[minmax(0,5fr)_minmax(0,7fr)] mb-10">
+                        <div>{@include "TopResult.ui"}</div>
+                        <div class="min-w-0">
+                            {@const sec = &sv.tracks_beside_top}{@include "SearchSection.ui"}
+                            {#each sv.tracks.iter().take(5) as (i, r) (r.n)}{@include "TrackHit.ui"}{/each}
+                        </div>
+                    </div>
+                {:else}
+                    <div class="mb-10">{@include "TopResult.ui"}</div>
+                {/if}
+                {#if top.kind == "track"}
+                    <div class="mb-10">
+                        {@const sec = &sv.tracks_head}{@include "SearchSection.ui"}
+                        {#each sv.tracks.iter().take(8) as (i, r) (r.n)}{@include "TrackHit.ui"}{/each}
+                    </div>
+                {/if}
+            {/if}
+            {#if !sv.albums.is_empty()}
+                <div class="mb-10">
+                    {@const sec = &sv.albums_head}{@include "SearchSection.ui"}
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-x-5 gap-y-6">
+                        {#each sv.albums.iter().take(6) as r (r.n)}{@include "AlbumHit.ui"}{/each}
+                    </div>
+                </div>
+            {/if}
+            {#if !sv.artists.is_empty()}
+                <div class="mb-10">
+                    {@const sec = &sv.artists_head}{@include "SearchSection.ui"}
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-6">
+                        {#each sv.artists.iter().take(6) as r (r.n)}{@include "ArtistHit.ui"}{/each}
+                    </div>
+                </div>
+            {/if}
+            {#if !sv.composers.is_empty()}
+                <div class="mb-10">
+                    {@const sec = &sv.composers_head}{@include "SearchSection.ui"}
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-6">
+                        {#each sv.composers.iter().take(6) as r (r.n)}{@include "ArtistHit.ui"}{/each}
+                    </div>
+                </div>
+            {/if}
+        {:else if sv.filtre == "tracks"}
+            {#each sv.tracks as (i, r) (r.n)}{@include "TrackHit.ui"}{/each}
+        {:else if sv.filtre == "albums"}
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-x-5 gap-y-6">
+                {#each sv.albums as r (r.n)}{@include "AlbumHit.ui"}{/each}
+            </div>
+        {:else if sv.filtre == "composers"}
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-6">
+                {#each sv.composers as r (r.n)}{@include "ArtistHit.ui"}{/each}
+            </div>
+        {:else}
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-6">
+                {#each sv.artists as r (r.n)}{@include "ArtistHit.ui"}{/each}
+            </div>
+        {/if}
+    </div>
+</div>

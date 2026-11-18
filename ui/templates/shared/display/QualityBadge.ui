@@ -1,0 +1,12 @@
+<div class="flex shrink-0">
+{#if tier == Tier::Hires}
+    <div class="whitespace-nowrap text-[11px] rounded-md border font-bold uppercase tracking-[0.06em] px-2 py-0.75
+                text-amber-700 border-amber-300 bg-amber-50 dark:text-[#e8c46a] dark:border-[#4a3d1c] dark:bg-[#231d0e]">{self.text}</div>
+{:else if tier == Tier::Lossless}
+    <div class="whitespace-nowrap text-[11px] rounded-md border font-bold uppercase tracking-[0.06em] px-2 py-0.75
+                text-emerald-700 border-(--rg-gbd) bg-(--rg-gbg) dark:text-[#6ee7a0] dark:bg-[#0f2016]">{self.text}</div>
+{:else}
+    <div class="whitespace-nowrap text-[11px] rounded-md border font-bold uppercase tracking-[0.06em] px-2 py-0.75
+                text-(--rg-mu) border-(--rg-bd) bg-(--rg-carte)">{self.text}</div>
+{/if}
+</div>

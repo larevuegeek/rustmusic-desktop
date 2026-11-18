@@ -1,0 +1,12 @@
+{#if (self.booting && !self.export) || self.export_boot}
+    <div class="absolute inset-0 z-[300] flex items-center justify-center bg-(--c-fond) dark:bg-[#0b0d0c]"
+         aria-label="RustMusic" data-exit="popin-fade-out 250ms ease">
+        <div class="flex flex-col items-center gap-7">
+            <div class="flex items-center justify-center gap-1.5">
+                <div class="flex text-[#16a34a] dark:text-[#2bcc63]"><Icon icon="ph:headphones-fill" width={34} /></div>
+                <p class="m-0 whitespace-nowrap font-sans text-[30px] font-extrabold leading-none tracking-[-1.6px] text-[#1a1c1a] dark:text-neutral-100">Rust<span class="text-[#16a34a] dark:text-[#22c55e]">Music</span></p>
+            </div>
+            <div class="flex justify-center text-[#16a34a] dark:text-[#22c55e]"><Spinner width={30.} /></div>
+        </div>
+    </div>
+{/if}

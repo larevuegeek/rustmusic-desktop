@@ -1,0 +1,184 @@
+{@const pv = self.podcasts_view()}
+{#if !pv.active}
+    <div class="flex flex-col items-center justify-center gap-3 h-full text-(--rg-mu)">
+        <Icon icon="material-symbols:podcasts-rounded" width={34} />
+        <p class="text-sm m-0">{t("podcasts.disabled")}</p>
+        <button class="text-sm font-semibold text-(--rg-gtx) hover:underline cursor-pointer" onclick={Msg::Go(Route::Settings(SettingsPage::Online))}><div>{t("podcasts.disabled_link")}</div></button>
+    </div>
+{:else}
+<div class="h-full overflow-y-auto scrollbar-app">
+    <div class="relative px-4 md:px-8 pt-9 pb-8 overflow-hidden" style:margin_top={-self.export_offset}>
+        <div class="header-glow header-glow-violet absolute inset-0 pointer-events-none"></div>
+        <div class="relative">
+            <div class="flex flex-wrap items-start gap-x-6 gap-y-4">
+                <div class="flex-[1_1_320px] min-w-0">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-violet-600 dark:text-violet-300">
+                        <Icon icon="material-symbols:podcasts-rounded" width={16} /><div>{t("podcasts.kicker")}</div>
+                    </div>
+                    <h1 class="m-0 mt-1.5 text-[44px] font-extrabold tracking-[-0.03em] leading-none text-(--rg-tx)">{t("podcasts.title")}</h1>
+                    <div class="mt-2.5 flex gap-1 text-[15px] text-(--rg-tx2)">
+                        {#if let Some(c) = &pv.count}
+                            <div class="font-bold text-(--rg-tx)">{c.0}</div><div>{c.1}</div>
+                            {#if let Some(n) = &c.2}<div>·</div><div class="font-bold text-violet-600 dark:text-violet-300">{n}</div>{/if}
+                        {/if}
+                        {#if pv.count.is_none()}<div>{t("podcasts.tagline")}</div>{/if}
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border text-sm font-semibold transition-colors cursor-pointer bg-(--rg-carte)/70 backdrop-blur-sm border-(--rg-bd2) text-(--rg-tx) hover:border-violet-400/60 hover:text-violet-600 dark:hover:text-violet-300"
+                            onclick={Msg::Go(Route::PodcastDownloads)}>
+                        <Icon icon="material-symbols:download-for-offline-outline-rounded" width={18} /><div>{t("podcasts.downloads")}</div>
+                    </button>
+                    {#if pv.count.is_some()}
+                        <button class="h-10 px-4 inline-flex items-center gap-2 rounded-xl border text-sm font-semibold transition-colors cursor-pointer bg-(--rg-carte)/70 backdrop-blur-sm border-(--rg-bd2) text-(--rg-tx) hover:border-violet-400/60 hover:text-violet-600 dark:hover:text-violet-300"
+                                onclick={Msg::Podcasts(PodcastsMsg::CheckAll)}>
+                            {#if pv.verification}<Spinner width={18.} /><div>{t("podcasts.checking")}</div>{:else}<Icon icon="material-symbols:refresh-rounded" width={18} /><div>{t("podcasts.check_all")}</div>{/if}
+                        </button>
+                    {/if}
+                </div>
+            </div>
+            <div class="mt-7">
+                <div class="group h-13 flex items-center gap-2 pl-4.5 pr-1.5 rounded-2xl border transition-[border-color,box-shadow,background-color] duration-200
+                            bg-(--rg-carte)/85 border-(--rg-bd) backdrop-blur-sm shadow-[0_8px_28px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_28px_rgba(0,0,0,0.35)] hover:border-(--rg-bd2)">
+                    <div class="shrink-0 text-(--rg-mu)">
+                        {#if pv.address}<Icon icon="material-symbols:rss-feed-rounded" width={22} />{:else}<Icon icon="material-symbols:search-rounded" width={22} />{/if}
+                    </div>
+                    <input class="flex-1 min-w-0 h-full bg-transparent border-0 outline-0 text-[15px] text-(--rg-tx) placeholder:text-(--rg-ph) p-0"
+                           type="text" value={pv.input.as_str()} oninput={|v: String| Msg::Podcasts(PodcastsMsg::Input(v))}
+                           onkeydown={|k: Key| Msg::Podcasts(PodcastsMsg::Key(k))}
+                           placeholder={t("podcasts.search_placeholder")} aria-label={t("podcasts.search")}>
+                    {#if !pv.input.is_empty()}
+                        <button class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer text-(--rg-mu) hover:text-(--rg-tx) hover:bg-(--rg-s2)"
+                                aria-label={t("common.clear")} title={t("common.clear")} onclick={Msg::Podcasts(PodcastsMsg::Clear)}>
+                            <Icon icon="material-symbols:close-rounded" width={18} />
+                        </button>
+                    {/if}
+                    {#if pv.input.trim().is_empty()}
+                        <div class="shrink-0 h-10 px-4.5 inline-flex items-center gap-2 rounded-xl text-sm font-bold text-white bg-violet-600 cursor-default">
+                            <Icon icon="material-symbols:search-rounded" width={18} /><div>{t("podcasts.search")}</div>
+                        </div>
+                    {:else}
+                        <button class="shrink-0 h-10 px-4.5 inline-flex items-center gap-2 rounded-xl text-sm font-bold text-white bg-violet-600 cursor-pointer hover:bg-violet-500 shadow-[0_6px_18px_rgba(139,92,246,0.35)]"
+                                onclick={Msg::Podcasts(PodcastsMsg::Submit)}>
+                            {#if pv.busy}<Spinner width={18.} />{:else if pv.address}<Icon icon="material-symbols:add-rounded" width={18} />{:else}<Icon icon="material-symbols:search-rounded" width={18} />{/if}
+                            {#if pv.address}<div>{t("podcasts.add_feed")}</div>{:else}<div>{t("podcasts.search")}</div>{/if}
+                        </button>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-4 md:px-8 pb-24">
+        {#if let Some(results) = &pv.results}
+            <section class="mt-2">
+                <div class="flex flex-wrap items-end gap-3 mb-4">
+                    <div class="min-w-0">
+                        <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("podcasts.results")}</h2>
+                        <div class="mt-1 text-[13px] text-(--rg-mu)">{t("podcasts.results_hint")}</div>
+                    </div>
+                    <div class="flex-1"></div>
+                    <button class="text-[13px] font-semibold cursor-pointer text-(--rg-mu) hover:text-(--rg-tx)" onclick={Msg::Podcasts(PodcastsMsg::Clear)}><div>{t("podcasts.clear")}</div></button>
+                </div>
+                {#if results.is_empty()}
+                    <p class="m-0 py-3 max-w-lg text-sm text-(--rg-mu)">{t("podcasts.no_results")}</p>
+                {:else}
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(158px,1fr))] gap-x-5 gap-y-7">
+                        {#each results as r (r.key.as_str())}{@include "PodcastDirectoryCard.ui"}{/each}
+                    </div>
+                {/if}
+            </section>
+        {/if}
+        {#if pv.results.is_none()}
+            {#if !pv.latest.is_empty()}
+                <section class="mt-2">
+                    <div class="flex items-end gap-4 mb-4">
+                        <div class="flex-1 min-w-0">
+                            <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("podcasts.to_listen")}</h2>
+                            <div class="mt-1 text-[13px] text-(--rg-mu)">{t("podcasts.to_listen_hint")}</div>
+                        </div>
+                        <div class="relative">
+                            <button id="podcasts.listen" class="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx)"
+                                    title={t("common.menu")} aria-label={t("common.menu")} onclick={Msg::Podcasts(PodcastsMsg::ListMenu)}>
+                                <Icon icon="material-symbols:more-horiz" width={22} />
+                            </button>
+                            {#if self.popup("podcasts.listen")}
+                                <k-popover anchor="podcasts.listen" menu placement="bottom-end" offset="6" aria-label={t("common.menu")} onclose={Msg::CloseMenu} class="rg-menu w-80">
+                                    <MenuItem icon="material-symbols:playlist-remove-rounded" onclick={Msg::Podcasts(PodcastsMsg::EmptyListen)}>
+                                        <div class="flex flex-col"><div>{t("podcasts.empty_listen")}</div><div class="text-[12px] font-normal text-(--rg-mu)">{t("podcasts.empty_listen_desc")}</div></div>
+                                    </MenuItem>
+                                </k-popover>
+                            {/if}
+                        </div>
+                    </div>
+                    <div class="flex gap-4.5 pb-1 overflow-hidden">
+                        {#each pv.latest as e (e.id)}
+                            <div class="shrink-0 w-[clamp(160px,17%,210px)]">{@include "EpisodeCard.ui"}</div>
+                        {/each}
+                    </div>
+                </section>
+            {/if}
+
+            {#if !pv.podcasts.is_empty()}
+                {#if pv.latest.is_empty()}
+                    <div class="-mt-10">{@include "MyPodcasts.ui"}</div>
+                {:else}
+                    {@include "MyPodcasts.ui"}
+                {/if}
+            {:else if pv.loaded}
+                <div class="mt-2 flex items-center gap-4 p-5 rounded-2xl border border-(--rg-bd2) max-w-180">
+                    <div class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center bg-violet-500/10 text-violet-600 dark:text-violet-300">
+                        <Icon icon="material-symbols:library-add-outline-rounded" width={26} />
+                    </div>
+                    <p class="m-0 text-sm leading-relaxed text-(--rg-tx2)">{t("podcasts.empty")}</p>
+                </div>
+            {/if}
+
+            <section class="mt-12">
+                <div class="flex flex-wrap items-end gap-3 mb-3.5">
+                    <div class="min-w-0">
+                        <h2 class="m-0 text-[22px] font-extrabold tracking-[-0.01em] text-(--rg-tx)">{t("podcasts.popular")}</h2>
+                        <div class="mt-1 text-[13px] text-(--rg-mu)">{pv.country_hint}</div>
+                    </div>
+                    <div class="flex-1"></div>
+                    <MenuSelect anchor="podcasts.popular_sort" open={self.popup("podcasts.popular_sort")} label={pv.pop_label.clone()} icon={pv.pop_icon} options={pv.pop_sorts.clone()} />
+                    <MenuSelect anchor="podcasts.country" open={self.popup("podcasts.country")} label={pv.country_label.clone()} options={pv.country.clone()} />
+                </div>
+                <div class="flex gap-2 overflow-hidden pb-1 mb-5" role="tablist" aria-label={t("podcasts.popular")}>
+                    {#each pv.genres as g (g.1.as_str())}
+                        {#if g.2}
+                            <button class="flex items-center justify-center shrink-0 h-8.5 px-3.5 rounded-full border text-[13px] font-semibold cursor-pointer transition-colors bg-violet-600 border-violet-600 text-white"
+                                    role="tab" aria-selected="true" onclick={Msg::Podcasts(PodcastsMsg::Genre(g.0))}><div>{g.1}</div></button>
+                        {:else}
+                            <button class="flex items-center justify-center shrink-0 h-8.5 px-3.5 rounded-full border text-[13px] font-semibold cursor-pointer transition-colors border-(--rg-bd2) text-(--rg-tx2) hover:border-violet-400/60 hover:text-(--rg-tx)"
+                                    role="tab" aria-selected="false" onclick={Msg::Podcasts(PodcastsMsg::Genre(g.0))}><div>{g.1}</div></button>
+                        {/if}
+                    {/each}
+                </div>
+                {#if pv.popular_error}
+                    <p class="m-0 py-3 text-sm text-(--rg-mu)">{t("podcasts.popular_error")}</p>
+                {:else if pv.popular.is_none()}
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(158px,1fr))] gap-x-5 gap-y-7">
+                        {#each [0, 1, 2, 3, 4, 5] as k (k)}
+                            <div class="flex flex-col gap-2.5">
+                                <div class="aspect-square w-full rounded-2xl bg-(--rg-s2) animate-pulse"></div>
+                                <div class="h-3.5 w-3/4 rounded bg-(--rg-s2) animate-pulse"></div>
+                            </div>
+                        {/each}
+                    </div>
+                {:else}
+                    {#if let Some(pop) = &pv.popular}
+                        <div class="grid grid-cols-[repeat(auto-fill,minmax(158px,1fr))] gap-x-5 gap-y-7">
+                            {#each pop as r (r.key.as_str())}{@include "PodcastDirectoryCard.ui"}{/each}
+                        </div>
+                    {/if}
+                    {#if let Some(label) = &pv.more}
+                        <button class="flex items-center justify-center mt-6 h-9.5 px-4 rounded-xl border cursor-pointer text-[13px] font-semibold transition-colors border-(--rg-bd2) text-(--rg-tx) hover:border-violet-400/60"
+                                onclick={Msg::Podcasts(PodcastsMsg::ShowAll)}><div>{label}</div></button>
+                    {/if}
+                {/if}
+            </section>
+        {/if}
+    </div>
+</div>
+{/if}

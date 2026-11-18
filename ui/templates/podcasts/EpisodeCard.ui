@@ -1,0 +1,28 @@
+<div class="group relative min-w-0 flex flex-col gap-2.5">
+    <button class="relative w-full aspect-square overflow-hidden rounded-2xl cursor-pointer shadow-[0_10px_26px_rgba(0,0,0,0.16)] dark:shadow-[0_10px_26px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-0.5"
+            title={t("podcasts.play")} onclick={Msg::Podcasts(PodcastsMsg::PlayLatest(e.id))}>
+        <PodcastCover cover={e.cover.clone()} icon={40} />
+        <div class="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-black/55 to-transparent pointer-events-none"></div>
+        {#if e.playing}
+            <div class="absolute right-2.5 bottom-2.5 w-11 h-11 rounded-full flex items-center justify-center shadow-lg bg-(--rg-g) text-(--rg-on-g)"><Icon icon="material-symbols:graphic-eq-rounded" width={26} /></div>
+        {:else}
+            <div class="absolute right-2.5 bottom-2.5 w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition bg-white text-black opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0"><Icon icon="material-symbols:play-arrow-rounded" width={26} /></div>
+        {/if}
+        {#if let Some(badge) = &e.badge}
+            <div class="absolute left-2 top-2 h-6 px-2 inline-flex items-center rounded-full text-[11px] font-bold bg-(--rg-g) text-(--rg-on-g) shadow-sm">{badge}</div>
+        {/if}
+        {#if let Some(p) = &e.progress}
+            <div class="absolute left-2.5 right-16 bottom-4.5 h-1 rounded-full bg-white/30 overflow-hidden"><div class="h-full rounded-full bg-white" style:width={Length::Percent(*p)}></div></div>
+        {/if}
+    </button>
+    <div class="w-full min-w-0 px-0.5">
+        <button class="w-full text-left truncate text-[12px] font-semibold uppercase tracking-wide text-(--rg-mu) hover:text-(--rg-tx) hover:underline underline-offset-2 cursor-pointer"
+                onclick={Msg::Go(Route::Podcast(e.podcast_id))}><div class="truncate">{e.podcast_title}</div></button>
+        {#if e.playing}
+            <div class="mt-0.5 text-[14.5px] font-bold leading-snug line-clamp-2 text-(--rg-gtx)" title={e.title.as_str()}>{e.title}</div>
+        {:else}
+            <div class="mt-0.5 text-[14.5px] font-bold leading-snug line-clamp-2 text-(--rg-tx)" title={e.title.as_str()}>{e.title}</div>
+        {/if}
+        <div class="mt-0.5 truncate text-[12.5px] text-(--rg-mu)">{e.meta}</div>
+    </div>
+</div>

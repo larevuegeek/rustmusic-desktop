@@ -1,0 +1,12 @@
+<div class="flex items-center gap-2 mt-3">
+    <button class="h-8 px-3 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 cursor-pointer border border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) transition-colors"
+            onclick={Msg::Smart(SmartMsg::AddRule(g.path.clone()))}>
+        <Icon icon="lucide:plus" width={12} /><div>{t("smart.condition")}</div>
+    </button>
+    {#if g.can_group}
+        <button class="h-8 px-3 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 cursor-pointer border border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) transition-colors"
+                onclick={Msg::Smart(SmartMsg::AddGroup(g.path.clone()))}>
+            <Icon icon="lucide:brackets" width={12} /><div>{t("smart.group")}</div>
+        </button>
+    {/if}
+</div>

@@ -1,0 +1,13 @@
+{#if !o.icon.is_empty()}
+    {#if let Some(color) = &lk.icon}
+        <div class="w-full flex justify-center" style:color={*color}><Icon icon={o.icon} width={20} /></div>
+    {/if}
+    {#if lk.icon.is_none()}<div class="w-full flex justify-center"><Icon icon={o.icon} width={20} /></div>{/if}
+{:else if o.level > 0}
+    <div class="w-full flex items-end justify-center gap-0.75 h-4.5">
+        <div class="w-1.5 h-1.5 rounded-[2px]" style:background_color={lk.bars[0]}></div>
+        <div class="w-1.5 h-2.5 rounded-[2px]" style:background_color={lk.bars[1]}></div>
+        <div class="w-1.5 h-3.5 rounded-[2px]" style:background_color={lk.bars[2]}></div>
+        <div class="w-1.5 h-4.5 rounded-[2px]" style:background_color={lk.bars[3]}></div>
+    </div>
+{/if}

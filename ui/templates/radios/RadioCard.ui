@@ -1,0 +1,48 @@
+<div class="group relative min-w-0">
+    <button class="w-full min-w-0 flex flex-col gap-2.5 text-left cursor-pointer" title={r.format.as_str()} onclick={r.play.clone()}
+            oncontextmenu={{ let (l, i) = (r.list, r.index); move |q: ContextMenuRequest| Msg::Radios(RadiosMsg::Menu(l, i, TrackMenuAt::from_request(&q))) }}>
+        <div class="relative w-full">
+            {#if r.logo.is_some()}
+                <div class="relative overflow-hidden aspect-square w-full rounded-2xl bg-white shadow-[0_10px_26px_rgba(0,0,0,0.16)] dark:shadow-[0_10px_26px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-0.5">
+                    <img class="absolute inset-[12%] w-[76%] h-[76%] object-contain" src={cx.resources.cover_opt(&r.logo)} alt="">
+                    <div class="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/8 dark:ring-white/8 pointer-events-none"></div>
+                </div>
+            {:else}
+                <div class="relative overflow-hidden aspect-square w-full rounded-2xl bg-linear-140 from-rose-500 to-orange-500 shadow-[0_10px_26px_rgba(0,0,0,0.16)] dark:shadow-[0_10px_26px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:-translate-y-0.5">
+                    <div class="absolute inset-0 flex items-center justify-center text-white/90"><Icon icon="material-symbols:radio-rounded" width={44} /></div>
+                    <div class="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/8 dark:ring-white/8 pointer-events-none"></div>
+                </div>
+            {/if}
+            {#if let Some(rank) = &r.rank}
+                <div class="absolute left-2 top-2 min-w-7 h-7 px-1.5 inline-flex items-center justify-center rounded-full text-[12px] font-extrabold tabular-nums bg-black/60 text-white backdrop-blur-sm">{rank}</div>
+            {/if}
+            {#if r.reduced}
+                <div class="absolute left-2 bottom-2 h-5.5 px-2 inline-flex items-center rounded-full text-[10.5px] font-bold bg-amber-500/90 text-black" title={t("radios.reduced_quality")}>AAC+</div>
+            {/if}
+            <div class="absolute right-2.5 bottom-2.5 w-11 h-11 rounded-full flex items-center justify-center text-white bg-rose-600 shadow-[0_8px_20px_rgba(244,63,94,0.45)]
+                        opacity-0 translate-y-1 transition group-hover:opacity-100 group-hover:translate-y-0">
+                <Icon icon="material-symbols:play-arrow-rounded" width={26} />
+            </div>
+        </div>
+        <div class="w-full min-w-0 pl-0.5 pr-8">
+            <div class="truncate text-[14.5px] font-bold text-(--rg-tx)">{r.name}</div>
+            <div class="truncate text-[12.5px] text-(--rg-mu)">{r.sub}</div>
+        </div>
+    </button>
+    {#if r.favorite}
+        <button class="absolute right-2 top-2 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition backdrop-blur-sm bg-black/55 text-amber-300"
+                aria-pressed="true" title={t("radios.unfavorite")} aria-label={t("radios.unfavorite")} onclick={r.fav.clone()}>
+            <Icon icon="material-symbols:star-rounded" width={19} />
+        </button>
+    {:else}
+        <button class="absolute right-2 top-2 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition backdrop-blur-sm bg-black/55 text-white opacity-0 group-hover:opacity-100 hover:bg-black/75"
+                aria-pressed="false" title={t("radios.favorite")} aria-label={t("radios.favorite")} onclick={r.fav.clone()}>
+            <Icon icon="material-symbols:star-outline-rounded" width={19} />
+        </button>
+    {/if}
+    <button class="absolute right-0 bottom-0.5 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100"
+            id={ElementId::named(&r.more_id())}
+            title={t("common.menu")} aria-label={t("common.menu")} onclick={Msg::Radios(RadiosMsg::Menu(r.list, r.index, TrackMenuAt::Named(r.more_id())))}>
+        <Icon icon="material-symbols:more-horiz" width={20} />
+    </button>
+</div>

@@ -1,0 +1,32 @@
+<div class="min-w-0 flex-1 leading-[1.25]">
+    {#if vm.network[i]}
+        <div class="block truncate text-[13px] font-semibold">{service.1}</div>
+    {:else}
+        <div class="block truncate text-[13px] font-semibold text-(--lc-mu)">{service.1}</div>
+    {/if}
+    {#if i == 2 && vm.network[i]}
+        <div class="flex items-center gap-1.5 text-[11.5px] text-(--rg-gtx)">
+            <div class="w-1.5 h-1.5 shrink-0 rounded-full bg-(--rg-g) shadow-[0_0_6px_var(--rg-g)]"></div>
+            <div class="truncate">{self.network_status(i)}</div>
+        </div>
+    {:else}
+        <div class="flex items-center gap-1.5 text-[11.5px] text-(--lc-mu)">
+            <div class="truncate">{self.network_status(i)}</div>
+        </div>
+    {/if}
+</div>
+<div class="shrink-0">
+    {#if vm.network[i]}
+        <div class="relative w-8.5 h-5 rounded-full cursor-pointer transition-colors duration-150 shrink-0
+                    focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--rg-g)
+                    bg-(--rg-g) disabled:opacity-35 disabled:cursor-not-allowed mb-[4.6px]" role="switch" aria-checked="true">
+            <div class="absolute top-0.75 left-0.75 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] transition-transform duration-150 w-3.5 h-3.5 translate-x-3.5"></div>
+        </div>
+    {:else}
+        <div class="relative w-8.5 h-5 rounded-full cursor-pointer transition-colors duration-150 shrink-0
+                    focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--rg-g)
+                    bg-(--rg-off) disabled:opacity-35 disabled:cursor-not-allowed mb-[4.6px]" role="switch" aria-checked="false">
+            <div class="absolute top-0.75 left-0.75 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.4)] transition-transform duration-150 w-3.5 h-3.5"></div>
+        </div>
+    {/if}
+</div>

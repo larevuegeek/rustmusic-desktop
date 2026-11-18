@@ -96,16 +96,14 @@ A glibc 2.35 compatibility build is available for older distributions (Ubuntu 22
 ### Requirements
 
 - [Rust](https://rustup.rs) (stable)
-- [Node.js](https://nodejs.org) 20 or later
 - [CMake](https://cmake.org) (used to build libopus for Opus playback)
+- [karbon-ui](https://github.com/larevuegeek/karbon-ui), the native UI toolkit, checked out next to this repository (`../karbon-ui`)
 
 **Linux (Debian / Ubuntu)**
 
 ```bash
 sudo apt install -y \
-  build-essential curl wget file git pkg-config cmake libssl-dev \
-  libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
-  libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev patchelf \
+  build-essential curl git pkg-config cmake libssl-dev \
   libasound2-dev libpulse-dev libdbus-1-dev
 ```
 
@@ -118,46 +116,46 @@ brew install cmake
 
 **Windows**
 
-Install the [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) ("Desktop development with C++" workload), [CMake](https://cmake.org/download/) and [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (already present on up-to-date Windows 10 and 11).
+Install the [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) ("Desktop development with C++" workload) and [CMake](https://cmake.org/download/).
 
 ### Build
 
 ```bash
+git clone https://github.com/larevuegeek/karbon-ui.git
 git clone https://github.com/larevuegeek/rustmusic-desktop.git
 cd rustmusic-desktop
-npm install
-npm run tauri build
+cargo build --release
 ```
 
-Packages are written to `src-tauri/target/release/bundle/`.
+The binary is written to `target/release/`.
 
 ### Development
 
 ```bash
-npm run tauri dev
+cargo run
 ```
 
 ## Architecture
 
 ```
 rustmusic-desktop/
-├── src/                       # Frontend: SvelteKit + TypeScript
-│   ├── lib/                   # Components, stores, services, types, i18n
-│   ├── routes/                # SvelteKit pages
-│   └── app.css                # Tailwind 4
-├── src-tauri/                 # Backend: Rust + Tauri 2
-│   ├── src/
-│   │   ├── core/              # Audio engine (player, decoders, resampler, DSD, DLNA)
-│   │   ├── commands/          # Tauri commands exposed to the frontend
-│   │   ├── repository/        # SQLite layer (sqlx)
-│   │   ├── mapper/            # Entity ↔ DTO mapping
-│   │   └── lib.rs             # Entry point
-│   ├── Cargo.toml
-│   └── tauri.conf.json
+├── src/
+│   ├── core/              # Audio engine (player, decoders, resampler, DSD, DLNA)
+│   ├── commands/          # Engine operations called by the interface
+│   ├── repository/        # SQLite layer (sqlx)
+│   ├── mapper/            # Entity ↔ DTO mapping
+│   ├── app/               # Application handle, managed state, events
+│   ├── ui/                # Native interface (karbon-ui templates, styles, translations)
+│   ├── lib.rs             # Engine start-up, then the window
+│   └── main.rs
+├── SQL/                   # Versioned migrations
+├── icons/                 # Application icons
+├── packaging/             # Flatpak, winget, macOS
+├── Cargo.toml
 └── CHANGELOG.md
 ```
 
-**Stack:** SvelteKit and Svelte 5 (runes), TypeScript, Tailwind 4, Vite · Rust, Tauri 2, tokio, axum · CPAL, Symphonia, rubato, in-house DSD decoder · SQLite through sqlx with versioned migrations · souvlaki for system media controls.
+**Stack:** Rust · karbon-ui (native UI: Direct2D, Metal, Vulkan; templates with Tailwind 4 classes) · tokio, axum · CPAL, Symphonia, rubato, in-house DSD decoder · SQLite through sqlx with versioned migrations · souvlaki for system media controls.
 
 ## Contributing
 

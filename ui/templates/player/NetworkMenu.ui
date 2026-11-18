@@ -1,0 +1,81 @@
+{#if vm.network.iter().any(|active| *active) || self.open(Menu::Network)}
+    {#if self.open(Menu::Network)}
+        <button id="player.reseau"
+                class="shrink-0 h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border
+                       bg-emerald-500/12 border-emerald-600/25 text-emerald-800 dark:border-emerald-400/25 dark:text-emerald-300
+                       cursor-pointer transition-colors hover:border-current/50 border-current/50 dark:border-current/50!"
+                onclick={Msg::Menu(Menu::Network)} title={self.network_summary()} aria-expanded={self.open(Menu::Network)}>
+            {#if vm.network[0]}<div class="flex shrink-0"><Icon icon="material-symbols-light:cast-rounded" width={14} /></div>{/if}
+            {#if vm.network[1]}<div class="flex shrink-0"><Icon icon="material-symbols-light:airplay-rounded" width={14} /></div>{/if}
+            {#if vm.network[2]}<div class="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor]"></div>{/if}
+            <div class="w-auto">{t("network_player.pill_network")}</div>
+        </button>
+    {:else}
+        <button id="player.reseau"
+                class="shrink-0 h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border
+                       bg-emerald-500/12 border-emerald-600/25 text-emerald-800 dark:border-emerald-400/25 dark:text-emerald-300
+                       cursor-pointer transition-colors hover:border-current/50"
+                onclick={Msg::Menu(Menu::Network)} title={self.network_summary()} aria-expanded={self.open(Menu::Network)}>
+            {#if vm.network[0]}<div class="flex shrink-0"><Icon icon="material-symbols-light:cast-rounded" width={14} /></div>{/if}
+            {#if vm.network[1]}<div class="flex shrink-0"><Icon icon="material-symbols-light:airplay-rounded" width={14} /></div>{/if}
+            {#if vm.network[2]}<div class="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_6px_currentColor]"></div>{/if}
+            <div class="w-auto">{t("network_player.pill_network")}</div>
+        </button>
+    {/if}
+{/if}
+
+{#if self.open(Menu::Network)}
+    <k-popover anchor="player.carte" placement="top-end" offset="8" cross-offset="-8"
+               aria-label={t("network_player.pill_network")} onclose={Msg::CloseMenu}
+               class="menu lecteur-menu w-96 p-1.5 rounded-[16px] border
+                      bg-(--lc-menu) border-(--lc-menu-bd) shadow-[0_18px_40px_rgba(0,0,0,0.35)] text-(--lc-tx)">
+        <div class="flex items-center gap-2 px-2.5 pt-2 pb-1">
+            <div class="flex shrink-0 text-(--lc-mu)"><Icon icon="material-symbols-light:lan-outline-rounded" width={18} /></div>
+            <div class="flex-1 text-[13px] font-bold">{t("network_player.pill_network")}</div>
+            <div class="shrink-0 inline-flex items-center px-1.75 py-0.5 rounded-[5px] border text-[11px] font-bold leading-[1.2] whitespace-nowrap
+                        bg-(--rg-ambg) text-(--rg-am) border-(--rg-ambd)">{t("settings.beta_badge")}</div>
+        </div>
+        {#each [("material-symbols-light:cast-rounded", t("network_player.menu_players")), ("material-symbols-light:airplay-rounded", t("network_player.menu_airplay")), ("material-symbols-light:folder-shared-outline-rounded", t("network_player.menu_share"))] as (i, service) (service.0)}
+            {#if i == 0}<div class="px-2.5 pt-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">{t("network_player.menu_send")}</div>{/if}
+            {#if i == 2}<div class="px-2.5 pt-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">{t("network_player.menu_share_group")}</div>{/if}
+            {#if i == 2 && vm.network[i]}
+                <button class="flex items-center gap-3 px-2.5 py-2 rounded-[12px] cursor-pointer transition-colors
+                               bg-(--rg-g)/10 hover:bg-(--rg-g)/14 w-full text-left"
+                        onclick={Msg::ToggleNetwork(i)} aria-label={service.1.clone()}>
+                    {#if vm.network[i]}
+                        <div class="w-9 h-9 shrink-0 flex items-center justify-center rounded-[10px] transition-colors bg-(--rg-g)/15 text-(--rg-g)">
+                            <Icon icon={service.0} width={20} />
+                        </div>
+                    {:else}
+                        <div class="w-9 h-9 shrink-0 flex items-center justify-center rounded-[10px] transition-colors bg-(--lc-survol) text-(--lc-mu)">
+                            <Icon icon={service.0} width={20} />
+                        </div>
+                    {/if}
+                    {@include "NetworkRow.ui"}
+                </button>
+            {:else}
+                <button class="flex items-center gap-3 px-2.5 py-2 rounded-[12px] cursor-pointer transition-colors
+                               hover:bg-(--lc-survol) w-full text-left"
+                        onclick={Msg::ToggleNetwork(i)} aria-label={service.1.clone()}>
+                    {#if vm.network[i]}
+                        <div class="w-9 h-9 shrink-0 flex items-center justify-center rounded-[10px] transition-colors bg-(--rg-g)/15 text-(--rg-g)">
+                            <Icon icon={service.0} width={20} />
+                        </div>
+                    {:else}
+                        <div class="w-9 h-9 shrink-0 flex items-center justify-center rounded-[10px] transition-colors bg-(--lc-survol) text-(--lc-mu)">
+                            <Icon icon={service.0} width={20} />
+                        </div>
+                    {/if}
+                    {@include "NetworkRow.ui"}
+                </button>
+            {/if}
+        {/each}
+        <button class="mt-1.5 w-full flex items-center justify-center gap-2 h-9 rounded-[12px] border border-(--lc-menu-bd) cursor-pointer
+                       text-[12.5px] font-semibold text-(--lc-mu) hover:text-(--lc-tx) hover:bg-(--lc-survol) transition-colors"
+                onclick={Msg::Go(Route::Settings(SettingsPage::Network))}>
+            <div class="flex shrink-0"><Icon icon="material-symbols-light:settings-outline-rounded" width={17} /></div>
+            <div class="w-auto">{t("network_player.menu_settings")}</div>
+            <div class="flex shrink-0"><Icon icon="material-symbols-light:arrow-forward-rounded" width={15} /></div>
+        </button>
+    </k-popover>
+{/if}

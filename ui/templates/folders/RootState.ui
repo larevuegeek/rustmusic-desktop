@@ -1,0 +1,13 @@
+{#if dir.class == "scanning"}
+    <div class="flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap bg-(--rg-ambg) text-(--rg-am)">
+        <div class="w-1.5 h-1.5 rounded-full bg-(--rg-am)"></div><div>{dir.state}</div>
+    </div>
+{:else if dir.class == "error"}
+    <div class="flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap bg-red-500/10 text-red-600 dark:text-red-400">
+        <div class="w-1.5 h-1.5 rounded-full bg-red-600 dark:bg-red-400"></div><div>{dir.state}</div>
+    </div>
+{:else}
+    <div class="flex items-center gap-1.5 px-2 py-0.75 rounded-[10px] text-[11px] font-semibold whitespace-nowrap bg-(--rg-g)/10 text-(--rg-gtx)">
+        <div class="w-1.5 h-1.5 rounded-full bg-(--rg-gtx)"></div><div>{dir.state}</div>
+    </div>
+{/if}
