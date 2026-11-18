@@ -206,6 +206,8 @@ pub enum Msg {
     /// 0 : Titres likés, 1 : Récemment joués.
     ToggleShortcut(usize),
     Rescan,
+    /// Arrête l'import ou le scan en cours (ce qui est importé reste).
+    StopScan,
     /// Page d'import : dossier ou fichiers à importer (`ImportWelcome.importer`).
     AddDirectory,
     AddFiles,

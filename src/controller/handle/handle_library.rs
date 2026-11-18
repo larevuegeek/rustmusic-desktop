@@ -87,6 +87,13 @@ impl MusicApp {
                 self.set_setting(key, if on { "false" } else { "true" });
             }
             Msg::Rescan => self.rescan(),
+            Msg::StopScan => {
+                let Some(scan) = self.data.scan.as_mut() else {
+                    return false;
+                };
+                scan.stopping = true;
+                crate::commands::library::library_command::cancel_task("import".into());
+            }
             Msg::AddDirectory => self.ask(crate::models::layout::Choice::PageImport { folder: true }),
             Msg::AddFiles => self.ask(crate::models::layout::Choice::PageImport { folder: false }),
             Msg::OpenFile => self.ask(crate::models::layout::Choice::PlayFile),

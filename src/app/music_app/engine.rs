@@ -70,10 +70,29 @@ impl MusicApp {
                 true
             }
             "rescan-start" | "import-start" => {
+                let import = name.starts_with("import");
                 self.data.scan = Some(ScanProgress {
-                    label: if name.starts_with("rescan") { "Scan" } else { "Import" }.into(),
+                    label: if import { "Import" } else { "Scan" }.into(),
+                    import,
+                    library_id: payload.get("library_id").and_then(|v| v.as_i64()),
+                    directory: payload.get("directory").and_then(|v| v.as_str()).unwrap_or_default().into(),
+                    started: Some(std::time::Instant::now()),
                     ..Default::default()
                 });
+                true
+            }
+            "import-listing" => {
+                let scan = self.data.scan.get_or_insert_with(|| ScanProgress {
+                    label: "Import".into(),
+                    import: true,
+                    started: Some(std::time::Instant::now()),
+                    ..Default::default()
+                });
+                scan.listing = true;
+                scan.found = payload.get("found").and_then(|v| v.as_i64()).unwrap_or(0);
+                if let Some(dir) = payload.get("directory").and_then(|v| v.as_str()) {
+                    scan.directory = dir.into();
+                }
                 true
             }
             "batch-progress" | "batch-done" => self.batch_event(name, &payload),
@@ -81,9 +100,27 @@ impl MusicApp {
             "rescan-progress" | "import-progress" => {
                 let current = payload.get("current").and_then(|v| v.as_i64()).unwrap_or(0);
                 let total = payload.get("total").and_then(|v| v.as_i64()).unwrap_or(0);
-                let scan = self.data.scan.get_or_insert_with(Default::default);
+                let scan = self.data.scan.get_or_insert_with(|| ScanProgress {
+                    started: Some(std::time::Instant::now()),
+                    ..Default::default()
+                });
                 scan.current = current;
                 scan.total = total;
+                scan.listing = false;
+                if name.starts_with("import") {
+                    scan.import = true;
+                    let text = |k: &str| payload.get(k).and_then(|v| v.as_str()).map(str::to_string);
+                    if let Some(file) = text("file_name") {
+                        scan.file_name = file;
+                    }
+                    if let Some(dir) = text("directory") {
+                        scan.directory = dir;
+                    }
+                    scan.added = payload.get("added").and_then(|v| v.as_i64()).unwrap_or(scan.added);
+                    if scan.library_id.is_none() {
+                        scan.library_id = payload.get("library_id").and_then(|v| v.as_i64());
+                    }
+                }
                 true
             }
             "rescan-complete" | "import-complete" => {

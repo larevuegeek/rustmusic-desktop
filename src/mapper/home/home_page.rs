@@ -290,6 +290,10 @@ impl ViewModel {
             ],
             welcome_steps: if home_empty { welcome_steps() } else { Vec::new() },
             welcome_sections: if home_empty { welcome_sections() } else { Vec::new() },
+            import: crate::mapper::library::library_import::import_progress(
+                data,
+                data.scan.as_ref().and_then(|s| s.started).map(|t| t.elapsed()).unwrap_or_default(),
+            ),
             home_empty,
             home_loading: data.library_loading,
             show_recent,

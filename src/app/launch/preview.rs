@@ -72,6 +72,23 @@ pub fn export(
             music.export_msgs.push(crate::models::app::Msg::Profiles(crate::models::profiles::ProfileMsg::Edit(id)));
         }
     }
+    // Import en cours (« --open import-progress », « --open import-listing ») : chargeur de
+    // la bibliothèque et pastille de la barre d'état.
+    if let Some(o) = value("--open").filter(|o| o.starts_with("import-")) {
+        let listing = o == "import-listing";
+        music.data.scan = Some(crate::models::app::ScanProgress {
+            label: "Import".into(),
+            import: true,
+            listing,
+            found: 9440,
+            current: if listing { 0 } else { 3120 },
+            total: if listing { 0 } else { 9440 },
+            directory: "/home/david/Musique".into(),
+            file_name: "03 Nirvana - Been a Son.flac".into(),
+            started: std::time::Instant::now().checked_sub(std::time::Duration::from_secs(95)),
+            ..Default::default()
+        });
+    }
     // Confirmation au mot tapé (« --open reset », « --open remove-server:<id> »).
     if value("--open").as_deref() == Some("reset") {
         music.export_msgs.push(crate::models::app::Msg::Typed(crate::models::layout::TypedMsg::Reset));

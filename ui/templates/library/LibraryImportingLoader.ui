@@ -1,0 +1,75 @@
+{#if let Some(p) = &vm.import}
+<div class="h-full overflow-y-auto scrollbar-app">
+    <div class="min-h-full flex flex-col items-center justify-center py-16 px-6">
+        <div class="flex flex-col items-center max-w-sm w-full">
+            <div class="relative w-32 h-32 mb-8">
+                <div class="absolute inset-2 rounded-full bg-emerald-500/15 blur-xl animate-pulse" aria-hidden="true"></div>
+                <div class="relative w-32 h-32"><ProgressRing percent={p.percent} size={128.} /></div>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    {#if p.listing}
+                        <div class="flex text-emerald-500 animate-pulse"><Icon icon="lucide:folder-search" width={26} /></div>
+                    {:else}
+                        <div class="flex items-baseline text-2xl font-bold tabular-nums tracking-tight text-neutral-800 dark:text-white">{p.percent_label}<div class="text-sm font-medium text-neutral-400">%</div></div>
+                    {/if}
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 mb-2">
+                <div class="flex text-emerald-500"><Icon icon="lucide:hard-drive-download" width={18} /></div>
+                <p class="m-0 text-sm font-semibold text-neutral-800 dark:text-neutral-100">{p.title}</p>
+            </div>
+
+            <div class="flex items-center gap-3 text-xs tabular-nums text-neutral-400 dark:text-neutral-500 mb-5">
+                {#if !p.counter.is_empty()}
+                    <div class="flex items-center gap-1"><Icon icon="lucide:music" width={12} /><div>{p.counter}</div></div>
+                {/if}
+                {#if !p.elapsed.is_empty()}
+                    <div class="w-px h-3 bg-neutral-300/50 dark:bg-neutral-700/50"></div>
+                    <div class="flex items-center gap-1"><Icon icon="lucide:clock" width={12} /><div>{p.elapsed}</div></div>
+                {/if}
+                {#if !p.eta.is_empty()}
+                    <div class="w-px h-3 bg-neutral-300/50 dark:bg-neutral-700/50"></div>
+                    <div class="text-emerald-500/70">{p.eta}</div>
+                {/if}
+            </div>
+
+            <div class="w-full h-1.5 rounded-full bg-neutral-200/70 dark:bg-white/6 overflow-hidden mb-4">
+                <div class="h-full rounded-full transition-[width] duration-500 ease-out bg-linear-to-r from-emerald-500 via-emerald-400 to-cyan-400" style:width={Length::Percent(p.percent)}></div>
+            </div>
+
+            {#if !p.directory.is_empty()}
+                <div class="flex items-center gap-1.5 w-full px-2 mb-1">
+                    <div class="flex shrink-0 text-neutral-400/60"><Icon icon="lucide:folder" width={11} /></div>
+                    <p class="m-0 min-w-0 font-mono text-[11px] text-neutral-400 dark:text-neutral-500 truncate" title={p.directory.as_str()}>{p.directory}</p>
+                </div>
+            {/if}
+            {#if !p.file_name.is_empty() && !p.listing}
+                <div class="flex items-center gap-1.5 w-full px-2">
+                    <div class="flex shrink-0 text-neutral-400/60"><Icon icon="lucide:file-audio" width={11} /></div>
+                    <p class="m-0 min-w-0 text-[11px] text-neutral-400 dark:text-neutral-500 truncate">{p.file_name}</p>
+                </div>
+            {/if}
+
+            <div class="flex items-center gap-2 mt-6">
+                {#if p.stopping}
+                    <div class="h-9 px-3.5 flex items-center gap-2 rounded-lg text-sm font-semibold border border-neutral-200/80 dark:border-neutral-700/60 text-neutral-600 dark:text-neutral-300 opacity-50">
+                        <Icon icon="material-symbols:stop-circle-outline-rounded" width={18} />
+                        <div>{t("folders_popin.stopping")}</div>
+                    </div>
+                {:else}
+                    <button class="h-9 px-3.5 flex items-center gap-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors border border-neutral-200/80 dark:border-neutral-700/60 text-neutral-600 dark:text-neutral-300 hover:text-amber-500 hover:border-amber-500/40"
+                            onclick={Msg::StopScan}>
+                        <Icon icon="material-symbols:stop-circle-outline-rounded" width={18} />
+                        <div>{t("folders_popin.stop")}</div>
+                    </button>
+                {/if}
+                <button class="h-9 px-3.5 flex items-center gap-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-100 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60"
+                        onclick={Msg::LibraryFolders(LibraryFoldersMsg::Open)}>
+                    <Icon icon="material-symbols:folder-open-outline-rounded" width={18} />
+                    <div>{t("library_head.folders")}</div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{/if}

@@ -41,7 +41,9 @@
 
         <div id="app.main" class="grow overflow-hidden flex flex-col min-w-0">
             <div class="flex-1 overflow-hidden">
-                {#if *self.route() == Route::Home}
+                {#if matches!(self.route(), Route::Library(_)) && vm.import.as_ref().is_some_and(|p| p.loader)}
+                    {@include "../library/LibraryImportingLoader.ui"}
+                {:else if *self.route() == Route::Home}
                     {@include "../home/Home.ui"}
                 {:else if *self.route() == Route::Library(Section::Tracks)}
                     {@include "../tracks/TrackList.ui"}

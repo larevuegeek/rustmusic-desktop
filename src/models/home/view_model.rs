@@ -55,6 +55,8 @@ pub struct ViewModel {
     pub tiles: Vec<Tile>,
     pub tabs: [bool; 7],
     pub scan: String,
+    /// Import ou scan en cours : chargeur et pastille de la barre d'état.
+    pub import: Option<crate::models::library::ImportProgressView>,
     pub podcast_covers: Vec<String>,
     pub podcasts_detail: String,
     pub radios_detail: String,

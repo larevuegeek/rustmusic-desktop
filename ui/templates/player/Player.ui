@@ -131,6 +131,9 @@
         </div>
 
         <div class="flex items-center gap-2.5 h-8 pl-3 pr-2 rounded-b-[18px] text-[11px] text-(--lc-mu) border-t border-(--lc-statut-bd) bg-(--lc-statut)">
+            {#if vm.statut.format.is_empty() && vm.statut.file.is_empty()}
+                <div class="flex-1 pl-1 text-(--lc-mu2)">{t("player.inactive")}</div>
+            {:else}
             <button id="player.chain" class="shrink-0 -ml-1.5 h-6.5 pl-1.5 pr-1 flex items-center gap-2 whitespace-nowrap rounded-lg transition-colors enabled:cursor-pointer enabled:hover:bg-(--lc-survol) disabled:cursor-default"
                     class:lecteur-chaine-ouverte={self.popup("player.chain")}
                     disabled={!self.chain_available()} aria-label={t("player.audio_chain")} aria-expanded={self.popup("player.chain")}
@@ -167,6 +170,8 @@
                 {/if}
             </div>
 
+            {/if}
+
             <div class="min-w-0 ml-auto flex items-center gap-1.5">
                 <button class="shrink-0 h-5.5 px-2 flex items-center gap-1.5 rounded-full whitespace-nowrap text-[10.5px] font-semibold border
                                bg-sky-500/12 border-sky-600/25 text-sky-800 dark:border-sky-400/25 dark:text-sky-300
@@ -176,6 +181,7 @@
                     <div class="truncate">{vm.output_label}</div>
                 </button>
                 {@include "NetworkMenu.ui"}
+                {@include "StatusTasks.ui"}
             </div>
         </div>
     </div>

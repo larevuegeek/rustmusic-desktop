@@ -161,6 +161,8 @@ impl MusicApp {
         }
         self.data.scan = Some(ScanProgress {
             label: "Scan".into(),
+            library_id: Some(id),
+            started: Some(std::time::Instant::now()),
             ..Default::default()
         });
         let app = self.backend.app.clone();
