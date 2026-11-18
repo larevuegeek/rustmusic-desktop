@@ -82,6 +82,9 @@ pub struct MusicApp {
     pub(crate) tray_sent: Option<crate::models::tray::TraySnapshot>,
     /// Fermeture du petit lecteur : le clic sur l'icône qui l'a refermé ne le rouvre pas.
     pub(crate) tray_closed_at: Option<Instant>,
+    /// Morceau et état de lecture montrés par le menu de l'icône (Linux), pour ne le
+    /// reposer que s'ils changent.
+    pub(crate) tray_menu: Option<crate::app::platform::tray::TrayMenuState>,
     /// Colonne du tableau des morceaux en cours de redimensionnement.
     pub(crate) column_resize: Option<crate::models::tracks::ColumnResize>,
     /// Aperçu : la télécommande d'ampli avec un ampli fictif (« --open amp-remote[:mini|:sound|:nav|:standby] »).
@@ -128,6 +131,7 @@ impl MusicApp {
             tray_player: None,
             tray_sent: None,
             tray_closed_at: None,
+            tray_menu: None,
             column_resize: None,
             export_amp: None,
         }

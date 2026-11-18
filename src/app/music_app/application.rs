@@ -267,6 +267,7 @@ impl Application for MusicApp {
         let before = self.history.current().clone();
         let changed = self.handle(message);
         self.tray_sync();
+        self.tray_menu_sync();
         if *self.history.current() != before {
             self.views.carousels.clear();
             self.views.carousel_view += 1;
@@ -283,6 +284,7 @@ impl Application for MusicApp {
     fn task_completed(&mut self, result: TaskResult) -> bool {
         let changed = self.on_task(result);
         self.tray_sync();
+        self.tray_menu_sync();
         // Fenêtre ouverte sur une page (`--page tracks`, mesures de fluidité à la main) :
         // la page s'ouvre une fois la bibliothèque connue, comme après un clic.
         if !self.export && self.data.library_id.is_some() {
@@ -312,7 +314,10 @@ impl Application for MusicApp {
     }
 
     fn tray_event(&mut self, event: karbon_ui::window::TrayEvent) -> bool {
-        self.tray_handle(event)
+        let changed = self.tray_handle(event);
+        self.tray_sync();
+        self.tray_menu_sync();
+        changed
     }
 
     /// Le chargeur des pochettes : karbon-ui ordonnance ses tâches et lui livre leurs

@@ -2826,7 +2826,11 @@
     "show": "Mostrar RustMusic",
     "quit": "Salir",
     "nothing": "Nada en reproducción",
-    "play_pause": "Reproducir / pausa"
+    "play_pause": "Reproducir / pausa",
+    "play": "Reproducir",
+    "pause": "Pausa",
+    "previous": "Anterior",
+    "next": "Siguiente"
   },
   "whats_new": {
     "title": "Novedades",

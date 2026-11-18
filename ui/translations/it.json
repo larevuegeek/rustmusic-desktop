@@ -2823,7 +2823,11 @@
     "show": "Mostra RustMusic",
     "quit": "Esci",
     "nothing": "Niente in riproduzione",
-    "play_pause": "Riproduci / pausa"
+    "play_pause": "Riproduci / pausa",
+    "play": "Riproduci",
+    "pause": "Pausa",
+    "previous": "Precedente",
+    "next": "Successivo"
   },
   "whats_new": {
     "title": "Novità",
