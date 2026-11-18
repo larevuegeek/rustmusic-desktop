@@ -63,6 +63,18 @@ impl MusicApp {
                 let Some(s) = self.profiles() else { return false };
                 s.color = i;
             }
+            ProfileMsg::ChooseAvatar => {
+                if self.profiles().is_none() {
+                    return false;
+                }
+                self.ask(crate::models::layout::Choice::ProfileAvatar);
+                return false;
+            }
+            ProfileMsg::PresetAvatar(i) => {
+                let Some(s) = self.profiles() else { return false };
+                s.avatar = crate::mapper::profiles::profile_list::preset_value(i);
+                s.error = None;
+            }
             ProfileMsg::RemoveAvatar => {
                 let Some(s) = self.profiles() else { return false };
                 s.avatar = None;
@@ -127,6 +139,27 @@ impl MusicApp {
             },
         );
         true
+    }
+
+    /// Image choisie pour le profil en cours de création ou d'édition : importée (recadrée
+    /// en carré, réduite) dans le dossier de l'application, montrée tout de suite, gardée
+    /// à l'enregistrement du profil.
+    pub(crate) fn profile_avatar_import(&mut self, source: String) {
+        let Some(s) = self.profiles() else { return };
+        s.busy = true;
+        s.error = None;
+        self.backend.call(async move { profile_command::profile_avatar_import(source).await }, |me, r| {
+            let Some(s) = me.profiles() else { return false };
+            s.busy = false;
+            match r {
+                Ok(path) => s.avatar = Some(path),
+                Err(e) => {
+                    log::warn!("Image de profil : {e}");
+                    s.error = Some("profil.avatar_error");
+                }
+            }
+            true
+        });
     }
 
     pub(crate) fn profiles_delete(&mut self) -> bool {

@@ -358,6 +358,7 @@
     "avatar_choose": "Choose an image",
     "avatar_change": "Change image",
     "avatar_remove": "Remove",
+    "avatar_presets_label": "Or an avatar",
     "avatar_error": "This image couldn't be read.",
     "who_listens": "Who's listening?",
     "select_desc": "Select your profile to find your libraries and playlists",

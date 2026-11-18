@@ -9,4 +9,6 @@ pub enum Choice {
     ImportFolder { library: i64, redirect: bool },
     /// Page d'import : la bibliothèque est créée après le choix.
     PageImport { folder: bool },
+    /// Image du profil en cours de création ou d'édition.
+    ProfileAvatar,
 }

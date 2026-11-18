@@ -171,6 +171,7 @@ impl ViewModel {
         let (greeting, first_name) = greeting(data, now);
         let initial = first_name.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_else(|| "?".into());
         let profile_color = data.profile.as_ref().map(|p| p.color.clone()).unwrap_or_else(|| "#22c55e".into());
+        let profile_avatar = data.profile.as_ref().and_then(|p| p.avatar.clone()).filter(|a| !a.is_empty());
         let stats = stats(data);
         let mixes = mixes(data, now);
         let home_playlists = home_playlists(data);
@@ -246,6 +247,7 @@ impl ViewModel {
             greeting,
             first_name,
             initial,
+            profile_avatar,
             profile_color,
             stats,
             mixes,

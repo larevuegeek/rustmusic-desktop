@@ -22,6 +22,8 @@ pub struct ViewModel {
     /// « Bonsoir, David ».
     pub greeting_line: String,
     pub initial: String,
+    /// Image du profil actif (en-tête), à la place de l'initiale.
+    pub profile_avatar: Option<String>,
     pub profile_color: String,
     pub stats: Vec<Stat>,
     pub mixes: Vec<Mix>,

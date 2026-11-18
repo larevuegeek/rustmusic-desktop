@@ -74,6 +74,9 @@ impl MusicApp {
             vm.podcasts_detail,
             (&vm.radios_detail, &vm.radio_logo),
         );
+        // Avatar du profil actif (pied de la barre) : son nom, et si son image est chargée.
+        let _ = write!(key, "|{:?}", vm.profile_avatar);
+        Self::covers_key(assets, &mut key, std::iter::once(&vm.profile_avatar));
         let pins: Vec<Option<String>> = [PinKind::Album, PinKind::Artist]
             .into_iter()
             .flat_map(|kind| self.sidebar_pins(kind))
@@ -131,8 +134,9 @@ impl MusicApp {
         key
     }
 
-    /// Actions à droite de la barre de titre : minuteur, nouveautés, thème, profil.
-    pub fn title_actions_key(&self, vm: &ViewModel) -> String {
+    /// Actions à droite de la barre de titre : minuteur, nouveautés, thème, profil (son
+    /// image, et si elle est chargée).
+    pub fn title_actions_key(&self, vm: &ViewModel, assets: &Assets) -> String {
         let mut key = self.region_key();
         let _ = write!(
             key,
@@ -144,6 +148,7 @@ impl MusicApp {
             vm.initial,
             vm.first_name,
         );
+        Self::covers_key(assets, &mut key, std::iter::once(&vm.profile_avatar));
         key
     }
 }

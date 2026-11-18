@@ -1,0 +1,11 @@
+<!-- Visage du profil actif dans une pastille ronde à sa couleur : avatar proposé (icône),
+     image importée, sinon l'initiale. -->
+{#if let Some(icon) = profile_avatar_preset(&vm.profile_avatar)}
+    <Icon icon={icon} width={16} />
+{:else}
+    {#if let Some(img) = profile_avatar_image(&vm.profile_avatar)}
+        <img class="w-full h-full object-cover" src={cx.resources.cover(img)} alt="">
+    {:else}
+        <div>{vm.initial}</div>
+    {/if}
+{/if}

@@ -1,6 +1,13 @@
 <div class="relative flex items-center justify-center shrink-0 overflow-hidden font-semibold w-32 h-32 rounded-2xl text-5xl text-(--rg-tx)">
-    {#if let Some(img) = &p.avatar}
-        <img class="w-full h-full object-cover" src={cx.resources.cover(img)} alt={p.name.clone()}>
+    {#if let Some(icon) = profile_avatar_preset(&p.avatar)}
+        <div class="w-full h-full flex items-center justify-center text-white" style:background_layers={profile_avatar_fill(&p.color)}>
+            <Icon icon={icon} width={64} />
+        </div>
+    {:else}
+        {#if let Some(img) = profile_avatar_image(&p.avatar)}
+            <img class="w-full h-full object-cover" src={cx.resources.cover(img)} alt={p.name.clone()}>
+        {:else}
+            <div>{profile_initials(&p.name)}</div>
+        {/if}
     {/if}
-    {#if p.avatar.is_none()}<div>{profile_initials(&p.name)}</div>{/if}
 </div>

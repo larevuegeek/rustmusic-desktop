@@ -18,7 +18,7 @@
                 {@include "../search/SearchAutocomplete.ui"}
             </div>
 
-            <div class="ml-auto shrink-0 flex items-center gap-1 md:gap-2" memo={self.title_actions_key(&vm)}>
+            <div class="ml-auto shrink-0 flex items-center gap-1 md:gap-2" memo={self.title_actions_key(&vm, cx.resources)}>
                 {#if self.show_sleep_timer()}
                     {@include "../player/SleepTimerButton.ui"}
                 {/if}

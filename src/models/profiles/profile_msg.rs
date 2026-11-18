@@ -8,6 +8,10 @@ pub enum ProfileMsg {
     Back,
     Name(String),
     Color(usize),
+    /// Choisir l'image du profil sur l'ordinateur.
+    ChooseAvatar,
+    /// Prendre l'avatar proposé de rang donné (`AVATAR_PRESETS`).
+    PresetAvatar(usize),
     RemoveAvatar,
     Submit,
     DeleteAsk,

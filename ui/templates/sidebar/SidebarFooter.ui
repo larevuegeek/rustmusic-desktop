@@ -19,7 +19,7 @@
         </button>
         <button id="sidebar.footer.profil" class="mt-1 cursor-pointer rounded-full flex" onclick={Msg::Profiles(ProfileMsg::Open)}
                 aria-label={t_with("sidebar.profile_title", &[("name", &vm.first_name)])} title={t_with("sidebar.profile_title", &[("name", &vm.first_name)])}>
-            <div class="sb-avatar w-8.5 h-8.5 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-sm font-extrabold text-white">{vm.initial}</div>
+            <div class="sb-avatar w-8.5 h-8.5 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-sm font-extrabold text-white">{@include "../profiles/ActiveProfileFace.ui"}</div>
         </button>
     </div>
 {:else}
@@ -38,7 +38,7 @@
         {#if self.footer_collapsed}
             <button class="flex items-center gap-2 py-1.5 pl-2 pr-2.5 min-w-0 text-left cursor-pointer"
                     onclick={Msg::ToggleFooter} title={t("sidebar.footer_expand")}>
-                <div class="sb-avatar w-6 h-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-[11px] font-extrabold text-white">{vm.initial}</div>
+                <div class="sb-avatar w-6 h-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-[11px] font-extrabold text-white">{@include "../profiles/ActiveProfileFace.ui"}</div>
                 <b class="text-[13px] font-bold truncate text-(--sb-tx) shrink-0 max-w-[40%]">{vm.first_name}</b>
                 <div class="sb-point w-1.5 h-1.5 rounded-full shrink-0 text-(--sb-point)" aria-hidden="true"></div>
                 <small class="min-w-0 text-xs truncate tabular-nums text-(--sb-mu)">{vm.scan}</small>
@@ -48,7 +48,7 @@
                 <div class="flex items-center gap-2.5 pt-2 pb-1.5 pl-2 pr-1.5">
                     <button class="group flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer"
                             onclick={Msg::Profiles(ProfileMsg::Open)} title={t_with("sidebar.profile_title", &[("name", &vm.first_name)])}>
-                        <div class="sb-avatar w-8.5 h-8.5 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-sm font-extrabold text-white">{vm.initial}</div>
+                        <div class="sb-avatar w-8.5 h-8.5 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-sm font-extrabold text-white">{@include "../profiles/ActiveProfileFace.ui"}</div>
                         <div class="flex flex-col gap-px min-w-0">
                             <div class="text-sm font-bold truncate text-(--sb-tx) group-hover:underline underline-offset-2 decoration-(--sb-mu)">{vm.first_name}</div>
                             <div class="text-xs truncate text-(--sb-mu)">{t("sidebar.profile_active")}</div>

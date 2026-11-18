@@ -14,18 +14,25 @@
                 <div class="absolute inset-0 rounded-2xl blur-2xl opacity-40 scale-125 transition-all duration-500" style:background_color={hex(ps.color_hex())}></div>
                 <div class="relative transition-all duration-300">
                     <div class="relative flex items-center justify-center shrink-0 overflow-hidden w-28 h-28 rounded-2xl text-5xl font-black ring-2 ring-white/15 shadow-2xl text-(--rg-tx)">
-                        {#if let Some(img) = &ps.avatar}
-                            <img class="w-full h-full object-cover" src={cx.resources.cover(img)} alt="">
+                        {#if let Some(icon) = profile_avatar_preset(&ps.avatar)}
+                            <div class="w-full h-full flex items-center justify-center text-white" style:background_layers={profile_avatar_fill(ps.color_hex())}>
+                                <Icon icon={icon} width={56} />
+                            </div>
+                        {:else}
+                            {#if let Some(img) = profile_avatar_image(&ps.avatar)}
+                                <img class="w-full h-full object-cover" src={cx.resources.cover(img)} alt="">
+                            {:else}
+                                <div>{profile_initials(if ps.name.is_empty() { "?" } else { ps.name.as_str() })}</div>
+                            {/if}
                         {/if}
-                        {#if ps.avatar.is_none()}<div>{profile_initials(if ps.name.is_empty() { "?" } else { ps.name.as_str() })}</div>{/if}
                     </div>
                 </div>
             </div>
             <div class="flex items-center justify-center gap-2">
                 <button class="h-8 px-3 flex items-center gap-1.5 rounded-lg border text-[13px] font-semibold cursor-pointer transition-colors border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx)"
-                        onclick={Msg::Noop}>
+                        onclick={Msg::Profiles(ProfileMsg::ChooseAvatar)} disabled={ps.busy}>
                     <Icon icon="material-symbols:add-photo-alternate-outline-rounded" width={17} />
-                    <div>{t(if ps.avatar.is_some() { "profil.avatar_change" } else { "profil.avatar_choose" })}</div>
+                    <div>{t(if profile_avatar_image(&ps.avatar).is_some() { "profil.avatar_change" } else { "profil.avatar_choose" })}</div>
                 </button>
                 {#if ps.avatar.is_some()}
                     <button class="h-8 px-3 flex items-center gap-1.5 rounded-lg text-[13px] font-semibold cursor-pointer text-(--rg-mu) hover:text-(--rg-tx)"
@@ -79,6 +86,31 @@
                             <button class="w-7 h-7 shrink-0 rounded-full cursor-pointer transition-all duration-200 hover:scale-105 opacity-50 hover:opacity-100"
                                     style:background_color={hex(c)}
                                     aria-label={t_with("forms.color_aria", &[("color", c)])} onclick={Msg::Profiles(ProfileMsg::Color(i))}><div></div></button>
+                        {/if}
+                    {/each}
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <div class="text-[11px] font-semibold uppercase tracking-widest text-(--rg-mu) mb-4">{t("profil.avatar_presets_label")}</div>
+                <div class="grid grid-cols-6 gap-2.5">
+                    {#each profile_avatar_presets() as (i, icon) (i)}
+                        {#if profile_avatar_preset(&ps.avatar) == Some(icon)}
+                            <button class="aspect-square rounded-xl flex items-center justify-center cursor-pointer text-white transition-all duration-200
+                                           ring-2 ring-offset-2 ring-offset-(--rg-carte) ring-(--rg-tx) scale-105"
+                                    style:background_layers={profile_avatar_fill(ps.color_hex())}
+                                    aria-label={format!("{} {}", t("profil.avatar_alt"), i + 1)} aria-pressed="true"
+                                    onclick={Msg::Profiles(ProfileMsg::PresetAvatar(i))}>
+                                <Icon icon={icon} width={26} />
+                            </button>
+                        {:else}
+                            <button class="aspect-square rounded-xl flex items-center justify-center cursor-pointer text-white transition-all duration-200
+                                           opacity-60 hover:opacity-100 hover:scale-105"
+                                    style:background_layers={profile_avatar_fill(ps.color_hex())}
+                                    aria-label={format!("{} {}", t("profil.avatar_alt"), i + 1)} aria-pressed="false"
+                                    onclick={Msg::Profiles(ProfileMsg::PresetAvatar(i))}>
+                                <Icon icon={icon} width={26} />
+                            </button>
                         {/if}
                     {/each}
                 </div>

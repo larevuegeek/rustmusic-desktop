@@ -19,6 +19,9 @@ pub const DIALOG_TASK: TaskId = TaskId(900);
 /// Extensions proposées à l'ouverture d'un fichier audio.
 pub(crate) const AUDIO_OPEN: [&str; 6] = ["mp3", "flac", "ogg", "m4a", "dsf", "dff"];
 
+/// Images proposées pour l'avatar d'un profil (comme la 0.4).
+pub(crate) const AVATAR_IMAGES: [&str; 6] = ["jpg", "jpeg", "png", "webp", "gif", "bmp"];
+
 /// Extensions proposées à l'import de fichiers.
 pub(crate) const AUDIO_IMPORT: [&str; 8] = ["mp3", "flac", "ogg", "m4a", "dsf", "dff", "wav", "aac"];
 
@@ -78,6 +81,9 @@ impl MusicApp {
             Choice::PlayFolder | Choice::ImportFolder { .. } | Choice::PageImport { folder: true } => {
                 FileDialog::pick_folder().title(t("actions.dialog_select_folder"))
             }
+            Choice::ProfileAvatar => FileDialog::open_file()
+                .title(t("profil.avatar_choose"))
+                .filter(t("actions.dialog_images"), &AVATAR_IMAGES),
         };
         self.views.dialog = Some(choice);
         self.window_commands.push(WindowCommand::FileDialog(WindowId::MAIN, DIALOG_TASK, dialog));
@@ -101,6 +107,7 @@ impl MusicApp {
             Choice::ImportFiles { library, redirect } => self.importer(library, redirect, paths, false),
             Choice::ImportFolder { library, redirect } => self.importer(library, redirect, paths, true),
             Choice::PageImport { folder } => self.import_new(paths, folder),
+            Choice::ProfileAvatar => self.profile_avatar_import(first),
         }
         true
     }
