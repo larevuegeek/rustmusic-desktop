@@ -52,6 +52,8 @@ pub struct Data {
     pub radios: Vec<RadioView>,
 
     pub search: Vec<SearchResult>,
+    /// Texte qui a donné `search` (choix du meilleur résultat de la recherche rapide).
+    pub search_query: String,
     /// Les dossiers de la bibliothèque choisie (en-tête, menu « Gérer »).
     pub library_dirs: Vec<crate::entity::library::library_dirs::LibraryDir>,
     /// La page ouverte hors accueil et ses données.

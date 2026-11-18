@@ -75,6 +75,7 @@ impl ArtistRepository {
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
+        let ranks = crate::repository::search_rank::terms(search_term);
         sqlx::query_as::<_, crate::entity::search::search_result::SearchResult>(
             r#"
             SELECT
@@ -91,6 +92,15 @@ impl ArtistRepository {
               AND la.library_id IN (SELECT id FROM library WHERE profil_id = ?4)
               AND (CASE WHEN ?3 IS NULL THEN la.library_id IN (SELECT id FROM library WHERE server_id IS NULL OR server_id IN (SELECT id FROM media_servers WHERE enabled = 1)) ELSE la.library_id IN (SELECT id FROM library WHERE COALESCE(server_id, 0) = ?3) END)
             GROUP BY a.id
+            -- Nom exact, puis qui commence par la recherche, puis un mot qui commence
+            -- par elle, puis qui la contient.
+            ORDER BY CASE
+                    WHEN LOWER(a.name) = ?5 THEN 0
+                    WHEN LOWER(a.name) LIKE ?6 THEN 1
+                    WHEN LOWER(a.name) LIKE ?7 THEN 2
+                    ELSE 3
+                END,
+                LENGTH(a.name), a.name
             LIMIT ?2
             "#
         )
@@ -98,6 +108,9 @@ impl ArtistRepository {
         .bind(limit)
         .bind(source)
         .bind(profile_id)
+        .bind(ranks.0)
+        .bind(ranks.1)
+        .bind(ranks.2)
         .fetch_all(exec)
         .await
     }

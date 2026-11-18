@@ -961,6 +961,7 @@ impl LibraryTrackRepository {
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
+        let ranks = crate::repository::search_rank::terms(search_term);
         sqlx::query_as::<_, crate::entity::search::search_result::SearchResult>(
             r#"
             SELECT
@@ -978,6 +979,16 @@ impl LibraryTrackRepository {
                OR LOWER(COALESCE(lc.artist, '')) LIKE ?1)
               AND lt.library_id IN (SELECT id FROM library WHERE profil_id = ?4)
               AND (CASE WHEN ?3 IS NULL THEN lt.library_id IN (SELECT id FROM library WHERE server_id IS NULL OR server_id IN (SELECT id FROM media_servers WHERE enabled = 1)) ELSE lt.library_id IN (SELECT id FROM library WHERE COALESCE(server_id, 0) = ?3) END)
+            -- Titre exact, puis qui commence par la recherche, puis un mot qui commence
+            -- par elle, puis qui la contient ; enfin les morceaux trouvés par l'artiste.
+            ORDER BY CASE
+                    WHEN LOWER(lt.title) = ?5 THEN 0
+                    WHEN LOWER(lt.title) LIKE ?6 THEN 1
+                    WHEN LOWER(lt.title) LIKE ?7 THEN 2
+                    WHEN LOWER(lt.title) LIKE ?1 THEN 3
+                    ELSE 4
+                END,
+                LENGTH(lt.title), lt.title
             LIMIT ?2
             "#
         )
@@ -985,6 +996,9 @@ impl LibraryTrackRepository {
         .bind(limit)
         .bind(source)
         .bind(profile_id)
+        .bind(ranks.0)
+        .bind(ranks.1)
+        .bind(ranks.2)
         .fetch_all(exec)
         .await
     }

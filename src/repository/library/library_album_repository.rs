@@ -335,6 +335,7 @@ impl LibraryAlbumRepository {
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
     {
+        let ranks = crate::repository::search_rank::terms(search_term);
         sqlx::query_as::<_, crate::entity::search::search_result::SearchResult>(
             r#"
             SELECT
@@ -350,6 +351,15 @@ impl LibraryAlbumRepository {
             WHERE LOWER(la.title) LIKE ?1
               AND la.library_id IN (SELECT id FROM library WHERE profil_id = ?4)
               AND (CASE WHEN ?3 IS NULL THEN la.library_id IN (SELECT id FROM library WHERE server_id IS NULL OR server_id IN (SELECT id FROM media_servers WHERE enabled = 1)) ELSE la.library_id IN (SELECT id FROM library WHERE COALESCE(server_id, 0) = ?3) END)
+            -- Nom exact, puis qui commence par la recherche, puis un mot qui commence
+            -- par elle, puis qui la contient.
+            ORDER BY CASE
+                    WHEN LOWER(la.title) = ?5 THEN 0
+                    WHEN LOWER(la.title) LIKE ?6 THEN 1
+                    WHEN LOWER(la.title) LIKE ?7 THEN 2
+                    ELSE 3
+                END,
+                LENGTH(la.title), la.title
             LIMIT ?2
             "#
         )
@@ -357,6 +367,9 @@ impl LibraryAlbumRepository {
         .bind(limit)
         .bind(source)
         .bind(profile_id)
+        .bind(ranks.0)
+        .bind(ranks.1)
+        .bind(ranks.2)
         .fetch_all(exec)
         .await
     }

@@ -105,6 +105,7 @@ impl MusicApp {
         };
         let source = self.source_id();
         let app = self.backend.app.clone();
+        let searched = query.clone();
         self.backend.call(
             async move { search_command::search(app.state(), query, Some(30), profile, source).await },
             move |me, results| {
@@ -112,6 +113,7 @@ impl MusicApp {
                     return false;
                 }
                 me.data.search = results.unwrap_or_default();
+                me.data.search_query = searched;
                 if me.data.search.is_empty() {
                     if me.open(Menu::Search) {
                         me.menu = None;

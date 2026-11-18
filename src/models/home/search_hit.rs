@@ -10,4 +10,8 @@ pub struct SearchHit {
     pub cover_path: Option<String>,
     pub route: Option<Route>,
     pub path: Option<String>,
+    /// Titre de la section qui commence à ce résultat (recherche rapide), vide sinon.
+    pub section: String,
+    /// Meilleur résultat : son type est rappelé par une étiquette.
+    pub top: bool,
 }

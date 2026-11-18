@@ -195,7 +195,8 @@ impl MusicApp {
                 self.do_search();
             }
             Msg::SearchKey(key) if self.open(Menu::Search) => {
-                let n = self.data.search.len();
+                // Lignes affichées (bornées par section), pas tous les résultats reçus.
+                let n = crate::mapper::search::search_autocomplete::results(&self.data).len();
                 match key {
                     Key::Down => self.suggestion = Some(self.suggestion.map_or(0, |i| (i + 1).min(n.saturating_sub(1)))),
                     Key::Up => self.suggestion = self.suggestion.and_then(|i| i.checked_sub(1)),
