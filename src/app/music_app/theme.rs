@@ -17,7 +17,8 @@ impl MusicApp {
             .and_then(|p| assets.covers.get(p))
             .map(|image| image.dominant_hue())
             .unwrap_or((150., 0.));
-        let key = (dark, contrast, h.to_bits(), s.to_bits());
+        let accent = super::accent::custom(self.data.setting("accent_color"));
+        let key = (dark, contrast, h.to_bits(), s.to_bits(), accent);
         let mut cache = self.theme_cache.borrow_mut();
         if let Some((k, variables)) = cache.as_ref() {
             if *k == key {
@@ -67,6 +68,12 @@ impl MusicApp {
         set("--lc-pochette-ombre", k(0.25, 0.08, 0.55));
         set("--lc-pochette-lisere", k(0.6, 0.08, 0.25));
         set("--lc-lecture-ombre", k(0.55, 0.13, 0.4));
+        // Couleur d'accent choisie : sa palette et les verts du thème qui la suivent.
+        if let Some(rgb) = accent {
+            for (name, color) in super::accent::variables(rgb, dark) {
+                set(name.as_str(), color);
+            }
+        }
         *cache = Some((key, v.clone()));
         v
     }

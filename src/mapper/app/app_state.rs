@@ -196,6 +196,29 @@ impl MusicApp {
         self.data.tabs_placement() != 1
     }
 
+    /// Les onglets de bibliothèque sont en haut de la page (seuls ou avec ceux de la barre).
+    pub fn tabs_on_top(&self) -> bool {
+        self.data.tabs_placement() != 0
+    }
+
+    /// Style des boutons de la fenêtre : `macos`, `windows` ou `linux` ; « auto » suit le
+    /// système.
+    pub fn window_controls_style(&self) -> &'static str {
+        match self.data.setting("window_controls_style") {
+            Some("macos") => "macos",
+            Some("windows") => "windows",
+            Some("linux") => "linux",
+            _ if cfg!(target_os = "macos") => "macos",
+            _ if cfg!(target_os = "linux") => "linux",
+            _ => "windows",
+        }
+    }
+
+    /// Les boutons de la fenêtre sont à gauche (à droite par défaut).
+    pub fn window_controls_left(&self) -> bool {
+        self.data.setting("window_controls_position") == Some("left")
+    }
+
     /// La position des onglets est celle de rang `i` (barre, haut, les deux).
     pub fn is_tabs_placement(&self, i: usize) -> bool {
         usize::from(self.data.tabs_placement()) == i

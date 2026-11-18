@@ -1,0 +1,48 @@
+<!-- Onglets de la bibliothèque en haut de la page (« en haut » ou « les deux ») : l'accueil
+     d'abord, la barre latérale n'ayant plus de tuiles en mode « en haut ». -->
+<nav class="shrink-0 px-3 md:px-6 py-2
+            bg-neutral-100/50 dark:bg-white/2
+            border-b border-neutral-200/60 dark:border-white/6"
+     aria-label={t("settings.library_nav")}>
+    <div class="flex items-center gap-1 md:gap-2 overflow-x-auto min-w-0 p-0.5">
+        {#if *self.route() == Route::Home}
+            <button class="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium
+                           cursor-pointer whitespace-nowrap transition-colors
+                           border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    aria-current="page" onclick={Msg::Go(Route::Home)} title={t("nav.home")}>
+                <Icon icon="material-symbols:home-outline-rounded" width={14} />
+                <span class="hidden sm:inline">{t("nav.home")}</span>
+            </button>
+        {:else}
+            <button class="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium
+                           cursor-pointer whitespace-nowrap transition-colors
+                           border border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/60"
+                    onclick={Msg::Go(Route::Home)} title={t("nav.home")}>
+                <Icon icon="material-symbols:home-outline-rounded" width={14} />
+                <span class="hidden sm:inline">{t("nav.home")}</span>
+            </button>
+        {/if}
+        {#if !vm.tiles.is_empty()}
+            <span class="shrink-0 w-px h-4 bg-neutral-300/70 dark:bg-white/10" aria-hidden="true"></span>
+        {/if}
+        {#each vm.tiles as tile (tile.key)}
+            {#if tile.active}
+                <button class="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium
+                               cursor-pointer whitespace-nowrap transition-colors
+                               border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        aria-current="page" onclick={Msg::Go(tile.route.clone())} title={tile.label.clone()}>
+                    <Icon icon={tile.icon} width={14} />
+                    <span class="hidden sm:inline">{tile.label}</span>
+                </button>
+            {:else}
+                <button class="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium
+                               cursor-pointer whitespace-nowrap transition-colors
+                               border border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/60"
+                        onclick={Msg::Go(tile.route.clone())} title={tile.label.clone()}>
+                    <Icon icon={tile.icon} width={14} />
+                    <span class="hidden sm:inline">{tile.label}</span>
+                </button>
+            {/if}
+        {/each}
+    </div>
+</nav>

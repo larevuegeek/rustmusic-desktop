@@ -1,6 +1,7 @@
 <main style:--profil={hex(&vm.profile_color)} class="w-screen h-screen flex flex-col bg-(--c-fond) dark:bg-zinc-950 text-gray-900 dark:text-gray-100 overflow-hidden
              font-sans text-[16px]">
-    <Titlebar with_sidebar={!full_page} collapsed={self.sidebar_collapsed}>
+    <Titlebar with_sidebar={!full_page} collapsed={self.sidebar_collapsed}
+              controls={self.window_controls_style()} controls_left={self.window_controls_left()}>
         {#if !full_page}
             <div class="hidden sm:flex items-center gap-0.5">
                 {#each [(t("common.back"), "heroicons:chevron-left", Msg::Back), (t("common.next"), "heroicons:chevron-right", Msg::Forward)] as nav (nav.1)}
@@ -40,6 +41,9 @@
         {/if}
 
         <div id="app.main" class="grow overflow-hidden flex flex-col min-w-0">
+            {#if !full_page && self.tabs_on_top()}
+                {@include "LibraryTopTabs.ui"}
+            {/if}
             <div class="flex-1 overflow-hidden">
                 {#if matches!(self.route(), Route::Library(_)) && vm.import.as_ref().is_some_and(|p| p.loader)}
                     {@include "../library/LibraryImportingLoader.ui"}

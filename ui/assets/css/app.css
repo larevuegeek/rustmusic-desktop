@@ -31,6 +31,20 @@
     --color-accent-800: var(--acc-800, #166534);
     --color-accent-900: var(--acc-900, #14532d);
     --color-accent-950: var(--acc-950, #052e16);
+    /* La palette `emerald` des composants suit l'accent choisi (Apparence) : `--acc-*` est
+       posé par `app/music_app/accent.rs`, sinon les valeurs d'origine de Tailwind. Le vert
+       « succès » (`green`) ne change pas : un état validé reste vert. */
+    --color-emerald-50: var(--acc-50, oklch(97.9% 0.021 166.113));
+    --color-emerald-100: var(--acc-100, oklch(95% 0.052 163.051));
+    --color-emerald-200: var(--acc-200, oklch(90.5% 0.093 164.15));
+    --color-emerald-300: var(--acc-300, oklch(84.5% 0.143 164.978));
+    --color-emerald-400: var(--acc-400, oklch(76.5% 0.177 163.223));
+    --color-emerald-500: var(--acc-500, oklch(69.6% 0.17 162.48));
+    --color-emerald-600: var(--acc-600, oklch(59.6% 0.145 163.225));
+    --color-emerald-700: var(--acc-700, oklch(50.8% 0.118 165.612));
+    --color-emerald-800: var(--acc-800, oklch(43.2% 0.095 166.913));
+    --color-emerald-900: var(--acc-900, oklch(37.8% 0.077 168.94));
+    --color-emerald-950: var(--acc-950, oklch(26.2% 0.051 172.552));
     /* Gris secondaires : selon le thème et le contraste (`:root[data-contrast="high"]`
        d'app.css), voir theme.css et theme-modes.css. */
     --color-neutral-300: var(--neutral-300);

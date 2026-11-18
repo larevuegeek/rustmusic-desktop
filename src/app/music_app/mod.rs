@@ -7,6 +7,7 @@ pub(crate) mod startup;
 pub(crate) mod engine;
 pub(crate) mod region_keys;
 pub(crate) mod theme;
+pub(crate) mod accent;
 pub(crate) mod application;
 pub(crate) mod tasks;
 

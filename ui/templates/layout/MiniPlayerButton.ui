@@ -1,0 +1,21 @@
+{#if self.controls == "windows"}
+    <button class="flex items-center justify-center w-11 h-full cursor-pointer transition-colors
+                   text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200/60 dark:hover:bg-white/8
+                   hover:text-neutral-700 dark:hover:text-neutral-200"
+            onclick={Msg::Mini(MiniMsg::Toggle)} aria-label={t("mini.enter")} title={t("mini.enter")}>
+        <Icon icon="lucide:picture-in-picture-2" width={13} />
+    </button>
+{:else if self.controls == "linux"}
+    <button class="flex items-center justify-center w-6 h-6 rounded-full cursor-pointer transition-colors
+                   bg-neutral-200 dark:bg-white/10 text-neutral-700 dark:text-neutral-300
+                   hover:bg-neutral-300 dark:hover:bg-white/20"
+            onclick={Msg::Mini(MiniMsg::Toggle)} aria-label={t("mini.enter")} title={t("mini.enter")}>
+        <Icon icon="lucide:picture-in-picture-2" width={11} />
+    </button>
+{:else}
+    <button class="flex items-center justify-center w-5 h-5 cursor-pointer transition-colors
+                   text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200"
+            onclick={Msg::Mini(MiniMsg::Toggle)} aria-label={t("mini.enter")} title={t("mini.enter")}>
+        <Icon icon="lucide:picture-in-picture-2" width={13} />
+    </button>
+{/if}

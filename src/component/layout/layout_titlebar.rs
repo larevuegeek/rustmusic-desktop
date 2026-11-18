@@ -12,6 +12,10 @@ pub struct Titlebar {
     pub with_sidebar: bool,
     /// La barre latérale est repliée : le bouton la déplie.
     pub collapsed: bool,
+    /// Style des boutons de la fenêtre : `macos`, `windows` ou `linux`.
+    pub controls: &'static str,
+    /// Boutons de la fenêtre à gauche, avant la marque.
+    pub controls_left: bool,
 }
 
 impl Component<Assets> for Titlebar {

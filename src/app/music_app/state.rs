@@ -36,8 +36,9 @@ pub struct MusicApp {
     pub dark: std::cell::Cell<bool>,
     /// Taille de la fenêtre à la dernière vue (unités logiques) : place la télécommande.
     pub viewport: std::cell::Cell<(f32, f32)>,
-    /// Dernières variables de thème calculées (thème, contraste, teinte de la pochette).
-    pub(crate) theme_cache: std::cell::RefCell<Option<((bool, bool, u32, u32), CssVariables)>>,
+    /// Dernières variables de thème calculées (thème, contraste, teinte de la pochette,
+    /// couleur d'accent).
+    pub(crate) theme_cache: std::cell::RefCell<Option<((bool, bool, u32, u32, Option<u32>), CssVariables)>>,
     pub footer_collapsed: bool,
     pub sidebar_collapsed: bool,
     /// Écran de chargement : levé une fois le profil et ses bibliothèques chargés.
