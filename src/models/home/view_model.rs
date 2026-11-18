@@ -65,6 +65,9 @@ pub struct ViewModel {
     pub open_buttons: bool,
     pub shortcuts: [bool; 2],
     pub home_empty: bool,
+    /// Accueil sans bibliothèque : étapes et sections à venir (vides sinon).
+    pub welcome_steps: Vec<WelcomeStep>,
+    pub welcome_sections: Vec<WelcomeSection>,
     /// Bibliothèque en cours de chargement : squelette à la place des sections.
     pub home_loading: bool,
     pub show_recent: bool,

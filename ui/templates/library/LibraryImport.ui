@@ -3,18 +3,7 @@
 
         <div class="relative overflow-hidden rounded-[24px] p-12 text-(--rg-tx)">
             <div class="hero-vert absolute inset-0"></div>
-            <div class="absolute -right-24 -top-24 w-[420px] h-[420px] text-(--rg-g)">
-                <svg viewBox="0 0 200 200" class="w-full h-full">
-                    <circle cx="100" cy="100" r="96" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.1" />
-                    <circle cx="100" cy="100" r="84" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.135" />
-                    <circle cx="100" cy="100" r="72" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.17" />
-                    <circle cx="100" cy="100" r="60" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.205" />
-                    <circle cx="100" cy="100" r="48" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.24" />
-                    <circle cx="100" cy="100" r="36" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.275" />
-                    <circle cx="100" cy="100" r="22" fill="currentColor" opacity="0.18" />
-                    <circle cx="100" cy="100" r="4" fill="currentColor" opacity="0.5" />
-                </svg>
-            </div>
+            <div class="absolute -right-24 -top-24 w-[420px] h-[420px] text-(--rg-g) max-md:hidden">{@include "../shared/display/DiscWatermark.ui"}</div>
             <div class="relative flex flex-col gap-4 max-w-2xl">
                 <div class="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-(--rg-gtx)">
                     <Icon icon="material-symbols:library-music-outline-rounded" width={18} />

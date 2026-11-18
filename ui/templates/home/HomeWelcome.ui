@@ -1,0 +1,60 @@
+<section class="relative overflow-hidden rounded-[24px] p-8 md:p-12 text-(--rg-tx)">
+    <div class="hero-vert absolute inset-0 pointer-events-none" aria-hidden="true"></div>
+    <div class="absolute -right-20 -bottom-28 w-[440px] h-[440px] text-(--rg-g) max-md:hidden">{@include "../shared/display/DiscWatermark.ui"}</div>
+    <div class="relative flex flex-col gap-4 max-w-2xl">
+        <p class="m-0 text-[13px] font-semibold uppercase tracking-[0.08em] text-(--rg-gtx)">{t("home_welcome.kicker")}</p>
+        <h2 class="m-0 text-[36px] md:text-[44px] font-extrabold tracking-[-0.03em] leading-[1.05]">{t("home_welcome.title")}</h2>
+        <p class="m-0 text-[16px] leading-relaxed text-(--rg-tx2) max-w-xl">{t("home_welcome.desc")}</p>
+        <div class="flex flex-wrap items-center gap-3 mt-3">
+            <button class="group h-[52px] px-[26px] rounded-full font-bold text-[17px] flex items-center gap-2.5 cursor-pointer bg-(--rg-g) text-(--rg-on-g) transition hover:brightness-110 hover:-translate-y-px hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.5)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    onclick={Msg::Go(Route::Import)}>
+                <Icon icon="material-symbols:library-add-outline-rounded" width={22} />
+                <div>{t("home_welcome.start")}</div>
+                <div class="flex transition-transform group-hover:translate-x-[3px] motion-reduce:group-hover:translate-x-0"><Icon icon="material-symbols:arrow-forward-rounded" width={20} /></div>
+            </button>
+            <button class="h-[52px] px-5 rounded-full flex items-center gap-2.5 cursor-pointer transition-colors text-(--rg-tx2) hover:text-(--rg-tx) hover:bg-(--rg-carte)/60"
+                    onclick={Msg::OpenFolder}>
+                <Icon icon="material-symbols:play-circle-outline-rounded" width={22} />
+                <div class="flex flex-col items-start leading-tight">
+                    <div class="text-[14px] font-semibold">{t("home_welcome.just_play")}</div>
+                    <div class="text-[11.5px] text-(--rg-mu)">{t("home_welcome.just_play_hint")}</div>
+                </div>
+            </button>
+        </div>
+    </div>
+</section>
+
+<ol class="m-0 p-0 grid grid-cols-1 @3xl:grid-cols-3 gap-3">
+    {#each vm.welcome_steps as s (s.number)}
+        <li class="relative flex gap-4 p-5 rounded-2xl bg-(--rg-creux) border border-(--rg-line)">
+            <div class="relative w-11 h-11 shrink-0 rounded-xl flex items-center justify-center bg-(--rg-gbg) text-(--rg-g)">
+                <Icon icon={s.icon} width={22} />
+                <div class="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-extrabold bg-(--rg-g) text-(--rg-on-g)">{s.number}</div>
+            </div>
+            <div class="flex flex-col gap-0.5 min-w-0">
+                <div class="text-[15px] font-bold text-(--rg-tx)">{s.title}</div>
+                <div class="text-[13px] leading-snug text-(--rg-mu)">{s.desc}</div>
+            </div>
+        </li>
+    {/each}
+</ol>
+
+<section class="flex flex-col gap-3">
+    <h3 class="m-0 text-[13px] font-bold uppercase tracking-[0.08em] text-(--rg-mu2)">{t("home_welcome.explore")}</h3>
+    <div class="grid grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-6 gap-3">
+        {#each vm.welcome_sections as s (s.label.as_str())}
+            <button class="group flex flex-col gap-3 p-4 rounded-2xl text-left cursor-pointer bg-(--rg-carte) border border-(--rg-bd) hover:border-(--rg-g) transition hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
+                    onclick={Msg::Go(s.route.clone())}>
+                <div class="flex items-center gap-2 text-(--rg-tx2) group-hover:text-(--rg-g) transition-colors">
+                    <Icon icon={s.icon} width={20} />
+                    <div class="text-[14px] font-semibold">{s.label}</div>
+                </div>
+                <div class="flex flex-col gap-1.5" aria-hidden="true">
+                    <div class="h-2 rounded-full bg-(--rg-s2)" style:width={Length::Percent(s.bars[0])}></div>
+                    <div class="h-2 rounded-full bg-(--rg-s2)" style:width={Length::Percent(s.bars[1])}></div>
+                    <div class="h-2 rounded-full bg-(--rg-s2) w-2/5"></div>
+                </div>
+            </button>
+        {/each}
+    </div>
+</section>

@@ -288,6 +288,8 @@ impl ViewModel {
                 data.flag_default_on("show_favorites") && data.flag_default_on("show_liked_in_playlists"),
                 data.flag_default_on("show_recent_in_playlists"),
             ],
+            welcome_steps: if home_empty { welcome_steps() } else { Vec::new() },
+            welcome_sections: if home_empty { welcome_sections() } else { Vec::new() },
             home_empty,
             home_loading: data.library_loading,
             show_recent,

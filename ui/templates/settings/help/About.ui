@@ -2,7 +2,7 @@
     <div class="relative overflow-hidden flex items-center gap-5 p-6">
         <div class="absolute -top-28 -right-20 w-72 h-72 rounded-full bg-(--rg-g) opacity-12 blur-[80px]"></div>
         <div class="relative flex-1 min-w-0 leading-[1.2]">
-            <p class="m-0 text-[30px] font-extrabold tracking-[-0.02em] text-(--rg-tx)">Rust<span style:color={hex("#22c55e")}>Music</span></p>
+            <p class="m-0 text-[30px] font-extrabold tracking-[-0.02em] text-(--rg-tx)">Rust<span class="text-(--rg-gtx)">Music</span></p>
             <p class="m-0 mt-1.5 text-sm text-(--rg-mu)">{t("about.tagline")}</p>
             <div class="mt-3.5 flex flex-wrap items-center gap-2">
                 <SettingsBadge text={version_tag()} tone={"green".to_string()} />

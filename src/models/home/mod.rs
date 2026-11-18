@@ -16,6 +16,7 @@ pub(crate) mod stat;
 pub(crate) mod statut;
 pub(crate) mod tile;
 pub(crate) mod view_model;
+pub(crate) mod welcome;
 
 pub(crate) use album_card::*;
 pub(crate) use album_strip::*;
@@ -35,3 +36,4 @@ pub(crate) use stat::*;
 pub(crate) use statut::*;
 pub(crate) use tile::*;
 pub(crate) use view_model::*;
+pub(crate) use welcome::*;

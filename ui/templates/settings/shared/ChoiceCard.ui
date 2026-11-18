@@ -1,7 +1,7 @@
 <div class="flex min-w-0">
 {#if let Some(c) = &self.c}
 {#if c.selected}
-    <button class="min-w-0 flex flex-col gap-2.5 pt-2.5 px-2.5 pb-3 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-g) bg-(--rg-creux-on)"
+    <button class="flex-1 min-w-0 flex flex-col gap-2.5 pt-2.5 px-2.5 pb-3 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-g) bg-(--rg-creux-on)"
             role="radio" aria-checked="true" title={c.tooltip()} onclick={c.msg.clone()}>
         {@include "../SettingsThemePreview.ui"}
         <div class="flex items-center justify-between gap-2 px-0.5 text-sm font-semibold leading-[1.2] text-(--rg-tx)">
@@ -10,7 +10,7 @@
         </div>
     </button>
 {:else}
-    <button class="min-w-0 flex flex-col gap-2.5 pt-2.5 px-2.5 pb-3 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-bd) bg-(--rg-creux) hover:border-(--rg-bd2)"
+    <button class="flex-1 min-w-0 flex flex-col gap-2.5 pt-2.5 px-2.5 pb-3 rounded-xl border text-left cursor-pointer transition-colors border-(--rg-bd) bg-(--rg-creux) hover:border-(--rg-bd2)"
             role="radio" aria-checked="false" title={c.tooltip()} onclick={c.msg.clone()}>
         {@include "../SettingsThemePreview.ui"}
         <div class="flex items-center justify-between gap-2 px-0.5 text-sm font-semibold leading-[1.2] text-(--rg-tx)">

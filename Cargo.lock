@@ -2010,9 +2010,7 @@ dependencies = [
 
 [[package]]
 name = "karbon-ui"
-version = "0.3.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ad4f72ea0bdbee10d855d05ea27d135abb0beef5789d7796bb768a8a1c3714c"
+version = "0.3.14"
 dependencies = [
  "block2",
  "karbon-ui-macros",
@@ -2035,15 +2033,11 @@ dependencies = [
 
 [[package]]
 name = "karbon-ui-macros"
-version = "0.3.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bb9e035237c90ce705b75ba669db801da289a42a17a31dce02c6ec99f2be59f"
+version = "0.3.14"
 
 [[package]]
 name = "karbon-updater"
-version = "0.3.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6efce8ba13cfdf21132f63d6339b0c76a00f1b1defb1d76605cc9ae8811a600"
+version = "0.3.14"
 dependencies = [
  "minisign-verify",
  "ureq",
@@ -4300,7 +4294,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",

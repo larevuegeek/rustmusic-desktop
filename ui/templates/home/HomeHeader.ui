@@ -2,7 +2,7 @@
     <h1 class="@3xl:col-start-1 @3xl:row-start-1 min-w-0 text-3xl @3xl:text-[34px] font-extrabold tracking-[-0.02em] leading-tight
                text-neutral-900 dark:text-neutral-50">{vm.greeting_line}</h1>
 
-    <div class="@3xl:col-start-1 @3xl:row-start-2 min-w-0 text-[17px] text-neutral-500 dark:text-[#9aa39e]">{if vm.home_empty {t("home.subtitle_empty")} else {t("home.subtitle")}}</div>
+    <div class="@3xl:col-start-1 @3xl:row-start-2 min-w-0 text-[17px] text-neutral-500 dark:text-[#9aa39e]">{if vm.home_empty {t("home_welcome.subtitle")} else {t("home.subtitle")}}</div>
 
     {#if !vm.stats.is_empty()}
         <div class="@3xl:col-start-2 @3xl:row-start-2 @3xl:justify-self-end mt-2 @3xl:mt-0 flex items-baseline gap-3.5">
@@ -17,6 +17,7 @@
         </div>
     {/if}
 
+    {#if !vm.home_empty}
     <button class="@3xl:col-start-2 @3xl:row-start-1 self-center justify-self-start @3xl:justify-self-end mt-3 @3xl:mt-0
                    h-10 px-4 rounded-full text-sm font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap
                    bg-neutral-900/6 hover:bg-neutral-900/10 text-neutral-900
@@ -25,4 +26,5 @@
         <div class="text-accent-600 dark:text-accent-500"><Icon icon="lucide:plus" width={16} /></div>
         <div class="w-auto">{t("home.add_music")}</div>
     </button>
+    {/if}
 </header>

@@ -9,10 +9,7 @@
         {#if loading}
             {@include "HomeSkeletonTop.ui"}
         {:else if vm.home_empty}
-            <section class="flex flex-col gap-3 p-6 rounded-[20px] border border-white/10 bg-[#121614]">
-                <h2 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">{t("home_welcome.page_title")}</h2>
-                <div class="text-[15px] text-neutral-500 dark:text-[#9aa39e]">{t("home_welcome.page_desc")}</div>
-            </section>
+            {@include "HomeWelcome.ui"}
         {:else}
             {@include "HomeResume.ui"}
             {@include "HomeMixes.ui"}

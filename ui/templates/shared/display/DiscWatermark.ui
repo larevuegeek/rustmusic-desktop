@@ -1,0 +1,10 @@
+<svg viewBox="0 0 200 200" class="w-full h-full pointer-events-none" aria-hidden="true">
+    <circle cx="100" cy="100" r="96" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.1" />
+    <circle cx="100" cy="100" r="84" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.135" />
+    <circle cx="100" cy="100" r="72" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.17" />
+    <circle cx="100" cy="100" r="60" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.205" />
+    <circle cx="100" cy="100" r="48" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.24" />
+    <circle cx="100" cy="100" r="36" fill="none" stroke="currentColor" stroke-width="0.7" opacity="0.275" />
+    <circle cx="100" cy="100" r="22" fill="currentColor" opacity="0.18" />
+    <circle cx="100" cy="100" r="4" fill="currentColor" opacity="0.5" />
+</svg>
