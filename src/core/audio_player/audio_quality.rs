@@ -175,17 +175,22 @@ impl AudioQualityProfile {
 // ─── Auto detection ──────────────────────────────────────────────────
 
 /// Pick a profile based on the host environment.
-///   - virtualised (VM/container) → `Minimal` (sécurité max, l'utilisateur peut remonter à Low/Medium si la VM tient)
+///   - virtualised (VM/container), fewer than 4 logical cores → `Minimal` (sécurité max)
+///   - virtualised, 4 cores or more → `Medium` : tampon de 1,5 s contre les à-coups de la
+///     VM, mais sortie calée sur le serveur son (Minimal y ajoute 500 ms, entendus à
+///     chaque changement de volume ou pause)
 ///   - fewer than 4 logical cores → `Medium`
 ///   - otherwise                  → `High`
 pub fn detect_auto_profile() -> AudioQualityProfile {
-    if detect::is_virtualized() {
-        return AudioQualityProfile::Minimal;
+    auto_profile(detect::is_virtualized(), detect::logical_cpu_count())
+}
+
+fn auto_profile(virtualized: bool, cores: usize) -> AudioQualityProfile {
+    match (virtualized, cores >= 4) {
+        (true, false) => AudioQualityProfile::Minimal,
+        (true, true) | (false, false) => AudioQualityProfile::Medium,
+        (false, true) => AudioQualityProfile::High,
     }
-    if detect::logical_cpu_count() < 4 {
-        return AudioQualityProfile::Medium;
-    }
-    AudioQualityProfile::High
 }
 
 // ─── Global cache of the resolved profile ───────────────────────────
@@ -226,4 +231,17 @@ pub fn current_profile() -> AudioQualityProfile {
 /// setting, and again every time the user changes it in Settings.
 pub fn set_current_profile(p: AudioQualityProfile) {
     RESOLVED_PROFILE.store(profile_to_u8(p), Ordering::Relaxed);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{auto_profile, AudioQualityProfile};
+
+    #[test]
+    fn auto_keeps_minimal_for_small_virtual_machines_only() {
+        assert_eq!(auto_profile(true, 2), AudioQualityProfile::Minimal);
+        assert_eq!(auto_profile(true, 4), AudioQualityProfile::Medium);
+        assert_eq!(auto_profile(false, 2), AudioQualityProfile::Medium);
+        assert_eq!(auto_profile(false, 8), AudioQualityProfile::High);
+    }
 }
