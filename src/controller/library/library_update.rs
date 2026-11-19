@@ -71,6 +71,10 @@ impl MusicApp {
                 }
             },
             LibraryMsg::Manage(id) => return self.library_manage(id),
+            LibraryMsg::CloseManage => {
+                self.views.library_manage_nested = false;
+                self.views.library_manage = None;
+            }
             LibraryMsg::Rescan(id) => self.rescan_library(id),
             LibraryMsg::Folders(id) => self.open_library_folders(id),
             LibraryMsg::ImportExport => {
@@ -125,11 +129,24 @@ impl MusicApp {
     /// côté d'elle, ou refermé ; ses dossiers sont lus (ceux de la bibliothèque ouverte le
     /// sont déjà).
     fn library_manage(&mut self, id: i64) -> bool {
-        if self.popup(LIBRARY_MANAGE) && self.views.library_manage.as_ref().is_some_and(|(open, _)| *open == id) {
-            self.menu = None;
-            return true;
+        let same = self.views.library_manage.as_ref().is_some_and(|(open, _)| *open == id);
+        if self.open(crate::models::app::Menu::Library) {
+            // Bouton « … » d'une ligne de la liste déroulante : le menu s'ouvre par-dessus,
+            // la liste reste ouverte ; un second clic sur le même bouton le referme.
+            if self.views.library_manage_nested && same {
+                self.views.library_manage_nested = false;
+                self.views.library_manage = None;
+                return true;
+            }
+            self.views.library_manage_nested = true;
+        } else {
+            if self.popup(LIBRARY_MANAGE) && same {
+                self.menu = None;
+                return true;
+            }
+            self.views.library_manage_nested = false;
+            self.menu = Some(crate::models::app::Menu::Popup(LIBRARY_MANAGE));
         }
-        self.menu = Some(crate::models::app::Menu::Popup(LIBRARY_MANAGE));
         self.views.library_manage = Some((id, Vec::new()));
         if self.data.library_id == Some(id) {
             return true;

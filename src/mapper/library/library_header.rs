@@ -301,6 +301,18 @@ impl MusicApp {
         self.popup(crate::controller::library::library_update::LIBRARY_MANAGE).then(|| self.manage_menu(*id)).flatten()
     }
 
+    /// Le menu « Gérer » ouvert par-dessus la liste déroulante des bibliothèques.
+    pub fn nested_manage_menu(&self) -> Option<ManageMenu> {
+        let (id, _) = self.views.library_manage.as_ref()?;
+        (self.views.library_manage_nested && self.open(Menu::Library)).then(|| self.manage_menu(*id)).flatten()
+    }
+
+    /// Le bouton « … » de cette bibliothèque a ouvert le menu « Gérer » par-dessus la liste
+    /// (il porte l'ancre du menu).
+    pub fn is_nested_manage(&self, id: i64) -> bool {
+        self.views.library_manage_nested && self.views.library_manage.as_ref().is_some_and(|(open, _)| *open == id)
+    }
+
     /// La bibliothèque ouverte (0 sans bibliothèque : ses actions ne font rien).
     pub fn library_id(&self) -> i64 {
         self.data.library_id.unwrap_or_default()

@@ -59,6 +59,9 @@ pub struct Views {
     /// Le menu « Gérer » ouvert depuis la liste de la barre latérale : la bibliothèque
     /// et ses dossiers (lus à l'ouverture).
     pub library_manage: Option<(i64, Vec<crate::entity::library::library_dirs::LibraryDir>)>,
+    /// Ce menu « Gérer » est ouvert par-dessus la liste déroulante des bibliothèques (son
+    /// bouton « … »), qui reste ouverte.
+    pub library_manage_nested: bool,
     /// Les dossiers d'une bibliothèque.
     pub library_folders: Option<crate::models::library::LibraryFolders>,
     /// La vérification des artistes, en cours ou terminée.

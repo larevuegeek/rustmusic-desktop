@@ -80,9 +80,13 @@ impl MusicApp {
             Msg::ToggleFooter => self.footer_collapsed = !self.footer_collapsed,
             Msg::Menu(menu) => {
                 self.menu = if self.open(menu) { None } else { Some(menu) };
+                self.views.library_manage_nested = false;
                 self.lyrics_sync();
             }
-            Msg::CloseMenu => self.menu = None,
+            Msg::CloseMenu => {
+                self.menu = None;
+                self.views.library_manage_nested = false;
+            }
 
             Msg::Input(field, value) => {
                 return match field {

@@ -8,6 +8,8 @@ pub enum LibraryMsg {
     Primary,
     /// Le menu « Gérer » d'une bibliothèque de la liste de la barre latérale.
     Manage(i64),
+    /// Ferme le menu « Gérer » ouvert par-dessus la liste des bibliothèques.
+    CloseManage,
     Rescan(i64),
     Folders(i64),
     AddFiles(i64),

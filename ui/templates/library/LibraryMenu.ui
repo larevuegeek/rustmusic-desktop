@@ -43,3 +43,12 @@
         <div>{t("selector.new")}</div>
     </button>
 </div>
+
+<!-- Menu « Gérer » d'une ligne, ouvert par-dessus cette liste qui reste ouverte. -->
+{#if let Some(m) = self.nested_manage_menu()}
+    <k-popover anchor="sidebar.library.manage.open" menu placement="right-start" offset="10" aria-label={t("library_head.manage")}
+               onclose={Msg::Library(LibraryMsg::CloseManage)}
+               class="rg-menu w-85 p-0 overflow-hidden rounded-2xl text-(--rg-tx) bg-linear-to-b from-[#1c2220] to-[#161a18] animate-[popin-scale-in_160ms_cubic-bezier(0.33,1,0.68,1)]">
+        {@include "LibraryManageMenu.ui"}
+    </k-popover>
+{/if}

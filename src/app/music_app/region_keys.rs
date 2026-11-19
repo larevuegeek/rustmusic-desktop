@@ -76,6 +76,9 @@ impl MusicApp {
         );
         // Avatar du profil actif (pied de la barre) : son nom, et si son image est chargée.
         let _ = write!(key, "|{:?}", vm.profile_avatar);
+        // Menu « Gérer » ouvert par-dessus la liste des bibliothèques : sans changer
+        // `self.menu` (la liste reste ouverte), sa bibliothèque et ses dossiers lus.
+        let _ = write!(key, "|{:?}{:?}", self.views.library_manage, self.views.library_manage_nested);
         Self::covers_key(assets, &mut key, std::iter::once(&vm.profile_avatar));
         let pins: Vec<Option<String>> = [PinKind::Album, PinKind::Artist]
             .into_iter()
