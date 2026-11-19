@@ -54,7 +54,7 @@ fn detect_nvidia() -> bool {
     }
 }
 
-fn detect_virt_kind() -> Option<String> {
+pub(crate) fn detect_virt_kind() -> Option<String> {
     #[cfg(target_os = "linux")]
     {
         return crate::core::system::detect::detect_linux_virt();

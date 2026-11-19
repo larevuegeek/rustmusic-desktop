@@ -61,6 +61,10 @@ impl MusicApp {
                 self.window_commands.push(WindowCommand::Exit);
                 return false;
             }
+            Msg::Restart => {
+                self.backend.app.restart();
+                return false;
+            }
             Msg::Mini(m) => return self.mini_update(m),
             Msg::ToggleSidebar => {
                 self.sidebar_collapsed = !self.sidebar_collapsed;

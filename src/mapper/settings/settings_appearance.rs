@@ -289,6 +289,43 @@ impl MusicApp {
             ),
         );
 
+        // Mode de rendu : appliqué au prochain démarrage.
+        let render = s(crate::core::system::render_mode::KEY);
+        let render_mode = crate::core::system::render_mode::RenderMode::parse_or_auto(Some(&render));
+        let pending = render_mode != crate::core::system::render_mode::boot_mode();
+        let vm = crate::commands::app::system_command::detect_virt_kind()
+            .map(|kind| t("settings.render_mode_vm_detected").replace("{kind}", &kind));
+        let render_desc = [Some(t("settings.render_mode_desc")), vm, pending.then(|| t("settings.render_mode_restart_required"))]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let render_row = OptionRow::new(
+            "render_mode",
+            t("settings.render_mode"),
+            render_desc,
+            Control::Segmented(
+                segments(
+                    crate::core::system::render_mode::KEY,
+                    render_mode.as_str(),
+                    &[("auto", t("settings.auto")), ("force-gpu", "GPU".into()), ("force-software", t("settings.render_mode_software_short"))],
+                ),
+                false,
+            ),
+        );
+        let restart_row = OptionRow::new(
+            "render_restart",
+            t("settings.restart_now_title"),
+            t("settings.render_mode_restart_required"),
+            Control::Buttons(vec![Ghost::new("ph:arrow-clockwise-bold", t("settings.restart_now"), Msg::Restart)]),
+        );
+        let mut expert = vec![self.keep(render_row, "rendu gpu logiciel software vulkan direct2d metal cairo lent vm")];
+        if pending {
+            expert.push(self.keep(restart_row, "relancer redémarrer"));
+        }
+        expert.push(self.keep(blur_row, "flou blur pochette fond"));
+        expert.push(self.keep(effects_row, "effets flou fondu lent performance vieux pc vm"));
+
         vec![
             self.option_group(
                 "theme",
@@ -340,7 +377,7 @@ impl MusicApp {
                 Some(t("settings.expert_group")),
                 Some(t("settings.expert_group_hint")),
                 Some("settings.expert_group"),
-                vec![self.keep(blur_row, "flou blur pochette fond"), self.keep(effects_row, "effets flou fondu lent performance vieux pc vm")],
+                expert,
             ),
         ]
     }

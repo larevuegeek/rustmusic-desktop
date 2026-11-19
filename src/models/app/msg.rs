@@ -18,6 +18,8 @@ pub enum Msg {
 
     // ─── Fenêtre et barre de titre ───
     Minimize, Maximize, Close, Quit,
+    /// Relance l'application (mode de rendu changé).
+    Restart,
     /// Mini-lecteur et micro-lecteur.
     Mini(crate::models::player::MiniMsg),
     ToggleSidebar, ToggleTheme, ToggleFooter,

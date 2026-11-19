@@ -28,7 +28,22 @@ pub fn run(app: AppHandle, events: Receiver<Event>) -> karbon_ui::Result<()> {
         .skip(1)
         .filter(|a| a.starts_with("--renderer") || a.starts_with("--present") || a == "--profile")
         .collect();
+    let chosen = native.iter().any(|a| a.starts_with("--renderer"));
     let options = WindowOptions::from_args(native).unwrap_or(WindowOptions::DEFAULT);
+    // Sans `--renderer=…` : le mode de rendu des réglages (ou `RUSTMUSIC_RENDER`).
+    let saved = crate::app::platform::runtime::block_on(
+        crate::repository::settings::settings_repository::SettingsRepository::get(
+            &app.state::<crate::app::platform::app_state::AppState>().pool,
+            crate::core::system::render_mode::KEY,
+        ),
+    )
+    .ok()
+    .flatten();
+    let renderer = crate::core::system::render_mode::startup_renderer(saved.as_deref());
+    let options = WindowOptions {
+        renderer: if chosen { options.renderer } else { renderer },
+        ..options
+    };
     let mut options = WindowOptions {
         title: "RustMusic",
         width: 1280,

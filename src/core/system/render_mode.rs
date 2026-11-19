@@ -1,15 +1,9 @@
-//! User override for the WebKit / GTK rendering mode.
+//! Mode de rendu de la fenêtre (Réglages → Apparence → Options expert) : GPU, logiciel
+//! ou automatique (GPU, sauf dans une machine virtuelle, où le rendu logiciel est plus
+//! sûr). Lu à l'ouverture de la fenêtre : un changement attend le redémarrage.
 //!
-//! By default (`Auto`), we detect a VM at startup and apply software
-//! rendering env vars only there. But some users may want to force one
-//! mode or the other :
-//!   - `ForceGpu`      → trust the system, don't touch env vars (best perf
-//!                       on native ; risky on KDE Wayland / weird stacks)
-//!   - `ForceSoftware` → always apply the software-rendering env vars
-//!                       (works everywhere ; less smooth animations)
-//!
-//! IMPORTANT : env vars are read by WebKitGTK at process init, so changing
-//! this setting requires an app restart to take effect.
+//! Ordre de priorité : `--renderer=…` sur la ligne de commande, la variable
+//! `RUSTMUSIC_RENDER` (`gpu`, `software`, `auto`), puis le réglage enregistré.
 
 use serde::{Deserialize, Serialize};
 
@@ -41,7 +35,6 @@ impl RenderMode {
     /// and for re-testing GPU on a machine remembered as failing
     /// (`RUSTMUSIC_RENDER=gpu`). Takes precedence over the persisted setting;
     /// `auto` re-runs the detection while ignoring the DB value.
-    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub fn from_env() -> Option<Self> {
         let raw = std::env::var("RUSTMUSIC_RENDER").ok()?;
         match raw.trim().to_ascii_lowercase().as_str() {
@@ -63,6 +56,54 @@ impl RenderMode {
             Self::ForceGpu => "force-gpu",
             Self::ForceSoftware => "force-software",
         }
+    }
+}
+
+/// Clé du réglage dans la table `settings`.
+pub const KEY: &str = "render_mode";
+
+static BOOT_MODE: std::sync::OnceLock<RenderMode> = std::sync::OnceLock::new();
+
+/// Mode retenu au démarrage, pour signaler qu'un changement attend la relance.
+pub fn boot_mode() -> RenderMode {
+    BOOT_MODE.get().copied().unwrap_or(RenderMode::Auto)
+}
+
+/// Rendu de la fenêtre pour le réglage `saved` : la variable `RUSTMUSIC_RENDER` passe
+/// avant ; automatique, une machine virtuelle passe au rendu logiciel. Retient le mode
+/// du démarrage ([`boot_mode`]).
+pub fn startup_renderer(saved: Option<&str>) -> karbon_ui::window::RenderMode {
+    let mode = RenderMode::from_env().unwrap_or_else(|| RenderMode::parse_or_auto(saved));
+    let _ = BOOT_MODE.set(RenderMode::parse_or_auto(saved));
+    let renderer = renderer_for(mode, crate::core::system::detect::is_virtualized());
+    set_software_active(renderer == karbon_ui::window::RenderMode::Software);
+    renderer
+}
+
+/// Rendu de karbon-ui pour `mode` ; automatique, une machine virtuelle passe au logiciel.
+fn renderer_for(mode: RenderMode, virtualized: bool) -> karbon_ui::window::RenderMode {
+    use karbon_ui::window::RenderMode as Renderer;
+    match mode {
+        RenderMode::ForceGpu => Renderer::Gpu,
+        RenderMode::ForceSoftware => Renderer::Software,
+        RenderMode::Auto if virtualized => Renderer::Software,
+        RenderMode::Auto => Renderer::Auto,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use karbon_ui::window::RenderMode as Renderer;
+
+    #[test]
+    fn saved_modes_map_to_the_window_renderer() {
+        let mode = |v| RenderMode::parse_or_auto(Some(v));
+        assert_eq!(renderer_for(mode("force-gpu"), true), Renderer::Gpu);
+        assert_eq!(renderer_for(mode("force-software"), false), Renderer::Software);
+        assert_eq!(renderer_for(mode("auto"), false), Renderer::Auto);
+        assert_eq!(renderer_for(mode("auto"), true), Renderer::Software);
+        assert_eq!(RenderMode::parse_or_auto(None), RenderMode::Auto);
     }
 }
 
@@ -95,8 +136,7 @@ pub fn dmabuf_active() -> bool {
 
 static SOFTWARE_ACTIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Fixé au démarrage : WebKit dessine-t-il au processeur pour cette session ?
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+/// Fixé au démarrage : la fenêtre est-elle dessinée au processeur pour cette session ?
 pub fn set_software_active(active: bool) {
     SOFTWARE_ACTIVE.store(active, std::sync::atomic::Ordering::Relaxed);
 }
