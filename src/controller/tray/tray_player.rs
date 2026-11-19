@@ -11,14 +11,15 @@ use crate::app::tray_player::TrayPlayer;
 pub(crate) const TRAY_WINDOW: WindowId = WindowId(7);
 /// Taille du petit lecteur (unités logiques).
 pub(crate) const TRAY_SIZE: (i32, i32) = (340, 116);
-/// Écart avec l'icône.
-const GAP: i32 = 14;
+/// Écart avec l'icône (macOS : sous la barre des menus, collé comme ses menus).
+const GAP: i32 = if cfg!(target_os = "macos") { 6 } else { 14 };
 /// Refermé à l'instant par le clic sur l'icône elle-même : ce clic ne le rouvre pas.
 const REOPEN_GUARD: Duration = Duration::from_millis(400);
 
 impl MusicApp {
     /// Clic gauche sur l'icône : ouvre le petit lecteur au-dessus d'elle (en dessous si la
-    /// barre des tâches est en haut), ou le referme.
+    /// barre des tâches est en haut, toujours sous la barre des menus de macOS), ou le
+    /// referme.
     pub(crate) fn tray_toggle(&mut self, anchor: (i32, i32)) {
         if self.tray_player.take().is_some() {
             self.window_commands.push(WindowCommand::Close(TRAY_WINDOW));
@@ -29,10 +30,13 @@ impl MusicApp {
             return;
         }
         let (width, height) = TRAY_SIZE;
-        let below = anchor.1 < height + 2 * GAP;
+        let below = cfg!(target_os = "macos") || anchor.1 < height + 2 * GAP;
+        // macOS : l'icône peut être sur un autre écran que l'écran principal (x négatif
+        // à sa gauche) ; karbon-ui ramène la fenêtre dans l'écran de l'icône.
+        let left = anchor.0 - width / 2;
         let options = WindowOptions {
             title: "RustMusic",
-            x: (anchor.0 - width / 2).max(GAP),
+            x: if cfg!(target_os = "macos") { left } else { left.max(GAP) },
             y: if below { anchor.1 + GAP } else { anchor.1 - height - GAP },
             width,
             height,

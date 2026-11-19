@@ -73,8 +73,8 @@ impl MusicApp {
     /// Clic sur l'icône ou choix dans son menu.
     pub(crate) fn tray_handle(&mut self, event: TrayEvent) -> bool {
         match event {
-            // Windows : le clic gauche ouvre le petit lecteur près de l'icône.
-            TrayEvent::Activated { anchor: Some(anchor) } if cfg!(windows) && !self.export => {
+            // Windows et macOS : le clic gauche ouvre le petit lecteur près de l'icône.
+            TrayEvent::Activated { anchor: Some(anchor) } if !PLAYER_MENU && !self.export => {
                 self.tray_toggle(anchor);
             }
             TrayEvent::Activated { .. } | TrayEvent::MenuItem(SHOW) => {
