@@ -200,6 +200,7 @@ pub mod smart_playlist;
 /// Intégration au système : lancement, fenêtre, rendu, veille, contrôles média, bac à
 /// sable Flatpak, partages réseau.
 pub mod system {
+    pub mod autostart;
     pub mod clipboard;
     pub mod detect;
     #[cfg(target_os = "linux")]

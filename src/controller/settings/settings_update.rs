@@ -86,6 +86,15 @@ impl MusicApp {
 impl MusicApp {
     pub(crate) fn set_setting(&mut self, key: &str, value: impl Into<String>) {
         let value = value.into();
+        // Lancement au démarrage : l'entrée du système suit le réglage.
+        if key == crate::core::system::autostart::KEY {
+            let enabled = value == "true";
+            crate::app::platform::runtime::spawn_blocking(move || {
+                if let Err(e) = crate::core::system::autostart::set(enabled) {
+                    log::warn!("Lancement au démarrage : {e}");
+                }
+            });
+        }
         self.data.settings.insert(key.to_string(), value.clone());
         let app = self.backend.app.clone();
         let key = key.to_string();

@@ -40,6 +40,23 @@ pub fn run(app: AppHandle, events: Receiver<Event>) -> karbon_ui::Result<()> {
     .ok()
     .flatten();
     let renderer = crate::core::system::render_mode::startup_renderer(saved.as_deref());
+    // Lancement au démarrage activé : entrée réécrite, pour suivre l'appli déplacée ou
+    // mise à jour (et reprendre celle de la 0.4).
+    let auto_start = crate::app::platform::runtime::block_on(
+        crate::repository::settings::settings_repository::SettingsRepository::get(
+            &app.state::<crate::app::platform::app_state::AppState>().pool,
+            crate::core::system::autostart::KEY,
+        ),
+    )
+    .ok()
+    .flatten();
+    if auto_start.as_deref() == Some("true") {
+        crate::app::platform::runtime::spawn_blocking(|| {
+            if let Err(e) = crate::core::system::autostart::set(true) {
+                log::warn!("Lancement au démarrage : {e}");
+            }
+        });
+    }
     let options = WindowOptions {
         renderer: if chosen { options.renderer } else { renderer },
         ..options

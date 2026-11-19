@@ -98,7 +98,7 @@ arboard = { version = "3.7.0", features = ["wayland-data-control"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.25"
 # Même version que celle de `wasapi` : bus de l'adaptateur d'une sortie (USB, HDMI…).
-windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties", "Win32_System_Power", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
+windows = { version = "0.62", features = ["Win32_Devices_DeviceAndDriverInstallation", "Win32_Devices_Properties", "Win32_System_Power", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock", "Win32_System_Registry"] }
 
 # CoreAudio direct pour le DoP bit-perfect sur macOS. On ne réimplémente PAS
 # le stream (CPAL suffit : son unité HAL règle déjà le rate nominal du device et
@@ -132,6 +132,36 @@ zbus = "5"
 # ressource avec `rc.exe` du SDK Windows, que Tauri appelait avant.
 [build-dependencies]
 embed-resource = "3"
+
+# Paquets : `cargo packager --release` (NSIS sous Windows, .app et .dmg sous macOS, .deb
+# et AppImage sous Linux). Même nom de produit, éditeur, identifiant et dossier
+# d'installation que la 0.4 (%LOCALAPPDATA%\RustMusic, clé de désinstallation « RustMusic »,
+# paquet Debian « rust-music ») : la 0.5 la remplace, par l'installeur comme par la mise
+# à jour automatique. Avec `CARGO_PACKAGER_SIGN_PRIVATE_KEY` (clé minisign, secret de la
+# CI), chaque paquet reçoit sa signature `.sig` et le `.app` son `.app.tar.gz`.
+[package.metadata.packager]
+product-name = "RustMusic"
+identifier = "com.larevuegeek.rustmusic"
+publisher = "larevuegeek"
+category = "Music"
+long-description = "RustMusic is a free, open-source desktop music player built for audiophiles. It plays FLAC, ALAC, WAV, AIFF, MP3 and DSD (DSF/DFF) files with bit-perfect exclusive output, native DSD over DoP, gapless playback and ReplayGain. It manages large libraries with a fast tag workshop (MusicBrainz and Deezer lookups), synced lyrics and a built-in DLNA server, plays to UPnP/DLNA and AirPlay devices, and can act as a remote for Onkyo, Pioneer, Denon, Marantz and Yamaha amplifiers."
+before-packaging-command = "cargo build --release"
+out-dir = "target/packages"
+binaries = [{ path = "rustmusic", main = true }]
+icons = ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+
+[package.metadata.packager.nsis]
+installer-mode = "currentUser"
+
+[package.metadata.packager.macos]
+# `UTType` des dialogues de fichiers (karbon-ui) : macOS 11 au moins.
+minimum-system-version = "11.0"
+info-plist-path = "packaging/macos/Info.plist"
+
+[package.metadata.packager.deb]
+# Bibliothèques du bureau chargées par karbon-ui (Wayland, X11, Cairo, polices, D-Bus,
+# trousseau) et le son (ALSA) ; Vulkan reste facultatif (rendu Cairo sans lui).
+depends = ["libasound2", "libcairo2", "libfontconfig1", "libfreetype6", "libwayland-client0", "libwayland-cursor0", "libxkbcommon0", "libxkbcommon-x11-0", "libxcb1", "libxcb-cursor0", "libxcb-xinput0", "libxcb-xkb1", "libdbus-1-3", "libsecret-1-0"]
 
 [profile.release]
 strip = false
