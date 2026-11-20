@@ -398,6 +398,8 @@
     "language_desc": "Gilt sofort, ohne Neustart",
     "autostart": "Beim Systemstart öffnen",
     "autostart_desc": "RustMusic startet mit {os}",
+    "check_updates": "Nach Updates suchen",
+    "check_updates_desc": "Fragt beim Start bei rustmusic.dev nach einer neuen Version (nur Version und System werden gesendet)",
     "tray": "In den Infobereich minimieren",
     "tray_desc": "Schließen des Fensters lässt die Musik weiterlaufen",
     "notifications": "Benachrichtigung bei jedem Titel",

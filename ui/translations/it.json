@@ -398,6 +398,8 @@
     "language_desc": "Si applica subito, senza riavvio",
     "autostart": "Avvia all'avvio del sistema",
     "autostart_desc": "RustMusic si apre con {os}",
+    "check_updates": "Cerca aggiornamenti",
+    "check_updates_desc": "All'avvio, chiede a rustmusic.dev se esiste una nuova versione (vengono inviati solo la versione e il sistema)",
     "tray": "Riduci nell'area di notifica",
     "tray_desc": "Chiudere la finestra lascia la musica in riproduzione",
     "notifications": "Notifica a ogni brano",

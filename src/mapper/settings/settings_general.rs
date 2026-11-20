@@ -53,6 +53,7 @@ impl MusicApp {
                 Some("general-0"),
                 vec![
                     row("auto_start", "autostart", "autostart_desc", ""),
+                    row("check_updates", "check_updates", "check_updates_desc", "mise à jour update version"),
                     row("minimize_to_tray", "tray", "tray_desc", "tray"),
                     row("scan_on_startup", "scan_on_startup", "scan_on_startup_desc", "scan"),
                     row("play_on_start", "play_on_start", "play_on_start_desc", "lecture automatique autoplay /play"),

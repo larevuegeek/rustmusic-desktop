@@ -163,6 +163,10 @@ Les contributions sont les bienvenues. Lisez [CONTRIBUTING.md](CONTRIBUTING.md) 
 
 Si RustMusic vous est utile, une ⭐ sur le dépôt aide d’autres personnes à le découvrir.
 
+## Politique de signature de code (Code signing policy)
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org). Qui signe quoi et comment : [code signing policy](CODE_SIGNING.md). Ce que RustMusic envoie sur le réseau et comment le couper : [politique de confidentialité](PRIVACY.md) (en anglais).
+
 ## Licence
 
 RustMusic est distribué sous [licence GNU General Public License v3.0](LICENSE).

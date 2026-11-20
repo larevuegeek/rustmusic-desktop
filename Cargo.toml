@@ -147,6 +147,9 @@ publisher = "larevuegeek"
 category = "Music"
 long-description = "RustMusic is a free, open-source desktop music player built for audiophiles. It plays FLAC, ALAC, WAV, AIFF, MP3 and DSD (DSF/DFF) files with bit-perfect exclusive output, native DSD over DoP, gapless playback and ReplayGain. It manages large libraries with a fast tag workshop (MusicBrainz and Deezer lookups), synced lyrics and a built-in DLNA server, plays to UPnP/DLNA and AirPlay devices, and can act as a remote for Onkyo, Pioneer, Denon, Marantz and Yamaha amplifiers."
 out-dir = "target/packages"
+# Licence, confidentialité et signature de code, affichées par l'installeur Windows (page
+# de licence) et par le .dmg (contrat de licence), comme le demande SignPath Foundation.
+license-file = "packaging/installer-notice.txt"
 binaries = [{ path = "rustmusic", main = true }]
 icons = ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
 

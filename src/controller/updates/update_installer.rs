@@ -36,10 +36,11 @@ pub(crate) fn current_version() -> String {
 }
 
 impl MusicApp {
-    /// Au lancement : vérification silencieuse 5 s plus tard, sauf sous Flatpak, en aperçu
-    /// et dans une compilation de développement (la vérification manuelle reste possible).
+    /// Au lancement : vérification silencieuse 5 s plus tard, sauf réglage « Rechercher les
+    /// mises à jour » coupé, sous Flatpak, en aperçu et dans une compilation de développement
+    /// (la vérification manuelle reste possible).
     pub(crate) fn updater_start(&mut self) {
-        if flathub() || self.export || cfg!(debug_assertions) {
+        if flathub() || self.export || cfg!(debug_assertions) || !self.data.flag_default_on("check_updates") {
             return;
         }
         self.update_check_after(5000, 0);

@@ -1,0 +1,35 @@
+RustMusic - free and open-source music player
+https://rustmusic.dev
+
+LICENSE
+
+RustMusic is free software, released under the GNU General Public License,
+version 3 (GPL-3.0-only). You may use, study, share and modify it. The full
+license text: https://www.gnu.org/licenses/gpl-3.0.html
+
+PRIVACY
+
+RustMusic keeps your library, playlists, history and settings on this
+computer. It has no analytics, no telemetry and no advertising, and never
+uploads your music files.
+
+It contacts other systems only in these cases:
+
+- Update check at startup (rustmusic.dev): RustMusic version, operating
+  system and processor architecture.
+  Turn off: Settings > General > Check for updates.
+- Artist portraits for your library (Deezer, Wikipedia): artist names.
+  Turn off: Settings > Network & DLNA > Artist portrait downloads.
+- On your request only: synced lyrics (LRCLIB), tag and cover lookups
+  (MusicBrainz, Cover Art Archive, Deezer, iTunes), podcasts and internet
+  radio, scrobbling once you connect an account (Last.fm, ListenBrainz),
+  your own media servers, and devices of your local network.
+
+Full privacy policy:
+https://github.com/larevuegeek/rustmusic-desktop/blob/main/PRIVACY.md
+
+CODE SIGNING
+
+Free code signing provided by SignPath.io, certificate by SignPath
+Foundation. Code signing policy:
+https://github.com/larevuegeek/rustmusic-desktop/blob/main/CODE_SIGNING.md

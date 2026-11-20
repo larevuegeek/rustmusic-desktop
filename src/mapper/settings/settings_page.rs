@@ -31,7 +31,7 @@ pub fn segments(key: &'static str, current: &str, options: &[(&str, String)]) ->
 
 /// La valeur de chaque réglage avant tout choix.
 pub const DEFAULTS: &[(&str, &str)] = &[
-    ("language", "fr"), ("auto_start", "false"), ("minimize_to_tray", "true"), ("show_notifications", "false"),
+    ("language", "fr"), ("auto_start", "false"), ("check_updates", "true"), ("minimize_to_tray", "true"), ("show_notifications", "false"),
     ("scan_on_startup", "false"), ("single_click_play", "false"), ("show_sleep_timer", "true"),
     ("show_whats_new_button", "true"), ("show_whats_new_at_startup", "false"), ("show_theme_toggle", "true"), ("system_media_controls", "true"),
     ("wasapi_exclusive", "false"), ("dsd_dop", "false"), ("gapless", "true"), ("resume_playback", "true"),
@@ -55,7 +55,7 @@ pub const DEFAULTS: &[(&str, &str)] = &[
 #[allow(clippy::type_complexity)]
 pub const SECTIONS: &[(SettingsPage, &str, &str, &str, &str, &str, &[&str], Option<&str>)] = &[
     (SettingsPage::General, "general", "material-symbols:tune-rounded", "settings.general", "settings.general_hint", "settings.general_desc",
-     &["auto_start", "minimize_to_tray", "scan_on_startup", "play_on_start", "single_click_play", "resume_playback", "listen_threshold", "gapless",
+     &["auto_start", "check_updates", "minimize_to_tray", "scan_on_startup", "play_on_start", "single_click_play", "resume_playback", "listen_threshold", "gapless",
        "prevent_sleep", "system_media_controls", "show_notifications", "show_sleep_timer", "show_whats_new_button", "show_whats_new_at_startup", "show_theme_toggle"], None),
     (SettingsPage::Appearance, "appearance", "material-symbols:palette-outline-rounded", "settings.appearance", "settings.appearance_hint", "settings.appearance_desc",
      &["theme", "contrast", "show_help_bubbles", "show_open_buttons", "show_pinned_albums", "show_pinned_artists", "show_liked_in_playlists",
