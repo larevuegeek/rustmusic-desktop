@@ -156,6 +156,9 @@ installer-mode = "currentUser"
 [package.metadata.packager.macos]
 # `UTType` des dialogues de fichiers (karbon-ui) : macOS 11 au moins.
 minimum-system-version = "11.0"
+# Certificat « Developer ID Application: … » du trousseau (celui de la CI vient du secret
+# APPLE_CERTIFICATE) ; notarisation par la clé API d'App Store Connect (voir release.yml).
+signing-identity = "Developer ID Application"
 info-plist-path = "packaging/macos/Info.plist"
 
 [package.metadata.packager.deb]

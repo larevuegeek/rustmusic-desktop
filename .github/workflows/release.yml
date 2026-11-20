@@ -7,8 +7,10 @@
 #   fois le fichier sur la branche par défaut) : paquets seuls, en artefacts du lancement,
 #   rien n'est publié.
 #
-# Secrets : CARGO_PACKAGER_SIGN_PRIVATE_KEY (clé minisign des mises à jour), et
-# CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD si elle en a un.
+# Secrets : CARGO_PACKAGER_SIGN_PRIVATE_KEY et CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD
+# (clé minisign des mises à jour) ; pour macOS, APPLE_CERTIFICATE (.p12 Developer ID
+# Application en base64), APPLE_CERTIFICATE_PASSWORD, APPLE_API_KEY (contenu du .p8),
+# APPLE_API_KEY_ID, APPLE_API_ISSUER et APPLE_TEAM_ID (signature et notarisation).
 name: Release
 
 on:
@@ -125,11 +127,48 @@ jobs:
           echo "Clé de signature : $length caractères, clé minisign lisible"
           echo "SIGN_KEY_FILE=$file" >> "$GITHUB_ENV"
 
+      # Notarisation : cargo-packager attend l'identifiant de la clé API dans APPLE_API_KEY
+      # et le fichier .p8 dans APPLE_API_KEY_PATH ; le secret APPLE_API_KEY en est le contenu.
+      - name: Clé API de notarisation (macOS)
+        if: runner.os == 'macOS'
+        env:
+          API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          if [ -z "$API_KEY" ]; then
+            echo "::error::Secret APPLE_API_KEY absent (contenu du fichier AuthKey_….p8)"
+            exit 1
+          fi
+          file="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s\n' "$API_KEY" > "$file"
+          if ! grep -q "BEGIN PRIVATE KEY" "$file"; then
+            echo "::error::Secret APPLE_API_KEY : attendu le contenu du .p8, lignes BEGIN et END PRIVATE KEY comprises"
+            exit 1
+          fi
+          echo "APPLE_API_KEY_PATH=$file" >> "$GITHUB_ENV"
+
+      # Sous macOS : signature Developer ID (trousseau temporaire créé depuis APPLE_CERTIFICATE)
+      # et notarisation de l'appli par Apple, avant la signature minisign des paquets.
       - name: Paquets
         env:
           CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ env.SIGN_KEY_FILE }}
           CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: cargo packager --release --target ${{ matrix.target }}
+
+      # Preuve dans le journal : signature valide, notarisation agrafée, appli acceptée par
+      # Gatekeeper comme une appli téléchargée.
+      - name: Vérification de la signature (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          app=target/packages/RustMusic.app
+          codesign --verify --deep --strict --verbose=2 "$app"
+          xcrun stapler validate "$app"
+          spctl --assess --type execute --verbose=4 "$app"
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
 
       - name: Rassemblement des paquets
         shell: bash
