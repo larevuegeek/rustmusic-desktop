@@ -13,13 +13,14 @@ import pathlib
 import re
 import sys
 
-# (motif du nom de fichier, clé précise, clé générale ou None)
+# (motif du nom de fichier, clés précises, clés générales) : une archive macOS universelle
+# sert les deux processeurs.
 PLATFORMS = [
-    (r"_x64-setup\.exe$", "windows-x86_64-nsis", "windows-x86_64"),
-    (r"_aarch64\.app\.tar\.gz$", "darwin-aarch64-app", "darwin-aarch64"),
-    (r"_x64\.app\.tar\.gz$", "darwin-x86_64-app", "darwin-x86_64"),
-    (r"\.AppImage$", "linux-x86_64-appimage", "linux-x86_64"),
-    (r"\.deb$", "linux-x86_64-deb", None),
+    (r"_x64-setup\.exe$", ["windows-x86_64-nsis"], ["windows-x86_64"]),
+    (r"_universal\.app\.tar\.gz$", ["darwin-aarch64-app", "darwin-x86_64-app"], ["darwin-aarch64", "darwin-x86_64"]),
+    (r"\.AppImage$", ["linux-x86_64-appimage"], ["linux-x86_64"]),
+    (r"\.deb$", ["linux-x86_64-deb"], []),
+    (r"\.rpm$", ["linux-x86_64-rpm"], []),
 ]
 
 
@@ -42,7 +43,7 @@ def main() -> None:
     version = tag.removeprefix("v")
     platforms = {}
     for path in sorted(folder.iterdir()):
-        for pattern, key, general in PLATFORMS:
+        for pattern, keys, generals in PLATFORMS:
             if not re.search(pattern, path.name):
                 continue
             signature = path.with_name(path.name + ".sig")
@@ -52,10 +53,11 @@ def main() -> None:
                 "url": f"https://github.com/{repo}/releases/download/{tag}/{path.name}",
                 "signature": signature.read_text(encoding="utf-8").strip(),
             }
-            platforms[key] = asset
-            if general:
+            for key in keys:
+                platforms[key] = asset
+            for general in generals:
                 platforms.setdefault(general, asset)
-    missing = [key for _, key, _ in PLATFORMS if key not in platforms]
+    missing = [key for _, keys, _ in PLATFORMS for key in keys if key not in platforms]
     if missing:
         sys.exit(f"paquets manquants : {', '.join(missing)}")
     manifest = {

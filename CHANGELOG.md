@@ -1,6 +1,42 @@
 # Changelog
 
-## [0.4.4] - en cours
+## [0.5.0] - bêta
+
+RustMusic devient une application native. Toute l'interface est réécrite en Rust
+avec karbon-ui, sans moteur web : l'installeur Windows passe d'environ 24 Mo à
+18 Mo, et le lecteur, la bibliothèque, l'atelier de tags et le réseau restent ceux
+de la 0.4.4. Vos bibliothèques, playlists, écoutes et réglages sont repris tels
+quels ; au premier lancement, la base de la 0.4 est copiée à part
+(`rustmusic.db.0.4.bak`) pour pouvoir y revenir.
+
+### Nouveautés
+- **Petit lecteur depuis l'icône** : un clic sur l'icône de la zone de
+  notification (Windows) ou de la barre des menus (macOS) ouvre le petit lecteur ;
+  sous Linux, le menu de l'icône montre le morceau en cours et les commandes de
+  lecture.
+- **Recherche rapide en sections** : meilleur résultat, puis artistes, albums,
+  morceaux et compositeurs, classés par pertinence ; flèches du clavier pour s'y
+  déplacer.
+- **Avatars de profil** : douze icônes musicales sur la couleur du profil, ou
+  une image choisie sur l'ordinateur ; l'avatar apparaît partout.
+- **Rechercher les mises à jour** (Réglages → Général) : la vérification au
+  démarrage peut être coupée ; ce que RustMusic envoie sur le réseau est décrit
+  dans la [politique de confidentialité](https://rustmusic.dev/privacy).
+
+### Installation
+- **macOS** : application signée et notarisée par Apple, elle s'ouvre sans
+  avertissement ; un seul .dmg pour les Mac Apple Silicon et Intel (macOS 11 et
+  plus).
+- **Linux** : .deb, .rpm et AppImage ; fenêtre aux coins arrondis sous Wayland.
+- **Lancement au démarrage** à nouveau actif sous Windows, macOS et Linux.
+
+### Corrections
+- Le fichier de configuration est écrit d'un seul coup : un arrêt brutal ne fait
+  plus repartir sur le volume et la sortie par défaut.
+- Sur une machine virtuelle de 4 cœurs ou plus, le profil audio automatique ne
+  retarde plus le volume et la pause d'une demi-seconde.
+
+## [0.4.4] - 2026-11-13
 
 Les playlists s'emportent : cochées, elles s'écrivent toutes seules en .m3u8
 avec des chemins relatifs, prêtes à copier sur une clé ou un téléphone. Le

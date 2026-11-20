@@ -1,4 +1,4 @@
-# Paquets de RustMusic pour Windows, macOS (Apple Silicon et Intel) et Linux.
+# Paquets de RustMusic pour Windows, macOS (universel : Apple Silicon et Intel) et Linux.
 #
 # - Étiquette `v*` (`git tag v0.5.0-beta.1 && git push origin v0.5.0-beta.1`) : paquets
 #   signés (minisign), puis version GitHub en brouillon avec le manifeste des mises à jour
@@ -35,20 +35,21 @@ jobs:
         include:
           - name: Windows
             os: windows-latest
+            builds: x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
             arch: x64
-          - name: macOS Apple Silicon
+          # Un seul .dmg pour les deux processeurs : les deux compilations sont fusionnées
+          # (`lipo`) avant d'emballer, signer et notariser une seule fois.
+          - name: macOS universel
             os: macos-latest
-            target: aarch64-apple-darwin
-            arch: aarch64
-          - name: macOS Intel
-            os: macos-latest
-            target: x86_64-apple-darwin
-            arch: x64
+            builds: aarch64-apple-darwin x86_64-apple-darwin
+            target: universal-apple-darwin
+            arch: universal
           # Ubuntu 22.04 : un paquet construit sur une distribution ancienne marche aussi
           # sur les récentes (glibc), pas l'inverse.
           - name: Linux
             os: ubuntu-22.04
+            builds: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
             arch: x86_64
     steps:
@@ -65,9 +66,14 @@ jobs:
             exit 1
           fi
 
+      - name: Cibles Rust
+        id: targets
+        shell: bash
+        run: echo "list=$(echo '${{ matrix.builds }}' | tr ' ' ',')" >> "$GITHUB_OUTPUT"
+
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ steps.targets.outputs.list }}
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -82,14 +88,30 @@ jobs:
             libfontconfig1-dev libfreetype6-dev libwayland-dev libxkbcommon-dev \
             libdbus-1-dev libfuse2
 
-      - name: cargo-packager
-        run: cargo install cargo-packager --locked --version 0.11.8
+      - name: Outils d'emballage
+        shell: bash
+        run: |
+          cargo install cargo-packager --locked --version 0.11.8
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            cargo install cargo-generate-rpm --locked --version 0.21.1
+          fi
 
       # Sans `--locked` : le Cargo.lock commité peut venir d'une copie de travail où karbon-ui
       # est pris en local (`.cargo/config.toml`, sans source crates.io) ; cargo ne complète
       # alors que cette source, les autres dépendances restent celles du Cargo.lock.
       - name: Compilation
-        run: cargo build --release --target ${{ matrix.target }}
+        shell: bash
+        run: |
+          for target in ${{ matrix.builds }}; do
+            cargo build --release --target "$target"
+          done
+          if [ "${{ matrix.target }}" = "universal-apple-darwin" ]; then
+            mkdir -p target/universal-apple-darwin/release
+            lipo -create -output target/universal-apple-darwin/release/rustmusic \
+              target/aarch64-apple-darwin/release/rustmusic \
+              target/x86_64-apple-darwin/release/rustmusic
+            lipo -info target/universal-apple-darwin/release/rustmusic
+          fi
 
       # La clé du secret, nettoyée (espaces et sauts de ligne d'un copier-coller) dans un
       # fichier, puis vérifiée : base64 d'une clé minisign. Rien de la clé n'est affiché.
@@ -159,12 +181,28 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: cargo packager --release --target ${{ matrix.target }}
 
+      # .rpm (Fedora, openSUSE) : cargo-packager n'en fabrique pas. Paquet « rust-music »
+      # comme en 0.4, pour la mettre à jour ; « - » interdit dans une version RPM, une
+      # pré-version s'écrit « 0.5.0~beta.1 » (classée avant la 0.5.0).
+      - name: Paquet RPM (Linux)
+        if: runner.os == 'Linux'
+        env:
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ env.SIGN_KEY_FILE }}
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD }}
+        run: |
+          version=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+          cargo generate-rpm --target ${{ matrix.target }} -s "version = \"${version//-/\~}\"" -o target/packages/
+          for rpm in target/packages/*.rpm; do
+            cargo packager signer sign "$rpm"
+          done
+
       # Preuve dans le journal : signature valide, notarisation agrafée, appli acceptée par
-      # Gatekeeper comme une appli téléchargée.
+      # Gatekeeper comme une appli téléchargée, binaire pour les deux processeurs.
       - name: Vérification de la signature (macOS)
         if: runner.os == 'macOS'
         run: |
           app=target/packages/RustMusic.app
+          lipo -info "$app/Contents/MacOS/rustmusic"
           codesign --verify --deep --strict --verbose=2 "$app"
           xcrun stapler validate "$app"
           spctl --assess --type execute --verbose=4 "$app"
@@ -178,11 +216,17 @@ jobs:
           # Fichiers de premier niveau : installeurs, images disque, archives et signatures
           # (pas le dossier .app ni les fichiers de travail).
           find target/packages -maxdepth 1 -type f -exec cp {} dist/ \;
-          # L'archive de mise à jour macOS porte le même nom sur les deux Mac : on y ajoute
-          # l'architecture (la signature porte sur le contenu, pas sur le nom).
+          # Archive de mise à jour macOS : nom avec la version et l'architecture (la
+          # signature porte sur le contenu, pas sur le nom).
           for f in dist/*.app.tar.gz dist/*.app.tar.gz.sig; do
             [ -e "$f" ] || continue
             mv "$f" "${f/.app.tar.gz/_${version}_${{ matrix.arch }}.app.tar.gz}"
+          done
+          # « ~ » d'une pré-version RPM : remplacé dans le nom du fichier seulement (GitHub
+          # peut renommer ce caractère, ce qui casserait l'adresse du manifeste).
+          for f in dist/*~*; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f//\~/-}"
           done
           ls -la dist
 
