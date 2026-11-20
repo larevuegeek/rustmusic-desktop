@@ -76,6 +76,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake pkg-config libasound2-dev libcairo2-dev \
+            libpango1.0-dev libgdk-pixbuf-2.0-dev libglib2.0-dev \
             libfontconfig1-dev libfreetype6-dev libwayland-dev libxkbcommon-dev \
             libdbus-1-dev libfuse2
 
@@ -88,9 +89,31 @@ jobs:
       - name: Compilation
         run: cargo build --release --target ${{ matrix.target }}
 
+      # La clé du secret, nettoyée (espaces et sauts de ligne d'un copier-coller) dans un
+      # fichier, puis vérifiée : base64 d'une clé minisign. Rien de la clé n'est affiché.
+      - name: Clé de signature des mises à jour
+        shell: bash
+        env:
+          KEY: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY }}
+        run: |
+          file="$RUNNER_TEMP/rustmusic.key"
+          printf '%s' "$KEY" | tr -d ' \r\n\t' > "$file"
+          length=$(wc -c < "$file" | tr -d ' ')
+          if [ "$length" -eq 0 ]; then
+            echo "::error::Secret CARGO_PACKAGER_SIGN_PRIVATE_KEY vide ou absent"
+            exit 1
+          fi
+          header=$(base64 -d < "$file" 2>/dev/null | head -c 17 || true)
+          if [ "$header" != "untrusted comment" ]; then
+            echo "::error::Secret CARGO_PACKAGER_SIGN_PRIVATE_KEY illisible ($length caractères ; attendu : le contenu de keys/rustmusic.key, une ligne de base64 de 348 caractères)"
+            exit 1
+          fi
+          echo "Clé de signature : $length caractères, clé minisign lisible"
+          echo "SIGN_KEY_FILE=$file" >> "$GITHUB_ENV"
+
       - name: Paquets
         env:
-          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY }}
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ env.SIGN_KEY_FILE }}
           CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD }}
         run: cargo packager --release --target ${{ matrix.target }}
 
