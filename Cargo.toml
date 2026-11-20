@@ -133,8 +133,9 @@ zbus = "5"
 [build-dependencies]
 embed-resource = "3"
 
-# Paquets : `cargo packager --release` (NSIS sous Windows, .app et .dmg sous macOS, .deb
-# et AppImage sous Linux). Même nom de produit, éditeur, identifiant et dossier
+# Paquets : `cargo build --release` puis `cargo packager --release` (NSIS sous Windows,
+# .app et .dmg sous macOS, .deb et AppImage sous Linux ; avec `--target` des deux côtés pour
+# une autre architecture, comme le Mac Intel de la CI). Même nom de produit, éditeur, identifiant et dossier
 # d'installation que la 0.4 (%LOCALAPPDATA%\RustMusic, clé de désinstallation « RustMusic »,
 # paquet Debian « rust-music ») : la 0.5 la remplace, par l'installeur comme par la mise
 # à jour automatique. Avec `CARGO_PACKAGER_SIGN_PRIVATE_KEY` (clé minisign, secret de la
@@ -145,7 +146,6 @@ identifier = "com.larevuegeek.rustmusic"
 publisher = "larevuegeek"
 category = "Music"
 long-description = "RustMusic is a free, open-source desktop music player built for audiophiles. It plays FLAC, ALAC, WAV, AIFF, MP3 and DSD (DSF/DFF) files with bit-perfect exclusive output, native DSD over DoP, gapless playback and ReplayGain. It manages large libraries with a fast tag workshop (MusicBrainz and Deezer lookups), synced lyrics and a built-in DLNA server, plays to UPnP/DLNA and AirPlay devices, and can act as a remote for Onkyo, Pioneer, Denon, Marantz and Yamaha amplifiers."
-before-packaging-command = "cargo build --release"
 out-dir = "target/packages"
 binaries = [{ path = "rustmusic", main = true }]
 icons = ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]

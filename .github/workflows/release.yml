@@ -1,0 +1,150 @@
+# Paquets de RustMusic pour Windows, macOS (Apple Silicon et Intel) et Linux.
+#
+# - Étiquette `v*` (`git tag v0.5.0-beta.1 && git push origin v0.5.0-beta.1`) : paquets
+#   signés (minisign), puis version GitHub en brouillon avec le manifeste des mises à jour
+#   (`latest.json`, ou `latest-beta.json` pour une pré-version), à relire puis publier.
+# - Essai : `git push origin v0.5:release-test` (ou Actions → Release → Run workflow, une
+#   fois le fichier sur la branche par défaut) : paquets seuls, en artefacts du lancement,
+#   rien n'est publié.
+#
+# Secrets : CARGO_PACKAGER_SIGN_PRIVATE_KEY (clé minisign des mises à jour), et
+# CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD si elle en a un.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["release-test"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            arch: x64
+          - name: macOS Apple Silicon
+            os: macos-latest
+            target: aarch64-apple-darwin
+            arch: aarch64
+          - name: macOS Intel
+            os: macos-latest
+            target: x86_64-apple-darwin
+            arch: x64
+          # Ubuntu 22.04 : un paquet construit sur une distribution ancienne marche aussi
+          # sur les récentes (glibc), pas l'inverse.
+          - name: Linux
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            arch: x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version de l'étiquette et du Cargo.toml
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          crate=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$crate" != "$tag" ]; then
+            echo "::error::L'étiquette ($tag) ne correspond pas à la version du Cargo.toml ($crate)"
+            exit 1
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Bibliothèques de développement (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config libasound2-dev libcairo2-dev \
+            libfontconfig1-dev libfreetype6-dev libwayland-dev libxkbcommon-dev \
+            libdbus-1-dev libfuse2
+
+      - name: cargo-packager
+        run: cargo install cargo-packager --locked --version 0.11.8
+
+      # Sans `--locked` : le Cargo.lock commité peut venir d'une copie de travail où karbon-ui
+      # est pris en local (`.cargo/config.toml`, sans source crates.io) ; cargo ne complète
+      # alors que cette source, les autres dépendances restent celles du Cargo.lock.
+      - name: Compilation
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Paquets
+        env:
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY }}
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD }}
+        run: cargo packager --release --target ${{ matrix.target }}
+
+      - name: Rassemblement des paquets
+        shell: bash
+        run: |
+          version=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+          mkdir -p dist
+          # Fichiers de premier niveau : installeurs, images disque, archives et signatures
+          # (pas le dossier .app ni les fichiers de travail).
+          find target/packages -maxdepth 1 -type f -exec cp {} dist/ \;
+          # L'archive de mise à jour macOS porte le même nom sur les deux Mac : on y ajoute
+          # l'architecture (la signature porte sur le contenu, pas sur le nom).
+          for f in dist/*.app.tar.gz dist/*.app.tar.gz.sig; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f/.app.tar.gz/_${version}_${{ matrix.arch }}.app.tar.gz}"
+          done
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rustmusic-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Version GitHub (brouillon)
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Manifeste des mises à jour
+        run: python3 .github/scripts/updater_manifest.py dist "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY"
+
+      - name: Notes de version
+        run: |
+          python3 - <<'EOF'
+          import json, pathlib
+          manifest = next(pathlib.Path("dist").glob("latest*.json"))
+          pathlib.Path("notes.md").write_text(json.loads(manifest.read_text())["notes"], encoding="utf-8")
+          EOF
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          name: RustMusic ${{ github.ref_name }}
+          body_path: notes.md
+          files: dist/*
+          fail_on_unmatched_files: true
