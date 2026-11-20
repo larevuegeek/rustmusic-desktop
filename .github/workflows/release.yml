@@ -38,6 +38,7 @@ jobs:
             builds: x86_64-pc-windows-msvc
             target: x86_64-pc-windows-msvc
             arch: x64
+            formats: nsis
           # Un seul .dmg pour les deux processeurs : les deux compilations sont fusionnées
           # (`lipo`) avant d'emballer, signer et notariser une seule fois.
           - name: macOS universel
@@ -45,6 +46,7 @@ jobs:
             builds: aarch64-apple-darwin x86_64-apple-darwin
             target: universal-apple-darwin
             arch: universal
+            formats: app,dmg
           # Ubuntu 22.04 : un paquet construit sur une distribution ancienne marche aussi
           # sur les récentes (glibc), pas l'inverse.
           - name: Linux
@@ -52,6 +54,7 @@ jobs:
             builds: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
             arch: x86_64
+            formats: deb,appimage
     steps:
       - uses: actions/checkout@v4
 
@@ -179,7 +182,9 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: cargo packager --release --target ${{ matrix.target }}
+        # Formats choisis : sans eux, cargo-packager ajoute sous Linux un paquet pacman
+        # (PKGBUILD et .tar.gz) qu'on ne distribue pas.
+        run: cargo packager --release --target ${{ matrix.target }} --formats ${{ matrix.formats }}
 
       # .rpm (Fedora, openSUSE) : cargo-packager n'en fabrique pas. Paquet « rust-music »
       # comme en 0.4, pour la mettre à jour ; « - » interdit dans une version RPM, une
