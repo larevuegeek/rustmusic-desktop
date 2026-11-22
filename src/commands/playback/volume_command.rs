@@ -30,10 +30,6 @@ pub async fn get_volume() -> u8 {
     crate::commands::playback::playback::volume().await
 }
 
-pub async fn mute() {
-    set_volume(0).await;
-}
-
 pub async fn get_devices() -> Result<Vec<String>, String> {
     let host: cpal::Host = cpal::default_host();
 

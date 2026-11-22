@@ -19,4 +19,6 @@ pub struct EntryItem {
     pub infos: String,
     pub size: String,
     pub open: Msg,
+    /// En sélection, un fichier : coché ou non.
+    pub checked: Option<bool>,
 }

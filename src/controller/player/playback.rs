@@ -226,6 +226,18 @@ impl MusicApp {
         self.backend.fire(async move { volume_command::set_volume(volume).await });
     }
 
+    /// Sourdine, ou retour au volume d'avant (80 % s'il était déjà nul).
+    pub(crate) fn toggle_mute(&mut self) {
+        let volume = self.data.volume;
+        if volume == 0 {
+            let before = self.data.player.volume_before_mute;
+            self.set_volume(if before > 0 { before } else { 80 });
+        } else {
+            self.data.player.volume_before_mute = volume;
+            self.set_volume(0);
+        }
+    }
+
     pub(crate) fn tick(&mut self) -> bool {
         if let Some(end) = self.sleep_end {
             if Instant::now() >= end {

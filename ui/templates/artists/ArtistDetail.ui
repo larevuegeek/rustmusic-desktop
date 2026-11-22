@@ -129,16 +129,20 @@
             {:else if !av.has_tracks}
                 <p class="m-0 py-10 text-center text-sm text-(--rg-mu)">{t("artist_view.no_tracks")}</p>
             {:else if !av.groups.is_empty()}
-                {#if let Some(table) = &av.head}{@include "../tracks/TrackTableHead.ui"}{/if}
-                {#each av.groups as g (g.key.as_str())}
-                    {#if g.space == 7}
-                        <div class="mt-7">{@include "ArtistGroupBlock.ui"}</div>
-                    {:else if g.space == 1}
-                        <div class="mt-1">{@include "ArtistGroupBlock.ui"}</div>
-                    {:else}
-                        <div class="mt-2">{@include "ArtistGroupBlock.ui"}</div>
-                    {/if}
-                {/each}
+                <div class="overflow-x-auto scrollbar-app">
+                    <div class="flex flex-col" style:min_width={av.head.as_ref().map_or(0., |t| t.min_width())}>
+                        {#if let Some(table) = &av.head}{@include "../tracks/TrackTableHead.ui"}{/if}
+                        {#each av.groups as g (g.key.as_str())}
+                            {#if g.space == 7}
+                                <div class="mt-7">{@include "ArtistGroupBlock.ui"}</div>
+                            {:else if g.space == 1}
+                                <div class="mt-1">{@include "ArtistGroupBlock.ui"}</div>
+                            {:else}
+                                <div class="mt-2">{@include "ArtistGroupBlock.ui"}</div>
+                            {/if}
+                        {/each}
+                    </div>
+                </div>
             {:else if self.views.view_mode == ViewMode::Grid}
                 <div class="grid grid-cols-2 gap-x-7 @max-[900px]:grid-cols-1">
                     <div class="flex flex-col gap-y-0.5 min-w-0">
@@ -150,8 +154,7 @@
                 </div>
             {:else}
                 {#if let Some(table) = &av.table}
-                    {@include "../tracks/TrackTableHead.ui"}
-                    {@include "../tracks/TrackRows.ui"}
+                    {@include "../tracks/TrackTable.ui"}
                 {/if}
             {/if}
         </section>

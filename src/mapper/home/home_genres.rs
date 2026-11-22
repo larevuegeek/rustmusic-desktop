@@ -118,7 +118,7 @@ pub(crate) fn tiles(data: &Data, route: &Route) -> (Vec<Tile>, [bool; 7]) {
         flags[i] = shown.contains(s);
     }
     let current = route.section();
-    let tiles = Section::ALL
+    let mut tiles: Vec<Tile> = Section::ALL
         .iter()
         .filter(|(s, ..)| shown.contains(s) || current == Some(*s))
         .map(|(s, key, _, icon)| Tile {
@@ -129,5 +129,14 @@ pub(crate) fn tiles(data: &Data, route: &Route) -> (Vec<Tile>, [bool; 7]) {
             active: current == Some(*s),
         })
         .collect();
+    if data.playlists_tab() {
+        tiles.push(Tile {
+            key: "playlists",
+            label: karbon_ui::intl::t("nav.playlists"),
+            icon: "material-symbols:queue-music-rounded",
+            route: Route::Playlists,
+            active: matches!(route, Route::Playlists | Route::Playlist(_)),
+        });
+    }
     (tiles, flags)
 }

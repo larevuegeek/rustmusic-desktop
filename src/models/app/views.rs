@@ -52,6 +52,8 @@ pub struct Views {
     pub selection: Option<crate::models::tracks::Selection>,
     /// Chemins envoyés à l'atelier de tags par la barre de sélection.
     pub workshop_paths: Option<Vec<String>>,
+    /// Nom de ce qui a envoyé ces chemins (le dossier), sinon « la sélection ».
+    pub workshop_source: Option<String>,
     /// Cartes de soutien et de mise à jour.
     pub banners: crate::models::layout::Banners,
     /// Le choix des colonnes du tableau des morceaux.

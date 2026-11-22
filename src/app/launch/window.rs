@@ -73,7 +73,8 @@ pub fn run(app: AppHandle, events: Receiver<Event>) -> karbon_ui::Result<()> {
         icon: Some(WINDOW_ICON),
         ..options
     };
-    if let Some(g) = crate::core::system::window_geometry::load() {
+    let saved = crate::core::system::window_geometry::load();
+    if let Some(g) = saved {
         if g.width >= options.min_width && g.height >= options.min_height {
             options.x = g.x;
             options.y = g.y;
@@ -82,6 +83,16 @@ pub fn run(app: AppHandle, events: Receiver<Event>) -> karbon_ui::Result<()> {
         }
     }
     let mut music = MusicApp::new(app, events);
+    // Fenêtre agrandie ou en plein écran à la dernière fermeture : rouverte ainsi, la
+    // taille normale gardée pour la restauration.
+    if let Some(g) = saved {
+        use karbon_ui::window::{WindowChange, WindowCommand, WindowId};
+        if g.fullscreen {
+            music.window_commands.push(WindowCommand::Change(WindowId::MAIN, WindowChange::Fullscreen(true)));
+        } else if g.maximized {
+            music.window_commands.push(WindowCommand::Change(WindowId::MAIN, WindowChange::Maximized(true)));
+        }
+    }
     // Fenêtre ouverte sur une page (`--page tracks`) : mesures de fluidité à la main.
     let args: Vec<String> = std::env::args().collect();
     music.export_route = args

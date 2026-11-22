@@ -7,7 +7,7 @@ use crate::helper::string::string::display_title;
 use crate::models::app::SleepTimer;
 use crate::models::app::Msg;
 use crate::models::home::ViewModel;
-use crate::commands::playback::{queue_command, volume_command};
+use crate::commands::playback::queue_command;
 use crate::commands::playlist::playlist_command;
 use crate::entity::queue::queue_track::QueueTrack;
 use crate::app::music_app::*;
@@ -23,19 +23,7 @@ impl MusicApp {
             Msg::Seek(position) => self.seek(position),
             Msg::SeekBy(delta) => self.seek(self.data.player.position + delta),
             Msg::Volume(value) => self.set_volume(value.round().clamp(0., 100.) as u8),
-            Msg::Mute => {
-                self.backend.call(
-                    async {
-                        volume_command::mute().await;
-                        volume_command::get_volume().await
-                    },
-                    |me, volume| {
-                        me.data.volume = volume;
-                        true
-                    },
-                );
-                return false;
-            }
+            Msg::Mute => self.toggle_mute(),
             Msg::Like(path) => {
                 let Some(profile) = self.data.profile_id() else {
                     return false;

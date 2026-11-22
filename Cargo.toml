@@ -1,6 +1,6 @@
 [package]
 name = "rustmusic"
-version = "0.5.0-beta.5"
+version = "0.5.0-beta.6"
 description = "Audiophile-grade desktop music player with native DSD playback, multichannel SACD support, DLNA server, synced lyrics, and OS media controls."
 authors = ["LaRevueGeeK <contact@rustmusic.dev>"]
 edition = "2021"
@@ -24,9 +24,9 @@ crate-type = ["rlib"]
 #   karbon-ui = { path = "../karbon-ui" }
 #   karbon-ui-macros = { path = "../karbon-ui/crates/ui-macros" }
 #   karbon-updater = { path = "../karbon-ui/crates/updater" }
-karbon-ui = "0.3.26"
+karbon-ui = "0.3.27"
 # Mises à jour automatiques : même serveur, même clé et mêmes paquets que la 0.4.4.
-karbon-updater = "0.3.26"
+karbon-updater = "0.3.27"
 # Allocateur plus rapide que le tas de Windows : la construction des vues alloue beaucoup
 # de petits objets (essai de fluidité, accord du propriétaire le 2026-11-09).
 mimalloc = { version = "0.1", default-features = false }

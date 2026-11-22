@@ -3,7 +3,7 @@ use crate::app::resources::assets::Assets;
 use crate::app::resources::css;
 use karbon_ui::ui::prelude::*;
 
-/// Pastille de la chaîne audio, thème sombre.
+/// Pastille de la chaîne audio, aux teintes de celle du lecteur dans les deux thèmes.
 #[derive(Default)]
 pub struct PipelineBadge {
     pub mode: String,

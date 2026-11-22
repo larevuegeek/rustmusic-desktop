@@ -1,6 +1,6 @@
 {#if let Some(sel) = self.active_selection()}
 <div class="absolute bottom-38 inset-x-0 z-50 flex justify-center pointer-events-none">
-    <div class="pointer-events-auto flex items-center gap-2 px-4 py-2.5 whitespace-nowrap rounded-2xl bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+    <div class="pointer-events-auto flex items-center gap-2 px-4 py-2.5 whitespace-nowrap rounded-2xl bg-neutral-950/95 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
         <div class="text-xs font-semibold text-emerald-400 tabular-nums px-2">{sel.count_label()}</div>
         <div class="w-px h-5 bg-white/10"></div>
         <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-white bg-emerald-500/15 hover:bg-emerald-500/25 transition-colors"
@@ -17,7 +17,7 @@
             <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-neutral-300 hover:text-white hover:bg-white/8 transition-colors"
                     onclick={Msg::Selection(SelectionMsg::PlaylistMenu)}><Icon icon="lucide:list-music" width={13} /><div>{t("sidebar.playlist")}</div></button>
             {#if sel.playlists_open}
-                <div class="absolute bottom-full left-0 mb-2 z-20 w-48 py-1 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl shadow-black/30 max-h-48 overflow-y-auto scrollbar-app">
+                <div class="absolute bottom-full left-0 mb-2 z-20 w-48 py-1 bg-neutral-950/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl shadow-black/30 max-h-48 overflow-y-auto scrollbar-app">
                     {@const pls = self.selection_playlists()}
                     {#if pls.is_empty()}
                         <p class="m-0 text-xs text-neutral-500 text-center py-3">{t("menu.no_playlist")}</p>
@@ -35,10 +35,10 @@
         </div>
         <div class="w-px h-5 bg-white/10"></div>
         {#if !self.all_selected()}
-            <button class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer text-neutral-500 hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
+            <button class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer text-neutral-500 hover:text-neutral-300 hover:bg-white/5 transition-colors"
                     onclick={Msg::Selection(SelectionMsg::SelectAll)}><div>{t("actions.select_all")}</div></button>
         {/if}
-        <button class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer text-neutral-500 hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-white/5 transition-colors"
+        <button class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer text-neutral-500 hover:text-neutral-300 hover:bg-white/5 transition-colors"
                 onclick={Msg::Selection(SelectionMsg::DeselectAll)}><div>{t("actions.deselect_all")}</div></button>
         <button class="flex items-center justify-center w-7 h-7 rounded-lg cursor-pointer text-neutral-500 hover:text-white hover:bg-white/8 transition-colors"
                 aria-label={t("actions.exit_selection")} onclick={Msg::Selection(SelectionMsg::Stop)}><Icon icon="lucide:x" width={14} /></button>

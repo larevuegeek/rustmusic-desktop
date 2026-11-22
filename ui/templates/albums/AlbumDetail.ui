@@ -176,8 +176,7 @@
             {/each}
         {:else}
             {#if let Some(table) = &av.table}
-                {@include "../tracks/TrackTableHead.ui"}
-                {@include "../tracks/TrackRows.ui"}
+                {@include "../tracks/TrackTable.ui"}
             {/if}
         {/if}
 

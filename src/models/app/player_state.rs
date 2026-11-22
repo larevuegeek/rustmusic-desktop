@@ -16,4 +16,6 @@ pub struct PlayerState {
     pub seek_when_ready: Option<(String, f64)>,
     /// En pause quand la sortie a changé : la reprise relance le morceau sur la nouvelle.
     pub stale_output: bool,
+    /// Volume d'avant la sourdine, rendu au clic suivant.
+    pub volume_before_mute: u8,
 }

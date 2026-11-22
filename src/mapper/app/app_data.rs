@@ -22,6 +22,7 @@ impl Default for PlayerState {
             pipeline: None,
             seek_when_ready: None,
             stale_output: false,
+            volume_before_mute: 80,
         }
     }
 }
@@ -148,6 +149,14 @@ impl Data {
             out = default();
         }
         out
+    }
+
+    /// L'onglet « Playlists » est coché dans l'apparence : il mène à la page des playlists,
+    /// hors des sections de la bibliothèque.
+    pub fn playlists_tab(&self) -> bool {
+        self.setting("library_tabs")
+            .and_then(|raw| serde_json::from_str::<Vec<String>>(raw).ok())
+            .is_some_and(|keys| keys.iter().any(|k| k == "playlists"))
     }
 
     /// 0 à gauche (barre), 1 en haut, 2 les deux (défaut).

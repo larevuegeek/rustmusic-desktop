@@ -14,8 +14,6 @@ pub struct MiniState {
     /// tour de molette qui l'a affiché.
     pub volume_hint: bool,
     pub(crate) hint_turn: u32,
-    /// Volume d'avant la sourdine.
-    pub(crate) previous_volume: u8,
     pub(crate) saved: Option<Saved>,
     /// Dernière géométrie normale : ni agrandie, ni plein écran, ni réduite, hors mode mini.
     pub(crate) normal: Option<(i32, i32, i32, i32)>,

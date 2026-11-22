@@ -37,6 +37,11 @@ impl MusicApp {
                 let Some(path) = track(i).map(|t| t.path.clone()) else { return false };
                 self.play_list(to_queue(profile, &tracks), &path);
             }
+            RowMsg::Open(_) if self.selecting() || self.data.flag("single_click_play") => return false,
+            RowMsg::Open(i) => {
+                let Some(path) = track(i).map(|t| t.path.clone()) else { return false };
+                self.play_list(to_queue(profile, &tracks), &path);
+            }
             RowMsg::Click(i) if self.selecting() => {
                 let picked = track(i).cloned();
                 return self.selection_toggle_row(i, picked);

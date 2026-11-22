@@ -20,6 +20,11 @@ impl MusicApp {
         page.path = Some(path.clone());
         page.search.clear();
         page.window.reset();
+        // Les rangs cochés désignaient les fichiers du dossier quitté.
+        if let Some(s) = self.views.selection.as_mut() {
+            s.picked.clear();
+            s.all = false;
+        }
         match page.breadcrumb.iter().position(|(_, p)| *p == path) {
             Some(i) => page.breadcrumb.truncate(i + 1),
             None => page.breadcrumb.push((name, path.clone())),
@@ -83,6 +88,20 @@ impl MusicApp {
                     self.play_list(queue, &start);
                 }
                 return true;
+            }
+            FoldersMsg::Pick(i) => {
+                let track = self.folder_tracks().get(i).cloned();
+                return self.selection_toggle_row(i, track);
+            }
+            FoldersMsg::EditTags => {
+                let paths: Vec<String> = self.folder_tracks().into_iter().map(|t| t.path).collect();
+                if paths.is_empty() {
+                    return false;
+                }
+                let folder = self.views.folders.as_ref().and_then(|p| p.breadcrumb.last().map(|(name, _)| name.clone()));
+                self.views.workshop_paths = Some(paths);
+                self.views.workshop_source = folder;
+                return self.handle(crate::models::app::Msg::Go(crate::models::app::Route::Tags(None)));
             }
             FoldersMsg::Scrolled(offset, max) => {
                 let (len, export) = (self.folders_visible().len(), self.export);

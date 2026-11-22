@@ -13,7 +13,7 @@
                         <div class="text-(--rg-g)"><Icon icon="material-symbols:play-arrow-rounded" width={18} /></div><div class="@max-5xl:hidden">{t("folders_view.play_folder")}</div>
                     </button>
                     <button class="h-8.5 px-3 flex items-center gap-1.5 rounded-[10px] border text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-colors bg-(--rg-carte) border-(--rg-bd) text-(--rg-tx2) hover:border-(--rg-bd2) hover:text-(--rg-tx) shrink-0"
-                            title={t("workshop.fix_tags")} onclick={Msg::Noop}>
+                            title={t("workshop.fix_tags")} onclick={Msg::Folders(FoldersMsg::EditTags)}>
                         <Icon icon="material-symbols:table-edit-outline-rounded" width={18} /><div class="@max-5xl:hidden">{t("workshop.fix_tags")}</div>
                     </button>
                 {/if}

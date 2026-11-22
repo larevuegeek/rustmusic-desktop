@@ -5,9 +5,8 @@
 /* .home-maquette { font-family: 'Figtree Variable', 'Inter Variable', … } ; line-height: 1.5
    de la feuille de base de Tailwind (html), que les tailles arbitraires héritent. */
 .home-maquette { font-family: var(--font-maquette); line-height: 1.5; }
-/* .dark .scrollbar-app (WebView2 lit ::-webkit-scrollbar) : gouttière de 10 px, pouce
-   rgba(255,255,255,.18) de 4 px, .28 au survol. */
-.scrollbar-app { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
+/* .scrollbar-app : pouce gris neutre, lisible sur les deux thèmes. */
+.scrollbar-app { scrollbar-width: thin; scrollbar-color: rgba(128, 128, 128, 0.42) transparent; }
 
 /* ── Reprise de l'écoute (home/HomeResume.ui) ── */
 /* .hero-reprise, puis :root[data-contrast="high"].dark .hero-reprise (bordure .1). */
@@ -76,6 +75,8 @@
     .vedette-voile { background: linear-gradient(115deg, rgba(10, 12, 11, 0.2) 0%, rgba(10, 12, 11, 0.5) 55%, rgba(10, 12, 11, 0.72) 100%); }
 }
 @media (prefers-color-scheme: light) {
+    .vedette-voile { background: linear-gradient(115deg, rgba(255, 251, 248, 0.55) 0%, rgba(255, 251, 248, 0.76) 55%, rgba(255, 251, 248, 0.9) 100%); }
+    .recent-vedette { border-color: rgba(0, 0, 0, 0.06); }
     .hero-reprise { background: #ffffff; border-color: rgba(0, 0, 0, 0.06); }
     .hero-voile { background: linear-gradient(110deg, rgba(255, 251, 248, 0.5) 0%, rgba(255, 251, 248, 0.74) 55%, rgba(255, 251, 248, 0.88) 100%); }
     .ensuite-panneau { background: rgba(255, 255, 255, 0.6); box-shadow: inset 0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 10px 30px rgba(0, 0, 0, 0.05); }
@@ -96,6 +97,6 @@
     .accent-teinte { color: oklch(0.3 0 0); }
     .genre-titre { color: #000000; }
     .genre-compte { color: oklch(0.3 0.06 var(--h, 150)); }
-    .vedette-voile { background: linear-gradient(115deg, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.62) 55%, rgba(0, 0, 0, 0.8) 100%); }
+    .vedette-voile { background: linear-gradient(115deg, rgba(255, 255, 255, 0.74) 0%, rgba(255, 255, 255, 0.88) 55%, rgba(255, 255, 255, 0.95) 100%); }
     .recent-vedette { border-color: rgba(0, 0, 0, 0.06); }
 }

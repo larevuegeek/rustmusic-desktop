@@ -168,14 +168,53 @@ pub(crate) fn release(version: &str) -> &'static [Slide] {
     }
 }
 
+/// Versions qui ont des annonces, de la plus récente à la plus ancienne.
+const ANNOUNCED: [&str; 4] = ["0.5.0", "0.4.3", "0.4.2", "0.4.0"];
+
 /// (diapo, version rappelée).
 pub fn slides() -> Vec<(&'static Slide, Option<&'static str>)> {
-    let own = release(VERSION);
-    let mut out: Vec<_> = own.iter().map(|s| (s, None)).collect();
-    if !own.is_empty() {
-        for recalled in RECALLED.into_iter().filter(|v| *v != VERSION) {
-            out.extend(release(recalled).iter().map(|s| (s, Some(recalled))));
-        }
+    slides_for(VERSION)
+}
+
+/// Annonces de `version`, bêtas comprises (0.5.0-beta.6 → 0.5.0) ; une version sans annonce
+/// (correctif) montre celles de la dernière version annoncée, badgées, pour qu'on puisse
+/// toujours revoir les nouveautés.
+fn slides_for(version: &str) -> Vec<(&'static Slide, Option<&'static str>)> {
+    let base = version.split('-').next().unwrap_or(version);
+    let (current, badge) = match release(base).is_empty() {
+        false => (base, None),
+        true => match ANNOUNCED.into_iter().find(|v| numbers(v) < numbers(base)) {
+            Some(v) => (v, Some(v)),
+            None => return Vec::new(),
+        },
+    };
+    let mut out: Vec<_> = release(current).iter().map(|s| (s, badge)).collect();
+    for recalled in RECALLED.into_iter().filter(|v| *v != current) {
+        out.extend(release(recalled).iter().map(|s| (s, Some(recalled))));
     }
     out
+}
+
+/// « 0.10.2 » → [0, 10, 2], pour comparer les versions nombre par nombre.
+fn numbers(version: &str) -> Vec<u32> {
+    version.split('.').map(|n| n.parse().unwrap_or(0)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_beta_shows_the_announcements_of_its_version() {
+        let slides = slides_for("0.5.0-beta.6");
+        assert_eq!(slides.len(), V050.len() + V043.len() + V040.len());
+        assert!(slides[..V050.len()].iter().all(|(_, badge)| badge.is_none()));
+    }
+
+    #[test]
+    fn a_version_without_announcements_recalls_the_last_ones() {
+        let slides = slides_for("0.5.1");
+        assert_eq!(slides.len(), V050.len() + V043.len() + V040.len());
+        assert_eq!(slides[0].1, Some("0.5.0"));
+    }
 }

@@ -120,8 +120,7 @@
                 </div>
             {:else}
                 {#if let Some(table) = &pv.table}
-                    {@include "../tracks/TrackTableHead.ui"}
-                    {@include "../tracks/TrackRows.ui"}
+                    {@include "../tracks/TrackTable.ui"}
                 {/if}
             {/if}
         </section>

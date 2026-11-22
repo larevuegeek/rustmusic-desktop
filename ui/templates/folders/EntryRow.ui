@@ -1,6 +1,7 @@
 <button class="group relative w-full grid grid-cols-[40px_minmax(0,1fr)_88px_90px_40px] items-center gap-4 py-1.5 pl-2 pr-3 rounded-xl text-left cursor-pointer transition-colors hover:bg-(--rg-carte)"
         onclick={entry.open.clone()}>
     {#if i > 0}<div class="absolute left-16 right-3 top-0 h-px bg-(--rg-line) group-hover:opacity-0"></div>{/if}
+    {#if let Some(checked) = entry.checked}<div class="absolute left-0.5 top-0.5 z-10">{@include "../tracks/TrackSelectionCheck.ui"}</div>{/if}
     {#if entry.is_dir && !entry.covers.is_empty()}
         <div class="relative w-10 h-10">
             <div class="absolute inset-0 rounded-[10px] overflow-hidden border border-(--rg-bd)">

@@ -74,7 +74,6 @@ impl Default for MiniState {
             volume_open: false,
             volume_hint: false,
             hint_turn: 0,
-            previous_volume: 80,
             saved: None,
             normal: None,
             window: WindowState::default(),

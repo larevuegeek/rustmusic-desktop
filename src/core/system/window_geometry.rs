@@ -20,6 +20,9 @@ pub struct Geometry {
     pub width: i32,
     pub height: i32,
     pub maximized: bool,
+    /// Plein écran (absent des fichiers écrits avant la 0.5.0-beta.6).
+    #[serde(default)]
+    pub fullscreen: bool,
 }
 
 static COMPACT: AtomicBool = AtomicBool::new(false);
@@ -115,8 +118,14 @@ mod tests {
 
     #[test]
     fn a_geometry_round_trips_through_json() {
-        let g = Geometry { x: 10, y: 20, width: 1280, height: 900, maximized: false };
+        let g = Geometry { x: 10, y: 20, width: 1280, height: 900, maximized: false, fullscreen: true };
         let json = serde_json::to_string(&g).unwrap();
         assert_eq!(serde_json::from_str::<Geometry>(&json).unwrap(), g);
+    }
+
+    #[test]
+    fn an_older_file_without_fullscreen_still_loads() {
+        let g: Geometry = serde_json::from_str(r#"{"x":1,"y":2,"width":1280,"height":900,"maximized":true}"#).unwrap();
+        assert!(g.maximized && !g.fullscreen);
     }
 }

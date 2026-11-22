@@ -69,6 +69,8 @@
         </div>
 
         <div class="flex-1 relative min-h-0 flex flex-col">
+            <div class="flex-1 min-h-0 flex flex-col overflow-x-auto scrollbar-app">
+            <div class="flex-1 min-h-0 flex flex-col" style:min_width={tv.table.min_width() + 88.}>
             {#if !page.tracks.is_empty()}
                 <div class="shrink-0 pl-4 md:pl-8 pr-10 md:pr-14">
                     {@const table = &tv.table}{@include "TrackTableHead.ui"}
@@ -94,6 +96,8 @@
                 {/if}
             </div>
             {/each}
+            </div>
+            </div>
 
             {#if page.sort == "title" && !page.letters.is_empty()}
                 <div class="absolute right-2.5 inset-y-2 z-20 flex items-center pointer-events-none">

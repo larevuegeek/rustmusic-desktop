@@ -5,6 +5,9 @@ pub enum RowMsg {
     Play(usize),
     /// Un clic sur la ligne : lecture en mode « un clic », sinon désignation.
     Click(usize),
+    /// Un double-clic sur la ligne : lecture, sauf en sélection et en mode « un clic »
+    /// (le premier clic a déjà lancé le morceau).
+    Open(usize),
     Like(usize),
     /// Note en demi-étoiles (0,5 à 5) ; la même note l'efface.
     Rate(usize, f64),

@@ -5,6 +5,7 @@ use crate::models::app::Choice;
 use crate::models::app::Msg;
 use crate::models::tracks::Tier;
 use crate::entity::library::dir_entry::DirEntry;
+use crate::query::track::track_list_row::TrackListRow;
 use chrono::Utc;
 use crate::app::music_app::MusicApp;
 use karbon_ui::intl;
@@ -59,6 +60,7 @@ impl std::hash::Hash for EntryItem {
     fn hash<H: std::hash::Hasher>(&self, h: &mut H) {
         (&self.name, &self.path, self.is_dir, &self.covers, self.albums, &self.album_badge, &self.tracks).hash(h);
         (&self.quality, self.music, &self.cover, &self.format, self.tier, &self.title, &self.infos, &self.size).hash(h);
+        self.checked.hash(h);
     }
 }
 
@@ -77,7 +79,8 @@ pub fn entry_key<'a>(entry: &'a EntryItem, assets: &Assets, grid: bool) -> (&'a 
 }
 
 impl MusicApp {
-    pub(crate) fn folder_entry(&self, e: &DirEntry, covers: bool) -> EntryItem {
+    /// `pick` : en sélection, le rang du fichier et s'il est coché.
+    pub(crate) fn folder_entry(&self, e: &DirEntry, covers: bool, pick: Option<(usize, bool)>) -> EntryItem {
         let format = e.extension.clone().unwrap_or_default().to_lowercase();
         let p = e.preview.as_ref();
         let infos: Vec<String> = [e.artist.clone(), e.duration.filter(|d| *d > 0.).map(intl::clock)].into_iter().flatten().collect();
@@ -113,12 +116,33 @@ impl MusicApp {
                 String::new()
             },
             size: if e.size > 0 { intl::bytes(e.size as u64) } else { String::new() },
-            open: if e.is_dir {
-                Msg::Folders(FoldersMsg::Open(e.path.clone(), e.name.clone()))
-            } else {
-                Msg::Folders(FoldersMsg::PlayFile(e.path.clone()))
+            open: match pick {
+                _ if e.is_dir => Msg::Folders(FoldersMsg::Open(e.path.clone(), e.name.clone())),
+                Some((i, _)) => Msg::Folders(FoldersMsg::Pick(i)),
+                None => Msg::Folders(FoldersMsg::PlayFile(e.path.clone())),
             },
+            checked: pick.filter(|_| !e.is_dir).map(|(_, on)| on),
         }
+    }
+
+    /// Les fichiers du dossier ouvert, en morceaux et dans l'ordre du dossier : ce que
+    /// coche la sélection.
+    pub(crate) fn folder_tracks(&self) -> Vec<TrackListRow> {
+        let Some(page) = self.views.folders.as_ref() else { return Vec::new() };
+        page.entries
+            .iter()
+            .filter(|e| !e.is_dir)
+            .map(|e| TrackListRow {
+                id: e.track_id.clone().unwrap_or_default(),
+                path: e.path.clone(),
+                filename: e.name.clone(),
+                title: e.title.clone().unwrap_or_else(|| e.name.clone()),
+                artist: e.artist.clone(),
+                duration: e.duration,
+                thumbnail_path: e.thumbnail_path.clone(),
+                ..Default::default()
+            })
+            .collect()
     }
 
     /// Le contenu du dossier ouvert, filtré et trié : dossiers d'abord.
@@ -172,8 +196,15 @@ impl MusicApp {
         let total = visible.len();
         let window = &visible[page.window.range(total)];
         let covers = !page.without_covers;
-        let dirs = window.iter().filter(|e| e.is_dir).map(|e| self.folder_entry(e, covers)).collect();
-        let files = window.iter().filter(|e| !e.is_dir).map(|e| self.folder_entry(e, covers)).collect();
+        // En sélection : rang de chaque fichier parmi ceux du dossier (`folder_tracks`).
+        let ranks: std::collections::HashMap<&str, usize> = if self.selecting() {
+            page.entries.iter().filter(|e| !e.is_dir).enumerate().map(|(i, e)| (e.path.as_str(), i)).collect()
+        } else {
+            Default::default()
+        };
+        let pick = |e: &DirEntry| ranks.get(e.path.as_str()).map(|&i| (i, self.selected(i)));
+        let dirs = window.iter().filter(|e| e.is_dir).map(|e| self.folder_entry(e, covers, None)).collect();
+        let files = window.iter().filter(|e| !e.is_dir).map(|e| self.folder_entry(e, covers, pick(e))).collect();
         let n = page.breadcrumb.len();
         let crumb = |i: usize| Crumb { name: page.breadcrumb[i].0.clone(), path: page.breadcrumb[i].1.clone(), last: i + 1 == n, cache: None };
         let crumbs = if n <= 4 {

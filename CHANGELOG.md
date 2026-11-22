@@ -36,6 +36,24 @@ quels ; au premier lancement, la base de la 0.4 est copiée à part
 - Sur une machine virtuelle de 4 cœurs ou plus, le profil audio automatique ne
   retarde plus le volume et la pause d'une demi-seconde.
 
+### Depuis la bêta 5
+- **Thème clair** : listes déroulantes des réglages, menu « Gérer » et choix de la
+  bibliothèque sur fond clair ; chiffres de l'en-tête des pages lisibles ; barre de
+  défilement visible ; pastilles de « Comprendre le son », barre de sélection et
+  bulles de mise à jour et de soutien lisibles ; carte « Récemment joués » de l'accueil
+  sur fond clair.
+- **Nouveautés** : le mégaphone de la barre de titre revient pendant les bêtas, et
+  reste là pour revoir les annonces même quand une version n'en apporte pas.
+- **Morceaux** : un double-clic sur une ligne lance la lecture (sans « Lecture au
+  simple clic ») ; les colonnes qui ne tiennent pas dans la fenêtre défilent en
+  largeur, sur la page Morceaux comme dans les fiches.
+- **Barre du lecteur** : le titre, l'artiste, l'album et l'année mènent à leur fiche.
+- **Sourdine** : un second clic rend le volume d'avant.
+- **Dossiers** : « Sélectionner » coche les fichiers du dossier, « Éditer les tags »
+  les ouvre dans l'atelier.
+- **Onglet Playlists** de retour quand il est coché dans l'apparence.
+- **Fenêtre** : agrandie ou en plein écran, elle se rouvre ainsi.
+
 ### Depuis la bêta 4
 - **Bibliothèque rescannée en boucle** avec « Scanner au lancement » activé : chaque
   fin de scan en relançait un autre, et les listes d'artistes et d'albums se vidaient

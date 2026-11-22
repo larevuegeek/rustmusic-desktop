@@ -51,6 +51,15 @@ impl Table {
     pub fn width_vars(&self) -> impl Iterator<Item = (&'static str, karbon_ui::ui::prelude::Length)> + '_ {
         column_vars(self.head.iter().map(|c| c.width))
     }
+
+    /// Largeur sous laquelle les colonnes ne tiennent plus : la liste défile alors en
+    /// largeur. Marges de la ligne (`px-2.5`), écarts de 14 px (`gap-3.5`) et boutons de
+    /// fin (78 px), comme TrackTableHead.ui et TrackCells.ui.
+    pub fn min_width(&self) -> f32 {
+        let columns: f32 = self.head.iter().map(|c| if c.flexible { c.min_width } else { c.width }).sum();
+        let gaps = (self.head.len() + usize::from(self.filler)) as f32 * 14.;
+        columns + gaps + 78. + 20.
+    }
 }
 
 /// Clé de mémoire (`memo={…}`) d'une valeur sans `Hash` : sa forme `Debug`, qui couvre
@@ -231,6 +240,7 @@ impl MusicApp {
             Route::Artist(_) => Some(self.artist_order()),
             Route::Genre(_) | Route::Decade(_) | Route::Composer(_) => Some(self.genre_sorted()),
             Route::Playlist(_) | Route::Liked | Route::Recent => Some(self.playlist_sorted()),
+            Route::Library(crate::models::app::Section::Folders) => self.views.folders.as_ref().map(|_| self.folder_tracks()),
             _ => None,
         }
     }

@@ -68,7 +68,7 @@ impl MusicApp {
         }
         let app = self.backend.app.clone();
         let library = self.data.library_id.unwrap_or(0);
-        let from_selection = t("workshop.from_selection");
+        let from_selection = self.views.workshop_source.take().unwrap_or_else(|| t("workshop.from_selection"));
         self.backend.call(
             async move {
                 let (source, paths) = match (album, paths) {

@@ -74,7 +74,7 @@
             {#if self.popup("lib.manage")}
             {#if let Some(m) = self.manage_menu(head.id)}
                 <k-popover anchor="lib.manage" menu placement="bottom-end" offset="8" aria-label={t("library_head.manage")}
-                           onclose={Msg::CloseMenu} class="rg-menu w-85 p-0 overflow-hidden rounded-2xl bg-linear-to-b from-[#1c2220] to-[#161a18]">
+                           onclose={Msg::CloseMenu} class="rg-menu w-85 p-0 overflow-hidden rounded-2xl dark:bg-linear-to-b dark:from-[#1c2220] dark:to-[#161a18]">
                     {@include "LibraryManageMenu.ui"}
                 </k-popover>
             {/if}

@@ -88,21 +88,7 @@ impl MusicApp {
             MiniMsg::Remove(id) => return self.queue_remove(&id),
             MiniMsg::Play(index) => return self.handle(Msg::PlayQueue(index)),
             MiniMsg::VolumeMenu(open) => self.views.mini.volume_open = open,
-            MiniMsg::Mute => {
-                let volume = self.data.volume;
-                let target = if volume == 0 {
-                    let p = self.views.mini.previous_volume;
-                    if p > 0 {
-                        p
-                    } else {
-                        80
-                    }
-                } else {
-                    self.views.mini.previous_volume = volume;
-                    0
-                };
-                return self.handle(Msg::Volume(f64::from(target)));
-            }
+            MiniMsg::Mute => return self.handle(Msg::Mute),
             MiniMsg::Wheel { up, hint } => {
                 let target = (i32::from(self.data.volume) + if up { 5 } else { -5 }).clamp(0, 100);
                 if hint {
@@ -346,6 +332,7 @@ impl MusicApp {
                     width,
                     height,
                     maximized: state.maximized,
+                    fullscreen: state.fullscreen,
                 });
             }
             return false;

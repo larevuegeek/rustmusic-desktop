@@ -12,7 +12,7 @@
 
     <div class="grid grid-cols-1 @3xl:grid-cols-[340px_minmax(0,1fr)] @6xl:grid-cols-[400px_minmax(0,1fr)] gap-7 items-start">
 
-        <div class="recent-vedette relative overflow-hidden flex flex-col gap-4 p-5 rounded-2xl border min-w-0 bg-[#121614] border-white/10" role="group">
+        <div class="recent-vedette relative overflow-hidden flex flex-col gap-4 p-5 rounded-2xl border min-w-0 bg-[#f6f2ee] border-black/5 dark:bg-[#121614] dark:border-white/10" role="group">
             <div class="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
                 <div class="w-full h-full scale-125">
                     <img class="w-full h-full object-cover opacity-95 blur-[36px] saturate-[1.8]" src={cx.resources.cover_opt(&v.cover_path)} alt="">
@@ -32,10 +32,10 @@
                 </button>
 
                 <div class="flex flex-col gap-1 min-w-0">
-                    <div class="text-[12px] font-bold uppercase tracking-widest truncate text-accent-400">{t_with("home.listened", &[("when", &v.listen)])}</div>
-                    <div class="text-[24px] font-extrabold tracking-[-0.01em] leading-[1.1] line-clamp-2 text-white hover:text-white hover:underline"
+                    <div class="text-[12px] font-bold uppercase tracking-widest truncate text-accent-700 dark:text-accent-400">{t_with("home.listened", &[("when", &v.listen)])}</div>
+                    <div class="text-[24px] font-extrabold tracking-[-0.01em] leading-[1.1] line-clamp-2 text-neutral-900 dark:text-white hover:underline"
                          onclick={Msg::PlayAlbumOf(v.path.clone(), false)}>{v.title}</div>
-                    <div class="text-[15px] truncate text-white/70">{[v.artist_name.as_str(), v.album.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" · ")}</div>
+                    <div class="text-[15px] truncate text-neutral-600 dark:text-white/70">{[v.artist_name.as_str(), v.album.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" · ")}</div>
                 </div>
             </div>
 
@@ -48,19 +48,19 @@
                     <div>{t("home.replay")}</div>
                 </button>
                 <button class="h-11 px-4.5 rounded-full font-semibold text-[15px] min-w-0 cursor-pointer transition-colors
-                               disabled:opacity-60 disabled:cursor-wait bg-white/10 hover:bg-white/16 text-white flex items-center"
+                               disabled:opacity-60 disabled:cursor-wait bg-black/6 hover:bg-black/10 text-neutral-900 dark:bg-white/10 dark:hover:bg-white/16 dark:text-white flex items-center"
                         onclick={Msg::PlayAlbumOf(v.path.clone(), true)}>
                     <div class="block truncate">{t("library.play_album")}</div>
                 </button>
                 {#if v.liked}
                     <button class="favori shrink-0 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition-colors
-                                   bg-white/10 hover:bg-white/16 text-pink-400"
+                                   bg-black/6 hover:bg-black/10 text-pink-500 dark:bg-white/10 dark:hover:bg-white/16 dark:text-pink-400"
                             onclick={Msg::Like(v.path.clone())} aria-label={t("home.like")} title={t("home.like")}>
                         <Icon icon="mynaui:heart-solid" width={18} />
                     </button>
                 {:else}
                     <button class="favori shrink-0 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer transition-colors
-                                   bg-white/10 hover:bg-white/16 text-white"
+                                   bg-black/6 hover:bg-black/10 text-neutral-900 dark:bg-white/10 dark:hover:bg-white/16 dark:text-white"
                             onclick={Msg::Like(v.path.clone())} aria-label={t("home.like")} title={t("home.like")}>
                         <Icon icon="mynaui:heart" width={18} />
                     </button>

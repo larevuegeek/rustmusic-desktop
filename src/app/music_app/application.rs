@@ -159,6 +159,7 @@ use crate::mapper::player::lyrics::source_label as lyrics_source_label;
 use crate::models::player::LyricsStatus;
 use crate::models::player::MiniMsg;
 use crate::models::player::MiniTab;
+use crate::models::player::PlayingLink;
 use crate::models::player::StepTone;
 use crate::mapper::radios::variant_label as radio_variant_label;
 use karbon_ui::ui::popover::ContextMenuRequest;

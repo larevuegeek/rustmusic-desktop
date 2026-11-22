@@ -18,17 +18,34 @@
                     {/if}
                 </div>
                 <div class="min-w-0 flex flex-col gap-0.75 leading-tight">
-                    <div class="text-[17px] font-bold tracking-[-0.01em] text-(--lc-tx) min-w-0 truncate text-left cursor-pointer hover:underline underline-offset-3"
-                         onclick={Msg::Go(Route::Home)} title={vm.details.title.as_str()}>{if vm.details.title.is_empty() {t("player.no_track_short")} else {vm.details.title.clone()}}</div>
+                    {#if let Some(open) = self.playing_link(PlayingLink::Track, &vm.details.year)}
+                        <div class="text-[17px] font-bold tracking-[-0.01em] text-(--lc-tx) min-w-0 truncate text-left cursor-pointer hover:underline underline-offset-3"
+                             onclick={open} title={vm.details.title.as_str()}>{if vm.details.title.is_empty() {t("player.no_track_short")} else {vm.details.title.clone()}}</div>
+                    {:else}
+                        <div class="text-[17px] font-bold tracking-[-0.01em] text-(--lc-tx) min-w-0 truncate text-left"
+                             title={vm.details.title.as_str()}>{if vm.details.title.is_empty() {t("player.no_track_short")} else {vm.details.title.clone()}}</div>
+                    {/if}
                     <div class="flex items-center gap-1 min-w-0 text-sm font-medium text-(--lc-tx2) whitespace-nowrap">
-                        <div class="text-(--lc-acc) shrink-0 max-w-[75%] min-w-0 truncate text-left cursor-pointer hover:underline underline-offset-3"
-                             onclick={Msg::Search(vm.details.artist_name.clone())} title={vm.details.artist_name.as_str()}>{vm.details.artist_name}</div>
+                        {#if let Some(open) = self.playing_link(PlayingLink::Artist, &vm.details.year)}
+                            <div class="text-(--lc-acc) shrink-0 max-w-[75%] min-w-0 truncate text-left cursor-pointer hover:underline underline-offset-3"
+                                 onclick={open} title={vm.details.artist_name.as_str()}>{vm.details.artist_name}</div>
+                        {:else}
+                            <div class="text-(--lc-acc) shrink-0 max-w-[75%] min-w-0 truncate text-left" title={vm.details.artist_name.as_str()}>{vm.details.artist_name}</div>
+                        {/if}
                         <div class="shrink-0 text-(--lc-mu)">·</div>
-                        <div class="text-(--lc-mu) min-w-0 truncate text-left cursor-pointer hover:underline underline-offset-3"
-                             onclick={Msg::PlayAlbumOf(vm.details.path.clone(), true)} title={vm.details.album.as_str()}>{vm.details.album}</div>
+                        {#if let Some(open) = self.playing_link(PlayingLink::Album, &vm.details.year)}
+                            <div class="text-(--lc-mu) min-w-0 truncate text-left cursor-pointer hover:underline underline-offset-3"
+                                 onclick={open} title={vm.details.album.as_str()}>{vm.details.album}</div>
+                        {:else}
+                            <div class="text-(--lc-mu) min-w-0 truncate text-left" title={vm.details.album.as_str()}>{vm.details.album}</div>
+                        {/if}
                     </div>
-                    <div class="self-start text-xs font-medium tabular-nums text-(--lc-mu) cursor-pointer hover:text-(--lc-tx2) hover:underline underline-offset-3 w-auto"
-                         onclick={Msg::Go(Route::Library(Section::Years))} title={t_with("player.albums_of_year", &[("year", &vm.details.year.to_string())])}>{vm.details.year}</div>
+                    {#if let Some(open) = self.playing_link(PlayingLink::Year, &vm.details.year)}
+                        <div class="self-start text-xs font-medium tabular-nums text-(--lc-mu) cursor-pointer hover:text-(--lc-tx2) hover:underline underline-offset-3 w-auto"
+                             onclick={open} title={t_with("player.albums_of_year", &[("year", &vm.details.year.to_string())])}>{vm.details.year}</div>
+                    {:else}
+                        <div class="self-start text-xs font-medium tabular-nums text-(--lc-mu) w-auto">{vm.details.year}</div>
+                    {/if}
                 </div>
             </div>
 
