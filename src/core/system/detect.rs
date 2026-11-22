@@ -35,26 +35,6 @@ pub fn detect_linux_virt() -> Option<String> {
     None
 }
 
-/// Detect SteamOS (Steam Deck) via `/etc/os-release`.
-///
-/// The Steam Deck is a native machine (no hypervisor) but its Arch-based
-/// stack breaks WebKitGTK's EGL display creation when running AppImages
-/// built on Ubuntu (`Could not create default EGL display: EGL_BAD_PARAMETER`).
-/// We treat it like a VM and default to software rendering there.
-#[cfg(target_os = "linux")]
-pub fn detect_steamos() -> bool {
-    let Ok(content) = std::fs::read_to_string("/etc/os-release") else {
-        return false;
-    };
-    content
-        .lines()
-        .any(|line| {
-            line.strip_prefix("ID=")
-                .map(|v| v.trim().trim_matches('"') == "steamos")
-                .unwrap_or(false)
-        })
-}
-
 /// Cross-platform "are we running inside a VM ?" check.
 ///
 /// On Linux uses [`detect_linux_virt`]. On Windows/macOS we currently return
@@ -187,14 +167,6 @@ mod tests {
     }
 }
 
-/// Pilote propriétaire NVIDIA chargé (module `nvidia`). Le moteur DMA-BUF de
-/// WebKitGTK y donne une fenêtre vide ; sur Mesa (AMD, Intel, nouveau), il marche.
-#[cfg(target_os = "linux")]
-pub fn nvidia_proprietary_driver() -> bool {
-    std::path::Path::new("/sys/module/nvidia").exists()
-        || std::path::Path::new("/proc/driver/nvidia/version").exists()
-}
-
 /// Pilote du GPU qui dessine (nœud `renderD*`), par exemple `amdgpu`, `i915`,
 /// `vmwgfx`. `None` quand aucun nœud de rendu n'existe : pas d'accélération.
 #[cfg(target_os = "linux")]
@@ -212,27 +184,16 @@ pub fn render_node_driver() -> Option<String> {
     })
 }
 
-/// GPU virtuels : DMA-BUF y fait clignoter l'image au défilement.
+/// GPU virtuels : trop lents pour les effets (flous, fondus).
 #[cfg(target_os = "linux")]
 const VIRTUAL_DRIVERS: &[&str] = &[
     "vmwgfx", "virtio_gpu", "virtio-gpu", "vboxvideo", "qxl", "bochs", "bochs-drm",
     "cirrus", "cirrus-qemu", "hyperv_drm",
 ];
 
-/// Pilotes de cartes anciennes (Radeon d'avant 2012) : même défaut.
+/// Pilotes de cartes anciennes (Radeon d'avant 2012) : même limite.
 #[cfg(target_os = "linux")]
 const LEGACY_DRIVERS: &[&str] = &["radeon"];
-
-/// Pourquoi DMA-BUF est déconseillé sur ce GPU, ou `None` s'il convient.
-/// On juge le pilote, pas la machine : une VM avec un vrai GPU passé en
-/// direct s'en sert très bien, un vieux PC sans pilote 3D non.
-#[cfg(target_os = "linux")]
-pub fn dmabuf_unsuitable_gpu() -> Option<String> {
-    if nvidia_proprietary_driver() {
-        return Some("NVIDIA proprietary driver".into());
-    }
-    weak_gpu()
-}
 
 /// GPU virtuel, ancien ou absent, ou `None` pour un vrai GPU correctement piloté.
 #[cfg(target_os = "linux")]

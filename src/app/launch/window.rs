@@ -31,15 +31,17 @@ pub fn run(app: AppHandle, events: Receiver<Event>) -> karbon_ui::Result<()> {
     let chosen = native.iter().any(|a| a.starts_with("--renderer"));
     let options = WindowOptions::from_args(native).unwrap_or(WindowOptions::DEFAULT);
     // Sans `--renderer=…` : le mode de rendu des réglages (ou `RUSTMUSIC_RENDER`).
+    let pool = app.state::<crate::app::platform::app_state::AppState>().pool.clone();
     let saved = crate::app::platform::runtime::block_on(
         crate::repository::settings::settings_repository::SettingsRepository::get(
-            &app.state::<crate::app::platform::app_state::AppState>().pool,
+            &pool,
             crate::core::system::render_mode::KEY,
         ),
     )
     .ok()
     .flatten();
-    let renderer = crate::core::system::render_mode::startup_renderer(saved.as_deref());
+    let gpu_failed = crate::core::system::gpu_sentinel::gpu_failed_before(&pool);
+    let renderer = crate::core::system::render_mode::startup_renderer(saved.as_deref(), gpu_failed);
     // Lancement au démarrage activé : entrée réécrite, pour suivre l'appli déplacée ou
     // mise à jour (et reprendre celle de la 0.4).
     let auto_start = crate::app::platform::runtime::block_on(
@@ -87,5 +89,12 @@ pub fn run(app: AppHandle, events: Receiver<Event>) -> karbon_ui::Result<()> {
         .position(|a| a == "--page")
         .and_then(|i| args.get(i + 1))
         .map(|p| page_route(p));
-    platform::run(options, music)
+    if options.renderer != karbon_ui::window::RenderMode::Software {
+        crate::core::system::gpu_sentinel::arm();
+    }
+    log::info!("🖥  Ouverture de la fenêtre ({:?})", options.renderer);
+    let result = platform::run(options, music);
+    // Fermeture normale : la session GPU n'a pas planté.
+    crate::core::system::gpu_sentinel::disarm();
+    result
 }

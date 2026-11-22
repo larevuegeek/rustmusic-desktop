@@ -144,9 +144,10 @@ async fn art(UrlPath(token): UrlPath<String>) -> Response {
 
 /// Fichier servi avec plages, dates et `HEAD` (tower-http).
 async fn serve(path: &Path, request: Request<Body>) -> Response {
+    // `ServeFile` ne renvoie jamais d'erreur (`Infallible`) : une lecture ratée est une réponse.
     match ServeFile::new(path).oneshot(request).await {
         Ok(resp) => resp.map(Body::new).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(never) => match never {},
     }
 }
 

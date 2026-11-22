@@ -1,6 +1,7 @@
 //! Mode de rendu de la fenêtre (Réglages → Apparence → Options expert) : GPU, logiciel
-//! ou automatique (GPU, sauf dans une machine virtuelle, où le rendu logiciel est plus
-//! sûr). Lu à l'ouverture de la fenêtre : un changement attend le redémarrage.
+//! ou automatique (GPU, sauf dans une machine virtuelle ou après un plantage du rendu GPU,
+//! où le rendu logiciel est plus sûr). Lu à l'ouverture de la fenêtre : un changement
+//! attend le redémarrage.
 //!
 //! Ordre de priorité : `--renderer=…` sur la ligne de commande, la variable
 //! `RUSTMUSIC_RENDER` (`gpu`, `software`, `auto`), puis le réglage enregistré.
@@ -10,11 +11,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RenderMode {
-    /// Auto-detection : software rendering on VMs, GPU on native.
+    /// GPU, sauf machine virtuelle ou plantage GPU retenu.
     Auto,
-    /// Always use the GPU (no env vars set).
+    /// Toujours le GPU.
     ForceGpu,
-    /// Always force software rendering (set all the WebKit/GDK env vars).
+    /// Toujours le processeur.
     ForceSoftware,
 }
 
@@ -70,23 +71,33 @@ pub fn boot_mode() -> RenderMode {
 }
 
 /// Rendu de la fenêtre pour le réglage `saved` : la variable `RUSTMUSIC_RENDER` passe
-/// avant ; automatique, une machine virtuelle passe au rendu logiciel. Retient le mode
-/// du démarrage ([`boot_mode`]).
-pub fn startup_renderer(saved: Option<&str>) -> karbon_ui::window::RenderMode {
-    let mode = RenderMode::from_env().unwrap_or_else(|| RenderMode::parse_or_auto(saved));
+/// avant ; automatique, une machine virtuelle ou une session GPU qui a planté
+/// (`gpu_failed`) passe au rendu logiciel. Retient le mode du démarrage ([`boot_mode`]).
+pub fn startup_renderer(saved: Option<&str>, gpu_failed: bool) -> karbon_ui::window::RenderMode {
+    let env = RenderMode::from_env();
+    let mode = env.unwrap_or_else(|| RenderMode::parse_or_auto(saved));
     let _ = BOOT_MODE.set(RenderMode::parse_or_auto(saved));
-    let renderer = renderer_for(mode, crate::core::system::detect::is_virtualized());
+    let virtualized = crate::core::system::detect::is_virtualized();
+    let renderer = renderer_for(mode, virtualized || gpu_failed);
+    log::info!(
+        "🖥  Rendu : {renderer:?} (réglage {}{}{}{})",
+        RenderMode::parse_or_auto(saved).as_str(),
+        if env.is_some() { ", forcé par RUSTMUSIC_RENDER" } else { "" },
+        if virtualized { ", machine virtuelle" } else { "" },
+        if gpu_failed { ", plantage GPU retenu" } else { "" },
+    );
     set_software_active(renderer == karbon_ui::window::RenderMode::Software);
     renderer
 }
 
-/// Rendu de karbon-ui pour `mode` ; automatique, une machine virtuelle passe au logiciel.
-fn renderer_for(mode: RenderMode, virtualized: bool) -> karbon_ui::window::RenderMode {
+/// Rendu de karbon-ui pour `mode` ; en automatique, `avoid_gpu` (machine virtuelle,
+/// plantage GPU passé) passe au logiciel.
+fn renderer_for(mode: RenderMode, avoid_gpu: bool) -> karbon_ui::window::RenderMode {
     use karbon_ui::window::RenderMode as Renderer;
     match mode {
         RenderMode::ForceGpu => Renderer::Gpu,
         RenderMode::ForceSoftware => Renderer::Software,
-        RenderMode::Auto if virtualized => Renderer::Software,
+        RenderMode::Auto if avoid_gpu => Renderer::Software,
         RenderMode::Auto => Renderer::Auto,
     }
 }
@@ -105,33 +116,6 @@ mod tests {
         assert_eq!(renderer_for(mode("auto"), true), Renderer::Software);
         assert_eq!(RenderMode::parse_or_auto(None), RenderMode::Auto);
     }
-}
-
-/// Réglage du moteur DMA-BUF de WebKitGTK (Linux), clé de la table `settings`.
-/// `auto` le laisse actif sauf avec le pilote propriétaire NVIDIA ; `on` et
-/// `off` imposent. Lu au démarrage, avant WebKit : un changement attend le
-/// redémarrage.
-pub const DMABUF_KEY: &str = "dmabuf_mode";
-
-/// La valeur enregistrée, ramenée à `auto`, `on` ou `off`.
-pub fn dmabuf_mode(value: Option<&str>) -> &'static str {
-    match value.map(str::trim) {
-        Some("on") => "on",
-        Some("off") => "off",
-        _ => "auto",
-    }
-}
-
-static DMABUF_ACTIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Fixé au démarrage : DMA-BUF est-il actif pour cette session ?
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-pub fn set_dmabuf_active(active: bool) {
-    DMABUF_ACTIVE.store(active, std::sync::atomic::Ordering::Relaxed);
-}
-
-pub fn dmabuf_active() -> bool {
-    DMABUF_ACTIVE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 static SOFTWARE_ACTIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);

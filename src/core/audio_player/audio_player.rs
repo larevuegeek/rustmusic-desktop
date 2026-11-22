@@ -374,6 +374,7 @@ impl AudioPlayer {
         // accès disque ni BDD supplémentaire. Appelé même quand le fichier
         // n'a pas de tags, pour ne pas garder le facteur du morceau précédent.
         {
+            crate::core::audio_metadata::tag_format::revisions::skip_id3v1(format.as_mut());
             let info = format
                 .metadata()
                 .current()

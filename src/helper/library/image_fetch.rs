@@ -41,6 +41,32 @@ pub async fn download(client: &reqwest::Client, url: &str) -> Option<Vec<u8>> {
     response.bytes().await.ok().map(|b| b.to_vec())
 }
 
+/// Signatures des formats d'image reconnus en tête de fichier.
+const IMAGE_MAGICS: [&[u8]; 5] = [
+    b"\xFF\xD8\xFF",
+    b"\x89PNG\r\n\x1A\n",
+    b"GIF8",
+    b"RIFF",
+    b"BM",
+];
+
+/// Image débarrassée des octets parasites qui précèdent sa signature. Certains éditeurs de
+/// tags terminent la description d'une pochette ID3 par deux octets nuls au lieu d'un : le
+/// second reste collé devant le JPEG (`00 FF D8…`), que plus aucun décodeur ne reconnaît.
+/// Sans signature trouvée dans les 64 premiers octets, l'image est rendue telle quelle.
+pub fn strip_leading_junk(bytes: &[u8]) -> &[u8] {
+    if IMAGE_MAGICS.iter().any(|magic| bytes.starts_with(magic)) {
+        return bytes;
+    }
+    let head = &bytes[..bytes.len().min(64)];
+    (1..head.len())
+        .find(|&start| {
+            let rest = &bytes[start..];
+            rest.starts_with(IMAGE_MAGICS[0]) || rest.starts_with(IMAGE_MAGICS[1])
+        })
+        .map_or(bytes, |start| &bytes[start..])
+}
+
 /// Côté le plus long gardé pour une image en pleine taille.
 const MAX_SIDE: u32 = 1500;
 const MAX_PIXELS: u64 = 40_000_000;
@@ -71,4 +97,21 @@ pub fn shrink_image(bytes: &[u8]) -> Option<Vec<u8>> {
         .encode_image(&image.to_rgb8())
         .ok()?;
     (output.len() < bytes.len()).then_some(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_leading_junk;
+
+    #[test]
+    fn junk_before_the_signature_is_removed() {
+        let jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 1, 2];
+        assert_eq!(strip_leading_junk(&jpeg), &jpeg);
+        let padded = [0x00, 0xFF, 0xD8, 0xFF, 0xE0, 1, 2];
+        assert_eq!(strip_leading_junk(&padded), &jpeg);
+        let png = b"\0\0\x89PNG\r\n\x1A\nrest";
+        assert_eq!(strip_leading_junk(png), &png[2..]);
+        let unknown = [0x00, 0x01, 0x02];
+        assert_eq!(strip_leading_junk(&unknown), &unknown);
+    }
 }

@@ -51,10 +51,7 @@ impl MusicApp {
                 me.load_devices();
                 me.amp_remote_refresh();
                 me.amp_remote_cover();
-                let app = me.backend.app.clone();
-                me.backend.fire(async move {
-                    let _ = system_command::notify_ui_ready(app.state()).await;
-                });
+                system_command::notify_ui_ready(me.backend.app.state());
                 true
             },
         );

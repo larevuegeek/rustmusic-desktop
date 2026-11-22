@@ -457,6 +457,7 @@
     "render_mode_gpu": "Accélération GPU",
     "render_mode_software": "Rendu logiciel",
     "render_mode_vm_detected": "Machine virtuelle détectée ({kind}) — le mode Automatique force le rendu logiciel pour la stabilité.",
+    "render_mode_gpu_crashed": "Le rendu GPU a planté lors d'un démarrage précédent : le mode automatique dessine au processeur. Choisissez GPU pour réessayer.",
     "render_mode_restart_required": "Redémarrer RustMusic pour appliquer ce changement.",
     "restart_now_title": "Changement en attente",
     "restart_now": "Relancer maintenant",

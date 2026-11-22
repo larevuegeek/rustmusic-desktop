@@ -295,7 +295,10 @@ impl MusicApp {
         let pending = render_mode != crate::core::system::render_mode::boot_mode();
         let vm = crate::commands::app::system_command::detect_virt_kind()
             .map(|kind| t("settings.render_mode_vm_detected").replace("{kind}", &kind));
-        let render_desc = [Some(t("settings.render_mode_desc")), vm, pending.then(|| t("settings.render_mode_restart_required"))]
+        let gpu_crashed = (render_mode == crate::core::system::render_mode::RenderMode::Auto
+            && s(crate::core::system::gpu_sentinel::GPU_BOOT_FAILED_KEY) == "1")
+            .then(|| t("settings.render_mode_gpu_crashed"));
+        let render_desc = [Some(t("settings.render_mode_desc")), vm, gpu_crashed, pending.then(|| t("settings.render_mode_restart_required"))]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>()

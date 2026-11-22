@@ -17,10 +17,24 @@ use crate::repository::library::library_cache_repository::LibraryCacheRepository
 /// renvoient du PNG/WebP qu'on a stocké en `.jpg` — `image::open` fait
 /// confiance à l'extension et plante avec "Illegal start bytes". Avec
 /// `with_guessed_format`, on relit l'en-tête et on utilise le bon décodeur.
+///
+/// Une pochette enregistrée avec des octets parasites devant sa signature (voir
+/// [`strip_leading_junk`](super::image_fetch::strip_leading_junk)) est réparée sur le disque.
 fn open_image_guessed(path: &std::path::Path) -> Result<DynamicImage, image::ImageError> {
-    ImageReader::open(path)?
-        .with_guessed_format()?
-        .decode()
+    let error = match ImageReader::open(path)?.with_guessed_format()?.decode() {
+        Ok(image) => return Ok(image),
+        Err(error) => error,
+    };
+    let bytes = std::fs::read(path)?;
+    let clean = super::image_fetch::strip_leading_junk(&bytes);
+    if clean.len() == bytes.len() {
+        return Err(error);
+    }
+    let image = image::load_from_memory(clean)?;
+    if let Err(e) = std::fs::write(path, clean) {
+        log::warn!("[Thumbnail] Réparation de {path:?} impossible : {e}");
+    }
+    Ok(image)
 }
 
 /// Côté des pochettes floutées : le navigateur les agrandit, le flou absorbe la perte.
@@ -100,6 +114,7 @@ pub fn thumbnail_saver(
         return Ok(cover_path.to_string_lossy().to_string());
     }
 
+    let image_data = super::image_fetch::strip_leading_junk(image_data);
     let shrunk = super::image_fetch::shrink_image(image_data);
     std::fs::write(&cover_path, shrunk.as_deref().unwrap_or(image_data))
         .map_err(|e| e.to_string())?;

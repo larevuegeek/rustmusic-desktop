@@ -26,6 +26,10 @@ const NEAR: u64 = 1024 * 1024;
 const TAIL: u64 = 256 * 1024;
 /// Blocs gardés en mémoire (~12 Mo).
 const MAX_BLOCKS: usize = 48;
+/// Octets comptés par le téléchargement mais pas encore visibles dans le fichier : attente
+/// par pas de `UNSEEN_WAIT`, deux secondes au plus.
+const UNSEEN_RETRIES: usize = 100;
+const UNSEEN_WAIT: Duration = Duration::from_millis(20);
 
 /// Dossier des épisodes téléchargés.
 pub fn episodes_dir() -> PathBuf {
@@ -318,6 +322,9 @@ async fn fetch_into(dl: &Arc<Download>, url: &str) -> Result<(), String> {
             .map_err(|e| format!("téléchargement interrompu : {e}"))?;
         let Some(chunk) = chunk else { break };
         file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+        // `write_all` de tokio rend la main avant l'écriture réelle : sans `flush`, un lecteur
+        // arrivé au bord du téléchargement lisait 0 octet, pris pour la fin du morceau.
+        file.flush().await.map_err(|e| e.to_string())?;
         let n = chunk.len() as u64;
         dl.update(|p| p.written += n);
     }
@@ -415,10 +422,18 @@ impl Read for GrowingFile {
             return Ok(0);
         }
         let want = buf.len().min(ready.min(usize::MAX as u64) as usize);
-        self.file.seek(SeekFrom::Start(self.pos))?;
-        let n = self.file.read(&mut buf[..want])?;
-        self.pos += n as u64;
-        Ok(n)
+        // Octets annoncés mais pas encore visibles dans le fichier : une lecture vide n'est
+        // pas la fin du morceau, on laisse l'écriture aboutir.
+        for _ in 0..UNSEEN_RETRIES {
+            self.file.seek(SeekFrom::Start(self.pos))?;
+            let n = self.file.read(&mut buf[..want])?;
+            if n > 0 {
+                self.pos += n as u64;
+                return Ok(n);
+            }
+            std::thread::sleep(UNSEEN_WAIT);
+        }
+        Err(io::Error::new(io::ErrorKind::TimedOut, "octets reçus introuvables dans le fichier"))
     }
 }
 
@@ -500,6 +515,28 @@ mod tests {
     }
 
     #[test]
+    fn bytes_announced_before_they_reach_the_file_are_awaited() {
+        let dir = tempfile_dir("annonce");
+        let dl = fake(&dir, Some(6));
+        append(&dl, b"abc");
+        // Le téléchargement compte trois octets que le fichier n'a pas encore.
+        dl.update(|p| p.written += 3);
+        let mut r = GrowingFile::open(dl.clone()).unwrap();
+        let mut three = [0u8; 3];
+        r.read_exact(&mut three).unwrap();
+        let part = dl.part.clone();
+        let writer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(60));
+            let mut f = std::fs::OpenOptions::new().append(true).open(part).unwrap();
+            f.write_all(b"def").unwrap();
+        });
+        let mut rest = [0u8; 3];
+        r.read_exact(&mut rest).unwrap();
+        writer.join().unwrap();
+        assert_eq!(&rest, b"def");
+    }
+
+    #[test]
     fn seeks_ahead_and_waits_for_the_bytes() {
         let dir = tempfile_dir("saut");
         let dl = fake(&dir, Some(8));
@@ -554,6 +591,8 @@ mod tests {
         use symphonia::core::units::Time;
 
         let rt = tokio::runtime::Runtime::new().unwrap();
+        // Comme `main` : les téléchargements sont lancés sur le runtime de l'appli.
+        crate::app::platform::runtime::install(rt.handle().clone());
         let feed = rt.block_on(async {
             let url = std::env::var("FLUX").unwrap_or_else(|_| "https://feed.ausha.co/k11jwfkmvn27".into());
             match super::super::fetch::fetch(&url, None, None).await.unwrap() {

@@ -41,6 +41,7 @@ pub mod audio_metadata {
     }
     pub mod tag_format {
         pub mod id3v2;
+        pub mod revisions;
     }
     // Miroir en écriture de `extractor` : voir `injector/injector.rs`.
     pub mod injector {
@@ -202,6 +203,7 @@ pub mod smart_playlist;
 pub mod system {
     pub mod autostart;
     pub mod clipboard;
+    pub mod crash_report;
     pub mod detect;
     #[cfg(target_os = "linux")]
     pub mod fontconfig_cache;
@@ -212,5 +214,6 @@ pub mod system {
     pub mod render_mode;
     pub mod sandbox;
     pub mod sleep;
+    pub mod startup_report;
     pub mod window_geometry;
 }

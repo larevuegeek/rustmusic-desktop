@@ -457,6 +457,7 @@
     "render_mode_gpu": "Accelerazione GPU",
     "render_mode_software": "Rendering software",
     "render_mode_vm_detected": "Macchina virtuale rilevata ({kind}) — la modalità Automatica forza il rendering software per la stabilità.",
+    "render_mode_gpu_crashed": "Il rendering GPU si è bloccato durante un avvio precedente: la modalità automatica ora disegna con il processore. Scegli GPU per riprovare.",
     "render_mode_restart_required": "Riavvia RustMusic per applicare questa modifica.",
     "restart_now_title": "Modifica in sospeso",
     "restart_now": "Riavvia ora",

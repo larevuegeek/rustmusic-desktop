@@ -176,6 +176,7 @@ impl AudioAnalyser {
         // reader — une seule source à lire (tags + visuels).
         let mut cover_found: bool = false;
 
+        crate::core::audio_metadata::tag_format::revisions::skip_id3v1(format.as_mut());
         if let Some(metadata_rev) = format.metadata().current() {
             let itunes = matches!(Self::map_codec_to_format(codec_params.codec, file_path), AudioFormat::AAC | AudioFormat::ALAC);
             tags = Self::tags_reader(tags, metadata_rev, itunes);

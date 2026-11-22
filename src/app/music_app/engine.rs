@@ -26,6 +26,8 @@ impl MusicApp {
                 false
             }
             Event::Restart => {
+                // Avant de lancer la nouvelle instance : elle prendrait le témoin pour un plantage.
+                crate::core::system::gpu_sentinel::disarm();
                 if let Ok(exe) = std::env::current_exe() {
                     let _ = std::process::Command::new(exe).spawn();
                 }

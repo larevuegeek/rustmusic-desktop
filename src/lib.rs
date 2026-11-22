@@ -100,6 +100,8 @@ fn init_logger() {
         let log_config = builder.add_filter_ignore_str("symphonia").build();
         let term_config = log_config.clone();
 
+        // Copie pour les traces de plantage, avant que le fichier ne parte aux journaux.
+        let crash_file = file.try_clone();
         let mut loggers: Vec<Box<dyn simplelog::SharedLogger>> = vec![
             // Terminal : tout à partir de Info (visible dans `npm run tauri dev`)
             TermLogger::new(
@@ -128,6 +130,10 @@ fn init_logger() {
         install_panic_hook();
 
         log::info!("Logger initialisé → {}", log_file.display());
+        crate::core::system::startup_report::log_startup();
+        if let Ok(crash_file) = crash_file {
+            crate::core::system::crash_report::install(&log_dir, &crash_file);
+        }
     } else {
         eprintln!("⚠️ Impossible d'initialiser le logger dans {}", log_file.display());
     }

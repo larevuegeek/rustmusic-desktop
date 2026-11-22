@@ -36,6 +36,33 @@ quels ; au premier lancement, la base de la 0.4 est copiée à part
 - Sur une machine virtuelle de 4 cœurs ou plus, le profil audio automatique ne
   retarde plus le volume et la pause d'une demi-seconde.
 
+### Depuis la bêta 1
+- **Lettres accentuées remplacées par « ? » dans les MP3** (vietnamien, polonais,
+  tchèque…) : un MP3 qui porte, en plus de ses tags complets, un vieux bloc ID3v1 en
+  fin de fichier était lu par ce bloc, limité à l'alphabet latin de base et à 30
+  caractères, sans pochette ni Replay Gain. Les tags complets passent maintenant en
+  premier ; les MP3 sont relus à la prochaine analyse de la bibliothèque.
+- **Morceaux de serveur coupés au bout de quelques secondes** (Navidrome, Subsonic,
+  Jellyfin, podcasts) : un morceau lu pendant son téléchargement pouvait se croire
+  fini dès qu'il rattrapait le téléchargement, et la lecture passait au suivant. Il
+  attend maintenant la suite.
+- **Pochettes illisibles** : certains éditeurs de tags laissent un octet en trop
+  devant l'image intégrée au fichier, et la pochette ne s'affichait pas. Elle est
+  maintenant lue, et celles déjà enregistrées sont réparées à leur prochain
+  affichage, sans rescanner.
+- **Son qui grésille en sortie exclusive (bit-perfect) sous Windows** sur certains
+  appareils USB (enceintes Creative Pebble V3) : la sortie imposait des blocs de
+  20 ms que ces appareils ne suivent pas. Elle prend maintenant la durée annoncée par
+  la carte son (10 ms le plus souvent), avec la priorité audio de Windows.
+- **Plantage au démarrage sous Linux** : si RustMusic s'arrête net alors que la
+  fenêtre est dessinée par la carte graphique, le démarrage suivant passe
+  automatiquement au rendu par le processeur. Un message l'indique dans Réglages →
+  Apparence → Options expert, où choisir « GPU » permet de réessayer.
+- **Diagnostic des plantages** (Linux, macOS) : le journal note la version, le
+  système, la session (Wayland ou X11) et la carte graphique à chaque lancement. Un
+  plantage y laisse sa cause et la liste des fonctions en cours, et les messages
+  des bibliothèques graphiques vont dans `logs/stderr.log`.
+
 ## [0.4.4] - 2026-11-13
 
 Les playlists s'emportent : cochées, elles s'écrivent toutes seules en .m3u8

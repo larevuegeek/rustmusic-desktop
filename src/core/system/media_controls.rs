@@ -105,6 +105,8 @@ pub fn init(app: &AppHandle) -> Result<(), String> {
                 | MediaControlEvent::SetPosition(_)
                 | MediaControlEvent::SetVolume(_)
                 | MediaControlEvent::OpenUri(_) => return,
+                // Commandes ajoutées par les versions suivantes (lecture aléatoire…).
+                _ => return,
             };
             let _ = app_for_cb.emit("smtc-command", cmd);
         })

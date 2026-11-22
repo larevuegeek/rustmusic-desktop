@@ -151,7 +151,7 @@ pub fn list_output_devices() -> Result<Vec<WasapiDevice>, String> {
         let enumerator = DeviceEnumerator::new()
             .map_err(|e| format!("DeviceEnumerator::new: {:?}", e))?;
         let collection = enumerator
-            .get_device_collection(&Direction::Render)
+            .get_device_collection(Direction::Render)
             .map_err(|e| format!("get_device_collection: {:?}", e))?;
         let count = collection
             .get_nbr_devices()
@@ -213,7 +213,7 @@ pub fn default_output_device_name() -> Result<String, String> {
         let enumerator = DeviceEnumerator::new()
             .map_err(|e| format!("DeviceEnumerator::new: {:?}", e))?;
         let dev = enumerator
-            .get_default_device(&Direction::Render)
+            .get_default_device(Direction::Render)
             .map_err(|e| format!("get_default_device: {:?}", e))?;
         dev.get_friendlyname()
             .map_err(|e| format!("get_friendlyname: {:?}", e))
@@ -268,7 +268,7 @@ pub fn probe_device_capabilities(device_id: String) -> Result<WasapiCapabilities
         let enumerator = DeviceEnumerator::new()
             .map_err(|e| format!("DeviceEnumerator::new: {:?}", e))?;
         let collection = enumerator
-            .get_device_collection(&Direction::Render)
+            .get_device_collection(Direction::Render)
             .map_err(|e| format!("get_device_collection: {:?}", e))?;
         let count = collection
             .get_nbr_devices()
@@ -330,20 +330,20 @@ pub fn probe_device_capabilities(device_id: String) -> Result<WasapiCapabilities
                     let fmt = WaveFormat::new(
                         storage_bits,
                         valid_bits,
-                        &SampleType::Int,
+                        SampleType::Int,
                         rate as usize,
                         channels as usize,
                         None,
                     );
 
-                    if audio_client.is_supported(&fmt, &ShareMode::Exclusive).is_ok() {
+                    if audio_client.is_supported(&fmt, ShareMode::Exclusive).is_ok() {
                         exclusive_rates_set.insert(rate);
                         exclusive_bit_depths_set.insert(bits);
                     }
                     // Shared mode : seuls les rates avec le mix bit-depth
                     // passent en pratique (Windows resample tout).
                     if Some(bits) == mix_bit_depth
-                        && audio_client.is_supported(&fmt, &ShareMode::Shared).is_ok()
+                        && audio_client.is_supported(&fmt, ShareMode::Shared).is_ok()
                     {
                         shared_rates_set.insert(rate);
                     }
@@ -398,7 +398,7 @@ fn resolve_wasapi_device(
     preferred_name: Option<&str>,
 ) -> Result<wasapi::Device, String> {
     if let Some(target) = preferred_name {
-        if let Ok(collection) = enumerator.get_device_collection(&Direction::Render) {
+        if let Ok(collection) = enumerator.get_device_collection(Direction::Render) {
             if let Ok(count) = collection.get_nbr_devices() {
                 // Passe 1 : match EXACT (le nom CPAL complet "Nom (Fabricant)"
                 // correspond typiquement exactement au friendly_name WASAPI).
@@ -438,7 +438,7 @@ fn resolve_wasapi_device(
         );
     }
     enumerator
-        .get_default_device(&Direction::Render)
+        .get_default_device(Direction::Render)
         .map_err(|e| format!("get_default_device: {e:?}"))
 }
 
@@ -476,12 +476,12 @@ pub fn try_negotiate_exclusive_format(
                 let fmt = WaveFormat::new(
                     storage_bits as usize,
                     valid_bits as usize,
-                    &SampleType::Int,
+                    SampleType::Int,
                     *rate as usize,
                     channels as usize,
                     None,
                 );
-                if audio_client.is_supported(&fmt, &ShareMode::Exclusive).is_ok() {
+                if audio_client.is_supported(&fmt, ShareMode::Exclusive).is_ok() {
                     log::info!(
                         "🎚️  WASAPI exclusive: format négocié {} Hz / {}-bit / {} canaux",
                         rate, bits, channels
@@ -512,6 +512,43 @@ pub fn try_negotiate_exclusive_format(
 // ============================================================================
 // Player WASAPI — Render thread event-driven
 // ============================================================================
+
+/// Période du flux exclusif : celle que le pilote annonce par défaut (10 ms le plus
+/// souvent). Une période plus longue imposée fait grésiller certains appareils USB
+/// (Creative Pebble V3 à 20 ms), même sur une sinusoïde pure.
+fn exclusive_period(audio_client: &wasapi::AudioClient, format: &WaveFormat) -> Result<i64, WasapiPlayerError> {
+    let (default_period, _minimum) = audio_client
+        .get_device_period()
+        .map_err(|e| WasapiPlayerError::InitFailed(format!("get_device_period: {e:?}")))?;
+    audio_client
+        .calculate_aligned_period_near(default_period, Some(128), format)
+        .map_err(|e| WasapiPlayerError::InitFailed(format!("calculate_aligned_period: {e:?}")))
+}
+
+/// Priorité « Pro Audio » (MMCSS) du fil de rendu, rendue à sa disparition : avec une
+/// période de 10 ms, un fil ordinaire retardé par l'interface laisserait la carte à court.
+struct ProAudioPriority(Option<windows::Win32::Foundation::HANDLE>);
+
+impl ProAudioPriority {
+    fn raise() -> Self {
+        let mut task_index = 0u32;
+        match unsafe { windows::Win32::System::Threading::AvSetMmThreadCharacteristicsW(windows::core::w!("Pro Audio"), &mut task_index) } {
+            Ok(handle) => Self(Some(handle)),
+            Err(e) => {
+                log::warn!("🎚️  Priorité Pro Audio refusée : {e}");
+                Self(None)
+            }
+        }
+    }
+}
+
+impl Drop for ProAudioPriority {
+    fn drop(&mut self) {
+        if let Some(handle) = self.0.take() {
+            let _ = unsafe { windows::Win32::System::Threading::AvRevertMmThreadCharacteristics(handle) };
+        }
+    }
+}
 
 /// État partagé de la voie Symphonia dont le render loop WASAPI a besoin pour
 /// gérer les deux modes de lecture (comme le fait CPAL) :
@@ -614,21 +651,18 @@ fn engine_inner(
     let wave_fmt = WaveFormat::new(
         storage_bits as usize,
         valid_bits as usize,
-        &SampleType::Int,
+        SampleType::Int,
         format.sample_rate as usize,
         format.channels as usize,
         None,
     );
     let bytes_per_frame = wave_fmt.get_blockalign() as usize;
 
-    // Période visée ~20 ms, alignée sur ce que le pilote accepte.
-    let period_hns = audio_client
-        .calculate_aligned_period_near(200_000, Some(128), &wave_fmt)
-        .map_err(|e| WasapiPlayerError::InitFailed(format!("calculate_aligned_period: {e:?}")))?;
+    let period_hns = exclusive_period(&audio_client, &wave_fmt)?;
     phases.mark("format et période");
 
     audio_client
-        .initialize_client(&wave_fmt, &Direction::Render, &StreamMode::EventsExclusive { period_hns })
+        .initialize_client(&wave_fmt, Direction::Render, StreamMode::EventsExclusive { period_hns }, None)
         .map_err(|e| WasapiPlayerError::InitFailed(format!(
             "initialize_client (likely device busy or format rejected): {e:?}"
         )))?;
@@ -641,6 +675,11 @@ fn engine_inner(
     let render_client = audio_client
         .get_audiorenderclient()
         .map_err(|e| WasapiPlayerError::InitFailed(format!("get_audiorenderclient: {e:?}")))?;
+    // Tampon rempli de silence avant le démarrage : sinon le premier cycle joue son contenu indéfini.
+    if let Ok(frames) = audio_client.get_available_space_in_frames() {
+        let _ = render_client.write_to_device(&vec![0u8; frames as usize * bytes_per_frame], None);
+    }
+    let _priority = ProAudioPriority::raise();
     audio_client
         .start_stream()
         .map_err(|e| WasapiPlayerError::InitFailed(format!("start_stream: {e:?}")))?;
@@ -702,7 +741,7 @@ fn engine_inner(
         let Some(p) = track.as_mut().filter(|p| !p.is_paused.load(Ordering::Relaxed)) else {
             output_bytes.clear();
             output_bytes.resize(available * bytes_per_frame, 0);
-            if let Err(e) = render_client.write_to_device(available, &output_bytes, None) {
+            if let Err(e) = render_client.write_to_device(&output_bytes, None) {
                 log::warn!("write silence: {e:?}");
             }
             continue;
@@ -725,7 +764,7 @@ fn engine_inner(
             fade_in_samples = samples::FADE;
             output_bytes.clear();
             output_bytes.resize(available * bytes_per_frame, 0);
-            if let Err(e) = render_client.write_to_device(available, &output_bytes, None) {
+            if let Err(e) = render_client.write_to_device(&output_bytes, None) {
                 log::warn!("write silence post-seek: {e:?}");
             }
             continue;
@@ -791,7 +830,7 @@ fn engine_inner(
             }
         }
 
-        match render_client.write_to_device(available, &output_bytes, None) {
+        match render_client.write_to_device(&output_bytes, None) {
             Ok(()) => {
                 if !first_buffer {
                     first_buffer = true;
@@ -852,7 +891,7 @@ fn write_dop_block(
         }
         *marker_b = !*marker_b; // le marqueur alterne à CHAQUE trame
     }
-    let _ = render_client.write_to_device(frames, output_bytes, None);
+    let _ = render_client.write_to_device(output_bytes, None);
 }
 
 /// Boucle de rendu WASAPI exclusive en mode **DoP** (DSD over PCM).
@@ -895,17 +934,14 @@ where
         .map_err(|e| WasapiPlayerError::NoDevice(format!("get_iaudioclient: {e:?}")))?;
 
     // ─── 2. WaveFormat 24-bit (stocké sur 32) au rate porteur DoP ───
-    let wave_fmt = WaveFormat::new(32, 24, &SampleType::Int, carrier_rate as usize, channels as usize, None);
+    let wave_fmt = WaveFormat::new(32, 24, SampleType::Int, carrier_rate as usize, channels as usize, None);
     let bytes_per_frame = wave_fmt.get_blockalign() as usize;
 
     // ─── 3. Période + init exclusive event-driven ───
-    let desired_period_hns: i64 = 200_000; // ~20 ms
-    let period_hns = audio_client
-        .calculate_aligned_period_near(desired_period_hns, Some(128), &wave_fmt)
-        .map_err(|e| WasapiPlayerError::InitFailed(format!("calculate_aligned_period: {e:?}")))?;
+    let period_hns = exclusive_period(&audio_client, &wave_fmt)?;
     let stream_mode = StreamMode::EventsExclusive { period_hns };
     audio_client
-        .initialize_client(&wave_fmt, &Direction::Render, &stream_mode)
+        .initialize_client(&wave_fmt, Direction::Render, stream_mode, None)
         .map_err(|e| WasapiPlayerError::InitFailed(format!(
             "initialize_client DoP (device busy ou rate {carrier_rate} rejeté): {e:?}"
         )))?;
@@ -937,6 +973,7 @@ where
         }
     }
 
+    let _priority = ProAudioPriority::raise();
     audio_client
         .start_stream()
         .map_err(|e| WasapiPlayerError::InitFailed(format!("start_stream: {e:?}")))?;
@@ -1070,8 +1107,8 @@ pub fn dop_format_supported(carrier_rate: u32, channels: u16, device_name: Optio
         let audio_client = device
             .get_iaudioclient()
             .map_err(|e| format!("get_iaudioclient: {e:?}"))?;
-        let fmt = WaveFormat::new(32, 24, &SampleType::Int, carrier_rate as usize, channels as usize, None);
-        Ok(audio_client.is_supported(&fmt, &ShareMode::Exclusive).is_ok())
+        let fmt = WaveFormat::new(32, 24, SampleType::Int, carrier_rate as usize, channels as usize, None);
+        Ok(audio_client.is_supported(&fmt, ShareMode::Exclusive).is_ok())
     })
     .unwrap_or(false)
 }

@@ -82,8 +82,9 @@ where
         // Windows refuse de renommer **par-dessus** un fichier en lecture
         // seule (vérifié : `os error 5`). L'attribut est donc levé le temps du
         // remplacement — le remplaçant, lui, le porte déjà. Sans ça, toute une
-        // bibliothèque restaurée depuis une sauvegarde serait inéditable.
-        if perms.readonly() {
+        // bibliothèque restaurée depuis une sauvegarde serait inéditable. Ailleurs, le
+        // renommage passe sans ça, et lever l'attribut ouvrirait l'écriture à tous.
+        if cfg!(windows) && perms.readonly() {
             let mut writable = perms.clone();
             writable.set_readonly(false);
             let _ = fs::set_permissions(target, writable);

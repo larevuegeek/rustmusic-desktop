@@ -457,6 +457,7 @@
     "render_mode_gpu": "GPU-Beschleunigung",
     "render_mode_software": "Software-Rendering",
     "render_mode_vm_detected": "Virtuelle Maschine erkannt ({kind}) — der Automatik-Modus erzwingt Software-Rendering für Stabilität.",
+    "render_mode_gpu_crashed": "Das GPU-Rendering ist bei einem früheren Start abgestürzt: Der Automatik-Modus zeichnet jetzt mit dem Prozessor. Wähle GPU, um es erneut zu versuchen.",
     "render_mode_restart_required": "RustMusic neu starten, um diese Änderung zu übernehmen.",
     "restart_now_title": "Änderung ausstehend",
     "restart_now": "Jetzt neu starten",

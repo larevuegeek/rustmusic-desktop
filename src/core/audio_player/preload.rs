@@ -346,6 +346,7 @@ fn decode_track(
         .map_err(|e| format!("probe : {e}"))?;
 
     // Replay Gain : tags lus ici, gain calculé à la promotion (réglages du moment).
+    crate::core::audio_metadata::tag_format::revisions::skip_id3v1(reader.as_mut());
     let rg = reader
         .metadata()
         .current()

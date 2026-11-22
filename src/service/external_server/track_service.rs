@@ -245,6 +245,8 @@ mod tests {
         use symphonia::core::units::Time;
 
         let rt = tokio::runtime::Runtime::new().unwrap();
+        // Comme `main` : les téléchargements sont lancés sur le runtime de l'appli.
+        crate::app::platform::runtime::install(rt.handle().clone());
         let t0 = std::time::Instant::now();
         let (path, duration) = rt.block_on(async {
             let pool = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
