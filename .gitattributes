@@ -1,0 +1,2 @@
+# Migrations : même texte, donc même empreinte, quelle que soit la machine qui compile.
+*.sql text eol=lf

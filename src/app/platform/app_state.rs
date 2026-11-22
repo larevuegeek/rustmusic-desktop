@@ -73,6 +73,7 @@ impl AppState {
         // Windows, le panic part dans le vide, et l'utilisateur voit une
         // application qui « ne se lance pas » sans un mot d'explication.
         backup_before_migration(&pool, database_url).await;
+        align_line_ending_checksums(&pool).await;
 
         sqlx::migrate!("./SQL/").run(&pool).await?;
 
@@ -180,6 +181,52 @@ fn base_path(url: &str) -> Option<String> {
         return None;
     }
     Some(path_part.to_string())
+}
+
+/// Réaligne les empreintes de migrations qui ne diffèrent que par les fins de ligne.
+///
+/// sqlx compare l'empreinte SHA-384 du texte exact de chaque migration déjà appliquée.
+/// Le même fichier compilé sur Windows (CRLF) ou ailleurs (LF) n'a pas la même
+/// empreinte, et une base passée d'une compilation à l'autre refuserait de démarrer.
+/// Quand l'écart ne tient qu'aux fins de ligne, l'empreinte enregistrée prend celle
+/// de cette version ; tout autre écart reste signalé par sqlx.
+async fn align_line_ending_checksums(pool: &SqlitePool) {
+    use sha2::{Digest, Sha384};
+    // Table absente : installation neuve, rien à réaligner.
+    let Ok(applied) = sqlx::query_as::<_, (i64, Vec<u8>)>("SELECT version, checksum FROM _sqlx_migrations")
+        .fetch_all(pool)
+        .await
+    else {
+        return;
+    };
+    let migrator = sqlx::migrate!("./SQL/");
+    for (version, stored) in applied {
+        let Some(migration) = migrator
+            .migrations
+            .iter()
+            .find(|m| m.version == version && !m.migration_type.is_down_migration())
+        else {
+            continue;
+        };
+        if *migration.checksum == *stored {
+            continue;
+        }
+        let lf = migration.sql.as_str().replace("\r\n", "\n");
+        let crlf = lf.replace('\n', "\r\n");
+        let same_text = [&lf, &crlf].iter().any(|text| Sha384::digest(text.as_bytes()).as_slice() == stored.as_slice());
+        if !same_text {
+            continue;
+        }
+        let updated = sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = ?")
+            .bind(&*migration.checksum)
+            .bind(version)
+            .execute(pool)
+            .await;
+        match updated {
+            Ok(_) => log::info!("🗄️  Migration {version} : empreinte réalignée (fins de ligne)"),
+            Err(e) => log::warn!("🗄️  Migration {version} : empreinte non réalignée : {e}"),
+        }
+    }
 }
 
 /// Première migration propre à la 0.5 : une base qui ne l'a pas encore reçue vient de la 0.4.
@@ -338,6 +385,38 @@ mod tests {
 
         drop(connections);
         state.pool.close().await;
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    #[tokio::test]
+    async fn line_endings_do_not_block_startup() {
+        use sha2::{Digest, Sha384};
+        let folder = std::env::temp_dir().join(format!("rm-crlf-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).expect("dossier");
+        let url = format!("sqlite:{}?mode=rwc", folder.join("essai.db").display());
+        let migration = sqlx::migrate!("./SQL/").migrations.iter().find(|m| m.sql.as_str().contains('\n')).cloned().expect("migration");
+        let sql = migration.sql.as_str();
+        // L'autre fin de ligne que celle compilée ici.
+        let other = if sql.contains("\r\n") { sql.replace("\r\n", "\n") } else { sql.replace('\n', "\r\n") };
+
+        let set_checksum = |pool: SqlitePool, text: String| async move {
+            sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = ?")
+                .bind(Sha384::digest(text.as_bytes()).to_vec())
+                .bind(migration.version)
+                .execute(&pool)
+                .await
+                .expect("empreinte");
+            pool.close().await;
+        };
+
+        let state = AppState::new(&url).await.expect("base");
+        set_checksum(state.pool, other).await;
+        let state = AppState::new(&url).await.expect("même texte, autre fin de ligne : la base démarre");
+
+        // Un vrai changement de texte reste refusé.
+        set_checksum(state.pool, format!("{sql}-- modifiée")).await;
+        assert!(AppState::new(&url).await.is_err(), "migration modifiée : refus attendu");
+
         let _ = std::fs::remove_dir_all(&folder);
     }
 }

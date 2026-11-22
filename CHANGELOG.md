@@ -36,6 +36,12 @@ quels ; au premier lancement, la base de la 0.4 est copiée à part
 - Sur une machine virtuelle de 4 cœurs ou plus, le profil audio automatique ne
   retarde plus le volume et la pause d'une demi-seconde.
 
+### Depuis la bêta 2
+- **« Une migration déjà appliquée a été modifiée depuis »** au lancement : une base
+  créée par une autre compilation de RustMusic pouvait être refusée pour une simple
+  différence de fins de ligne dans les scripts de mise à jour. Elle est maintenant
+  acceptée et réalignée.
+
 ### Depuis la bêta 1
 - **Lettres accentuées remplacées par « ? » dans les MP3** (vietnamien, polonais,
   tchèque…) : un MP3 qui porte, en plus de ses tags complets, un vieux bloc ID3v1 en
