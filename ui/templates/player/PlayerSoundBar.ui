@@ -4,7 +4,7 @@
             onclick={Msg::Menu(Menu::Output)}
             title={vm.output_title.as_str()} aria-label={t("player.output")}
             aria-haspopup="listbox" aria-expanded={self.open(Menu::Output)}>
-        <Icon icon="material-symbols-light:speaker-outline-rounded" width={22} />
+        <Icon icon={vm.output_icon} width={22} />
     </button>
 {:else}
     <button id="player.sortie" class="w-9.5 h-9.5 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors
@@ -12,7 +12,7 @@
             onclick={Msg::Menu(Menu::Output)}
             title={vm.output_title.as_str()} aria-label={t("player.output")}
             aria-haspopup="listbox" aria-expanded={self.open(Menu::Output)}>
-        <Icon icon="material-symbols-light:speaker-outline-rounded" width={22} />
+        <Icon icon={vm.output_icon} width={22} />
     </button>
 {/if}
 {#if muted}
@@ -63,23 +63,45 @@
         {/each}
 
         <div class="mt-1 pt-1 border-t border-(--lc-menu-bd)">
-            <div class="flex items-center gap-2 px-2.5 pt-1.5 pb-1.5">
-                <div class="flex-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">
-                    <div class="w-auto">{t("network_player.section")}</div>
-                    <div class="shrink-0 inline-flex items-center px-1.75 py-0.5 rounded-[5px] border text-[11px] font-bold leading-[1.2] whitespace-nowrap
-                                bg-(--rg-ambg) text-(--rg-am) border-(--rg-ambd)">{t("settings.beta_badge")}</div>
-                </div>
-                <button class="h-6.5 px-2 flex items-center gap-1 rounded-md text-[11px] font-semibold cursor-pointer text-(--lc-mu) hover:text-(--lc-tx) hover:bg-(--lc-survol) disabled:cursor-default disabled:opacity-60"
-                        onclick={Msg::Menu(Menu::Network)}>
-                    <Icon icon="material-symbols-light:refresh-rounded" width={15} />
-                    <div class="w-auto">{t("network_player.search")}</div>
-                </button>
-            </div>
             {#if self.network_output_off()}
-                <div class="px-2.5 pb-2 text-[11px] text-(--lc-mu)">{t("network_player.enable_in_network")}</div>
+                <button class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] text-left cursor-pointer text-(--lc-mu) hover:text-(--lc-tx) hover:bg-(--lc-survol)"
+                        onclick={Msg::Go(Route::Settings(SettingsPage::Network))}>
+                    <div class="flex shrink-0"><Icon icon="material-symbols-light:cast-rounded" width={18} /></div>
+                    <div class="flex-1 min-w-0 text-[12px] leading-snug">{t("network_player.enable_hint")}</div>
+                    <div class="flex shrink-0"><Icon icon="material-symbols-light:arrow-forward-rounded" width={16} /></div>
+                </button>
+            {:else}
+                <div class="flex items-center gap-2 px-2.5 pt-1.5 pb-1.5">
+                    <div class="flex-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-(--lc-mu)">
+                        <div class="w-auto">{t("network_player.section")}</div>
+                        <div class="shrink-0 inline-flex items-center px-1.75 py-0.5 rounded-[5px] border text-[11px] font-bold leading-[1.2] whitespace-nowrap
+                                    bg-(--rg-ambg) text-(--rg-am) border-(--rg-ambd)">{t("settings.beta_badge")}</div>
+                    </div>
+                    <button class="h-6.5 px-2 flex items-center gap-1 rounded-md text-[11px] font-semibold cursor-pointer text-(--lc-mu) hover:text-(--lc-tx) hover:bg-(--lc-survol) disabled:cursor-default disabled:opacity-60"
+                            onclick={Msg::SearchNetworkPlayers} disabled={vm.network_searching}>
+                        <Icon icon="material-symbols-light:refresh-rounded" width={15} />
+                        <div class="w-auto">{if vm.network_searching {t("network_player.searching")} else {t("network_player.search")}}</div>
+                    </button>
+                </div>
+                {#each vm.network_players as (i, s) (s.name.as_str())}
+                    {#if vm.network_player == Some(i)}
+                        <div class="relative flex items-stretch rounded-[10px] transition-colors bg-(--rg-g)/12">
+                            <div class="absolute left-0 top-2.5 bottom-2.5 w-0.75 rounded-r-[3px] bg-(--rg-g)"></div>
+                            {@include "NetworkPlayerLine.ui"}
+                        </div>
+                    {:else}
+                        <div class="relative flex items-stretch rounded-[10px] transition-colors hover:bg-(--lc-survol)">
+                            {@include "NetworkPlayerLine.ui"}
+                        </div>
+                    {/if}
+                {/each}
+                {#if vm.network_none}
+                    <div class="px-2.5 pb-2 text-[11.5px] leading-snug text-(--lc-mu)">{t("network_player.none")}</div>
+                {/if}
             {/if}
         </div>
 
+        {#if vm.network_player.is_none()}
         <div class="mt-1 pt-1 border-t border-(--lc-menu-bd)">
             <div class="flex items-center gap-2.5 px-2.5 py-2">
                 <div class="min-w-0 flex-1 leading-[1.2]">
@@ -126,5 +148,6 @@
                 {/if}
             </div>
         </div>
+        {/if}
     </k-popover>
 {/if}

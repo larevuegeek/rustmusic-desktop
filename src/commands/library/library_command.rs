@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use crate::helper::files::audio_formats::is_audio_extension;
 use serde::Serialize;
 use crate::app::State;
 use base64::engine::general_purpose;
@@ -304,10 +305,6 @@ pub async fn get_tracks_under_path(
 // EXPLORATEUR DE FICHIERS (restreint aux dossiers importés)
 // ============================================================================
 
-const AUDIO_EXTENSIONS: &[&str] = &[
-    // Ce que le lecteur sait décoder (ALAC est dans le .m4a ; WMA et APE ne se lisent pas).
-    "mp3", "flac", "wav", "ogg", "m4a", "aac", "opus", "aiff", "aif", "dsf", "dff"
-];
 
 pub async fn list_directory(
     state: State<'_, AppState>,
@@ -386,7 +383,7 @@ pub async fn list_directory(
 
             // Ne montrer que les fichiers audio
             if let Some(ref ext_str) = ext {
-                if AUDIO_EXTENSIONS.contains(&ext_str.as_str()) {
+                if is_audio_extension(ext_str) {
                     let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
                     entries.push(DirEntry {
                         name,

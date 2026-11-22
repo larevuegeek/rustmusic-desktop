@@ -23,10 +23,7 @@ use crate::repository::library::library_repository::LibraryRepository;
 use crate::repository::library::library_track_repository::LibraryTrackRepository;
 use crate::repository::settings::settings_repository::SettingsRepository;
 
-const AUDIO_EXTENSIONS: &[&str] = &[
-    "mp3", "flac", "wav", "aiff", "aif", "ogg", "opus", "m4a", "aac",
-    "dsf", "dff",
-];
+use crate::helper::files::audio_formats::is_audio_extension;
 
 pub struct SqliteLibraryProvider {
     pool: Arc<SqlitePool>,
@@ -239,7 +236,7 @@ impl LibraryProvider for SqliteLibraryProvider {
                     .map(|e| e.to_ascii_lowercase());
                 let is_audio = ext
                     .as_deref()
-                    .map(|e| AUDIO_EXTENSIONS.contains(&e))
+                    .map(is_audio_extension)
                     .unwrap_or(false);
                 if !is_audio {
                     continue;

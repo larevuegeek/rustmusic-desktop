@@ -1,7 +1,7 @@
 //! L'accueil : salutation, chiffres, reprise de l'écoute, à suivre, mix, récents.
 
 use crate::models::home::*;
-use crate::mapper::player::outputs::outputs;
+use crate::mapper::player::outputs::{network_outputs, outputs};
 use crate::mapper::search::search_autocomplete::results;
 use std::collections::HashMap;
 use chrono::Utc;
@@ -179,7 +179,10 @@ impl ViewModel {
         let genres = genres(data);
         let recently_added = recently_added(data);
         let (featured, strip) = recent(data, &details, now);
-        let (outputs, output) = outputs(data);
+        let (outputs, mut output) = outputs(data);
+        let (network_players, network_player) = network_outputs(data);
+        let distant = network_player.and_then(|i| network_players.get(i));
+        let output_icon = distant.map_or("material-symbols-light:speaker-outline-rounded", |s| s.icon);
         let sources = sources(data);
         let libraries = libraries(data, sources.get(source).and_then(|s| s.id));
         let library = libraries
@@ -196,7 +199,14 @@ impl ViewModel {
                 format!("{} · {count}", b.tracks_count)
             })
             .unwrap_or_default();
-        let output_name = outputs.get(output).map(|s| s.label.clone());
+        let output_name = match distant {
+            Some(player) => Some(player.label.clone()),
+            None => outputs.get(output).map(|s| s.label.clone()),
+        };
+        // Un lecteur réseau joue : aucune sortie locale n'est cochée.
+        if network_player.is_some() {
+            output = usize::MAX;
+        }
         let output_label = output_name.clone().unwrap_or_else(|| intl::t("player.output_default"));
         let output_title = intl::t_with(
             "player.output_title",
@@ -259,6 +269,11 @@ impl ViewModel {
             strip,
             outputs,
             output,
+            output_icon,
+            network_searching: data.network.searching,
+            network_none: data.network.searched && !data.network.searching && network_players.is_empty(),
+            network_players,
+            network_player,
             output_label,
             output_title,
             volume_label: format!("{} %", data.volume),

@@ -85,6 +85,9 @@ impl MusicApp {
             Msg::Menu(menu) => {
                 self.menu = if self.open(menu) { None } else { Some(menu) };
                 self.views.library_manage_nested = false;
+                if self.open(crate::models::app::Menu::Output) {
+                    self.network_menu_opened();
+                }
                 self.lyrics_sync();
             }
             Msg::CloseMenu => {

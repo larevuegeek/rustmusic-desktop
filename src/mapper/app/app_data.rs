@@ -20,6 +20,8 @@ impl Default for PlayerState {
             duration: 0.,
             preparing: false,
             pipeline: None,
+            seek_when_ready: None,
+            stale_output: false,
         }
     }
 }

@@ -16,14 +16,11 @@ use karbon_ui::window::{FileDialog, FileDialogResult, WindowCommand, WindowId};
 /// Tâche des dialogues de fichiers : un seul ouvert à la fois.
 pub const DIALOG_TASK: TaskId = TaskId(900);
 
-/// Extensions proposées à l'ouverture d'un fichier audio.
-pub(crate) const AUDIO_OPEN: [&str; 6] = ["mp3", "flac", "ogg", "m4a", "dsf", "dff"];
+use crate::helper::files::audio_formats::AUDIO_EXTENSIONS;
 
 /// Images proposées pour l'avatar d'un profil (comme la 0.4).
 pub(crate) const AVATAR_IMAGES: [&str; 6] = ["jpg", "jpeg", "png", "webp", "gif", "bmp"];
 
-/// Extensions proposées à l'import de fichiers.
-pub(crate) const AUDIO_IMPORT: [&str; 8] = ["mp3", "flac", "ogg", "m4a", "dsf", "dff", "wav", "aac"];
 
 /// La piste de file d'un fichier lu (pochette intégrée en adresse `data:`).
 pub(crate) fn track(path_part: &str, audio: &AudioFile) -> QueueTrack {
@@ -74,10 +71,10 @@ impl MusicApp {
         let dialog = match choice {
             Choice::PlayFile => FileDialog::open_file()
                 .title(t("home.open_file"))
-                .filter(t("actions.dialog_audio_files"), &AUDIO_OPEN),
+                .filter(t("actions.dialog_audio_files"), &AUDIO_EXTENSIONS),
             Choice::ImportFiles { .. } | Choice::PageImport { folder: false } => FileDialog::open_files()
                 .title(t("actions.dialog_open_files"))
-                .filter(t("actions.dialog_audio_files"), &AUDIO_IMPORT),
+                .filter(t("actions.dialog_audio_files"), &AUDIO_EXTENSIONS),
             Choice::PlayFolder | Choice::ImportFolder { .. } | Choice::PageImport { folder: true } => {
                 FileDialog::pick_folder().title(t("actions.dialog_select_folder"))
             }

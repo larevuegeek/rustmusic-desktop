@@ -42,6 +42,17 @@ impl MusicApp {
         match name {
             "playback-preparing" => {
                 self.data.player.preparing = payload.as_bool().unwrap_or(false);
+                if !self.data.player.preparing {
+                    self.seek_if_resumed();
+                }
+                true
+            }
+            "network-player-lost" => {
+                self.network_player_lost(payload.as_str().unwrap_or_default().to_string());
+                true
+            }
+            "network-player-error" => {
+                self.network_player_error(payload.as_str().unwrap_or_default().to_string());
                 true
             }
             "playback-ended" => {

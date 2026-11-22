@@ -8,7 +8,6 @@ use crate::models::app::Section;
 use crate::models::app::SettingsPage;
 use crate::models::home::ViewModel;
 use crate::commands::audio::wasapi_command;
-use crate::commands::network::network_player_command;
 use crate::commands::online::{podcast_command, radio_command};
 use crate::commands::playback::{recent_command, volume_command};
 use crate::app::music_app::*;
@@ -114,7 +113,18 @@ impl MusicApp {
                 for (j, d) in self.data.devices.iter_mut().enumerate() {
                     d.is_selected = i == j;
                 }
-                self.backend.fire(async move { volume_command::set_device(Some(device)).await });
+                if self.data.network.selected.is_some() {
+                    self.network_choose(None, Some(device));
+                } else {
+                    self.backend.fire(async move { volume_command::set_device(Some(device)).await });
+                }
+            }
+            Msg::SearchNetworkPlayers => self.network_search(),
+            Msg::ChooseNetworkPlayer(i) => {
+                let Some(id) = crate::mapper::player::outputs::network_devices(&self.data).get(i).map(|d| d.id.clone()) else {
+                    return false;
+                };
+                self.network_choose(Some(id), None);
             }
             Msg::ToggleExclusive => {
                 let on = !self.data.flag("wasapi_exclusive");
@@ -131,12 +141,8 @@ impl MusicApp {
                 let on = !self.data.flag(key);
                 self.set_setting(key, if on { "true" } else { "false" });
                 match i {
-                    0 => self.backend.fire(async move {
-                        let _ = network_player_command::set_network_players_enabled(on).await;
-                    }),
-                    1 => self.backend.fire(async move {
-                        let _ = network_player_command::set_airplay_enabled(on).await;
-                    }),
+                    0 => self.network_family_toggled("upnp", on),
+                    1 => self.network_family_toggled("airplay", on),
                     _ => {
                         let app = self.backend.app.clone();
                         self.backend.fire(async move {
@@ -183,12 +189,8 @@ impl MusicApp {
                             },
                         );
                     }
-                    "network_players" => self.backend.fire(async move {
-                        let _ = network_player_command::set_network_players_enabled(next).await;
-                    }),
-                    "airplay" => self.backend.fire(async move {
-                        let _ = network_player_command::set_airplay_enabled(next).await;
-                    }),
+                    "network_players" => self.network_family_toggled("upnp", next),
+                    "airplay" => self.network_family_toggled("airplay", next),
                     "dlna_enabled" => {
                         let app = self.backend.app.clone();
                         self.backend.fire(async move {

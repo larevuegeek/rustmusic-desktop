@@ -41,6 +41,13 @@ quels ; au premier lancement, la base de la 0.4 est copiée à part
   créée par une autre compilation de RustMusic pouvait être refusée pour une simple
   différence de fins de ligne dans les scripts de mise à jour. Elle est maintenant
   acceptée et réalignée.
+- **Lecteurs réseau introuvables** (UPnP/DLNA, AirPlay) : le menu de sortie ne
+  lançait pas la recherche et ne listait aucun appareil. Les lecteurs réapparaissent
+  sous les sorties locales ; le morceau en cours reprend sur l'appareil choisi au même
+  endroit, et revient sur l'ordinateur quand on rechoisit une sortie locale.
+- **WAV, AIFF, Opus et AAC absents de « Lire un fichier »** : la fenêtre d'ouverture
+  ne proposait que six formats, et l'import de fichiers huit. Elles proposent
+  maintenant tous les formats que le lecteur sait lire, comme le scan des dossiers.
 
 ### Depuis la bêta 1
 - **Lettres accentuées remplacées par « ? » dans les MP3** (vietnamien, polonais,

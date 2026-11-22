@@ -3,6 +3,7 @@
 use crate::models::home::*;
 use crate::models::app::Data;
 use crate::entity::audio::audio_file::AudioFormat;
+use crate::commands::network::network_player_command::DeviceView;
 
 pub(crate) fn is_dsd(format: &AudioFormat) -> bool {
     matches!(format, AudioFormat::DSF | AudioFormat::DFF)
@@ -97,4 +98,46 @@ pub(crate) fn outputs(data: &Data) -> (Vec<Output>, usize) {
         .or_else(|| data.devices.iter().position(|d| d.is_default))
         .unwrap_or(0);
     (outputs, selected)
+}
+
+/// Les lecteurs réseau du menu, dans l'ordre affiché : ceux de la dernière recherche,
+/// plus l'appareil choisi s'il n'a pas répondu cette fois.
+pub(crate) fn network_devices(data: &Data) -> Vec<DeviceView> {
+    let mut devices = data.network.devices.clone();
+    if let Some(selected) = &data.network.selected {
+        if !devices.iter().any(|d| d.id == selected.id) {
+            devices.push(selected.clone());
+        }
+    }
+    devices
+}
+
+/// Les lecteurs réseau comme des sorties, et l'index de celui qui joue.
+pub(crate) fn network_outputs(data: &Data) -> (Vec<Output>, Option<usize>) {
+    let devices = network_devices(data);
+    let selected = data.network.selected.as_ref().and_then(|s| devices.iter().position(|d| d.id == s.id));
+    let outputs = devices
+        .iter()
+        .map(|d| {
+            let brand = if d.kind == "airplay" { "AirPlay" } else { d.manufacturer.as_str() };
+            let detail = [brand, d.model.as_str()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ");
+            Output {
+                name: d.id.clone(),
+                label: d.name.clone(),
+                detail: if detail.is_empty() { d.ip.clone() } else { detail },
+                icon: network_icon(d.kind),
+                hires: false,
+            }
+        })
+        .collect();
+    (outputs, selected)
+}
+
+/// Icône d'un lecteur réseau selon sa famille.
+pub(crate) fn network_icon(kind: &str) -> &'static str {
+    if kind == "airplay" {
+        "material-symbols-light:airplay-rounded"
+    } else {
+        "material-symbols-light:cast-rounded"
+    }
 }

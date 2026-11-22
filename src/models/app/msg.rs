@@ -226,6 +226,10 @@ pub enum Msg {
     ToggleDop,
     /// 0 : lecteurs UPnP/DLNA, 1 : AirPlay, 2 : serveur DLNA.
     ToggleNetwork(usize),
+    /// Relance la recherche des lecteurs réseau.
+    SearchNetworkPlayers,
+    /// Index dans les lecteurs réseau du menu de sortie.
+    ChooseNetworkPlayer(usize),
 
     // ─── Accueil ───
     RenewMixes,

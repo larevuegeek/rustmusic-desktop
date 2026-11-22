@@ -12,4 +12,8 @@ pub struct PlayerState {
     pub preparing: bool,
     /// `playback-pipeline` : source → sortie, tel que le moteur le décrit.
     pub pipeline: Option<serde_json::Value>,
+    /// Morceau relancé sur une nouvelle sortie : la position où le reprendre, une fois prêt.
+    pub seek_when_ready: Option<(String, f64)>,
+    /// En pause quand la sortie a changé : la reprise relance le morceau sur la nouvelle.
+    pub stale_output: bool,
 }

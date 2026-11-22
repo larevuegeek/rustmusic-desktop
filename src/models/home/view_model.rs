@@ -34,7 +34,17 @@ pub struct ViewModel {
     pub featured: Vec<Featured>,
     pub strip: Vec<AlbumStrip>,
     pub outputs: Vec<Output>,
+    /// La sortie locale cochée (`usize::MAX` quand un lecteur réseau joue).
     pub output: usize,
+    /// Icône du bouton de sortie : haut-parleur, ou la famille du lecteur réseau.
+    pub output_icon: &'static str,
+    /// Lecteurs réseau trouvés, présentés comme des sorties.
+    pub network_players: Vec<Output>,
+    /// Le lecteur réseau qui joue, index dans `network_players`.
+    pub network_player: Option<usize>,
+    pub network_searching: bool,
+    /// Recherche faite, rien trouvé.
+    pub network_none: bool,
     /// La sortie choisie, ou « Sortie par défaut ».
     pub output_label: String,
     /// Infobulle du bouton de sortie : « Sortie audio : … ».

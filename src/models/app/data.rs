@@ -44,6 +44,7 @@ pub struct Data {
     pub player: PlayerState,
     pub volume: u8,
     pub devices: Vec<AudioDeviceInfo>,
+    pub network: NetworkPlayers,
 
     pub servers: Vec<ServerEntry>,
     /// `servers_check` : serveur joignable ou non.

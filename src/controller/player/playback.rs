@@ -94,6 +94,8 @@ impl MusicApp {
         self.data.player.position = 0.;
         self.data.player.duration = duration;
         self.data.player.preparing = true;
+        self.data.player.seek_when_ready = None;
+        self.data.player.stale_output = false;
         self.set_status(Status::Playing);
         let app = self.backend.app.clone();
         let details_path = path.clone();
@@ -133,6 +135,10 @@ impl MusicApp {
     }
 
     pub(crate) fn toggle_play(&mut self) {
+        if self.data.player.status == Status::Paused && self.data.player.stale_output {
+            self.restart_current(self.data.player.position);
+            return;
+        }
         if self.data.player.path.is_some() {
             let next = match self.data.player.status {
                 Status::Playing => Status::Paused,

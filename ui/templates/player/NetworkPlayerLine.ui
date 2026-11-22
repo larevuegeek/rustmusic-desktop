@@ -1,0 +1,12 @@
+<button class="flex-1 min-w-0 flex items-center gap-2.5 px-2.5 py-2 text-left cursor-pointer" onclick={Msg::ChooseNetworkPlayer(i)}>
+    {#if vm.network_player == Some(i)}
+        <div class="flex shrink-0 text-(--rg-g)"><Icon icon={s.icon} width={20} /></div>
+    {:else}
+        <div class="flex shrink-0 text-(--lc-mu)"><Icon icon={s.icon} width={20} /></div>
+    {/if}
+    <div class="min-w-0 flex-1 leading-[1.2]">
+        <div class="block truncate text-[13px] font-semibold">{s.label}</div>
+        <div class="block truncate text-[11px] text-(--lc-mu)">{s.detail}</div>
+    </div>
+    <div class="flex shrink-0 text-(--rg-g)" class:opacity-0={vm.network_player != Some(i)}><Icon icon="material-symbols-light:check-rounded" width={20} /></div>
+</button>

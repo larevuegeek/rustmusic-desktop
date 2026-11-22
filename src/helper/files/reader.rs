@@ -1,17 +1,6 @@
 use std::{collections::HashSet, fs::{self}, path::{Path, PathBuf}};
 
-const AUDIO_EXTENSIONS: &[&str] = &[
-    "mp3", "flac", "wav", "aiff", "aif",
-    "ogg", "opus", "m4a", "aac",
-    "dsf", "dff",
-];
-
-// Insensible à la casse : « .FLAC » ou « .Mp3 » (vieux rips) étaient ignorés.
-fn is_audio(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| AUDIO_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()))
-}
+use super::audio_formats::is_audio_path as is_audio;
 
 pub fn read_dir_deep(
     directory: &str,
