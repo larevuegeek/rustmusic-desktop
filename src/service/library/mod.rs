@@ -1,5 +1,6 @@
 pub mod album_folder;
 pub mod album_merge;
+pub mod album_owner;
 pub mod artist_link_repair;
 pub mod artist_split;
 pub mod composer;
@@ -8,3 +9,4 @@ pub mod library_service;
 pub mod missing_files;
 pub mod move_service;
 pub mod relocate;
+pub mod scan_finish;

@@ -36,6 +36,18 @@ quels ; au premier lancement, la base de la 0.4 est copiée à part
 - Sur une machine virtuelle de 4 cœurs ou plus, le profil audio automatique ne
   retarde plus le volume et la pause d'une demi-seconde.
 
+### Depuis la bêta 4
+- **Bibliothèque rescannée en boucle** avec « Scanner au lancement » activé : chaque
+  fin de scan en relançait un autre, et les listes d'artistes et d'albums se vidaient
+  puis se remplissaient sans arrêt. Le scan ne part plus qu'une fois, au lancement.
+- **Albums passés sous « Various Artists » après un rescan** : quand le nom d'un
+  artiste changeait dans les tags (par exemple les MP3 relus par leurs tags complets
+  depuis la bêta 2), son album était pris pour une compilation et l'artiste n'avait
+  plus d'album. À la fin du scan, un album dont toutes les pistes ont le même artiste
+  lui revient.
+- **File d'attente aux anciens titres** : après un rescan, les morceaux de la file
+  prennent les titres et artistes relus dans leurs tags.
+
 ### Depuis la bêta 2
 - **« Une migration déjà appliquée a été modifiée depuis »** au lancement : une base
   créée par une autre compilation de RustMusic pouvait être refusée pour une simple

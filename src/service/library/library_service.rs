@@ -562,8 +562,7 @@ pub async fn save_files_to_library(
     ).await;
 
 
-    //clear old directory
-
+    crate::service::library::scan_finish::finish_scan(pool_api, library_id).await;
 
     // Émettre l'événement de fin au frontend
     let _ = app.emit("import-complete", ImportComplete {

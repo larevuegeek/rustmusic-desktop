@@ -43,6 +43,9 @@ pub struct MusicApp {
     pub sidebar_collapsed: bool,
     /// Écran de chargement : levé une fois le profil et ses bibliothèques chargés.
     pub booting: bool,
+    /// « Scanner au lancement » : une seule fois par session. Chaque fin de scan recharge
+    /// les données du profil, qui relanceraient sinon un scan sans fin.
+    pub(crate) launch_scan_pending: bool,
     pub search: String,
     /// Résultat en surbrillance.
     pub suggestion: Option<usize>,
@@ -107,6 +110,7 @@ impl MusicApp {
             footer_collapsed: true,
             sidebar_collapsed: false,
             booting: true,
+            launch_scan_pending: true,
             search: String::new(),
             suggestion: None,
             search_generation: 0,

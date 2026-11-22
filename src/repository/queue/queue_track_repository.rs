@@ -125,4 +125,24 @@ impl QueueTrackRepository {
         Ok(())
     }
 
+    /// Titre et artiste des morceaux de la file repris des tags relus par un scan de la
+    /// bibliothèque : la file garde ceux du moment où le morceau y est entré.
+    pub async fn refresh_from_library<'e, E>(exec: E, library_id: i64) -> Result<u64, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>
+    {
+        sqlx::query(
+            r#"
+            UPDATE queue_tracks
+            SET title = COALESCE(NULLIF((SELECT c.title FROM library_cache c WHERE c.path = queue_tracks.path), ''), title),
+                artist = COALESCE(NULLIF((SELECT c.artist FROM library_cache c WHERE c.path = queue_tracks.path), ''), artist)
+            WHERE path IN (SELECT lf.path FROM library_files lf WHERE lf.library_id = ?)
+            "#
+        )
+        .bind(library_id)
+        .execute(exec)
+        .await
+        .map(|r| r.rows_affected())
+    }
+
 }

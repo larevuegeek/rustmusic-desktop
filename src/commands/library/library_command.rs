@@ -249,6 +249,7 @@ pub async fn rescan_library(
 
     // Après le scan : la relocalisation proposée doit pouvoir relancer le sien.
     emit_unavailable(&app, library_id, inaccessible);
+    crate::service::library::scan_finish::finish_scan(&state.pool, library_id).await;
 
     let _ = app.emit("rescan-complete", serde_json::json!({
         "library_id": library_id,

@@ -544,6 +544,30 @@ impl LibraryAlbumRepository {
             .map(|_| ())
     }
 
+    /// Albums sans tag « artiste de l'album » dont toutes les pistes ont le même artiste
+    /// principal, mais rangés sous un autre : (album, artiste de ses pistes).
+    pub async fn owners_to_restore<'e, E>(exec: E, library_id: i64) -> Result<Vec<(String, String)>, sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        sqlx::query_as(
+            r#"
+            SELECT la.id, MIN(lt.artist_id)
+            FROM library_albums la
+            JOIN library_tracks lt ON lt.library_album_id = la.id
+            LEFT JOIN library_cache lc ON lc.id = lt.cache_id
+            WHERE la.library_id = ? AND lt.artist_id IS NOT NULL
+            GROUP BY la.id
+            HAVING COUNT(DISTINCT lt.artist_id) = 1
+               AND MIN(lt.artist_id) <> la.artist_id
+               AND COUNT(NULLIF(TRIM(COALESCE(lc.album_artist, '')), '')) = 0
+            "#,
+        )
+        .bind(library_id)
+        .fetch_all(exec)
+        .await
+    }
+
     /// Chemins des fichiers de l'album.
     pub async fn track_paths<'e, E>(exec: E, album_id: &str) -> Result<Vec<String>, sqlx::Error>
     where

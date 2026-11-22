@@ -77,7 +77,7 @@ impl MusicApp {
                             me.banners_update(BannerMsg::Start);
                             me.backend.call(async { tokio::time::sleep(std::time::Duration::from_millis(1200)).await }, |me, ()| me.whats_new(WhatsNewMsg::OpenIfDue));
                         }
-                        if me.data.flag("scan_on_startup") {
+                        if std::mem::take(&mut me.launch_scan_pending) && me.data.flag("scan_on_startup") {
                             me.rescan();
                         }
                     }
