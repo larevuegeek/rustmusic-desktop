@@ -1,6 +1,6 @@
 [package]
 name = "rustmusic"
-version = "0.5.0-beta.6"
+version = "0.5.0-beta.7"
 description = "Audiophile-grade desktop music player with native DSD playback, multichannel SACD support, DLNA server, synced lyrics, and OS media controls."
 authors = ["LaRevueGeeK <contact@rustmusic.dev>"]
 edition = "2021"
@@ -24,9 +24,9 @@ crate-type = ["rlib"]
 #   karbon-ui = { path = "../karbon-ui" }
 #   karbon-ui-macros = { path = "../karbon-ui/crates/ui-macros" }
 #   karbon-updater = { path = "../karbon-ui/crates/updater" }
-karbon-ui = "0.3.27"
+karbon-ui = "0.3.30"
 # Mises à jour automatiques : même serveur, même clé et mêmes paquets que la 0.4.4.
-karbon-updater = "0.3.27"
+karbon-updater = "0.3.30"
 # Allocateur plus rapide que le tas de Windows : la construction des vues alloue beaucoup
 # de petits objets (essai de fluidité, accord du propriétaire le 2026-11-09).
 mimalloc = { version = "0.1", default-features = false }
@@ -166,6 +166,12 @@ info-plist-path = "packaging/macos/Info.plist"
 # Bibliothèques du bureau chargées par karbon-ui (Wayland, X11, Cairo et Pango, polices, D-Bus,
 # trousseau) et le son (ALSA) ; Vulkan reste facultatif (rendu Cairo sans lui).
 depends = ["libasound2", "libcairo2", "libpango-1.0-0", "libpangocairo-1.0-0", "libpangoft2-1.0-0", "libgdk-pixbuf-2.0-0", "libglib2.0-0", "libfontconfig1", "libfreetype6", "libwayland-client0", "libwayland-cursor0", "libxkbcommon0", "libxkbcommon-x11-0", "libxcb1", "libxcb-cursor0", "libxcb-xinput0", "libxcb-xkb1", "libdbus-1-3", "libsecret-1-0"]
+
+# AppImage : Wayland et xkbcommon viennent du système, comme pour le .deb. Ceux d'Ubuntu 22.04
+# (machine de la CI) sont plus anciens que les compositeurs récents : leur table `wl_surface`
+# s'arrête à la version 5, et l'AppImage quittait dès le premier événement v6 (#39).
+[package.metadata.packager.appimage]
+excluded-libraries = ["libwayland-client.so*", "libwayland-cursor.so*", "libwayland-egl.so*", "libxkbcommon.so*", "libxkbcommon-x11.so*"]
 
 # Paquet .rpm (Fedora, openSUSE) : `cargo generate-rpm` dans la CI, cargo-packager n'en
 # fabrique pas. Nom « rust-music » comme le paquet de la 0.4, qu'il met donc à jour. Les

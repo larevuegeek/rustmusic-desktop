@@ -34,13 +34,15 @@ pub(crate) fn set_pinned(me: &mut MusicApp, kind: PinKind, library: i64, id: Str
 }
 
 impl MusicApp {
-    pub(crate) fn sidebar_item_open(&mut self, at: TrackMenuAt, kind: PinKind, id: String) -> bool {
+    /// `title` : connu de l'appelant (fiche, carte) ; sinon l'épinglé de ce nom.
+    pub(crate) fn sidebar_item_open(&mut self, at: TrackMenuAt, kind: PinKind, id: String, title: Option<String>) -> bool {
         let Some(library) = self.data.library_id else { return false };
-        let Some(pin) = self.views.sidebar.pins.iter().find(|p| p.kind == kind.key() && p.id == id) else { return false };
-        let title = pin.title.clone();
+        let pin = self.views.sidebar.pins.iter().find(|p| p.kind == kind.key() && p.id == id);
+        let Some(title) = title.or_else(|| pin.map(|p| p.title.clone())) else { return false };
+        let pinned = pin.is_some();
         self.menu = None;
         let doubtful = kind == PinKind::Artist && artist_split_command::artist_is_doubtful(title.clone());
-        self.views.sidebar.item_menu = Some(ItemMenu { at, kind, id, title, library_id: library, pinned: true, doubtful });
+        self.views.sidebar.item_menu = Some(ItemMenu { at, kind, id, title, library_id: library, pinned, doubtful });
         true
     }
 

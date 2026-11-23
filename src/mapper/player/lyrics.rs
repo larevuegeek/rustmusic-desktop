@@ -3,6 +3,7 @@ use crate::app::music_app::MusicApp;
 /// `SOURCES` : la clé de traduction d'une source, sinon son nom.
 pub fn source_label(source: &str) -> String {
     match source {
+        "embedded" => karbon_ui::intl::t("mini.src_embedded"),
         "sidecar" => karbon_ui::intl::t("mini.src_sidecar"),
         "lrclib" => karbon_ui::intl::t("mini.src_lrclib"),
         "manual" => karbon_ui::intl::t("mini.src_manual"),
@@ -57,7 +58,7 @@ impl MusicApp {
     pub fn lyrics_active(&self) -> Option<usize> {
         let ms = self.data.player.position * 1000.;
         let l = &self.views.lyrics.lines;
-        let n = l.iter().take_while(|(t, _)| *t <= ms).count();
+        let n = l.iter().take_while(|l| l.at <= ms).count();
         n.checked_sub(1)
     }
 }

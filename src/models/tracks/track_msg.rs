@@ -4,6 +4,8 @@ pub enum TrackMsg {
     PlayNext,
     Like,
     Reveal,
+    /// Menu « … » de la fiche.
+    Menu,
     /// Note posée (le même cran l'efface).
     Rate(f64),
 }

@@ -88,4 +88,3 @@
     </div>
 {/if}
 {@include "PinZoneMenu.ui"}
-{@include "LibraryItemMenu.ui"}

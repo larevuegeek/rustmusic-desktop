@@ -1,4 +1,5 @@
 pub(crate) mod chain;
+pub(crate) mod lyric_line;
 pub(crate) mod lyrics_state;
 pub(crate) mod lyrics_status;
 pub(crate) mod mini_msg;
@@ -16,6 +17,7 @@ pub(crate) mod saved;
 pub(crate) mod step_tone;
 
 pub(crate) use chain::*;
+pub(crate) use lyric_line::*;
 pub(crate) use lyrics_state::*;
 pub(crate) use lyrics_status::*;
 pub(crate) use mini_msg::*;

@@ -243,6 +243,7 @@
     "move": "Zum Verschieben ziehen",
     "lyrics_synced": "Synchronisierter Liedtext",
     "lyrics_plain": "Nicht synchronisierter Liedtext",
+    "src_embedded": "Datei-Tags",
     "src_sidecar": ".lrc-Datei",
     "src_lrclib": "LRCLIB",
     "src_manual": "manuell eingegeben",

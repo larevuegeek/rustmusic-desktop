@@ -124,7 +124,7 @@
                             {/each}
                         </div>
                     </div>
-                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} onclick={Msg::Noop} />
+                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} anchor={DETAIL_MORE.to_string()} onclick={Msg::Track(TrackMsg::Menu)} />
                 </div>
             </div>
         </div>

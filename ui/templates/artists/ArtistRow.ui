@@ -40,7 +40,7 @@
             <Icon icon="material-symbols:queue-music-rounded" width={19} />
         </button>
         <button class="w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100 max-[900px]:hidden"
-                title={t("artists_view.more")} aria-label={t("artists_view.more")} onclick={Msg::Noop}>
+                id={ElementId::named(&artist.more_id())} title={t("artists_view.more")} aria-label={t("artists_view.more")} onclick={artist.menu()}>
             <Icon icon="material-symbols:more-horiz" width={19} />
         </button>
         <div class="w-8.5 h-8.5 flex items-center justify-center text-(--rg-mu2) group-hover:text-(--rg-tx2)" title={t("artists_view.open")}>

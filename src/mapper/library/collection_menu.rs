@@ -7,6 +7,8 @@ impl CollectionMenu {
         t(match self.source {
             CollectionSource::Album { .. } => "menu.play_all_album",
             CollectionSource::Genre(_) => "menu.play_all_genre",
+            CollectionSource::Composer(_) => "menu.play_all_composer",
+            CollectionSource::Period(..) => "artist_view.play_all",
             CollectionSource::Playlist(_) => "menu.play_all_playlist",
         })
     }

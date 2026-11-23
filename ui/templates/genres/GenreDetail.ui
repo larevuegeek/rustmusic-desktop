@@ -100,7 +100,8 @@
                 <div class="flex flex-wrap items-center gap-2.5 mt-2">
                     <PlayButton large label={t("artist_view.play_all")} onclick={Msg::Genre(GenreMsg::PlayAll)} />
                     <RoundButton icon="material-symbols:shuffle-rounded" title={t("album_view.shuffle")} disabled={!gv.has_tracks} onclick={Msg::Genre(GenreMsg::Shuffle)} />
-                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} onclick={Msg::Noop} />
+                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} anchor={DETAIL_MORE.to_string()}
+                                 onclick={Msg::CollOpen(TrackMenuAt::Named(DETAIL_MORE.into()), gv.name.clone(), page.collection_source())} />
                     {#if gv.composer}
                         <div class="flex flex-wrap gap-1.5 ml-1.5">
                             {#if let Some(a) = &gv.artist_page}

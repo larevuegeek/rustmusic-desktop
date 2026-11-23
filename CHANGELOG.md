@@ -36,6 +36,22 @@ quels ; au premier lancement, la base de la 0.4 est copiée à part
 - Sur une machine virtuelle de 4 cœurs ou plus, le profil audio automatique ne
   retarde plus le volume et la pause d'une demi-seconde.
 
+### Depuis la bêta 6
+- **Paroles traduites** : dans un fichier LRC, les lignes sans horodatage qui suivent
+  une ligne horodatée s'affichent sous elle, en plus petit, dans le panneau des
+  paroles et le petit lecteur.
+- **Paroles du fichier d'abord** : les paroles intégrées aux tags (USLT, LYRICS, ©lyr…)
+  sont lues, et elles comme le `.lrc` posé à côté passent avant LRCLIB, même si LRCLIB
+  avait déjà répondu ; une version synchronisée l'emporte sur du texte brut.
+- **AppImage sous Wayland** : elle ne se ferme plus une seconde après l'ouverture sur les
+  compositeurs récents (Hyprland, GNOME, KDE) ; elle prend la bibliothèque Wayland du
+  système au lieu d'en embarquer une ancienne.
+- **Bouton « … » des fiches** : sur les fiches morceau, album, artiste, genre, compositeur
+  et période, il ouvre enfin son menu (lire, ajouter à la file, à une playlist…), comme
+  sur les cartes et les lignes d'artistes et de genres.
+- **Atelier de tags** : les menus de la barre du haut et des colonnes passent au-dessus
+  du tableau au lieu d'être cachés dessous.
+
 ### Depuis la bêta 5
 - **Thème clair** : listes déroulantes des réglages, menu « Gérer » et choix de la
   bibliothèque sur fond clair ; chiffres de l'en-tête des pages lisibles ; barre de

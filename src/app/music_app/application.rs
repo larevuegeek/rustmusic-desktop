@@ -65,6 +65,7 @@ use crate::mapper::settings::{active_icon, version_line, version_tag};
 use crate::models::settings::ScrobbleMsg;
 use crate::models::tracks::TrackMsg;
 use crate::models::tracks::TrackMenuAt;
+use crate::models::tracks::DETAIL_MORE;
 use crate::models::tracks::TrackMenuMsg;
 use crate::models::library::CollectionMenuMsg;
 use crate::models::library::CollectionSource;

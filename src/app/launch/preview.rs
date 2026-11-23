@@ -278,6 +278,26 @@ pub fn export(
         music.export_msgs.push(crate::models::app::Msg::CollectionMenu(crate::models::library::CollectionMenuMsg::SubPlaylists));
         music.export_msgs.push(crate::models::app::Msg::CollectionMenu(crate::models::library::CollectionMenuMsg::SubCover));
     }
+    // Menu de la barre de l'atelier de tags (« --open workshop:tags|files|issues|columns »).
+    if let Some(m) = value("--open").and_then(|o| o.strip_prefix("workshop:").map(str::to_string)) {
+        music.export_msgs.push(crate::models::app::Msg::Tags(crate::models::tags::TagsMsg::Menu(Some(m))));
+    }
+    // « … » d'une fiche (« --open detail-more:track|artist:<id>:<nom>|genre:<nom>|composer:<nom> »).
+    if let Some(o) = value("--open").and_then(|o| o.strip_prefix("detail-more:").map(str::to_string)) {
+        use crate::models::app::Msg;
+        use crate::models::library::CollectionSource;
+        let at = crate::models::tracks::TrackMenuAt::Named(crate::models::tracks::DETAIL_MORE.into());
+        let (kind, rest) = o.split_once(':').unwrap_or((o.as_str(), ""));
+        music.export_msgs.push(match kind {
+            "artist" => {
+                let (id, name) = rest.split_once(':').unwrap_or((rest, rest));
+                Msg::Sidebar(crate::models::sidebar::SidebarMsg::ItemOpen(at, crate::models::sidebar::PinKind::Artist, id.into(), name.into()))
+            }
+            "genre" => Msg::CollOpen(at, rest.into(), CollectionSource::Genre(rest.into())),
+            "composer" => Msg::CollOpen(at, rest.into(), CollectionSource::Composer(rest.into())),
+            _ => Msg::Track(crate::models::tracks::TrackMsg::Menu),
+        });
+    }
     if let Some(path) = value("--folder") {
         let name = path.rsplit(['\\', '/']).next().unwrap_or(&path).to_string();
         music.export_msgs.push(crate::models::app::Msg::Folders(crate::models::folders::FoldersMsg::Open(path, name)));

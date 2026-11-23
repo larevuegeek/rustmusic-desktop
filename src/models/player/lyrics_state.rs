@@ -7,8 +7,8 @@ pub struct LyricsState {
     pub status: LyricsStatus,
     pub error: Option<String>,
     pub plain: Option<String>,
-    /// Lignes synchronisées : instant (ms), texte.
-    pub lines: Vec<(f64, String)>,
+    /// Lignes synchronisées, triées par instant.
+    pub lines: Vec<LyricLine>,
     pub source: String,
     pub refreshing: bool,
 }

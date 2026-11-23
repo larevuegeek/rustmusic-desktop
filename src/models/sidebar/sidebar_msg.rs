@@ -6,6 +6,8 @@ use crate::models::tracks::TrackMenuAt;
 pub enum SidebarMsg {
     /// Menu d'une ligne : « … » (ancre nommée) ou clic droit (pointeur).
     RowMenu(TrackMenuAt, RowTarget),
+    /// Menu d'un album ou d'un artiste (fiche, carte, ligne), épinglé ou non : genre, identifiant, nom.
+    ItemOpen(TrackMenuAt, PinKind, String, String),
     /// Menu d'un album ou d'un artiste épinglé.
     Item(ItemMsg),
     /// Menu d'une section d'épinglés : épingler l'album ou l'artiste en cours.

@@ -243,6 +243,7 @@
     "move": "Arrastrar para mover",
     "lyrics_synced": "Letra sincronizada",
     "lyrics_plain": "Letra sin sincronizar",
+    "src_embedded": "etiquetas del archivo",
     "src_sidecar": "archivo .lrc",
     "src_lrclib": "LRCLIB",
     "src_manual": "introducida a mano",

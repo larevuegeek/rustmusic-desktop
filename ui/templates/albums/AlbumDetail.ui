@@ -106,7 +106,8 @@
                     {:else}
                         <RoundButton icon="material-symbols:favorite-outline-rounded" title={t("album_view.fav_add")} onclick={Msg::Album(AlbumMsg::LikeAll)} />
                     {/if}
-                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} onclick={Msg::Noop} />
+                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} anchor={DETAIL_MORE.to_string()}
+                                 onclick={Msg::CollOpen(TrackMenuAt::Named(DETAIL_MORE.into()), av.title.clone(), CollectionSource::Album { id: page.id.clone(), artist: Some(av.artist.clone()) })} />
                     {#if !av.genres.is_empty()}
                         <div class="flex flex-wrap gap-1.5 ml-1.5">
                             {#each av.genres as g (g.as_str())}

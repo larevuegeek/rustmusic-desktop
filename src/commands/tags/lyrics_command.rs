@@ -1,7 +1,7 @@
 use crate::app::State;
 use crate::repository::library::library_files_repository::LibraryFilesRepository;
 
-use crate::core::audio_lyrics::{lrclib_client, sidecar};
+use crate::core::audio_lyrics::{local_lyrics, lrclib_client};
 use crate::entity::audio_lyrics::lyrics::{Lyrics, LyricsSource, LyricsUpsert};
 use crate::repository::audio_lyrics::lyrics_repository::LyricsRepository;
 use crate::repository::library::library_track_repository::LibraryTrackRepository;
@@ -26,11 +26,12 @@ async fn find_file_id_by_path(
 /// Cascade :
 /// 1. Lookup library_files via path → file_id
 /// 2. Lookup library_tracks via file_id → métadonnées + library_track_id
-/// 3. Cache DB (renvoyé tel quel même si partiel ou "none")
-/// 4. Sidecar `.lrc` à côté du fichier
-/// 5. Morceau d'un serveur : ses paroles
-/// 6. LRCLIB en ligne
-/// 7. Sinon → marque `source=none` pour ne pas re-spammer
+/// 3. Cache DB, s'il vient du fichier, d'une saisie ou du serveur
+/// 4. Paroles du fichier : tags, puis `.lrc` à côté (elles remplacent un cache LRCLIB)
+/// 5. Sinon, cache LRCLIB ou « none » tel quel
+/// 6. Morceau d'un serveur : ses paroles
+/// 7. LRCLIB en ligne
+/// 8. Sinon → marque `source=none` pour ne pas re-spammer
 pub async fn get_lyrics(
     state: State<'_, AppState>,
     path: String,
@@ -50,40 +51,36 @@ pub async fn get_lyrics(
 
     let track_id = track.id.clone();
 
-    // 3. Cache DB
-    if let Ok(Some(cached)) = LyricsRepository::find_by_track_id(&state.pool, &track_id).await {
-        return Ok(Some(cached));
+    // 3. Cache DB : paroles du fichier, saisies ou du serveur, gardées telles quelles.
+    let cached = LyricsRepository::find_by_track_id(&state.pool, &track_id).await.ok().flatten();
+    if let Some(c) = &cached {
+        if !matches!(c.source, LyricsSource::Lrclib | LyricsSource::None) {
+            return Ok(cached);
+        }
     }
 
-    // 4. Sidecar .lrc
-    if let Some(lrc) = sidecar::read_sidecar_lrc(&track.path) {
-        let synced = if sidecar::has_synced_timestamps(&lrc) {
-            Some(lrc.clone())
-        } else {
-            None
-        };
-        let plain = if synced.is_none() { Some(lrc) } else { None };
-
+    // 4. Paroles du fichier : elles passent avant LRCLIB, même déjà en cache.
+    let audio_path = track.path.clone();
+    let local = tokio::task::spawn_blocking(move || local_lyrics::read_local_lyrics(&audio_path)).await.ok().flatten();
+    if let Some(found) = local {
         let saved = LyricsRepository::upsert(
             &state.pool,
-            LyricsUpsert {
-                track_id: track_id.clone(),
-                plain,
-                synced,
-                source: LyricsSource::Sidecar,
-                lrclib_id: None,
-            },
+            LyricsUpsert { track_id: track_id.clone(), plain: found.plain, synced: found.synced, source: found.source, lrclib_id: None },
         )
         .await
         .map_err(|e| format!("DB upsert error : {}", e))?;
-
         return Ok(Some(saved));
+    }
+
+    // 5. Déjà cherché en ligne.
+    if cached.is_some() {
+        return Ok(cached);
     }
 
     let artist = track.artist.unwrap_or_default();
     let title = track.title.clone();
 
-    // 5. Morceau d'un serveur : ses paroles (intégrées aux fichiers ou .lrc posés à côté, là-bas).
+    // 6. Morceau d'un serveur : ses paroles (intégrées aux fichiers ou .lrc posés à côté, là-bas).
     if let Some(found) = crate::service::external_server::track_service::server_lyrics(&state.pool, &path, &artist, &title).await {
         let saved = LyricsRepository::upsert(
             &state.pool,
@@ -94,7 +91,7 @@ pub async fn get_lyrics(
         return Ok(Some(saved));
     }
 
-    // 6. LRCLIB
+    // 7. LRCLIB
     let album = track.album;
     let duration = track.duration.unwrap_or(0.0).round() as u32;
 

@@ -243,6 +243,7 @@
     "move": "Glisser pour déplacer",
     "lyrics_synced": "Paroles synchronisées",
     "lyrics_plain": "Paroles non synchronisées",
+    "src_embedded": "tags du fichier",
     "src_sidecar": "fichier .lrc",
     "src_lrclib": "LRCLIB",
     "src_manual": "saisie manuelle",

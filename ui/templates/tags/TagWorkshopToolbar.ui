@@ -1,4 +1,4 @@
-<div class="shrink-0 flex items-center gap-1 px-5 py-2 border-y border-(--rg-bd) bg-(--rg-carte)/40">
+<div class="relative z-20 shrink-0 flex items-center gap-1 px-5 py-2 border-y border-(--rg-bd) bg-(--rg-carte)/40">
     {#if wv.selected > 0}
         <div class="mr-1.5 flex gap-1 text-[13px] whitespace-nowrap text-(--rg-mu)">
             <div>{wv.scope_before}</div><div class="font-bold text-(--rg-tx)">{wv.selected}</div><div>{wv.scope_after}</div>

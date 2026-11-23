@@ -45,6 +45,8 @@ impl MusicApp {
                 match source {
                     CollectionSource::Album { id, .. } => library_command::get_tracks_by_album(app.state(), library, id).await.unwrap_or_default(),
                     CollectionSource::Genre(g) => library_command::get_tracks_by_genre(app.state(), library, g).await.unwrap_or_default(),
+                    CollectionSource::Composer(n) => crate::commands::library::composer_command::get_tracks_by_composer(app.state(), library, n).await.unwrap_or_default(),
+                    CollectionSource::Period(a, b) => library_command::get_tracks_by_years(app.state(), library, a, b).await.unwrap_or_default(),
                     CollectionSource::Playlist(id) => crate::commands::playlist::playlist_view_command::get_playlist_tracks_view(app.state(), id).await.unwrap_or_default(),
                 }
             },

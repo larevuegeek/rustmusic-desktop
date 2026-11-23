@@ -115,7 +115,7 @@
                             <div class="rg-parole w-full px-2 py-3 rounded-lg cursor-pointer text-5xl leading-[1.1] font-black tracking-tight origin-left scroll-mt-[140px] transition-[color,transform,background-color] duration-500 ease-out hover:bg-neutral-100 dark:hover:bg-white/5"
                                  class:rg-parole-active={active == Some(i)} class:rg-parole-passee={active.is_some_and(|a| i < a)}
                                  style:scroll_into_view={active == Some(i)}
-                                 onclick={Msg::Seek(line.0 / 1000.)}>{if line.1.is_empty() { "♪".to_string() } else { line.1.clone() }}</div>
+                                 onclick={Msg::Seek(line.at / 1000.)}><div>{if line.text.is_empty() { "♪".to_string() } else { line.text.clone() }}</div>{#each line.translation as (j, tr) (j)}<div class="mt-1.5 text-2xl leading-[1.2] font-semibold tracking-normal opacity-60">{tr}</div>{/each}</div>
                         {/each}
                         <div class="h-[55vh] shrink-0"></div>
                     </div>

@@ -8,13 +8,13 @@
                 {#each ly.0.lines as (i, line) (i)}
                     {#if ly.1 == Some(i)}
                         <div class="block w-full text-left px-5 py-1.25 text-[17px] font-bold leading-[1.35] origin-left cursor-pointer transition-[color,transform] duration-250 hover:text-(--lc-tx2) text-(--lc-tx) scale-104 scroll-mt-[120px]"
-                             style:scroll_into_view={true} title={t("mini.jump_line")} onclick={Msg::Seek(line.0 / 1000.)}>{if line.1.is_empty() { "♪".to_string() } else { line.1.clone() }}</div>
+                             style:scroll_into_view={true} title={t("mini.jump_line")} onclick={Msg::Seek(line.at / 1000.)}><div>{if line.text.is_empty() { "♪".to_string() } else { line.text.clone() }}</div>{#each line.translation as (j, tr) (j)}<div class="text-[13px] font-medium leading-[1.3] opacity-70">{tr}</div>{/each}</div>
                     {:else if ly.1.is_some_and(|a| i < a)}
                         <div class="block w-full text-left px-5 py-1.25 text-[17px] font-bold leading-[1.35] origin-left cursor-pointer transition-[color,transform] duration-250 hover:text-(--lc-tx2) text-(--lc-ly-passe)"
-                             title={t("mini.jump_line")} onclick={Msg::Seek(line.0 / 1000.)}>{if line.1.is_empty() { "♪".to_string() } else { line.1.clone() }}</div>
+                             title={t("mini.jump_line")} onclick={Msg::Seek(line.at / 1000.)}><div>{if line.text.is_empty() { "♪".to_string() } else { line.text.clone() }}</div>{#each line.translation as (j, tr) (j)}<div class="text-[13px] font-medium leading-[1.3] opacity-70">{tr}</div>{/each}</div>
                     {:else}
                         <div class="block w-full text-left px-5 py-1.25 text-[17px] font-bold leading-[1.35] origin-left cursor-pointer transition-[color,transform] duration-250 hover:text-(--lc-tx2) text-(--lc-ly)"
-                             title={t("mini.jump_line")} onclick={Msg::Seek(line.0 / 1000.)}>{if line.1.is_empty() { "♪".to_string() } else { line.1.clone() }}</div>
+                             title={t("mini.jump_line")} onclick={Msg::Seek(line.at / 1000.)}><div>{if line.text.is_empty() { "♪".to_string() } else { line.text.clone() }}</div>{#each line.translation as (j, tr) (j)}<div class="text-[13px] font-medium leading-[1.3] opacity-70">{tr}</div>{/each}</div>
                     {/if}
                 {/each}
                 <div class="h-27.5"></div>

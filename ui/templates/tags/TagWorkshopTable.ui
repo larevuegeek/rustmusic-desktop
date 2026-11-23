@@ -1,6 +1,6 @@
 <div class="flex-1 min-w-0 overflow-auto scrollbar-app pb-30">
     <div class="flex flex-col" style:min_width={wv.min_width}>
-        <div class="h-10 flex items-center bg-(--rg-champ) border-b border-(--rg-bd) text-[11.5px] font-bold tracking-[0.08em] text-(--rg-mu)">
+        <div class="relative z-10 h-10 flex items-center bg-(--rg-champ) border-b border-(--rg-bd) text-[11.5px] font-bold tracking-[0.08em] text-(--rg-mu)">
             <div class="w-12 shrink-0 flex justify-center">
                 {#if wv.all_selected || wv.some_selected}
                     <button class="w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer bg-(--rg-g) border-(--rg-g) text-(--rg-on-g)"

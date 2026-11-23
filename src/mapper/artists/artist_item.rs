@@ -32,6 +32,20 @@ pub fn avatar(name: &str) -> (String, f32) {
 }
 
 impl ArtistItem {
+    /// Ancre du « … » de la carte ou de la ligne.
+    pub fn more_id(&self) -> String {
+        format!("artist.more.{}", self.id)
+    }
+
+    /// Menu de l'artiste, ou du compositeur (ses morceaux).
+    pub fn menu(&self) -> Msg {
+        let at = crate::models::tracks::TrackMenuAt::Named(self.more_id());
+        match &self.route {
+            Route::Composer(name) => Msg::CollOpen(at, name.clone(), crate::models::library::CollectionSource::Composer(name.clone())),
+            _ => Msg::Sidebar(crate::models::sidebar::SidebarMsg::ItemOpen(at, crate::models::sidebar::PinKind::Artist, self.id.clone(), self.name.clone())),
+        }
+    }
+
     pub fn from_view(a: &ArtistListRow) -> Self {
         Self {
             id: a.id.clone(),

@@ -64,7 +64,8 @@
                     {:else}
                         <RoundButton icon="material-symbols:favorite-outline-rounded" disabled={!av.has_tracks} title={t("album_view.fav_add")} onclick={Msg::Artist(ArtistMsg::LikeAll)} />
                     {/if}
-                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} onclick={Msg::Noop} />
+                    <RoundButton icon="material-symbols:more-horiz" title={t("album_view.more")} anchor={DETAIL_MORE.to_string()}
+                                 onclick={Msg::Sidebar(SidebarMsg::ItemOpen(TrackMenuAt::Named(DETAIL_MORE.into()), PinKind::Artist, page.id.clone(), av.name.clone()))} />
                     {#if !av.genres.is_empty()}
                         <div class="flex flex-wrap gap-1.5 ml-1.5">
                             {#each av.genres as g (g.as_str())}

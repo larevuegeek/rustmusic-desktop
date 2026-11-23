@@ -86,7 +86,8 @@ impl MusicApp {
     pub(crate) fn sidebar_update(&mut self, msg: SidebarMsg) -> bool {
         match msg {
             SidebarMsg::RowMenu(at, RowTarget::Playlist(id)) => return self.playlist_menu_update(PlaylistMenuMsg::Open(at, id)),
-            SidebarMsg::RowMenu(at, RowTarget::Pin(kind, id)) => return self.sidebar_item_open(at, kind, id),
+            SidebarMsg::RowMenu(at, RowTarget::Pin(kind, id)) => return self.sidebar_item_open(at, kind, id, None),
+            SidebarMsg::ItemOpen(at, kind, id, title) => return self.sidebar_item_open(at, kind, id, Some(title)),
             SidebarMsg::Item(m) => return self.sidebar_item_update(m),
             SidebarMsg::PinPlaying(kind) => return self.sidebar_pin_playing(kind),
             SidebarMsg::Browse(kind) => {

@@ -65,6 +65,21 @@ impl MusicApp {
             }
             TrackMsg::Like => return self.handle(Msg::Like(path)),
             TrackMsg::Reveal => return self.handle(Msg::Reveal(path)),
+            TrackMsg::Menu => {
+                let at = TrackMenuAt::Named(DETAIL_MORE.into());
+                if let Some(x) = self.track_current().cloned() {
+                    return self.track_menu_open(at, x, false);
+                }
+                // Hors d'un album : la ligne du morceau, lue par son chemin.
+                let app = self.backend.app.clone();
+                self.backend.call(
+                    async move { crate::commands::playlist::playlist_view_command::get_tracks_view_by_paths(app.state(), vec![path]).await.unwrap_or_default() },
+                    move |me, rows| match rows.into_iter().next() {
+                        Some(x) => me.track_menu_open(at, x, false),
+                        None => false,
+                    },
+                );
+            }
             TrackMsg::Rate(stars) => {
                 let rating = if track.rating == Some(stars) { None } else { Some(stars) };
                 let id = track.id.clone();

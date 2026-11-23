@@ -19,7 +19,7 @@
         </div>
         <button class="absolute right-1 top-1 z-2 w-7.5 h-7.5 rounded-lg flex items-center justify-center cursor-pointer
                        bg-black/55 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/75"
-                title={t("artists_view.more")} aria-label={t("artists_view.more")} onclick={Msg::Noop}>
+                id={ElementId::named(&artist.more_id())} title={t("artists_view.more")} aria-label={t("artists_view.more")} onclick={artist.menu()}>
             <Icon icon="material-symbols:more-horiz" width={18} />
         </button>
         <button class="absolute right-[7%] bottom-[7%] z-2 w-11 h-11 rounded-full flex items-center justify-center cursor-pointer

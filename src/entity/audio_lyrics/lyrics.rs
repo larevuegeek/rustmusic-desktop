@@ -7,6 +7,8 @@ use sqlx::FromRow;
 #[serde(rename_all = "lowercase")]
 #[sqlx(rename_all = "lowercase")]
 pub enum LyricsSource {
+    /// Tags du fichier (USLT, LYRICS, ©lyr…).
+    Embedded,
     Sidecar,
     Lrclib,
     Manual,

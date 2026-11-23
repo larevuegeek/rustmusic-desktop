@@ -119,6 +119,7 @@
     {@include "../tracks/TrackMenu.ui"}
     {@include "../tracks/TrackColumnMenu.ui"}
     {@include "../library/CollectionMenu.ui"}
+    {@include "../sidebar/LibraryItemMenu.ui"}
     {@include "../radios/RadioMenu.ui"}
     {@include "../podcasts/PodcastMenu.ui"}
     {@include "../playlists/PlaylistMenu.ui"}

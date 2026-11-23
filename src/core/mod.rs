@@ -25,6 +25,8 @@ pub mod settings_manager {
 }
 
 pub mod audio_lyrics {
+    pub mod embedded;
+    pub mod local_lyrics;
     pub mod lrclib_client;
     pub mod sidecar;
 }

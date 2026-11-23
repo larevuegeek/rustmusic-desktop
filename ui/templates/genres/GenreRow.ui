@@ -41,7 +41,7 @@
                 <Icon icon="material-symbols:shuffle-rounded" width={19} />
             </button>
             <button class="w-8.5 h-8.5 flex items-center justify-center rounded-[9px] cursor-pointer transition-colors text-(--rg-mu) hover:bg-(--rg-s2) hover:text-(--rg-tx) opacity-0 group-hover:opacity-100 max-[900px]:hidden"
-                    title={t("genres_view.more")} aria-label={t("genres_view.more")} onclick={Msg::Noop}>
+                    id={ElementId::named(&genre.more_id())} title={t("genres_view.more")} aria-label={t("genres_view.more")} onclick={genre.menu()}>
                 <Icon icon="material-symbols:more-horiz" width={19} />
             </button>
         {/if}

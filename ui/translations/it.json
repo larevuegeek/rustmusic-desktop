@@ -243,6 +243,7 @@
     "move": "Trascina per spostare",
     "lyrics_synced": "Testo sincronizzato",
     "lyrics_plain": "Testo non sincronizzato",
+    "src_embedded": "tag del file",
     "src_sidecar": "file .lrc",
     "src_lrclib": "LRCLIB",
     "src_manual": "inserito a mano",

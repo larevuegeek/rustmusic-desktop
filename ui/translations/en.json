@@ -243,6 +243,7 @@
     "move": "Drag to move",
     "lyrics_synced": "Synced lyrics",
     "lyrics_plain": "Unsynced lyrics",
+    "src_embedded": "file tags",
     "src_sidecar": ".lrc file",
     "src_lrclib": "LRCLIB",
     "src_manual": "entered manually",

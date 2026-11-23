@@ -54,6 +54,15 @@ pub(crate) fn share(p: f64) -> String {
 }
 
 impl GenreItem {
+    /// Ancre du « … » de la carte ou de la ligne.
+    pub fn more_id(&self) -> String {
+        format!("genre.more.{}", self.name)
+    }
+
+    pub fn menu(&self) -> Msg {
+        Msg::CollOpen(crate::models::tracks::TrackMenuAt::Named(self.more_id()), self.label.clone(), crate::models::library::CollectionSource::Genre(self.name.clone()))
+    }
+
     /// « 120 titres · 8 albums ».
     pub fn summary(&self) -> String {
         format!("{} · {} {}", self.tracks_label, self.albums_n, self.albums_label)

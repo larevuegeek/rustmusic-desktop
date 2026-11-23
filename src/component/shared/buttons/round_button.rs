@@ -12,6 +12,8 @@ pub struct RoundButton {
     pub pressed: bool,
     pub disabled: bool,
     pub onclick: Option<Msg>,
+    /// Identifiant de l'élément (ancre d'un menu) ; vide : aucun.
+    pub anchor: String,
 }
 
 impl Component<Assets> for RoundButton {

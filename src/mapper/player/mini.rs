@@ -206,7 +206,7 @@ impl MusicApp {
         let ly = &self.views.lyrics;
         let kind = if ly.lines.is_empty() { t("mini.lyrics_plain") } else { t("mini.lyrics_synced") };
         match ly.source.as_str() {
-            "sidecar" | "lrclib" | "manual" | "server" => format!("{kind} · {}", t(&format!("mini.src_{}", ly.source))),
+            "embedded" | "sidecar" | "lrclib" | "manual" | "server" => format!("{kind} · {}", t(&format!("mini.src_{}", ly.source))),
             _ => kind,
         }
     }

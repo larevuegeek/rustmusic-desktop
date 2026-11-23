@@ -48,6 +48,16 @@ pub fn decade_hue(d: i64) -> f32 {
 }
 
 impl GenrePage {
+    /// Les morceaux de la page, pour son menu « … ».
+    pub fn collection_source(&self) -> crate::models::library::CollectionSource {
+        use crate::models::library::CollectionSource;
+        match self.period {
+            _ if self.composer => CollectionSource::Composer(self.name.clone()),
+            Some((decade, year)) => year.map_or(CollectionSource::Period(decade, decade + 9), |y| CollectionSource::Period(y, y)),
+            None => CollectionSource::Genre(self.name.clone()),
+        }
+    }
+
     pub(crate) fn new(name: String, period: Option<(i64, Option<i64>)>) -> Self {
         Self {
             name,
