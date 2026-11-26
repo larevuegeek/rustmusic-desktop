@@ -10,10 +10,10 @@ use crate::query::album::album_list_row::AlbumListRow;
 
 pub struct LibraryAlbumRepository;
 
-/// L'unicité d'avant la 0.2.5, gardée pour qu'une version antérieure
-/// réinstallée retrouve la cible de son `ON CONFLICT` et sache encore indexer.
-/// Posée au démarrage, pas par une migration : si une bibliothèque contient
-/// déjà des doublons, mieux vaut un avertissement qu'un refus de démarrer.
+/// L'unicité d'avant la 0.2.5. Plus posée au démarrage depuis la 0.5 : une base migrée
+/// ne s'ouvre plus dans une version aussi ancienne, et sur une grande bibliothèque la
+/// tentative échouait à chaque lancement (deux albums du même titre chez un artiste).
+/// Une base qui la porte encore la garde ; `insert_library_album` sait la contourner.
 pub const INDEX_COMPAT_0_2_4: &str =
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_la_compat_0_2_4
      ON library_albums(library_id, artist_id, title_normalized)";
@@ -545,7 +545,9 @@ impl LibraryAlbumRepository {
     }
 
     /// Albums sans tag « artiste de l'album » dont toutes les pistes ont le même artiste
-    /// principal, mais rangés sous un autre : (album, artiste de ses pistes).
+    /// principal, mais rangés sous un autre : (album, artiste de ses pistes). Seuls les albums
+    /// dont une piste a un autre artiste que l'album sont regroupés : les autres ne peuvent
+    /// pas changer de main, et les grouper tous prenait des secondes sur une grande bibliothèque.
     pub async fn owners_to_restore<'e, E>(exec: E, library_id: i64) -> Result<Vec<(String, String)>, sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
@@ -556,7 +558,13 @@ impl LibraryAlbumRepository {
             FROM library_albums la
             JOIN library_tracks lt ON lt.library_album_id = la.id
             LEFT JOIN library_cache lc ON lc.id = lt.cache_id
-            WHERE la.library_id = ? AND lt.artist_id IS NOT NULL
+            WHERE la.id IN (
+                SELECT other.library_album_id
+                FROM library_tracks other
+                JOIN library_albums owner ON owner.id = other.library_album_id
+                WHERE other.library_id = ?1 AND other.artist_id IS NOT NULL AND other.artist_id <> owner.artist_id
+            )
+              AND la.library_id = ?1 AND lt.artist_id IS NOT NULL
             GROUP BY la.id
             HAVING COUNT(DISTINCT lt.artist_id) = 1
                AND MIN(lt.artist_id) <> la.artist_id

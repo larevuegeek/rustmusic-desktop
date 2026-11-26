@@ -36,6 +36,14 @@ quels ; au premier lancement, la base de la 0.4 est copiée à part
 - Sur une machine virtuelle de 4 cœurs ou plus, le profil audio automatique ne
   retarde plus le volume et la pause d'une demi-seconde.
 
+### Depuis la bêta 7
+- **Grandes bibliothèques** : artistes similaires, comptage et lettres de la page Morceaux
+  et passage de fin de scan nettement plus rapides (de 3 à 20 fois sur 160 000 morceaux) ;
+  l'ancien index de compatibilité 0.2.4 n'est plus retenté à chaque lancement (#41).
+- **Sortie exclusive sous Linux** : les cartes qui n'acceptent que le 24 bits packé ou le
+  big-endian (M-Audio Audiophile USB : S16_BE, S24_3BE) jouent en bit-perfect au lieu de
+  retomber en partagé à 48 kHz ; le journal dit pourquoi chaque format est refusé (#40).
+
 ### Depuis la bêta 6
 - **Paroles traduites** : dans un fichier LRC, les lignes sans horodatage qui suivent
   une ligne horodatée s'affichent sous elle, en plus petit, dans le panneau des

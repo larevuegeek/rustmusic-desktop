@@ -12,10 +12,9 @@
 //! DoP ALSA (réservation D-Bus, ouverture avec réessai sur EBUSY).
 //!
 //! # Négociation de format
-//! On tente `S32_LE` puis `S16_LE`. Le 24 bits packé (`S24_3LE`) est
-//! volontairement écarté : quasiment tous les DAC USB acceptent S32_LE, dans
-//! lequel un mot 24 bits se loge sans perte, et le packing 3 octets est une
-//! source d'erreurs sans bénéfice audible.
+//! On tente `S32_LE`, le 24 bits packé `S24_3LE`, puis `S16_LE` ; enfin les mêmes en
+//! big-endian (`S32_BE`, `S24_3BE`, `S16_BE`), seuls formats de cartes comme la M-Audio
+//! Audiophile USB. Les échantillons partent en octets, dans l'ordre que la carte attend.
 //!
 //! Le rate, lui, n'est **jamais** négocié à la baisse : si le DAC ne sait pas
 //! jouer le rate source, on refuse le chemin exclusif et l'appelant retombe sur
@@ -45,7 +44,20 @@ use super::types::{AudioBackend, PlaybackAtomics, SymphoniaSharedState};
 const BUSY: &str = "device toujours occupé";
 
 /// Formats tentés, dans l'ordre de préférence.
-const CANDIDATE_FORMATS: [Format; 2] = [Format::S32LE, Format::S16LE];
+const CANDIDATE_FORMATS: [Format; 6] =
+    [Format::S32LE, Format::S243LE, Format::S16LE, Format::S32BE, Format::S243BE, Format::S16BE];
+
+/// Octets par échantillon et ordre big-endian d'un format candidat.
+fn layout(format: Format) -> (usize, bool) {
+    match format {
+        Format::S16LE => (2, false),
+        Format::S16BE => (2, true),
+        Format::S243LE => (3, false),
+        Format::S243BE => (3, true),
+        Format::S32BE => (4, true),
+        _ => (4, false),
+    }
+}
 
 /// Ouvre le PCM `hw:` en réessayant sur EBUSY : après une réservation D-Bus,
 /// PipeWire ferme le device de façon asynchrone (quelques centaines de ms,
@@ -137,6 +149,7 @@ pub fn probe(hw_id: &str, rate: u32, channels: u16) -> Result<AlsaNegotiation, F
         }
     };
 
+    let mut refused = Vec::new();
     for format in CANDIDATE_FORMATS {
         match configure(&pcm, format, rate, channels) {
             Ok(period_frames) => {
@@ -151,12 +164,13 @@ pub fn probe(hw_id: &str, rate: u32, channels: u16) -> Result<AlsaNegotiation, F
                     period_frames,
                 });
             }
-            Err(e) => log::debug!("🎚️  ALSA exclusive : {format:?} refusé sur {hw_id} — {e}"),
+            Err(e) => refused.push(format!("{format} : {e}")),
         }
     }
 
     log::info!(
-        "🎚️  ALSA exclusive : aucun format accepté à {rate} Hz sur {hw_id} → CPAL partagé"
+        "🎚️  ALSA exclusive : aucun format accepté à {rate} Hz sur {hw_id} → CPAL partagé ({})",
+        refused.join(" ; ")
     );
     drop(pcm);
     drop(reservation);
@@ -197,7 +211,7 @@ impl AlsaExclusiveOutput {
         let is_stopped = atomics.is_stopped.clone();
         let started = Arc::new(AtomicBool::new(false));
         let started_thread = started.clone();
-        let bits_exacts = if matches!(negotiation.format, Format::S16LE) { 16 } else { 24 };
+        let bits_exacts = if layout(negotiation.format).0 == 2 { 16 } else { 24 };
 
         let handle = std::thread::Builder::new()
             .name("rustmusic-alsa-render".into())
@@ -325,8 +339,7 @@ where
     let output_channels = shared.output_channels.max(1);
     let chunk_samples = period_frames * ch;
     let mut scratch: Vec<f32> = vec![0.0; chunk_samples];
-    let mut buf_i32: Vec<i32> = Vec::with_capacity(chunk_samples);
-    let mut buf_i16: Vec<i16> = Vec::with_capacity(chunk_samples);
+    let mut bytes: Vec<u8> = Vec::with_capacity(chunk_samples * 4);
     let mut fade_in_samples: usize = 0;
 
     loop {
@@ -364,8 +377,7 @@ where
                 &pcm,
                 negotiation.format,
                 &scratch,
-                &mut buf_i32,
-                &mut buf_i16,
+                &mut bytes,
                 ch,
             )?;
             continue;
@@ -419,8 +431,7 @@ where
             &pcm,
             negotiation.format,
             &scratch,
-            &mut buf_i32,
-            &mut buf_i16,
+            &mut bytes,
             ch,
         )?;
     }
@@ -437,48 +448,20 @@ fn write_chunk(
     pcm: &PCM,
     format: Format,
     samples: &[f32],
-    buf_i32: &mut Vec<i32>,
-    buf_i16: &mut Vec<i16>,
+    bytes: &mut Vec<u8>,
     ch: usize,
 ) -> Result<(), String> {
-    match format {
-        Format::S32LE => {
-            buf_i32.clear();
-            buf_i32.extend(
-                samples
-                    .iter()
-                    .map(|s| super::samples::to_i32(*s)),
-            );
-            let io = pcm.io_i32().map_err(|e| format!("io_i32: {e}"))?;
-            let mut off = 0usize;
-            while off < buf_i32.len() {
-                match io.writei(&buf_i32[off..]) {
-                    Ok(frames) => off += frames * ch,
-                    Err(e) => {
-                        if pcm.recover(e.errno(), true).is_err() {
-                            return Err(format!("writei S32: {e}"));
-                        }
-                    }
-                }
-            }
-        }
-        _ => {
-            buf_i16.clear();
-            buf_i16.extend(
-                samples
-                    .iter()
-                    .map(|s| super::samples::to_i16(*s)),
-            );
-            let io = pcm.io_i16().map_err(|e| format!("io_i16: {e}"))?;
-            let mut off = 0usize;
-            while off < buf_i16.len() {
-                match io.writei(&buf_i16[off..]) {
-                    Ok(frames) => off += frames * ch,
-                    Err(e) => {
-                        if pcm.recover(e.errno(), true).is_err() {
-                            return Err(format!("writei S16: {e}"));
-                        }
-                    }
+    let (width, big_endian) = layout(format);
+    super::samples::encode_pcm(samples, width, big_endian, bytes);
+    let frame = width * ch;
+    let io = pcm.io_bytes();
+    let mut off = 0usize;
+    while off < bytes.len() {
+        match io.writei(&bytes[off..]) {
+            Ok(frames) => off += frames * frame,
+            Err(e) => {
+                if pcm.recover(e.errno(), true).is_err() {
+                    return Err(format!("writei {format}: {e}"));
                 }
             }
         }

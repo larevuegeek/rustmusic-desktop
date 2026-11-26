@@ -34,7 +34,7 @@ pub fn to_i16(s: f32) -> i16 {
 
 /// f32 → entier 24 bits (dans un i32) ; exact pour toute valeur venue d'un entier ≤ 24 bits.
 #[inline]
-#[cfg_attr(not(target_os = "windows"), allow(dead_code))] // WASAPI 24 bits
+#[cfg_attr(target_os = "macos", allow(dead_code))] // WASAPI 24 bits, ALSA S24_3
 pub fn to_i24(s: f32) -> i32 {
     (s * 8_388_608.0).round().clamp(-8_388_608.0, 8_388_607.0) as i32
 }
@@ -44,6 +44,27 @@ pub fn to_i24(s: f32) -> i32 {
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))] // sortie ALSA S32
 pub fn to_i32(s: f32) -> i32 {
     (s as f64 * 2_147_483_648.0).round().clamp(-2_147_483_648.0, 2_147_483_647.0) as i32
+}
+
+/// Échantillons en entiers de `bytes` octets (2, 3 ou 4), petit ou grand boutiste : de quoi
+/// alimenter un DAC en 24 bits packé (S24_3LE) ou en big-endian (S16_BE, S24_3BE, S32_BE).
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))] // sortie ALSA
+pub fn encode_pcm(samples: &[f32], bytes: usize, big_endian: bool, out: &mut Vec<u8>) {
+    out.clear();
+    out.reserve(samples.len() * bytes);
+    for &s in samples {
+        let value = match bytes {
+            2 => to_i16(s) as i32,
+            3 => to_i24(s),
+            _ => to_i32(s),
+        };
+        let word = &value.to_le_bytes()[..bytes.min(4)];
+        if big_endian {
+            out.extend(word.iter().rev());
+        } else {
+            out.extend_from_slice(word);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -120,5 +141,22 @@ mod tests {
         assert_eq!(to_i16(-1.5), i16::MIN);
         assert_eq!(to_i24(1.0), 8_388_607);
         assert_eq!(to_i24(-1.0), -8_388_608);
+    }
+
+    #[test]
+    fn pcm_words_are_packed_in_the_byte_order_the_dac_asks_for() {
+        let samples = [<f32 as FromSample<i24>>::from_sample(i24(0x123456)), <f32 as FromSample<i24>>::from_sample(i24(-2))];
+        let mut out = Vec::new();
+        encode_pcm(&samples, 3, false, &mut out);
+        assert_eq!(out, [0x56, 0x34, 0x12, 0xFE, 0xFF, 0xFF], "S24_3LE");
+        encode_pcm(&samples, 3, true, &mut out);
+        assert_eq!(out, [0x12, 0x34, 0x56, 0xFF, 0xFF, 0xFE], "S24_3BE");
+        let half = [<f32 as FromSample<i16>>::from_sample(0x1234i16)];
+        encode_pcm(&half, 2, true, &mut out);
+        assert_eq!(out, [0x12, 0x34], "S16_BE");
+        encode_pcm(&samples[..1], 4, true, &mut out);
+        assert_eq!(out, [0x12, 0x34, 0x56, 0x00], "S32_BE");
+        encode_pcm(&samples[..1], 4, false, &mut out);
+        assert_eq!(out, [0x00, 0x56, 0x34, 0x12], "S32_LE");
     }
 }

@@ -48,6 +48,24 @@ fn filter_clauses(filter: Option<&str>, missing_cover: bool, extra: &TrackFilter
     (filter_clause, cover_clause, like_pattern)
 }
 
+/// Jointures facultatives d'un comptage : seulement celles que les clauses lisent. Le fichier
+/// reste joint (une piste sans fichier n'est pas listée) ; joindre aussi cache, album et
+/// artiste pour chaque piste rendait le comptage vingt fois plus lent sur 160 000 pistes.
+fn count_joins(clauses: &[&str]) -> String {
+    let reads = |alias: &str| clauses.iter().any(|c| c.contains(alias));
+    let mut joins = String::new();
+    if reads("lc.") {
+        joins.push_str(" LEFT JOIN library_cache lc ON lc.id = lt.cache_id");
+    }
+    if reads("la.") {
+        joins.push_str(" LEFT JOIN library_albums la ON la.id = lt.library_album_id");
+    }
+    if reads("a.name") {
+        joins.push_str(" LEFT JOIN artists a ON a.id = lt.artist_id");
+    }
+    joins
+}
+
 /// Ce que la bibliothèque sait d'un fichier, retrouvé par son chemin.
 #[derive(sqlx::FromRow)]
 pub struct PathRecord {
@@ -402,14 +420,12 @@ impl LibraryTrackRepository {
             r#"SELECT SUBSTR(lt.title_normalized, 1, 1) AS c, COUNT(*) AS n
                FROM library_tracks lt
                INNER JOIN library_files lf ON lf.id = lt.file_id
-               LEFT JOIN library_cache lc ON lc.id = lt.cache_id
-               LEFT JOIN library_albums la ON la.id = lt.library_album_id
-               LEFT JOIN artists a ON a.id = lt.artist_id
+               {}
                WHERE lt.library_id = ?
                {}
                {}
                GROUP BY c ORDER BY c {}"#,
-            filter_clause, cover_clause, if descending { "DESC" } else { "ASC" }
+            count_joins(&[filter_clause, &cover_clause]), filter_clause, cover_clause, if descending { "DESC" } else { "ASC" }
         );
         let mut query = sqlx::query_as::<_, (Option<String>, i64)>(sqlx::AssertSqlSafe(sql)).bind(library_id);
         if let Some(ref pat) = like_pattern {
@@ -458,13 +474,11 @@ impl LibraryTrackRepository {
             r#"SELECT COUNT(*)
                FROM library_tracks lt
                INNER JOIN library_files lf ON lf.id = lt.file_id
-               LEFT JOIN library_cache lc ON lc.id = lt.cache_id
-               LEFT JOIN library_albums la ON la.id = lt.library_album_id
-               LEFT JOIN artists a ON a.id = lt.artist_id
+               {}
                WHERE lt.library_id = ?
                {}
                {}"#,
-            filter_clause, cover_clause
+            count_joins(&[filter_clause, &cover_clause]), filter_clause, cover_clause
         );
 
         let mut count_query = sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(count_sql))
@@ -1447,5 +1461,27 @@ mod reimport_tests {
         assert_eq!((rating, plays), (Some(4.0), 7));
         let albums: Vec<String> = sqlx::query_scalar("SELECT id FROM library_albums ORDER BY id").fetch_all(&pool).await.unwrap();
         assert_eq!(albums, ["new"]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn joins(filter: Option<&str>, missing_cover: bool, extra: TrackFilters<'_>) -> String {
+        let (filter_clause, cover_clause, _) = filter_clauses(filter, missing_cover, &extra);
+        count_joins(&[filter_clause, &cover_clause])
+    }
+
+    #[test]
+    fn a_count_joins_only_the_tables_its_filters_read() {
+        let none = TrackFilters { quality: None, favorites: false, genre: None };
+        assert_eq!(joins(None, false, none), "");
+        let search = joins(Some("nirvana"), false, TrackFilters { quality: None, favorites: false, genre: None });
+        assert!(search.contains("library_albums la") && search.contains("artists a") && !search.contains("library_cache"));
+        let genre = joins(None, false, TrackFilters { quality: None, favorites: false, genre: Some("Rock") });
+        assert!(genre.contains("library_cache lc") && !genre.contains("artists a"));
+        assert!(joins(None, true, TrackFilters { quality: None, favorites: false, genre: None }).contains("library_cache lc"));
+        assert_eq!(joins(None, false, TrackFilters { quality: None, favorites: true, genre: None }), "");
     }
 }

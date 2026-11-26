@@ -114,11 +114,6 @@ impl AppState {
             "CREATE INDEX IF NOT EXISTS idx_la_artist_id ON library_albums(artist_id)",
             // library_albums : genre lookup → artistes similaires
             "CREATE INDEX IF NOT EXISTS idx_la_genre ON library_albums(library_id, genre)",
-            // Compatibilité descendante. Une version antérieure à la 0.2.5 vise
-            // `ON CONFLICT(library_id, artist_id, title_normalized)`, que la
-            // migration a supprimé : sans cet index elle ne peut plus indexer
-            // un seul fichier. Il échoue sans bruit si des doublons existent.
-            crate::repository::library::library_album_repository::INDEX_COMPAT_0_2_4,
 
             // library_tracks : WHERE artist_id = ? → page artiste (tracks)
             "CREATE INDEX IF NOT EXISTS idx_lt_artist_id ON library_tracks(artist_id)",

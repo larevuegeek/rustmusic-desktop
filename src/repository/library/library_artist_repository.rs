@@ -117,8 +117,9 @@ impl LibraryArtistRepository {
         Ok(artists)
     }
 
-    /// Artistes similaires : même genre, même library, excluant l'artiste donné
-    /// Requête légère : pas de stats tracks/duration, juste nom + image + nb albums
+    /// Artistes similaires : même genre, même library, excluant l'artiste donné.
+    /// Les artistes sont tirés au sort d'abord, leurs comptes ne sont faits que pour eux :
+    /// sur 21 000 albums, compter pour tout le genre avant le tirage prenait des secondes.
     pub async fn find_similar_artists<'e, E>(
         exec: E,
         library_id: i64,
@@ -130,10 +131,28 @@ impl LibraryArtistRepository {
     {
         sqlx::query_as::<_, ArtistListRow>(
             r#"
+            WITH genres AS (
+                SELECT DISTINCT LOWER(genre) AS genre
+                FROM library_albums
+                WHERE artist_id = ?2 AND library_id = ?1 AND genre IS NOT NULL
+            ),
+            picked AS (
+                SELECT la.artist_id AS id
+                FROM library_albums la
+                WHERE la.library_id = ?1
+                  AND la.artist_id != ?2
+                  AND LOWER(la.genre) IN (SELECT genre FROM genres)
+                  AND EXISTS (SELECT 1 FROM library_artists lart WHERE lart.artist_id = la.artist_id AND lart.library_id = ?1)
+                GROUP BY la.artist_id
+                ORDER BY RANDOM()
+                LIMIT ?3
+            )
             SELECT
                 a.id    AS id,
                 a.name  AS name,
-                COUNT(DISTINCT la_all.id) AS total_albums,
+                (SELECT COUNT(*) FROM library_albums la_all
+                 WHERE la_all.artist_id = a.id AND la_all.library_id = ?1
+                ) AS total_albums,
                 (SELECT COUNT(DISTINCT lta_s.library_track_id) FROM library_track_artists lta_s
                  WHERE lta_s.artist_id = a.id AND lta_s.library_id = ?1
                 ) AS total_tracks,
@@ -145,20 +164,9 @@ impl LibraryArtistRepository {
                     WHERE lt.artist_id = a.id AND lt.library_id = ?1 AND lc.thumbnail_path IS NOT NULL
                     LIMIT 1
                 )) AS thumbnail_path
-            FROM library_albums la
-            INNER JOIN artists a ON a.id = la.artist_id
-            INNER JOIN library_artists lart ON lart.artist_id = a.id AND lart.library_id = ?1
-            LEFT JOIN library_albums la_all ON la_all.artist_id = a.id AND la_all.library_id = ?1
-            WHERE la.library_id = ?1
-              AND a.id != ?2
-              AND LOWER(la.genre) IN (
-                SELECT DISTINCT LOWER(la2.genre)
-                FROM library_albums la2
-                WHERE la2.artist_id = ?2 AND la2.library_id = ?1 AND la2.genre IS NOT NULL
-              )
-            GROUP BY a.id
+            FROM picked p
+            INNER JOIN artists a ON a.id = p.id
             ORDER BY RANDOM()
-            LIMIT ?3
             "#
         )
         .bind(library_id)
