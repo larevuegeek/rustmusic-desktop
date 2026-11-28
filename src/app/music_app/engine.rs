@@ -67,11 +67,14 @@ impl MusicApp {
             "track-advanced" => {
                 // Enchaînement sans blanc : le moteur est passé au morceau suivant.
                 if let Some(path) = payload.as_str() {
+                    // La suite annoncée d'abord (répétition comprise), sinon le morceau dans la file.
                     let next = self
                         .data
-                        .upcoming()
-                        .find(|(_, t)| t.path == path)
+                        .following()
+                        .filter(|(_, t)| t.path == path)
+                        .or_else(|| self.data.upcoming().find(|(_, t)| t.path == path))
                         .map(|(i, _)| i);
+                    self.data.player.announced_next = None;
                     if let Some(index) = next {
                         self.data.queue.current_index = index as i32;
                         self.data.player.path = Some(path.to_string());

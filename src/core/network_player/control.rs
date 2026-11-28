@@ -51,9 +51,14 @@ pub struct Controller {
 }
 
 impl Controller {
+    /// Une connexion neuve par commande : beaucoup de lecteurs (WiiM, Linkplay) ferment de leur
+    /// côté une connexion restée ouverte, et la réutiliser échouait sans réponse. Le délai laisse
+    /// au lecteur le temps d'ouvrir le fichier avant de répondre à `SetAVTransportURI`.
     pub fn new(renderer: Renderer) -> Self {
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(4))
+            .connect_timeout(Duration::from_secs(3))
+            .timeout(Duration::from_secs(10))
+            .pool_max_idle_per_host(0)
             .build()
             .unwrap_or_default();
         Self { renderer, client }
@@ -134,7 +139,9 @@ impl Controller {
     }
 }
 
-/// Envoie une action SOAP et rend le corps de la réponse.
+/// Envoie une action SOAP et rend le corps de la réponse. Une requête qui n'arrive pas au
+/// lecteur (connexion coupée, refusée, délai) est retentée une fois : toutes nos actions
+/// peuvent être rejouées sans effet de bord.
 pub(crate) async fn call(
     client: &reqwest::Client,
     url: &str,
@@ -142,21 +149,57 @@ pub(crate) async fn call(
     action: &str,
     args: &[(&str, &str)],
 ) -> Result<String, String> {
-    let response = client
-        .post(url)
-        .header("Content-Type", "text/xml; charset=\"utf-8\"")
-        .header("SOAPAction", format!("\"{service}#{action}\""))
-        .body(envelope(service, action, args))
-        .send()
-        .await
-        .map_err(|e| format!("{action} : {e}"))?;
+    let send = || {
+        client
+            .post(url)
+            .header("Content-Type", "text/xml; charset=\"utf-8\"")
+            .header("SOAPAction", format!("\"{service}#{action}\""))
+            .body(envelope(service, action, args))
+            .send()
+    };
+    let response = match send().await {
+        Ok(r) => r,
+        Err(first) => {
+            log::debug!("📡 {action} : {}, nouvel essai", describe(&first));
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            send().await.map_err(|e| format!("{action} : {}", describe(&e)))?
+        }
+    };
     let status = response.status();
-    let body = response.text().await.map_err(|e| format!("{action} : {e}"))?;
+    let body = response.text().await.map_err(|e| format!("{action} : {}", describe(&e)))?;
     if status.is_success() {
         Ok(body)
     } else {
         Err(format!("{action} refusé ({status}) : {}", fault(&body)))
     }
+}
+
+/// Cause d'un échec réseau, avec le détail du système : connexion impossible (refusée ou
+/// sans réponse), délai dépassé après connexion (le lecteur n'a pas répondu), ou échange coupé.
+fn describe(e: &reqwest::Error) -> String {
+    let kind = if e.is_connect() {
+        "connexion impossible"
+    } else if e.is_timeout() {
+        "délai dépassé"
+    } else {
+        "échange interrompu"
+    };
+    let mut causes = Vec::new();
+    let mut source = std::error::Error::source(e);
+    while let Some(cause) = source {
+        causes.push(cause.to_string());
+        source = cause.source();
+    }
+    causes.dedup();
+    match causes.last() {
+        Some(root) => format!("{kind} ({root})"),
+        None => kind.to_string(),
+    }
+}
+
+/// L'erreur vient-elle du réseau (lecteur injoignable) plutôt que d'un refus du lecteur ?
+pub fn is_unreachable(error: &str) -> bool {
+    ["connexion impossible", "délai dépassé", "échange interrompu"].iter().any(|k| error.contains(k))
 }
 
 fn envelope(service: &str, action: &str, args: &[(&str, &str)]) -> String {
@@ -234,5 +277,40 @@ mod tests {
         assert_eq!(TransportState::parse("WEIRD"), TransportState::Unknown);
         let f = "<s:Fault><detail><UPnPError><errorCode>701</errorCode><errorDescription>Transition not available</errorDescription></UPnPError></detail></s:Fault>";
         assert_eq!(fault(f), "701 Transition not available");
+    }
+
+    /// Lecteur qui coupe la première connexion sans répondre, puis répond à la seconde.
+    #[tokio::test]
+    async fn a_command_cut_off_by_the_renderer_is_sent_again() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/upnp/control/rendertransport1", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            let (first, _) = listener.accept().await.unwrap();
+            drop(first);
+            let (mut second, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 4096];
+            let _ = second.read(&mut buf).await;
+            let body = "<u:PlayResponse/>";
+            let reply = format!("HTTP/1.1 200 OK
+Content-Length: {}
+Connection: close
+
+{body}", body.len());
+            second.write_all(reply.as_bytes()).await.unwrap();
+        });
+        let client = reqwest::Client::builder().timeout(Duration::from_secs(5)).pool_max_idle_per_host(0).build().unwrap();
+        let body = call(&client, &url, AV_TRANSPORT, "Play", &[("InstanceID", "0")]).await.expect("second essai");
+        assert!(body.contains("PlayResponse"));
+    }
+
+    #[tokio::test]
+    async fn a_renderer_that_is_gone_gives_a_readable_cause() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/control", listener.local_addr().unwrap());
+        drop(listener);
+        let client = reqwest::Client::builder().connect_timeout(Duration::from_secs(2)).build().unwrap();
+        let err = call(&client, &url, AV_TRANSPORT, "Play", &[]).await.unwrap_err();
+        assert!(err.starts_with("Play : connexion impossible"), "{err}");
     }
 }

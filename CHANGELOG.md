@@ -36,6 +36,16 @@ quels ; au premier lancement, la base de la 0.4 est copiée à part
 - Sur une machine virtuelle de 4 cœurs ou plus, le profil audio automatique ne
   retarde plus le volume et la pause d'une demi-seconde.
 
+### Depuis la bêta 8
+- **Lecture sans blanc de retour** : depuis la 0.5, le morceau suivant n'était plus annoncé
+  au moteur ; il est de nouveau préchargé pour un enchaînement sans coupure, et mis en
+  attente sur un lecteur réseau qui enchaîne alors lui-même.
+- **Lecteurs UPnP (WiiM…)** : une connexion neuve par commande, une commande coupée par
+  le lecteur est renvoyée une fois, délai porté à 10 s ; un lecteur qui ne répond plus est
+  recherché sur le réseau et repris à sa nouvelle adresse, sans redémarrer RustMusic ; le
+  passage à la piste suivante laisse au lecteur le temps d'enchaîner lui-même ; le journal
+  suit ses états et précise la cause d'un échec (#42).
+
 ### Depuis la bêta 7
 - **Grandes bibliothèques** : artistes similaires, comptage et lettres de la page Morceaux
   et passage de fin de scan nettement plus rapides (de 3 à 20 fois sur 160 000 morceaux) ;

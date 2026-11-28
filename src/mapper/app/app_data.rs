@@ -23,6 +23,7 @@ impl Default for PlayerState {
             seek_when_ready: None,
             stale_output: false,
             volume_before_mute: 80,
+            announced_next: None,
         }
     }
 }
@@ -107,6 +108,14 @@ impl Data {
         usize::try_from(self.queue.current_index)
             .ok()
             .and_then(|i| self.queue.tracks.get(i))
+    }
+
+    /// Le morceau qui suivra le courant à sa fin : lui-même en « répéter un », le premier de
+    /// la file en « répéter tout » une fois au bout. Même règle que la fin de piste.
+    pub fn following(&self) -> Option<(usize, &QueueTrack)> {
+        let q = &self.queue;
+        let index = crate::mapper::player::queue::following_index(q.current_index, q.tracks.len(), &q.repeat_mode)?;
+        q.tracks.get(index).map(|t| (index, t))
     }
 
     /// Les morceaux de la file après le courant.

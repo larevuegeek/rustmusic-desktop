@@ -64,3 +64,15 @@ fn a_shorter_queue_under_a_scrolled_window_still_shows_its_end() {
     let view = panel(&queue(30, -1), None, Status::Paused, &window);
     assert_eq!(view.upcoming.len(), 30);
 }
+
+#[test]
+fn the_following_track_obeys_the_repeat_mode() {
+    use super::following_index;
+    assert_eq!(following_index(1, 3, "off"), Some(2));
+    assert_eq!(following_index(2, 3, "off"), None, "fin de file");
+    assert_eq!(following_index(2, 3, "all"), Some(0), "retour au début");
+    assert_eq!(following_index(1, 3, "all"), Some(2));
+    assert_eq!(following_index(1, 3, "one"), Some(1), "le même");
+    assert_eq!(following_index(-1, 3, "off"), None, "rien en cours");
+    assert_eq!(following_index(0, 0, "all"), None, "file vide");
+}

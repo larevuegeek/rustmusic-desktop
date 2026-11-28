@@ -30,7 +30,7 @@ fn from_symphonia(path: &Path, ext: &str) -> Option<String> {
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let mut format = get_probe().probe(&hint, mss, FormatOptions::default(), MetadataOptions::default()).ok()?;
     crate::core::audio_metadata::tag_format::revisions::skip_id3v1(format.as_mut());
-    let mut metadata = format.metadata();
+    let metadata = format.metadata();
     let revision = metadata.current()?;
     revision
         .media

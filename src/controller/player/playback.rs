@@ -238,7 +238,29 @@ impl MusicApp {
         }
     }
 
+    /// Annonce au moteur le morceau qui suivra, dès qu'il change : il le précharge pour la
+    /// lecture sans blanc, ou le prépare sur le lecteur réseau. Rien après une minuterie
+    /// « fin du morceau ».
+    pub(crate) fn sync_next_track(&mut self) {
+        let next = match self.sleep_timer {
+            Some(SleepTimer::TrackEnd) => None,
+            _ if self.data.player.path.is_none() => None,
+            _ => self.data.following().map(|(_, t)| t.path.clone()),
+        };
+        if self.data.player.announced_next.as_ref() == Some(&next) {
+            return;
+        }
+        self.data.player.announced_next = Some(next.clone());
+        let app = self.backend.app.clone();
+        self.backend.fire(async move {
+            if let Err(e) = crate::commands::audio::audio_command::set_next_track(app.state(), next).await {
+                log::warn!("⏭  Morceau suivant non annoncé : {e}");
+            }
+        });
+    }
+
     pub(crate) fn tick(&mut self) -> bool {
+        self.sync_next_track();
         if let Some(end) = self.sleep_end {
             if Instant::now() >= end {
                 self.sleep_timer = None;

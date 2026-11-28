@@ -17,6 +17,16 @@ fn status_label(s: &Status) -> (String, bool) {
     }
 }
 
+/// Rang du morceau qui suivra le courant (`current`, sur `len`) à sa fin, selon la répétition.
+pub fn following_index(current: i32, len: usize, repeat_mode: &str) -> Option<usize> {
+    let current = usize::try_from(current).ok().filter(|c| *c < len)?;
+    match repeat_mode {
+        "one" => Some(current),
+        "all" if current + 1 >= len => Some(0),
+        _ => Some(current + 1).filter(|i| *i < len),
+    }
+}
+
 /// Rang du premier titre après le morceau en cours.
 fn next_index(queue: &QueueStateRow) -> usize {
     usize::try_from(queue.current_index + 1).unwrap_or(0)

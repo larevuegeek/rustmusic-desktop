@@ -18,4 +18,6 @@ pub struct PlayerState {
     pub stale_output: bool,
     /// Volume d'avant la sourdine, rendu au clic suivant.
     pub volume_before_mute: u8,
+    /// Morceau suivant annoncé au moteur (`Some(None)` : rien après) ; `None` : pas encore annoncé.
+    pub announced_next: Option<Option<String>>,
 }

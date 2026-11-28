@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use crate::app::AppHandle;
 
-use super::control::{Controller, TransportState};
+use super::control::{is_unreachable, Controller, TransportState};
 use super::didl::{self, TrackMeta};
 use super::discovery::Renderer;
 use super::interfaces::local_ip_toward;
@@ -67,6 +67,9 @@ static GENERATION: AtomicU64 = AtomicU64::new(0);
 static NEXT_SEQ: AtomicU64 = AtomicU64::new(0);
 /// Tours d'interrogation à l'arrêt avant toute lecture (~10 s) : chargement raté.
 const NEVER_STARTED_AFTER: u32 = 20;
+/// Avec une suite préparée, tours à l'arrêt tolérés (~2 s) avant de déclarer la fin : certains
+/// lecteurs (WiiM) passent par STOPPED en enchaînant eux-mêmes sur la piste suivante.
+const ADVANCE_GRACE: u32 = 4;
 
 fn state() -> std::sync::MutexGuard<'static, State> {
     STATE.lock().unwrap_or_else(|e| e.into_inner())
@@ -144,16 +147,20 @@ async fn start(app: &AppHandle, path: PathBuf) -> Result<(), String> {
         s.ended_sent = false;
     }
 
-    if let Err(e) = ctl.set_uri(&loaded.url, &didl).await {
-        // Certains lecteurs refusent une nouvelle adresse en pleine lecture.
-        log::debug!("📡 Nouvelle adresse refusée, arrêt puis nouvel essai : {e}");
-        let _ = ctl.stop().await;
-        ctl.set_uri(&loaded.url, &didl).await?;
-    }
+    let ctl = match load(&ctl, &loaded.url, &didl, generation).await {
+        Ok(()) => ctl,
+        // Injoignable : retrouvé sur le réseau (adresse ou port changés), un nouvel essai.
+        Err(e) if is_unreachable(&e) => {
+            log::warn!("📡 {} injoignable ({e}), recherche sur le réseau", ctl.renderer().name);
+            let fresh = rediscover(&ctl).await.ok_or(e)?;
+            load(&fresh, &loaded.url, &didl, generation).await?;
+            fresh
+        }
+        Err(e) => return Err(e),
+    };
     if GENERATION.load(Ordering::Relaxed) != generation {
         return Ok(());
     }
-    ctl.play().await?;
     log::info!("📡 Lecture sur {} : {}", ctl.renderer().name, path.display());
 
     // Suite annoncée pendant le chargement : préparée maintenant, si l'enchaînement est voulu.
@@ -165,6 +172,44 @@ async fn start(app: &AppHandle, path: PathBuf) -> Result<(), String> {
 
     tokio::spawn(poll(app.clone(), ctl, generation));
     Ok(())
+}
+
+/// Adresse puis lecture. Certains lecteurs refusent une nouvelle adresse en pleine lecture :
+/// arrêt puis nouvel essai.
+async fn load(ctl: &Controller, url: &str, didl: &str, generation: u64) -> Result<(), String> {
+    if let Err(e) = ctl.set_uri(url, didl).await {
+        if is_unreachable(&e) {
+            return Err(e);
+        }
+        log::debug!("📡 Nouvelle adresse refusée, arrêt puis nouvel essai : {e}");
+        let _ = ctl.stop().await;
+        ctl.set_uri(url, didl).await?;
+    }
+    if GENERATION.load(Ordering::Relaxed) != generation {
+        return Ok(());
+    }
+    ctl.play().await
+}
+
+/// Le lecteur ne répond plus : on le cherche sur le réseau par son UDN (son port change
+/// après un redémarrage) et on reprend avec sa nouvelle adresse.
+async fn rediscover(ctl: &Controller) -> Option<Controller> {
+    let id = ctl.renderer().id.clone();
+    let found = super::discovery::discover(Duration::from_secs(3)).await.into_iter().find(|r| r.id == id);
+    let Some(found) = found else {
+        log::warn!("📡 {} introuvable sur le réseau", ctl.renderer().name);
+        return None;
+    };
+    log::info!("📡 {} retrouvé : {}", found.name, found.av_transport);
+    let fresh = Controller::new(found);
+    let mut s = state();
+    if s.controller.as_ref().is_some_and(|c| c.renderer().id == id) {
+        s.controller = Some(fresh.clone());
+    }
+    if s.transport.as_ref().is_some_and(|c| c.renderer().id == id) {
+        s.transport = Some(fresh.clone());
+    }
+    Some(fresh)
 }
 
 /// Radio sur le lecteur : il lit lui-même le flux (ni différé, ni titre ICY côté RustMusic).
@@ -369,24 +414,37 @@ pub async fn set_volume(volume: u8) -> Result<(), String> {
 }
 
 /// Suit le lecteur : position, enchaînement fait par lui, fin de piste.
-async fn poll(app: AppHandle, ctl: Controller, generation: u64) {
+async fn poll(app: AppHandle, mut ctl: Controller, generation: u64) {
     let mut failures = 0u32;
     let mut idle = 0u32;
+    let mut stopped = 0u32;
+    let mut last_state = None;
     loop {
         tokio::time::sleep(POLL).await;
         if GENERATION.load(Ordering::Relaxed) != generation {
             return;
         }
-        let (transport, position) = tokio::join!(ctl.transport_state(), ctl.position());
+        // L'une après l'autre : certains lecteurs supportent mal deux requêtes à la fois.
+        let transport = ctl.transport_state().await;
+        let position = ctl.position().await;
         let (Ok(transport), Ok(position)) = (transport, position) else {
             failures += 1;
             if failures == LOST_AFTER {
-                log::warn!("📡 {} ne répond plus", ctl.renderer().name);
+                log::warn!("📡 {} ne répond plus, recherche sur le réseau", ctl.renderer().name);
+                if let Some(fresh) = rediscover(&ctl).await {
+                    ctl = fresh;
+                    failures = 0;
+                    continue;
+                }
                 let _ = app.emit("network-player-lost", ctl.renderer().name.clone());
             }
             continue;
         };
         failures = 0;
+        if last_state != Some(transport) {
+            log::info!("📡 {} : {transport:?} ({:.0} s)", ctl.renderer().name, position.elapsed.unwrap_or(0.0));
+            last_state = Some(transport);
+        }
         if GENERATION.load(Ordering::Relaxed) != generation {
             return;
         }
@@ -397,6 +455,7 @@ async fn poll(app: AppHandle, ctl: Controller, generation: u64) {
             // Le lecteur est passé à la piste préparée : c'est un enchaînement.
             let advanced = s.next.as_ref().is_some_and(|n| uri_matches(&position.track_uri, &n.url));
             if advanced {
+                log::info!("📡 {} est passé seul à la piste suivante", ctl.renderer().name);
                 let next = s.next.take().unwrap();
                 events.push(("track-advanced", next.path.to_string_lossy().to_string()));
                 s.current = Some(next);
@@ -410,7 +469,16 @@ async fn poll(app: AppHandle, ctl: Controller, generation: u64) {
             if let Some(d) = position.duration.filter(|d| *d > 0.0) {
                 s.duration = d;
             }
+            if !matches!(transport, TransportState::Stopped | TransportState::NoMedia) {
+                stopped = 0;
+            }
             match transport {
+                // Suite préparée : on laisse au lecteur le temps de passer dessus lui-même.
+                TransportState::Stopped | TransportState::NoMedia
+                    if s.saw_playing && !s.user_stopped && !s.ended_sent && s.next.is_some() && stopped < ADVANCE_GRACE =>
+                {
+                    stopped += 1;
+                }
                 TransportState::Playing => {
                     if !s.saw_playing {
                         s.saw_playing = true;
@@ -423,6 +491,11 @@ async fn poll(app: AppHandle, ctl: Controller, generation: u64) {
                     if s.saw_playing && !s.user_stopped && !s.ended_sent =>
                 {
                     s.ended_sent = true;
+                    log::info!(
+                        "📡 Fin de piste sur {} ({})",
+                        ctl.renderer().name,
+                        if s.next.is_some() { "suite préparée non prise, RustMusic la charge" } else { "RustMusic charge la suite" }
+                    );
                     let path = s.current.as_ref().map(|c| c.path.to_string_lossy().to_string()).unwrap_or_default();
                     events.push(("playback-ended", path));
                 }
